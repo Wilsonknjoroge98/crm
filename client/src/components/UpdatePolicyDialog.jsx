@@ -1,4 +1,4 @@
-// AddPolicyDialog.jsx
+// UpdatePolicyDialog.jsx
 import {
   Dialog,
   DialogTitle,
@@ -14,53 +14,45 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { postPolicy } from '../utils/query';
+import { patchPolicy } from '../utils/query';
 import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
-// import { postPolicy } from '../utils/query';
-
-import DeleteIcon from '@mui/icons-material/Delete';
 import { enqueueSnackbar } from 'notistack';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
-const CreatePolicyDialog = ({ open, setOpen, client }) => {
-  const [pShareError, setPShareError] = useState([false]);
-  const [cShareError, setCShareError] = useState([false]);
-  const [coverageAmountError, setCoverageAmountError] = useState(false);
-  const [premiumAmountError, setPremiumAmountError] = useState(false);
+
+const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
+  const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
+  const [pShareError, setPShareError] = useState([]);
+  const [cShareError, setCShareError] = useState([]);
 
-  const initialForm = {
-    policyNumber: '',
-    clientId: client?.id || '',
-    clientName: client ? `${client.firstName} ${client.lastName}` : '',
-    carrier: '',
-    policyStatus: 'Active',
-    coverageAmount: '',
-    premiumAmount: '',
-    leadSource: 'GetSeniorQuotes.com',
-    policyType: '',
-    premiumFrequency: '',
-    dateSold: '',
-    effectiveDate: '',
-    draftDay: '',
-    beneficiaries: [{ fullName: '', relationship: '', share: '' }],
-    contingentBeneficiaries: [],
-    notes: '',
-  };
+  useEffect(() => {
+    if (policy) {
+      setForm(policy);
+      setPShareError(new Array(policy.beneficiaries?.length || 0).fill(false));
+      setCShareError(
+        new Array(policy.contingentBeneficiaries?.length || 0).fill(false),
+      );
+    }
+  }, [policy]);
 
-  const { mutate: createPolicy } = useMutation({
-    mutationFn: postPolicy,
+  console.log('UpdatePolicyDialog form:', form);
+
+  const { mutate: updatePolicy } = useMutation({
+    mutationFn: patchPolicy,
     onSuccess: () => {
+      refetchPolicies();
+      setForm(null);
       setOpen(false);
-      setForm(initialForm);
-      enqueueSnackbar('Policy created successfully!', {
+      enqueueSnackbar('Policy updated successfully!', {
         variant: 'success',
         style: {
+          color: '#1A1A1A',
           fontWeight: 'bold',
           fontFamily: `"Libre Baskerville", serif`,
           fontSize: '1rem',
@@ -72,47 +64,42 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
         },
       });
     },
+    onError: (error) => {
+      console.error('Error updating policy:', error);
+      enqueueSnackbar('Failed to update policy.', { variant: 'error' });
+    },
   });
-
-  const [form, setForm] = useState(initialForm);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    if (name === 'coverageAmount') {
-      setCoverageAmountError(!/^\d+$/.test(value));
-    }
-
-    if (name === 'premiumAmount') {
-      setPremiumAmountError(!/^\d*\.?\d+$/.test(value));
-    }
-
-    const uppercasedFields = ['policyNumber']; // Add other fields if needed
-    const transformedValue = uppercasedFields.includes(name)
-      ? value.toUpperCase()
-      : value;
-
-    setForm((prev) => ({ ...prev, [name]: transformedValue }));
+    const transformed = name === 'policyNumber' ? value.toUpperCase() : value;
+    setForm((prev) => ({ ...prev, [name]: transformed }));
   };
 
   const handleBeneficiaryChange = (i, field, value) => {
     const newList = [...form.beneficiaries];
-
+    newList[i][field] = value;
     if (field === 'share') {
       setPShareError((prev) => {
         const copy = [...prev];
-        if (!/^(100|[1-9]?[0-9])$/.test(value)) {
-          copy[i] = true;
-        } else {
-          copy[i] = false;
-        }
-
+        copy[i] = !/^(100|[1-9]?[0-9])$/.test(value);
         return copy;
       });
     }
-
-    newList[i][field] = value;
     setForm((prev) => ({ ...prev, beneficiaries: newList }));
+  };
+
+  const handleContingentChange = (i, field, value) => {
+    const newList = [...form.contingentBeneficiaries];
+    newList[i][field] = value;
+    if (field === 'share') {
+      setCShareError((prev) => {
+        const copy = [...prev];
+        copy[i] = !/^(100|[1-9]?[0-9])$/.test(value);
+        return copy;
+      });
+    }
+    setForm((prev) => ({ ...prev, contingentBeneficiaries: newList }));
   };
 
   const handleAddBeneficiary = () => {
@@ -123,44 +110,7 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
         { fullName: '', relationship: '', share: '' },
       ],
     }));
-  };
-
-  const handleDeleteBeneficiary = (type, i) => {
-    if (type === 'primary') {
-      setForm((prev) => ({
-        ...prev,
-        beneficiaries: prev.beneficiaries.filter((_, index) => index !== i),
-      }));
-      setPShareError((prev) => prev.filter((_, index) => index !== i));
-    } else if (type === 'contingent') {
-      setForm((prev) => ({
-        ...prev,
-        contingentBeneficiaries: prev.contingentBeneficiaries.filter(
-          (_, index) => index !== i,
-        ),
-      }));
-      setCShareError((prev) => prev.filter((_, index) => index !== i));
-    }
-  };
-
-  const handleContingentChange = (i, field, value) => {
-    const newList = [...form.contingentBeneficiaries];
-
-    if (field === 'share') {
-      setCShareError((prev) => {
-        const copy = [...prev];
-        if (!/^(100|[1-9]?[0-9])$/.test(value)) {
-          copy[i] = true;
-        } else {
-          copy[i] = false;
-        }
-
-        return copy;
-      });
-    }
-
-    newList[i][field] = value;
-    setForm((prev) => ({ ...prev, contingentBeneficiaries: newList }));
+    setPShareError((prev) => [...prev, false]);
   };
 
   const handleAddContingent = () => {
@@ -171,106 +121,64 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
         { fullName: '', relationship: '', share: '' },
       ],
     }));
+    setCShareError((prev) => [...prev, false]);
   };
 
-  //   const { mutate: submitPolicy } = useMutation({
-  //     mutationFn: postPolicy,
-  //     onSuccess: () => setOpen(false),
-  //     onError: console.error,
-  //   });
-
-  const handleSubmit = () => {
-    createPolicy({ policy: { ...form } });
-  };
-
-  useEffect(() => {
-    if (
-      client?.id &&
-      form.clientId !== client.id &&
-      form.clientName !== `${client.firstName} ${client.lastName}`
-    ) {
+  const handleDeleteBeneficiary = (type, index) => {
+    if (type === 'primary') {
       setForm((prev) => ({
         ...prev,
-        clientId: client.id,
-        clientName: `${client.firstName} ${client.lastName}`,
+        beneficiaries: prev.beneficiaries.filter((_, i) => i !== index),
       }));
+      setPShareError((prev) => prev.filter((_, i) => i !== index));
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        contingentBeneficiaries: prev.contingentBeneficiaries.filter(
+          (_, i) => i !== index,
+        ),
+      }));
+      setCShareError((prev) => prev.filter((_, i) => i !== index));
     }
-  }, [client?.id]);
+  };
 
   useEffect(() => {
-    const modifiedForm = { ...form };
-    delete modifiedForm.notes;
+    if (!form) return;
+    const keys = [
+      'policyNumber',
+      'carrier',
+      'policyStatus',
+      'coverageAmount',
+      'premiumAmount',
+      'premiumFrequency',
+      'dateSold',
+      'effectiveDate',
+      'draftDay',
+    ];
 
-    console.log('Modified Form:', modifiedForm);
-
-    const hasEmptyFields = Object.values(modifiedForm).some(
-      (key) => key === '',
-    );
-
-    if (hasEmptyFields) {
-      console.log('Empty fields detected');
+    const hasEmpty = keys.some((k) => form[k] === '');
+    if (hasEmpty || pShareError.includes(true) || cShareError.includes(true)) {
       setDisabled(true);
-      return;
+    } else {
+      setDisabled(false);
     }
+  }, [form, pShareError, cShareError]);
 
-    if (
-      coverageAmountError ||
-      premiumAmountError ||
-      pShareError.includes(true) ||
-      cShareError.includes(true)
-    ) {
-      console.log('Validation errors detected');
-      setDisabled(true);
-      return;
-    }
-
-    if (modifiedForm.beneficiaries.length !== 0) {
-      const keys = ['fullName', 'relationship', 'share'];
-      const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
-        keys.some((key) => b[key] === ''),
-      );
-
-      if (hasEmptyFields) {
-        console.log('Empty fields in beneficiaries');
-        setDisabled(true);
-        return;
-      }
-    }
-
-    if (modifiedForm.contingentBeneficiaries.length !== 0) {
-      const keys = ['fullName', 'relationship', 'share'];
-      const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
-        keys.some((key) => b[key] === ''),
-      );
-      if (hasEmptyFields) {
-        console.log('Empty fields in contingent beneficiaries');
-        setDisabled(true);
-        return;
-      }
-    }
-
-    console.log('Form is valid, enabling submit button');
-    setDisabled(false);
-  }, [form]);
-
-  if (!client) {
-    return null;
-  }
+  if (!form) return null;
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='md' fullWidth>
-      <DialogTitle>New Policy</DialogTitle>
+      <DialogTitle>Update Policy</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} p={2}>
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               label='Client Name'
-              value={client.firstName + ' ' + client.lastName}
+              value={form.clientName}
               fullWidth
               disabled
             />
           </Grid>
-
           <Grid size={6}>
             <TextField
               name='leadSource'
@@ -281,12 +189,11 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
               fullWidth
             />
           </Grid>
-
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               select
               name='carrier'
-              label='Carrier *'
+              label='Carrier'
               value={form.carrier}
               onChange={handleChange}
               fullWidth
@@ -298,40 +205,37 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
               ))}
             </TextField>
           </Grid>
-
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               select
               name='policyType'
-              label='Policy Type *'
+              label='Policy Type'
               value={form.policyType}
               onChange={handleChange}
               fullWidth
             >
-              {form.carrier &&
-                CARRIER_PRODUCTS[form.carrier].map((carrier) => (
-                  <MenuItem key={carrier} value={carrier}>
-                    {carrier}
-                  </MenuItem>
-                ))}
+              {(CARRIER_PRODUCTS[form.carrier] || []).map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type}
+                </MenuItem>
+              ))}
             </TextField>
           </Grid>
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
-              name='policyNumber'
               label='Policy #'
+              name='policyNumber'
               value={form.policyNumber}
               onChange={handleChange}
               fullWidth
-              required
             />
           </Grid>
 
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               select
               name='policyStatus'
-              label='Policy Status *'
+              label='Status'
               value={form.policyStatus}
               onChange={handleChange}
               fullWidth
@@ -343,35 +247,29 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
               ))}
             </TextField>
           </Grid>
-
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               name='coverageAmount'
-              label='Coverage Amount *'
+              label='Coverage'
               value={form.coverageAmount}
               onChange={handleChange}
-              error={coverageAmountError}
-              helperText={coverageAmountError ? 'Invalid coverage amount' : ''}
               fullWidth
             />
           </Grid>
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               name='premiumAmount'
-              label='Premium Amount *'
+              label='Premium'
               value={form.premiumAmount}
               onChange={handleChange}
-              error={premiumAmountError}
-              helperText={premiumAmountError ? 'Invalid premium amount' : ''}
               fullWidth
             />
           </Grid>
-
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               select
               name='premiumFrequency'
-              label='Premium Frequency *'
+              label='Frequency'
               value={form.premiumFrequency}
               onChange={handleChange}
               fullWidth
@@ -383,11 +281,10 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
               ))}
             </TextField>
           </Grid>
-
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               name='dateSold'
-              label='Date Sold *'
+              label='Date Sold'
               type='date'
               InputLabelProps={{ shrink: true }}
               value={form.dateSold}
@@ -395,10 +292,10 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
               fullWidth
             />
           </Grid>
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               name='effectiveDate'
-              label='Effective Date *'
+              label='Effective Date'
               type='date'
               InputLabelProps={{ shrink: true }}
               value={form.effectiveDate}
@@ -406,12 +303,11 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
               fullWidth
             />
           </Grid>
-
-          <Grid size={6}>
+          <Grid item size={6}>
             <TextField
               select
               name='draftDay'
-              label='Draft Day (1-31) *'
+              label='Draft Day'
               value={form.draftDay}
               onChange={handleChange}
               fullWidth
@@ -424,27 +320,27 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
             </TextField>
           </Grid>
 
-          <Grid size={12}>
+          <Grid item size={12}>
             <Divider />
           </Grid>
 
-          <Grid size={12}>
-            <Typography fontWeight='bold'>Primary Beneficiaries *</Typography>
+          <Grid item size={12}>
+            <Typography fontWeight='bold'>Primary Beneficiaries</Typography>
           </Grid>
           {form.beneficiaries.map((b, i) => (
-            <>
-              <Grid container spacing={2} key={i} sx={{ mb: 1 }}>
-                <Grid size={4}>
+            <Fragment key={i}>
+              <Grid container spacing={2}>
+                <Grid item size={4}>
                   <TextField
                     value={b.fullName}
-                    label='Full Name *'
+                    label='Full Name'
                     onChange={(e) =>
                       handleBeneficiaryChange(i, 'fullName', e.target.value)
                     }
                     fullWidth
                   />
                 </Grid>
-                <Grid size={4}>
+                <Grid item size={4}>
                   <TextField
                     select
                     value={b.relationship}
@@ -461,54 +357,44 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
                     ))}
                   </TextField>
                 </Grid>
-                <Grid size={4}>
+                <Grid item size={3}>
                   <TextField
-                    name='share'
                     value={b.share}
+                    label='Share %'
                     error={pShareError[i]}
-                    helperText={
-                      pShareError[i] ? 'Invalid share percentage' : ''
-                    }
-                    label='Share % *'
                     onChange={(e) =>
                       handleBeneficiaryChange(i, 'share', e.target.value)
                     }
                     fullWidth
                   />
                 </Grid>
-              </Grid>
-              {i !== 0 && (
-                <Stack direction='row' spacing={1} alignItems='center'>
+                <Grid item size={1}>
                   <IconButton
                     onClick={() => handleDeleteBeneficiary('primary', i)}
                   >
                     <DeleteIcon />
                   </IconButton>
-                </Stack>
-              )}
-            </>
+                </Grid>
+              </Grid>
+            </Fragment>
           ))}
-          <Grid size={12}>
-            <Button
-              onClick={handleAddBeneficiary}
-              startIcon={<AddIcon />}
-              sx={{ mt: 1 }}
-            >
+          <Grid item size={12}>
+            <Button startIcon={<AddIcon />} onClick={handleAddBeneficiary}>
               Add Primary Beneficiary
             </Button>
           </Grid>
 
-          <Grid size={12}>
-            <Divider sx={{ mt: 2 }} />
+          <Grid item size={12}>
+            <Divider />
           </Grid>
 
-          <Grid size={12}>
+          <Grid item size={12}>
             <Typography fontWeight='bold'>Contingent Beneficiaries</Typography>
           </Grid>
           {form.contingentBeneficiaries.map((b, i) => (
             <Fragment key={i}>
-              <Grid container spacing={2} key={i} sx={{ mb: 1 }}>
-                <Grid size={4}>
+              <Grid container spacing={2}>
+                <Grid item size={4}>
                   <TextField
                     value={b.fullName}
                     label='Full Name'
@@ -518,7 +404,7 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
                     fullWidth
                   />
                 </Grid>
-                <Grid size={4}>
+                <Grid item size={4}>
                   <TextField
                     select
                     value={b.relationship}
@@ -535,49 +421,38 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
                     ))}
                   </TextField>
                 </Grid>
-                <Grid size={4}>
+                <Grid item size={3}>
                   <TextField
                     value={b.share}
                     label='Share %'
                     error={cShareError[i]}
-                    helperText={
-                      cShareError[i] ? 'Invalid share percentage' : ''
-                    }
                     onChange={(e) =>
                       handleContingentChange(i, 'share', e.target.value)
                     }
                     fullWidth
                   />
                 </Grid>
+                <Grid item size={1}>
+                  <IconButton
+                    onClick={() => handleDeleteBeneficiary('contingent', i)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Grid>
               </Grid>
-              <Stack direction='row' spacing={1} alignItems='center'>
-                <IconButton
-                  onClick={() => handleDeleteBeneficiary('contingent', i)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Stack>
             </Fragment>
           ))}
-          <Grid size={12}>
-            <Button
-              onClick={handleAddContingent}
-              startIcon={<AddIcon />}
-              sx={{ mt: 1 }}
-            >
+          <Grid item size={12}>
+            <Button startIcon={<AddIcon />} onClick={handleAddContingent}>
               Add Contingent Beneficiary
             </Button>
           </Grid>
 
-          <Grid size={12}>
-            <Divider sx={{ mt: 2 }} />
-          </Grid>
-
-          <Grid size={12}>
+          <Grid item size={12}>
             <TextField
               name='notes'
               label='Notes'
-              value={form.notes}
+              value={form.notes || ''}
               onChange={handleChange}
               fullWidth
               multiline
@@ -586,19 +461,19 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
           </Grid>
         </Grid>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
         <Button
-          onClick={handleSubmit}
+          onClick={() => updatePolicy({ policy: form })}
           variant='contained'
-          color='action'
           disabled={disabled}
+          color='action'
         >
-          Save Policy
+          Update Policy
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default CreatePolicyDialog;
+export default UpdatePolicyDialog;

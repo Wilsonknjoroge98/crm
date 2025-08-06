@@ -34,7 +34,7 @@ import { getClients } from '../utils/query';
 const Clients = () => {
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [updateClientOpen, setUpdateClientOpen] = useState(false);
-  const [addPoliciesOpen, setAddPoliciesOpen] = useState(false);
+  const [createPoliciesOpen, setCreatePoliciesOpen] = useState(false);
   const [client, setClient] = useState(null);
 
   const { data: clients, refetch: refetchClients } = useQuery({
@@ -56,7 +56,7 @@ const Clients = () => {
 
   const handleAddPolicies = (clientData) => {
     setClient(clientData);
-    setAddPoliciesOpen(true);
+    setCreatePoliciesOpen(true);
   };
 
   console.log('Client:', client);
@@ -80,8 +80,8 @@ const Clients = () => {
       />
 
       <CreatePolicyDialog
-        open={addPoliciesOpen}
-        setOpen={setAddPoliciesOpen}
+        open={createPoliciesOpen}
+        setOpen={setCreatePoliciesOpen}
         client={client}
       />
 

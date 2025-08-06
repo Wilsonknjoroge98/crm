@@ -54,8 +54,6 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
       enqueueSnackbar('Client created successfully!', {
         variant: 'success',
         style: {
-          backgroundColor: '#CA9837',
-          color: '#1A1A1A',
           fontWeight: 'bold',
           fontFamily: `"Libre Baskerville", serif`,
           fontSize: '1rem',

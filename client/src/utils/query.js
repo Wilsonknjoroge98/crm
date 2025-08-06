@@ -114,6 +114,62 @@ const postClient = async ({ client }) => {
   return response.data;
 };
 
+const postAgent = async ({ agent }) => {
+  const isDev = import.meta.env.DEV;
+  console.log('Posting agent:', agent);
+
+  // client side validation
+
+  if (!agent) {
+    throw new Error('Missing data');
+  }
+
+  const controller = new AbortController();
+  // request config for custom firebase endpoint
+  const options = {
+    method: 'POST',
+    data: { agent: agent, mode: import.meta.env.MODE },
+    signal: controller.signal,
+    url: isDev ? `${DEV_URL}/agent` : `${BASE_URL}/agent`,
+  };
+  // response from server
+  const response = await axios.request(options);
+  // return to component
+  return response.data;
+};
+
+const getAgent = async (uid) => {
+  const isDev = import.meta.env.DEV;
+
+  console.log('Getting agent:', uid);
+
+  // request config for compulife server
+  const options = {
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/agent` : `${BASE_URL}/agent`,
+    params: { uid: uid, mode: import.meta.env.MODE },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    console.log('Agent fetched:', response.data);
+
+    return response.data;
+  } catch (error) {
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
 const patchClient = async ({ clientId, client }) => {
   const isDev = import.meta.env.DEV;
 
@@ -131,6 +187,32 @@ const patchClient = async ({ clientId, client }) => {
     data: { clientId: clientId, client: client, mode: import.meta.env.MODE },
     signal: controller.signal,
     url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
+  };
+
+  // response from server
+  const response = await axios.request(options);
+
+  // return to component
+  return response.data;
+};
+
+const patchPolicy = async ({ policy }) => {
+  const isDev = import.meta.env.DEV;
+
+  console.log('Patching policy:', policy);
+
+  // client side validation
+  if (!policy) {
+    throw new Error('Missing data');
+  }
+
+  const controller = new AbortController();
+  // request config for custom firebase endpoint
+  const options = {
+    method: 'PATCH',
+    data: { policyId: policy.id, policy: policy, mode: import.meta.env.MODE },
+    signal: controller.signal,
+    url: isDev ? `${DEV_URL}/policy` : `${BASE_URL}/policy`,
   };
 
   // response from server
@@ -166,4 +248,13 @@ const postPolicy = async ({ policy }) => {
   return response.data;
 };
 
-export { getClients, getPolicies, postClient, patchClient, postPolicy };
+export {
+  getClients,
+  getPolicies,
+  postClient,
+  patchClient,
+  postPolicy,
+  patchPolicy,
+  postAgent,
+  getAgent,
+};

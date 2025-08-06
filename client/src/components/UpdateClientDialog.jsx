@@ -19,16 +19,39 @@ import { STATES } from '../utils/constants';
 
 const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
-const UpdateClientDialog = ({ open, setOpen, onClose, client }) => {
+const UpdateClientDialog = ({
+  open,
+  setOpen,
+  onClose,
+  client,
+  refetchClients,
+}) => {
   const [form, setForm] = useState({ ...client });
   const [phoneError, setPhoneError] = useState(false);
   const [zipCodeError, setZipCodeError] = useState(false);
   const [incomeError, setIncomeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
 
-  const { mutate: updateClientMutate } = useMutation({
+  const { mutate: updateClient } = useMutation({
     mutationFn: patchClient,
-    onSuccess: () => onClose(),
+    onSuccess: () => {
+      refetchClients();
+      setForm(null);
+      setOpen(false);
+      enqueueSnackbar('Client updated successfully!', {
+        variant: 'success',
+        style: {
+          fontWeight: 'bold',
+          fontFamily: `"Libre Baskerville", serif`,
+          fontSize: '1rem',
+        },
+        autoHideDuration: 5000,
+        anchorOrigin: {
+          vertical: 'bottom',
+          horizontal: 'left',
+        },
+      });
+    },
     onError: (error) => console.error(error),
   });
 
@@ -53,7 +76,7 @@ const UpdateClientDialog = ({ open, setOpen, onClose, client }) => {
   };
 
   const handleSubmit = () => {
-    updateClientMutate({ clientId: client.id, client: form });
+    updateClient({ clientId: client.id, client: form });
   };
 
   const handleCancel = () => {

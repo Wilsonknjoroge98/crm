@@ -21,6 +21,8 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import useAuth from '../hooks/useAuth';
+
 const drawerWidth = 240;
 
 const navItems = [
@@ -42,6 +44,7 @@ const navItems = [
 const SidePanel = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   return (
     <Drawer
@@ -57,60 +60,65 @@ const SidePanel = () => {
         },
       }}
     >
+      <Box height={64} />
       <Box sx={{ height: '100%' }}>
-        <Stack
-          direction='row'
-          justifyContent='center'
-          alignContent='center'
-          mb={2}
-        >
-          <Box
-            component='img'
-            src='logo.png'
-            alt='Logo'
-            sx={{ maxWidth: '60px' }}
-          />
-        </Stack>
+        {user && (
+          <List>
+            {navItems.map(({ text, icon, path }) => {
+              const isActive = location.pathname === path;
 
-        <List>
-          {navItems.map(({ text, icon, path }) => {
-            const isActive = location.pathname === path;
-
-            return (
-              <ListItem
-                button
-                key={text}
-                onClick={() => navigate(path)}
-                sx={{
-                  backgroundColor: isActive ? '#2C2C2C' : 'transparent',
-                  '&:hover': {
-                    backgroundColor: '#2C2C2C',
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{ color: isActive ? '#EFBF04' : '#CA9837', minWidth: 40 }}
+              return (
+                <ListItem
+                  button
+                  key={text}
+                  onClick={() => navigate(path)}
+                  sx={{
+                    backgroundColor: isActive ? '#2C2C2C' : 'transparent',
+                    '&:hover': {
+                      backgroundColor: '#2C2C2C',
+                    },
+                  }}
                 >
-                  {icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography
-                      variant='caption'
-                      sx={{
-                        fontWeight: 500,
-                        color: '#F2F2F2',
-                      }}
-                    >
-                      {text}
-                    </Typography>
-                  }
-                />
-              </ListItem>
-            );
-          })}
-        </List>
+                  <ListItemIcon
+                    sx={{
+                      color: isActive ? '#EFBF04' : '#CA9837',
+                      minWidth: 40,
+                    }}
+                  >
+                    {icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography
+                        variant='caption'
+                        sx={{
+                          fontWeight: 500,
+                          color: '#F2F2F2',
+                        }}
+                      >
+                        {text}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+        )}
       </Box>
+      <Stack
+        direction='row'
+        justifyContent='center'
+        alignContent='center'
+        m={1}
+      >
+        <Box
+          component='img'
+          src='logo.png'
+          alt='Logo'
+          sx={{ maxWidth: '200px' }}
+        />
+      </Stack>
     </Drawer>
   );
 };

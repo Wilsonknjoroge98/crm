@@ -11,16 +11,27 @@ import {
   MenuItem,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import { signOut } from 'firebase/auth';
+import { auth } from '../utils/firebase'; // Ensure this path is correct
 
-const user = {
-  name: 'Shea Morales',
-  avatar: './avatar.png', // Replace with actual user avatar URL
-};
+import { getAgent } from '../utils/query';
+import { useQuery } from '@tanstack/react-query';
+
+import useAuth from '../hooks/useAuth';
 
 const drawerWidth = 240;
 
-export default function NavBar({ onMenuClick }) {
+export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const { user } = useAuth();
+
+  const { data: agentData, isLoading } = useQuery({
+    queryKey: ['agent'],
+    queryFn: () => getAgent(user.uid),
+  });
+
+  console.log('Agent Data:', agentData);
+  console.log('User:', user);
 
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -30,12 +41,22 @@ export default function NavBar({ onMenuClick }) {
     setAnchorEl(null);
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      console.log('User signed out successfully');
+    } catch (error) {
+      console.error('Sign-out error:', error);
+    }
+  };
+
   return (
     <AppBar
       position='static'
       color='default'
       elevation={0}
       sx={{
+        height: 64,
         width: `calc(100% - ${drawerWidth}px)`,
         ml: `${drawerWidth}px`,
         boxShadow: 'none',
@@ -53,12 +74,17 @@ export default function NavBar({ onMenuClick }) {
           sx={{ cursor: 'pointer' }}
           onClick={handleAvatarClick}
         >
-          <Avatar
-            alt={user.name}
-            src={user.avatar}
-            sx={{ width: 36, height: 36 }}
-          />
-          <Typography variant='body2'>{user.name}</Typography>
+          {user && agentData && (
+            <>
+              <Avatar
+                alt={agentData?.name}
+                src={agentData?.avatar}
+                sx={{ width: 36, height: 36 }}
+              />
+              <Typography variant='body2'>{agentData.name}</Typography>
+            </>
+          )}
+
           <ArrowDropDownIcon />
         </Stack>
 
@@ -73,8 +99,7 @@ export default function NavBar({ onMenuClick }) {
             },
           }}
         >
-          <MenuItem onClick={handleMenuClose}>Profile</MenuItem>
-          <MenuItem onClick={handleMenuClose}>Logout</MenuItem>
+          <MenuItem onClick={handleSignOut}>Logout</MenuItem>
         </Menu>
       </Toolbar>
     </AppBar>

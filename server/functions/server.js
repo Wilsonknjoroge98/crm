@@ -50,6 +50,46 @@ app.get('/policies', async (req, res) => {
   }
 });
 
+app.post('/agent', async (req, res) => {
+  const db = new Firestore();
+  const { agent } = req.body;
+
+  if (!agent || !agent.email) {
+    return res.status(400).json({ error: 'Missing agent data or email' });
+  }
+
+  const emailId = agent.email.toLowerCase(); // optional: normalize
+
+  try {
+    await db.collection('agents').doc(emailId).set(agent);
+    res.status(201).json({ agent: { id: emailId, ...agent } });
+  } catch (error) {
+    console.error('Error creating agent:', error);
+    res.status(500).json({ error: 'Failed to create agent' });
+  }
+});
+
+app.get('/agent', async (req, res) => {
+  const db = new Firestore();
+
+  const { uid } = req.query;
+  if (!uid) {
+    return res.status(400).json({ error: 'Missing agent UID' });
+  }
+
+  try {
+    const doc = await db.collection('agents').where('uid', '==', uid).get();
+    if (doc.empty) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    const agentData = doc.docs[0].data();
+    res.json(agentData);
+  } catch (error) {
+    console.error('Error fetching agent:', error);
+    res.status(500).json({ error: 'Failed to fetch agent' });
+  }
+});
+
 app.post('/client', async (req, res) => {
   const db = new Firestore();
   const { client } = req.body;
@@ -100,6 +140,23 @@ app.patch('/client', async (req, res) => {
   } catch (error) {
     console.error('Error updating client:', error);
     res.status(500).json({ error: 'Failed to update client' });
+  }
+});
+
+app.patch('/policy', async (req, res) => {
+  const db = new Firestore();
+  const { policyId, policy } = req.body;
+
+  if (!policyId || !policy) {
+    return res.status(400).json({ error: 'Missing policy ID or data' });
+  }
+
+  try {
+    await db.collection('policies').doc(policyId).update(policy);
+    res.status(200).json({ id: policyId, ...policy });
+  } catch (error) {
+    console.error('Error updating policy:', error);
+    res.status(500).json({ error: 'Failed to update policy' });
   }
 });
 
