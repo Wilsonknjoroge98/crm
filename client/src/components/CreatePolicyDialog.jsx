@@ -19,20 +19,23 @@ import { useEffect, useState, Fragment } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { postPolicy } from '../utils/query';
 import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
-// import { postPolicy } from '../utils/query';
 
 import DeleteIcon from '@mui/icons-material/Delete';
 import { enqueueSnackbar } from 'notistack';
 
+import useAuth from '../hooks/useAuth';
+
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
-const CreatePolicyDialog = ({ open, setOpen, client }) => {
+const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [pShareError, setPShareError] = useState([false]);
   const [cShareError, setCShareError] = useState([false]);
   const [coverageAmountError, setCoverageAmountError] = useState(false);
   const [premiumAmountError, setPremiumAmountError] = useState(false);
   const [disabled, setDisabled] = useState(true);
+
+  const { user } = useAuth();
 
   const initialForm = {
     policyNumber: '',
@@ -53,9 +56,14 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
     notes: '',
   };
 
-  const { mutate: createPolicy } = useMutation({
+  const { mutate: createPolicy, isPending } = useMutation({
     mutationFn: postPolicy,
     onSuccess: () => {
+      refetchClients();
+      setDisabled(true);
+      setCoverageAmountError(false);
+      setPremiumAmountError(false);
+      setPShareError([false]);
       setOpen(false);
       setForm(initialForm);
       enqueueSnackbar('Policy created successfully!', {
@@ -173,14 +181,12 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
     }));
   };
 
-  //   const { mutate: submitPolicy } = useMutation({
-  //     mutationFn: postPolicy,
-  //     onSuccess: () => setOpen(false),
-  //     onError: console.error,
-  //   });
-
   const handleSubmit = () => {
-    createPolicy({ policy: { ...form } });
+    createPolicy({
+      policy: { ...form },
+      clientId: client.id,
+      agentId: user.uid,
+    });
   };
 
   useEffect(() => {
@@ -592,9 +598,9 @@ const CreatePolicyDialog = ({ open, setOpen, client }) => {
           onClick={handleSubmit}
           variant='contained'
           color='action'
-          disabled={disabled}
+          disabled={disabled || isPending}
         >
-          Save Policy
+          {isPending ? 'Saving...' : 'Save Policy'}
         </Button>
       </DialogActions>
     </Dialog>

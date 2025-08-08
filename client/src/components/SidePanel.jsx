@@ -46,6 +46,15 @@ const SidePanel = () => {
   const location = useLocation();
   const { user } = useAuth();
 
+  const handleItemClick = (path) => {
+    if (
+      location.pathname !== path &&
+      (path === '/clients' || path === '/policies')
+    ) {
+      navigate(path);
+    }
+  };
+
   return (
     <Drawer
       variant='permanent'
@@ -71,7 +80,7 @@ const SidePanel = () => {
                 <ListItem
                   button
                   key={text}
-                  onClick={() => navigate(path)}
+                  onClick={() => handleItemClick(path)}
                   sx={{
                     backgroundColor: isActive ? '#2C2C2C' : 'transparent',
                     '&:hover': {
@@ -116,7 +125,7 @@ const SidePanel = () => {
           component='img'
           src='logo.png'
           alt='Logo'
-          sx={{ maxWidth: '200px' }}
+          sx={{ maxWidth: '235px' }}
         />
       </Stack>
     </Drawer>

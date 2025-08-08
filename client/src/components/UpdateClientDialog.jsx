@@ -19,20 +19,16 @@ import { STATES } from '../utils/constants';
 
 const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
-const UpdateClientDialog = ({
-  open,
-  setOpen,
-  onClose,
-  client,
-  refetchClients,
-}) => {
+const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [form, setForm] = useState({ ...client });
   const [phoneError, setPhoneError] = useState(false);
   const [zipCodeError, setZipCodeError] = useState(false);
   const [incomeError, setIncomeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
+  const [updatesMade, setUpdatesMade] = useState(false);
+  const [disabled, setDisabled] = useState(true);
 
-  const { mutate: updateClient } = useMutation({
+  const { mutate: updateClient, isPending } = useMutation({
     mutationFn: patchClient,
     onSuccess: () => {
       refetchClients();
@@ -60,6 +56,8 @@ const UpdateClientDialog = ({
   }, [client]);
 
   const handleChange = (e) => {
+    setUpdatesMade(true);
+
     const { name, value } = e.target;
 
     if (name === 'phone') {
@@ -82,6 +80,33 @@ const UpdateClientDialog = ({
   const handleCancel = () => {
     setOpen(false);
   };
+
+  useEffect(() => {
+    if (!form) return;
+    const keys = [
+      'firstName',
+      'lastName',
+      'email',
+      'phone',
+      'dob',
+      'maritalStatus',
+      'address',
+      'city',
+      'state',
+      'zip',
+      'occupation',
+      'income',
+    ];
+
+    const hasEmpty = keys.some((k) => form[k] === '');
+    if (!updatesMade || hasEmpty) {
+      setDisabled(true);
+    } else {
+      setDisabled(false);
+    }
+  }, [form]);
+
+  if (!form) return null;
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
@@ -267,9 +292,9 @@ const UpdateClientDialog = ({
           onClick={handleSubmit}
           variant='contained'
           color='action'
-          disabled={Object.keys(form).some((key) => !form[key])}
+          disabled={disabled || isPending}
         >
-          Update Client
+          {isPending ? 'Updating...' : 'Update Client'}
         </Button>
       </DialogActions>
     </Dialog>

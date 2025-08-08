@@ -62,7 +62,9 @@ export default function SignUp() {
     setLoading(true);
     try {
       const user = await createUserWithEmailAndPassword(auth, email, password);
-      createAgent({ agent: { name, email, uid: user.user.uid } });
+      createAgent({
+        agent: { name, email, uid: user.user.uid, role: 'agent' },
+      });
       navigate('/clients');
     } catch (error) {
       console.error(error);

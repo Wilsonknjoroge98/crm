@@ -21,6 +21,7 @@ import { STATES } from '../utils/constants';
 
 import { useMutation } from '@tanstack/react-query';
 import { postClient } from '../utils/query';
+import useAuth from '../hooks/useAuth';
 
 const initialForm = {
   firstName: '',
@@ -46,7 +47,9 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
   const [emailError, setEmailError] = useState(false);
   const [disabled, setDisabled] = useState(true);
 
-  const { mutate: createClient } = useMutation({
+  const { user } = useAuth();
+
+  const { mutate: createClient, isPending } = useMutation({
     mutationFn: postClient,
     onSuccess: () => {
       refetchClients();
@@ -85,7 +88,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
 
   const handleSubmit = () => {
     createClient({
-      client: { ...form, agentId: '12345' },
+      client: { ...form, agentId: user.uid },
     });
   };
 
@@ -289,12 +292,12 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
         <Button onClick={() => setOpen(false)}>Cancel</Button>
         <Button
           onClick={handleSubmit}
-          disabled={disabled}
+          disabled={disabled || isPending}
           sx={{ ml: 1 }}
           variant='contained'
           color='action'
         >
-          Save Client
+          {isPending ? 'Saving...' : 'Save Client'}
         </Button>
       </DialogActions>
     </Dialog>

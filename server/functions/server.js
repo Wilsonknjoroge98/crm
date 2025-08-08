@@ -2,7 +2,7 @@ const cors = require('cors');
 const express = require('express');
 const app = express();
 
-const { Firestore } = require('firebase-admin/firestore');
+const { Firestore, Timestamp } = require('firebase-admin/firestore');
 
 app.use(express.json());
 
@@ -21,13 +21,31 @@ app.use(
 app.get('/clients', async (req, res) => {
   const db = new Firestore();
 
+  const { agentId, agentRole } = req.query;
+
+  if (!agentId || !agentRole) {
+    return res.status(400).json({ error: 'Missing agentId' });
+  }
+
   try {
-    const clientData = await db.collection('clients').get();
-    const clients = clientData.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    res.json(clients);
+    if (agentRole !== 'admin') {
+      const clientData = await db
+        .collection('clients')
+        .where('agentId', '==', agentId)
+        .get();
+      const clients = clientData.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      res.json(clients);
+    } else {
+      const clientData = await db.collection('clients').get();
+      const clients = clientData.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      res.json(clients);
+    }
   } catch (error) {
     console.error('Error fetching clients:', error);
     res.status(500).json({ error: 'Failed to fetch clients' });
@@ -36,14 +54,32 @@ app.get('/clients', async (req, res) => {
 
 app.get('/policies', async (req, res) => {
   const db = new Firestore();
-  console.log('Fetching policies...');
+
+  const { agentId, agentRole } = req.query;
+
+  if (!agentId) {
+    return res.status(400).json({ error: 'Missing agentId' });
+  }
+
   try {
-    const policyData = await db.collection('policies').get();
-    const policies = policyData.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    res.json(policies);
+    if (agentRole !== 'admin') {
+      const policyData = await db
+        .collection('policies')
+        .where('agentId', '==', agentId)
+        .get();
+      const policies = policyData.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      res.json(policies);
+    } else {
+      const policyData = await db.collection('policies').get();
+      const policies = policyData.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      res.json(policies);
+    }
   } catch (error) {
     console.error('Error fetching policies:', error);
     res.status(500).json({ error: 'Failed to fetch policies' });
@@ -62,7 +98,7 @@ app.post('/agent', async (req, res) => {
 
   try {
     await db.collection('agents').doc(emailId).set(agent);
-    res.status(201).json({ agent: { id: emailId, ...agent } });
+    res.status(201).json({ agent: { id: emailId, role: 'agent', ...agent } });
   } catch (error) {
     console.error('Error creating agent:', error);
     res.status(500).json({ error: 'Failed to create agent' });
@@ -99,7 +135,10 @@ app.post('/client', async (req, res) => {
   }
 
   try {
-    const docRef = await db.collection('clients').add(client);
+    const docRef = await db.collection('clients').add({
+      ...client,
+      createdAt: Timestamp.now(),
+    });
     res.status(201).json({ client: { id: docRef.id, ...client } });
   } catch (error) {
     console.error('Error creating client:', error);
@@ -109,17 +148,34 @@ app.post('/client', async (req, res) => {
 
 app.post('/policy', async (req, res) => {
   const db = new Firestore();
-  const { policy } = req.body;
+  const { policy, clientId, agentId } = req.body;
 
-  if (!policy) {
-    return res.status(400).json({ error: 'Missing policy' });
+  if (!policy || !clientId || !agentId) {
+    return res
+      .status(400)
+      .json({ error: 'Missing policy, client ID, or agent ID' });
   }
 
   try {
     const docRef = await db.collection('policies').add({
       ...policy,
+      clientId,
+      agentId,
+      createdAt: Timestamp.now(),
     });
-    res.status(201).json({ id: docRef.id, ...policy });
+
+    await db
+      .collection('clients')
+      .doc(clientId)
+      .update({
+        policyData: Firestore.FieldValue.arrayUnion({
+          id: docRef.id,
+          carrier: policy.carrier,
+          policyNumber: policy.policyNumber,
+        }),
+      });
+
+    res.status(201).json({ id: docRef.id, ...policy, client: clientId });
   } catch (error) {
     console.error('Error creating policy:', error);
     res.status(500).json({ error: 'Failed to create policy' });
@@ -157,6 +213,73 @@ app.patch('/policy', async (req, res) => {
   } catch (error) {
     console.error('Error updating policy:', error);
     res.status(500).json({ error: 'Failed to update policy' });
+  }
+});
+
+app.delete('/client', async (req, res) => {
+  const db = new Firestore();
+  const { clientId } = req.body;
+
+  if (!clientId) {
+    return res.status(400).json({ error: 'Missing client ID' });
+  }
+
+  try {
+    // Delete associated policies
+    const policiesSnapshot = await db
+      .collection('policies')
+      .where('clientId', '==', clientId)
+      .get();
+
+    const batch = db.batch();
+    policiesSnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Delete the client
+    batch.delete(db.collection('clients').doc(clientId));
+
+    await batch.commit();
+
+    res.status(200).json({ message: 'Client and associated policies deleted' });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ error: 'Failed to delete client' });
+  }
+});
+
+app.delete('/policy', async (req, res) => {
+  const db = new Firestore();
+  const { policyId } = req.body;
+
+  if (!policyId) {
+    return res.status(400).json({ error: 'Missing policy ID' });
+  }
+
+  try {
+    const clientSnapshot = await db
+      .collection('clients')
+      .where('policyData.id', '==', policyId)
+      .get();
+
+    if (clientSnapshot.empty) {
+      return res.status(404).json({ error: 'Policy not found' });
+    }
+
+    // Remove policy from client
+    const clientDoc = clientSnapshot.docs[0];
+    const policyData = clientDoc
+      .data()
+      .policyData.filter((policy) => policy.id !== policyId);
+    await db.collection('clients').doc(clientDoc.id).update({
+      policyData: policyData,
+    });
+
+    await db.collection('policies').doc(policyId).delete();
+    res.status(200).json({ message: 'Policy deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting policy:', error);
+    res.status(500).json({ error: 'Failed to delete policy' });
   }
 });
 

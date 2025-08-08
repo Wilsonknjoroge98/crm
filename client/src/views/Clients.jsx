@@ -13,12 +13,15 @@ import {
   TextField,
   Stack,
   Button,
+  Skeleton,
+  Chip,
 } from '@mui/material';
 import {
   Email as EmailIcon,
   Phone as PhoneIcon,
   Edit as EditIcon,
   Add as AddIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 
 import AddCircleIcon from '@mui/icons-material/AddCircle';
@@ -26,20 +29,35 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import CreateClientDialog from '../components/CreateClientDialog';
 import UpdateClientDialog from '../components/UpdateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
+import DeleteClientDialog from '../components/DeleteClientDialog';
+
+import TablePagination from '@mui/material/TablePagination';
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getClients } from '../utils/query';
+import { CSVLink } from 'react-csv';
+
+import useAuth from '../hooks/useAuth';
 
 const Clients = () => {
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [updateClientOpen, setUpdateClientOpen] = useState(false);
   const [createPoliciesOpen, setCreatePoliciesOpen] = useState(false);
+  const [deleteClientOpen, setDeleteClientOpen] = useState(false);
   const [client, setClient] = useState(null);
 
-  const { data: clients, refetch: refetchClients } = useQuery({
-    queryKey: ['clients'],
-    queryFn: getClients,
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const { user, agent } = useAuth();
+
+  const {
+    data: clients,
+    refetch: refetchClients,
+    isLoading,
+  } = useQuery({
+    queryKey: ['clients', user?.uid, agent?.role],
+    queryFn: () => getClients({ agentId: user.uid, agentRole: agent.role }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
@@ -47,7 +65,19 @@ const Clients = () => {
     cacheTime: 1000 * 60 * 10, // 10 minutes
   });
 
-  console.log('Clients:', clients);
+  const headers = [
+    { label: 'First Name', key: 'firstName' },
+    { label: 'Last Name', key: 'lastName' },
+    { label: 'Email', key: 'email' },
+    { label: 'Phone', key: 'phone' },
+    { label: 'Date of Birth', key: 'dob' },
+    { label: 'Address', key: 'address' },
+    { label: 'City', key: 'city' },
+    { label: 'State', key: 'state' },
+    { label: 'Zip Code', key: 'zip' },
+    { label: 'Occupation', key: 'occupation' },
+    { label: 'Income', key: 'income' },
+  ];
 
   const handleUpdateClient = (clientData) => {
     setClient(clientData);
@@ -59,30 +89,46 @@ const Clients = () => {
     setCreatePoliciesOpen(true);
   };
 
-  console.log('Client:', client);
+  const handleDeleteClient = (clientData) => {
+    setClient(clientData);
+    setDeleteClientOpen(true);
+  };
 
-  if (!clients) {
+  if (!clients && !isLoading) {
     return null;
   }
 
   return (
     <>
-      <CreateClientDialog
-        open={createClientOpen}
-        setOpen={setCreateClientOpen}
-        refetchClients={refetchClients}
-      />
+      {createClientOpen && (
+        <CreateClientDialog
+          open={createClientOpen}
+          setOpen={setCreateClientOpen}
+          refetchClients={refetchClients}
+        />
+      )}
+
+      {deleteClientOpen && (
+        <DeleteClientDialog
+          open={deleteClientOpen}
+          setOpen={setDeleteClientOpen}
+          client={client}
+          refetchClients={refetchClients}
+        />
+      )}
 
       <UpdateClientDialog
         open={updateClientOpen}
         setOpen={setUpdateClientOpen}
         client={client}
+        refetchClients={refetchClients}
       />
 
       <CreatePolicyDialog
         open={createPoliciesOpen}
         setOpen={setCreatePoliciesOpen}
         client={client}
+        refetchClients={refetchClients}
       />
 
       <Container sx={{ mt: 4 }}>
@@ -94,14 +140,31 @@ const Clients = () => {
           mb={2}
         >
           <Typography variant='h4'>Clients</Typography>
-          <Button
-            variant='contained'
-            color='action'
-            startIcon={<AddIcon />}
-            onClick={() => setCreateClientOpen(true)}
+          <Stack
+            width={'fit-content'}
+            direction='row'
+            alignItems='center'
+            spacing={2}
           >
-            New Client
-          </Button>
+            <CSVLink
+              data={clients || []}
+              headers={headers}
+              filename={`clients_${new Date().toISOString().slice(0, 10)}.csv`}
+            >
+              <Button variant='outlined' color='info'>
+                Export CSV
+              </Button>
+            </CSVLink>
+
+            <Button
+              variant='contained'
+              color='action'
+              startIcon={<AddIcon />}
+              onClick={() => setCreateClientOpen(true)}
+            >
+              New Client
+            </Button>
+          </Stack>
         </Stack>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2}>
@@ -131,55 +194,121 @@ const Clients = () => {
               <TableRow>
                 <TableCell>Name</TableCell>
                 <TableCell>Contact</TableCell>
-                <TableCell>Date of Birth</TableCell>
                 <TableCell>Address</TableCell>
+                <TableCell>Policy</TableCell>
                 <TableCell align='right'>Actions</TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
-              {clients.map((c) => (
-                <TableRow key={c.id} hover>
-                  <TableCell>{c.firstName + ' ' + c.lastName}</TableCell>
-                  <TableCell>
-                    <Stack direction='row' spacing={1} alignItems='center'>
-                      <EmailIcon fontSize='small' />
-                      <Typography variant='body2'>{c.email}</Typography>
-                    </Stack>
-                    <Stack direction='row' spacing={1} alignItems='center'>
-                      <PhoneIcon fontSize='small' />
-                      <Typography variant='body2'>{c.phone}</Typography>
-                    </Stack>
-                  </TableCell>
-                  <TableCell>{c.dob}</TableCell>
-                  <TableCell>
-                    <Typography variant='body2'>{c.address}</Typography>
-                    <Typography variant='body2'>
-                      {c.city + ',' + ' ' + c.state + ' ' + c.zip}
-                    </Typography>
-                    <Typography variant='body2' color='text.secondary'>
-                      {c.cityStateZip}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align='right'>
-                    <IconButton
-                      size='small'
-                      onClick={() => handleAddPolicies(c)}
-                    >
-                      <AddCircleIcon sx={{ color: 'action.main' }} />
-                    </IconButton>
-                    <IconButton
-                      size='small'
-                      onClick={() => handleUpdateClient(c)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {isLoading
+                ? Array.from({ length: rowsPerPage }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell align='right'>
+                        <Skeleton variant='circular' width={32} height={32} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : clients
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((c) => (
+                      <TableRow key={c.id} hover>
+                        <TableCell>{c.firstName + ' ' + c.lastName}</TableCell>
+                        <TableCell>
+                          <Stack
+                            direction='row'
+                            spacing={1}
+                            alignItems='center'
+                          >
+                            <EmailIcon fontSize='small' />
+                            <Typography variant='body2'>{c.email}</Typography>
+                          </Stack>
+                          <Stack
+                            direction='row'
+                            spacing={1}
+                            alignItems='center'
+                          >
+                            <PhoneIcon fontSize='small' />
+                            <Typography variant='body2'>{c.phone}</Typography>
+                          </Stack>
+                        </TableCell>
+
+                        <TableCell>
+                          <Typography variant='body2'>{c.address}</Typography>
+                          <Typography variant='body2'>
+                            {c.city + ', ' + c.state + ' ' + c.zip}
+                          </Typography>
+                          <Typography variant='body2' color='text.secondary'>
+                            {c.cityStateZip}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {c?.policyIds?.length > 0 ? (
+                            <Stack direction='row' spacing={1}>
+                              {c.policyIds.map((policy) => (
+                                // Carrier & Policy Number
+
+                                <Chip
+                                  key={policy.id}
+                                  label={`#${policy.policyNumber} - ${policy.carrier}`}
+                                  size='small'
+                                />
+                              ))}
+                            </Stack>
+                          ) : (
+                            <Chip color='error' label='No Policies' />
+                          )}
+                        </TableCell>
+                        <TableCell align='right'>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleAddPolicies(c)}
+                          >
+                            <AddCircleIcon sx={{ color: 'action.main' }} />
+                          </IconButton>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleUpdateClient(c)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleDeleteClient(c)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
             </TableBody>
           </Table>
         </TableContainer>
+        {clients && (
+          <TablePagination
+            component='div'
+            count={clients.length}
+            page={page}
+            onPageChange={(e, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0); // reset to first page
+            }}
+          />
+        )}
       </Container>
     </>
   );

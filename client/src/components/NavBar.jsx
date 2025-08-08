@@ -18,20 +18,39 @@ import { getAgent } from '../utils/query';
 import { useQuery } from '@tanstack/react-query';
 
 import useAuth from '../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 const drawerWidth = 240;
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: agentData, isLoading } = useQuery({
-    queryKey: ['agent'],
+  const { data: agentData } = useQuery({
+    queryKey: ['agent', user?.uid],
     queryFn: () => getAgent(user.uid),
   });
 
-  console.log('Agent Data:', agentData);
-  console.log('User:', user);
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const words = name.trim().split(' ');
+    if (words.length === 1) return words[0][0].toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  };
+
+  const stringToColor = (string) => {
+    let hash = 0;
+    for (let i = 0; i < string.length; i++) {
+      hash = string.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+      const value = (hash >> (i * 8)) & 0xff;
+      color += ('00' + value.toString(16)).slice(-2);
+    }
+    return color;
+  };
 
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -44,6 +63,7 @@ export default function NavBar() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      navigate('/login');
       console.log('User signed out successfully');
     } catch (error) {
       console.error('Sign-out error:', error);
@@ -79,8 +99,17 @@ export default function NavBar() {
               <Avatar
                 alt={agentData?.name}
                 src={agentData?.avatar}
-                sx={{ width: 36, height: 36 }}
-              />
+                sx={{
+                  width: 36,
+                  height: 36,
+                  color: '#4A4A4A',
+                  bgcolor: stringToColor(agentData?.name || ''),
+                }}
+              >
+                <Typography variant='caption' textAlign='center'>
+                  {getInitials(agentData?.name)}
+                </Typography>
+              </Avatar>
               <Typography variant='body2'>{agentData.name}</Typography>
             </>
           )}

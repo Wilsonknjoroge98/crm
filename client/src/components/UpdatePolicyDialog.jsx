@@ -30,6 +30,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   const [disabled, setDisabled] = useState(true);
   const [pShareError, setPShareError] = useState([]);
   const [cShareError, setCShareError] = useState([]);
+  const [updatesMade, setUpdatesMade] = useState(false);
 
   useEffect(() => {
     if (policy) {
@@ -41,9 +42,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     }
   }, [policy]);
 
-  console.log('UpdatePolicyDialog form:', form);
-
-  const { mutate: updatePolicy } = useMutation({
+  const { mutate: updatePolicy, isPending } = useMutation({
     mutationFn: patchPolicy,
     onSuccess: () => {
       refetchPolicies();
@@ -71,7 +70,10 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   });
 
   const handleChange = (e) => {
+    setUpdatesMade(true);
+
     const { name, value } = e.target;
+
     const transformed = name === 'policyNumber' ? value.toUpperCase() : value;
     setForm((prev) => ({ ...prev, [name]: transformed }));
   };
@@ -157,7 +159,12 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     ];
 
     const hasEmpty = keys.some((k) => form[k] === '');
-    if (hasEmpty || pShareError.includes(true) || cShareError.includes(true)) {
+    if (
+      !updatesMade ||
+      hasEmpty ||
+      pShareError.includes(true) ||
+      cShareError.includes(true)
+    ) {
       setDisabled(true);
     } else {
       setDisabled(false);
@@ -466,10 +473,10 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
         <Button
           onClick={() => updatePolicy({ policy: form })}
           variant='contained'
-          disabled={disabled}
+          disabled={disabled || isPending}
           color='action'
         >
-          Update Policy
+          {isPending ? 'Updating...' : 'Update Policy'}
         </Button>
       </DialogActions>
     </Dialog>

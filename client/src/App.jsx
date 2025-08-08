@@ -7,10 +7,8 @@ import SidePanel from './components/SidePanel';
 import NavBar from './components/NavBar';
 
 import Typography from '@mui/material/Typography';
-import { useLocation } from 'react-router-dom';
 
 import { Outlet } from 'react-router-dom';
-import { enqueueSnackbar } from 'notistack';
 
 import useAuth from './hooks/useAuth';
 
@@ -30,7 +28,6 @@ const App = () => {
         <SidePanel />
         <Box sx={{ flex: 1, ml: '240px', pt: '64px' }}>
           {' '}
-          {/* Adjust for fixed NavBar + Drawer */}
           <Outlet />
           <Stack
             sx={{
