@@ -8,12 +8,25 @@ import NavBar from './components/NavBar';
 
 import Typography from '@mui/material/Typography';
 
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import useAuth from './hooks/useAuth';
+import { useEffect } from 'react';
 
 const App = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (pathname === '/signup') return;
+
+    if (user) {
+      navigate('/clients');
+    } else {
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   return (
     <>

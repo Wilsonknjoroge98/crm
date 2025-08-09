@@ -40,7 +40,7 @@ export default function SignUp() {
         autoHideDuration: 5000,
         anchorOrigin: {
           vertical: 'bottom',
-          horizontal: 'left',
+          horizontal: 'right',
         },
       });
     },
@@ -94,7 +94,7 @@ export default function SignUp() {
       }}
     >
       <Typography variant='h5' gutterBottom fontWeight={600}>
-        Create Your CRM Account
+        Sign Up
       </Typography>
 
       <form onSubmit={handleSignUp}>

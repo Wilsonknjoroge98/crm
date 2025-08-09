@@ -8,11 +8,18 @@ import {
   TextField,
   Button,
   MenuItem,
-  InputAdornment,
   Divider,
   IconButton,
-  Stack,
   Typography,
+  InputAdornment,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Alert,
+  Stack,
+  Checkbox,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
@@ -25,20 +32,16 @@ const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 
+import { NumericFormat } from 'react-number-format';
+
 const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
-  const [pShareError, setPShareError] = useState([]);
-  const [cShareError, setCShareError] = useState([]);
   const [updatesMade, setUpdatesMade] = useState(false);
 
   useEffect(() => {
     if (policy) {
       setForm(policy);
-      setPShareError(new Array(policy.beneficiaries?.length || 0).fill(false));
-      setCShareError(
-        new Array(policy.contingentBeneficiaries?.length || 0).fill(false),
-      );
     }
   }, [policy]);
 
@@ -59,13 +62,25 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
         autoHideDuration: 5000,
         anchorOrigin: {
           vertical: 'bottom',
-          horizontal: 'left',
+          horizontal: 'right',
         },
       });
     },
     onError: (error) => {
       console.error('Error updating policy:', error);
-      enqueueSnackbar('Failed to update policy.', { variant: 'error' });
+      enqueueSnackbar('Failed to update policy.', {
+        variant: 'error',
+        style: {
+          fontWeight: 'bold',
+          fontFamily: `"Libre Baskerville", serif`,
+          fontSize: '1rem',
+        },
+        autoHideDuration: 5000,
+        anchorOrigin: {
+          vertical: 'bottom',
+          horizontal: 'right',
+        },
+      });
     },
   });
 
@@ -79,32 +94,23 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   };
 
   const handleBeneficiaryChange = (i, field, value) => {
+    setUpdatesMade(true);
     const newList = [...form.beneficiaries];
     newList[i][field] = value;
-    if (field === 'share') {
-      setPShareError((prev) => {
-        const copy = [...prev];
-        copy[i] = !/^(100|[1-9]?[0-9])$/.test(value);
-        return copy;
-      });
-    }
+
     setForm((prev) => ({ ...prev, beneficiaries: newList }));
   };
 
   const handleContingentChange = (i, field, value) => {
+    setUpdatesMade(true);
     const newList = [...form.contingentBeneficiaries];
     newList[i][field] = value;
-    if (field === 'share') {
-      setCShareError((prev) => {
-        const copy = [...prev];
-        copy[i] = !/^(100|[1-9]?[0-9])$/.test(value);
-        return copy;
-      });
-    }
+
     setForm((prev) => ({ ...prev, contingentBeneficiaries: newList }));
   };
 
   const handleAddBeneficiary = () => {
+    setUpdatesMade(true);
     setForm((prev) => ({
       ...prev,
       beneficiaries: [
@@ -112,10 +118,10 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
         { fullName: '', relationship: '', share: '' },
       ],
     }));
-    setPShareError((prev) => [...prev, false]);
   };
 
   const handleAddContingent = () => {
+    setUpdatesMade(true);
     setForm((prev) => ({
       ...prev,
       contingentBeneficiaries: [
@@ -123,16 +129,15 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
         { fullName: '', relationship: '', share: '' },
       ],
     }));
-    setCShareError((prev) => [...prev, false]);
   };
 
   const handleDeleteBeneficiary = (type, index) => {
+    setUpdatesMade(true);
     if (type === 'primary') {
       setForm((prev) => ({
         ...prev,
         beneficiaries: prev.beneficiaries.filter((_, i) => i !== index),
       }));
-      setPShareError((prev) => prev.filter((_, i) => i !== index));
     } else {
       setForm((prev) => ({
         ...prev,
@@ -140,44 +145,119 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
           (_, i) => i !== index,
         ),
       }));
-      setCShareError((prev) => prev.filter((_, i) => i !== index));
     }
   };
 
   useEffect(() => {
     if (!form) return;
-    const keys = [
-      'policyNumber',
-      'carrier',
-      'policyStatus',
-      'coverageAmount',
-      'premiumAmount',
-      'premiumFrequency',
-      'dateSold',
-      'effectiveDate',
-      'draftDay',
-    ];
+    const modifiedForm = { ...form };
+    delete modifiedForm.notes;
 
-    const hasEmpty = keys.some((k) => form[k] === '');
-    if (
-      !updatesMade ||
-      hasEmpty ||
-      pShareError.includes(true) ||
-      cShareError.includes(true)
-    ) {
+    console.log('Modified Form:', modifiedForm);
+
+    const hasEmptyFields = Object.values(modifiedForm).some((key) => {
+      return key === '' || key === undefined;
+    });
+
+    if (hasEmptyFields || !updatesMade) {
+      console.log('Empty fields detected');
       setDisabled(true);
-    } else {
-      setDisabled(false);
+      return;
     }
-  }, [form, pShareError, cShareError]);
 
-  if (!form) return null;
+    if (modifiedForm.beneficiaries.length !== 0) {
+      const keys = ['fullName', 'relationship', 'share'];
+      const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
+        keys.some((key) => b[key] === ''),
+      );
+
+      const shareValue = modifiedForm.beneficiaries.reduce(
+        (acc, b) => acc + parseFloat(b.share || 0),
+        0,
+      );
+
+      if (hasEmptyFields || shareValue !== 100) {
+        console.log('Empty fields in beneficiaries');
+        setDisabled(true);
+        return;
+      }
+    }
+
+    if (modifiedForm.contingentBeneficiaries.length !== 0) {
+      const keys = ['fullName', 'relationship', 'share'];
+      const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
+        keys.some((key) => b[key] === ''),
+      );
+
+      const shareValue = modifiedForm.contingentBeneficiaries.reduce(
+        (acc, b) => acc + parseFloat(b.share || 0),
+        0,
+      );
+
+      if (hasEmptyFields || shareValue !== 100) {
+        console.log('Empty fields in beneficiaries');
+        setDisabled(true);
+        return;
+      }
+
+      if (hasEmptyFields) {
+        console.log('Empty fields in contingent beneficiaries');
+        setDisabled(true);
+        return;
+      }
+    }
+
+    console.log('Form is valid, enabling submit button');
+    setDisabled(false);
+  }, [form]);
+
+  if (!form) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='md' fullWidth>
       <DialogTitle>Update Policy</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} p={2}>
+          <Grid size={12}>
+            <FormControl error={true} fullWidth>
+              <Alert sx={{ width: 'fit-content' }} severity='warning'>
+                Is this a split policy?
+              </Alert>
+              <Stack direction='row' spacing={2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.splitPolicy === true}
+                      onChange={() => {
+                        setUpdatesMade(true);
+                        setForm((prev) => ({
+                          ...prev,
+                          splitPolicy: true,
+                        }));
+                      }}
+                    />
+                  }
+                  label='Yes'
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.splitPolicy === false}
+                      onChange={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          splitPolicy: false,
+                        }))
+                      }
+                    />
+                  }
+                  label='No'
+                />
+              </Stack>
+            </FormControl>
+          </Grid>
           <Grid item size={6}>
             <TextField
               label='Client Name'
@@ -255,21 +335,48 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
             </TextField>
           </Grid>
           <Grid item size={6}>
-            <TextField
+            <NumericFormat
+              style={{ width: '100%' }}
               name='coverageAmount'
-              label='Coverage'
+              label='Coverage Amount'
               value={form.coverageAmount}
-              onChange={handleChange}
-              fullWidth
+              thousandSeparator=','
+              customInput={TextField}
+              onValueChange={(values) => {
+                setUpdatesMade(true);
+                const { value } = values; // raw value without formatting
+                setForm((prev) => ({ ...prev, coverageAmount: value }));
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
+                },
+              }}
             />
           </Grid>
           <Grid item size={6}>
-            <TextField
+            {/* currency formatting */}
+            <NumericFormat
               name='premiumAmount'
-              label='Premium'
+              label='Monthly Premium Amount'
               value={form.premiumAmount}
-              onChange={handleChange}
-              fullWidth
+              thousandSeparator=','
+              customInput={TextField}
+              onValueChange={(values) => {
+                setUpdatesMade(true);
+                const { value } = values; // raw value without formatting
+                setForm((prev) => ({ ...prev, premiumAmount: value }));
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
+                },
+              }}
+              style={{ width: '100%' }}
             />
           </Grid>
           <Grid item size={6}>
@@ -365,14 +472,28 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                   </TextField>
                 </Grid>
                 <Grid item size={3}>
-                  <TextField
+                  <NumericFormat
+                    style={{ width: '100%' }}
+                    name='share'
+                    label='Share'
                     value={b.share}
-                    label='Share %'
-                    error={pShareError[i]}
-                    onChange={(e) =>
-                      handleBeneficiaryChange(i, 'share', e.target.value)
-                    }
-                    fullWidth
+                    thousandSeparator=','
+                    customInput={TextField}
+                    isAllowed={(values) => {
+                      const { floatValue } = values;
+                      return floatValue === undefined || floatValue <= 100;
+                    }}
+                    onValueChange={(values) => {
+                      const { value } = values; // raw value without formatting
+                      handleBeneficiaryChange(i, 'share', value);
+                    }}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position='start'>%</InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
                 <Grid item size={1}>
@@ -429,14 +550,28 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                   </TextField>
                 </Grid>
                 <Grid item size={3}>
-                  <TextField
+                  <NumericFormat
+                    style={{ width: '100%' }}
+                    label='Share'
                     value={b.share}
-                    label='Share %'
-                    error={cShareError[i]}
-                    onChange={(e) =>
-                      handleContingentChange(i, 'share', e.target.value)
-                    }
-                    fullWidth
+                    max={100}
+                    thousandSeparator=','
+                    customInput={TextField}
+                    isAllowed={(values) => {
+                      const { floatValue } = values;
+                      return floatValue === undefined || floatValue <= 100;
+                    }}
+                    onValueChange={(values) => {
+                      const { value } = values;
+                      handleContingentChange(i, 'share', value);
+                    }}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position='start'>%</InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
                 <Grid item size={1}>
@@ -453,18 +588,6 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
             <Button startIcon={<AddIcon />} onClick={handleAddContingent}>
               Add Contingent Beneficiary
             </Button>
-          </Grid>
-
-          <Grid item size={12}>
-            <TextField
-              name='notes'
-              label='Notes'
-              value={form.notes || ''}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-            />
           </Grid>
         </Grid>
       </DialogContent>

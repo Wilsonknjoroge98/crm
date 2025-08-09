@@ -15,6 +15,7 @@ import {
   Button,
   Skeleton,
   Chip,
+  Alert,
 } from '@mui/material';
 import {
   Email as EmailIcon,
@@ -52,15 +53,16 @@ const Clients = () => {
   const { user, agent } = useAuth();
 
   const {
-    data: clients,
+    data: clients = [],
     refetch: refetchClients,
     isLoading,
+    isError,
   } = useQuery({
     queryKey: ['clients', user?.uid, agent?.role],
     queryFn: () => getClients({ agentId: user.uid, agentRole: agent.role }),
+    enabled: !!agent,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
     cacheTime: 1000 * 60 * 10, // 10 minutes
   });
@@ -94,6 +96,18 @@ const Clients = () => {
     setDeleteClientOpen(true);
   };
 
+  console.log('clients', clients);
+
+  if (isError) {
+    return (
+      <Stack alignItems='center' justifyContent='center' sx={{ py: 4 }}>
+        <Alert severity='error' sx={{ my: 2 }}>
+          Failed to load clients. Please refresh or try again later.
+        </Alert>
+      </Stack>
+    );
+  }
+
   if (!clients && !isLoading) {
     return null;
   }
@@ -124,12 +138,14 @@ const Clients = () => {
         refetchClients={refetchClients}
       />
 
-      <CreatePolicyDialog
-        open={createPoliciesOpen}
-        setOpen={setCreatePoliciesOpen}
-        client={client}
-        refetchClients={refetchClients}
-      />
+      {createPoliciesOpen && (
+        <CreatePolicyDialog
+          open={createPoliciesOpen}
+          setOpen={setCreatePoliciesOpen}
+          client={client}
+          refetchClients={refetchClients}
+        />
+      )}
 
       <Container sx={{ mt: 4 }}>
         <Stack
@@ -195,7 +211,7 @@ const Clients = () => {
                 <TableCell>Name</TableCell>
                 <TableCell>Contact</TableCell>
                 <TableCell>Address</TableCell>
-                <TableCell>Policy</TableCell>
+                <TableCell>Policies</TableCell>
                 <TableCell align='right'>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -255,37 +271,38 @@ const Clients = () => {
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          {c?.policyIds?.length > 0 ? (
-                            <Stack direction='row' spacing={1}>
-                              {c.policyIds.map((policy) => (
-                                // Carrier & Policy Number
-
+                          {c?.policyData?.length > 0 ? (
+                            <Stack direction='column' spacing={1}>
+                              {c.policyData.map((policy) => (
                                 <Chip
                                   key={policy.id}
-                                  label={`#${policy.policyNumber} - ${policy.carrier}`}
+                                  label={`${policy.carrier} | #${policy.policyNumber} `}
                                   size='small'
                                 />
                               ))}
                             </Stack>
                           ) : (
-                            <Chip color='error' label='No Policies' />
+                            <Chip color='error' label='Missing Policies' />
                           )}
                         </TableCell>
                         <TableCell align='right'>
                           <IconButton
                             size='small'
+                            title='Add Policy'
                             onClick={() => handleAddPolicies(c)}
                           >
                             <AddCircleIcon sx={{ color: 'action.main' }} />
                           </IconButton>
                           <IconButton
                             size='small'
+                            title='Update Client'
                             onClick={() => handleUpdateClient(c)}
                           >
                             <EditIcon />
                           </IconButton>
                           <IconButton
                             size='small'
+                            title='Delete Client'
                             onClick={() => handleDeleteClient(c)}
                           >
                             <DeleteIcon />

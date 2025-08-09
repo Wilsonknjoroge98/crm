@@ -27,12 +27,36 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const { mutate, isPending, isError, error } = useMutation({
     mutationFn: ({ clientId }) => deleteClient({ clientId }),
     onSuccess: () => {
-      enqueueSnackbar('Client deleted successfully.', { variant: 'success' });
+      enqueueSnackbar('Client deleted successfully.', {
+        variant: 'success',
+        style: {
+          fontWeight: 'bold',
+          fontFamily: `"Libre Baskerville", serif`,
+          fontSize: '1rem',
+        },
+        autoHideDuration: 5000,
+        anchorOrigin: {
+          vertical: 'bottom',
+          horizontal: 'right',
+        },
+      });
       refetchClients?.();
       setOpen(false);
     },
     onError: () => {
-      enqueueSnackbar('Failed to delete client.', { variant: 'error' });
+      enqueueSnackbar('Failed to delete client.', {
+        variant: 'error',
+        style: {
+          fontWeight: 'bold',
+          fontFamily: `"Libre Baskerville", serif`,
+          fontSize: '1rem',
+        },
+        autoHideDuration: 5000,
+        anchorOrigin: {
+          vertical: 'bottom',
+          horizontal: 'right',
+        },
+      });
     },
   });
 

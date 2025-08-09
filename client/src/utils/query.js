@@ -6,6 +6,10 @@ const DEV_URL = import.meta.env.VITE_DEV_URL;
 const getClients = async ({ agentId, agentRole }) => {
   const isDev = import.meta.env.DEV;
 
+  if (!agentId || !agentRole) {
+    return [];
+  }
+
   // eslint-disable-next-line no-unused-vars
   // const [_key, _faceAmount, data] = queryKey;
   // client side validation
@@ -46,6 +50,7 @@ const getClients = async ({ agentId, agentRole }) => {
 
     return response.data;
   } catch (error) {
+    console.error('Error clients policies:', error);
     // Rethrow for React Query to recognize it
     if (axios.isAxiosError(error)) {
       // Optional: normalize structure
@@ -62,7 +67,9 @@ const getClients = async ({ agentId, agentRole }) => {
 const getPolicies = async ({ agentId, agentRole }) => {
   const isDev = import.meta.env.DEV;
 
-  console.log('Getting policies...');
+  if (!agentId || !agentRole) {
+    return [];
+  }
 
   // request config for compulife server
   const options = {

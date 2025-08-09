@@ -27,12 +27,36 @@ const DeletePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   const { mutate, isLoading, isError, error } = useMutation({
     mutationFn: ({ policyId }) => deletePolicy({ policyId }),
     onSuccess: () => {
-      enqueueSnackbar('Policy deleted successfully.', { variant: 'success' });
-      refetchPolicies?.();
+      refetchPolicies();
+      enqueueSnackbar('Policy deleted successfully.', {
+        variant: 'success',
+        style: {
+          fontWeight: 'bold',
+          fontFamily: `"Libre Baskerville", serif`,
+          fontSize: '1rem',
+        },
+        autoHideDuration: 5000,
+        anchorOrigin: {
+          vertical: 'bottom',
+          horizontal: 'right',
+        },
+      });
       setOpen(false);
     },
     onError: () => {
-      enqueueSnackbar('Failed to delete policy.', { variant: 'error' });
+      enqueueSnackbar('Failed to delete policy.', {
+        variant: 'error',
+        style: {
+          fontWeight: 'bold',
+          fontFamily: `"Libre Baskerville", serif`,
+          fontSize: '1rem',
+        },
+        autoHideDuration: 5000,
+        anchorOrigin: {
+          vertical: 'bottom',
+          horizontal: 'right',
+        },
+      });
     },
   });
 

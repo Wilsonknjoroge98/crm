@@ -18,6 +18,7 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import SupervisedUserCircleIcon from '@mui/icons-material/SupervisedUserCircle';
 import PrintIcon from '@mui/icons-material/Print';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import BuildIcon from '@mui/icons-material/Build';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -26,25 +27,53 @@ import useAuth from '../hooks/useAuth';
 const drawerWidth = 240;
 
 const navItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  {
+    text: 'Dashboard',
+    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+    path: '/dashboard',
+  },
   { text: 'Clients', icon: <PeopleIcon />, path: '/clients' },
-  { text: 'Policies', icon: <DescriptionIcon />, path: '/policies' },
-  { text: 'Documents', icon: <AssignmentIcon />, path: '/documents' },
-  { text: 'Lead Vendors', icon: <AttachMoneyIcon />, path: '/lead-vendors' },
-  { text: 'Expenses', icon: <AttachMoneyIcon />, path: '/expenses' },
+  {
+    text: 'Policies',
+    icon: <DescriptionIcon />,
+    path: '/policies',
+  },
+  {
+    text: 'Documents',
+    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+    path: '/documents',
+  },
+  {
+    text: 'Lead Vendors',
+    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+    path: '/lead-vendors',
+  },
+  {
+    text: 'Expenses',
+    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+    path: '/expenses',
+  },
   {
     text: 'Agent Hierarchy',
-    icon: <SupervisedUserCircleIcon />,
+    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
     path: '/agent-hierarchy',
   },
-  { text: 'Printing Services', icon: <PrintIcon />, path: '/printing' },
-  { text: 'Reports', icon: <BarChartIcon />, path: '/reports' },
+  {
+    text: 'Printing Services',
+    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+    path: '/printing',
+  },
+  {
+    text: 'Reports',
+    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+    path: '/reports',
+  },
 ];
 
 const SidePanel = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const handleItemClick = (path) => {
     if (
@@ -71,9 +100,9 @@ const SidePanel = () => {
     >
       <Box height={64} />
       <Box sx={{ height: '100%' }}>
-        {user && (
+        {isAuthenticated && (
           <List>
-            {navItems.map(({ text, icon, path }) => {
+            {navItems.map(({ text, icon, path }, index) => {
               const isActive = location.pathname === path;
 
               return (
@@ -82,9 +111,13 @@ const SidePanel = () => {
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
-                    backgroundColor: isActive ? '#2C2C2C' : 'transparent',
+                    backgroundColor:
+                      isActive && (index === 1 || index === 2)
+                        ? '#2C2C2C'
+                        : 'transparent',
                     '&:hover': {
-                      backgroundColor: '#2C2C2C',
+                      backgroundColor:
+                        index === 1 || index === 2 ? '#2C2C2C' : 'transparent',
                     },
                   }}
                 >

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import App from '../App';
 import CircularProgress from '@mui/material/CircularProgress';
+import { PuffLoader } from 'react-spinners';
 
 const Clients = lazy(() => import('../views/Clients'));
 const Policies = lazy(() => import('../views/Policies'));
@@ -15,7 +16,7 @@ const router = createBrowserRouter([
     children: [
       {
         path: '/clients',
-        root: true,
+        index: true,
         element: (
           <Suspense
             fallback={
@@ -27,7 +28,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <CircularProgress />
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -48,7 +49,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <CircularProgress />
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -69,7 +70,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <CircularProgress />
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -90,7 +91,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <CircularProgress />
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >

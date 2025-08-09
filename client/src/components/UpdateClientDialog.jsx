@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { patchClient } from '../utils/query';
 import { STATES } from '../utils/constants';
+import { NumericFormat } from 'react-number-format';
 
 const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
@@ -44,7 +45,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
         autoHideDuration: 5000,
         anchorOrigin: {
           vertical: 'bottom',
-          horizontal: 'left',
+          horizontal: 'right',
         },
       });
     },
@@ -252,19 +253,24 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
             />
           </Grid>
           <Grid item size={6}>
-            <TextField
+            <NumericFormat
+              style={{ width: '100%' }}
               name='income'
               label='Annual Income'
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position='start'>$</InputAdornment>
-                ),
-              }}
               value={form.income}
-              onChange={handleChange}
-              error={incomeError}
-              helperText={incomeError ? 'Invalid income amount' : ''}
-              fullWidth
+              thousandSeparator=','
+              customInput={TextField}
+              onValueChange={(values) => {
+                const { value } = values; // raw value without formatting
+                setForm((prev) => ({ ...prev, income: value }));
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
+                },
+              }}
             />
           </Grid>
 

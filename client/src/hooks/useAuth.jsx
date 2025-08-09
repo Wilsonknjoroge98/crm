@@ -7,33 +7,32 @@ import { getAgent } from '../utils/query';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
-      setAuthChecked(true);
+
+      if (user) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
     });
     return () => unsubscribe();
   }, []);
 
-  const {
-    data: agent,
-    isLoading: agentLoading,
-    error,
-  } = useQuery({
+  const { data: agent, error } = useQuery({
     queryKey: ['agent', user?.uid],
     queryFn: () => getAgent(user.uid),
     enabled: !!user,
     retry: false,
   });
 
-  const loading = !authChecked || (user && agentLoading);
-
   return {
     user,
     agent,
-    loading,
+    isAuthenticated,
     error,
   };
 };

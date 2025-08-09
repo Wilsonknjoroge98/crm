@@ -20,15 +20,17 @@ import { useQuery } from '@tanstack/react-query';
 import useAuth from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
+import { stringToColor } from '../utils/helpers';
+
 const drawerWidth = 240;
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const { data: agentData } = useQuery({
-    queryKey: ['agent', user?.uid],
+    queryKey: ['agent', user?.uid, isAuthenticated],
     queryFn: () => getAgent(user.uid),
   });
 
@@ -37,19 +39,6 @@ export default function NavBar() {
     const words = name.trim().split(' ');
     if (words.length === 1) return words[0][0].toUpperCase();
     return (words[0][0] + words[1][0]).toUpperCase();
-  };
-
-  const stringToColor = (string) => {
-    let hash = 0;
-    for (let i = 0; i < string.length; i++) {
-      hash = string.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    let color = '#';
-    for (let i = 0; i < 3; i++) {
-      const value = (hash >> (i * 8)) & 0xff;
-      color += ('00' + value.toString(16)).slice(-2);
-    }
-    return color;
   };
 
   const handleAvatarClick = (event) => {
@@ -102,7 +91,7 @@ export default function NavBar() {
                 sx={{
                   width: 36,
                   height: 36,
-                  color: '#4A4A4A',
+                  color: '#fff',
                   bgcolor: stringToColor(agentData?.name || ''),
                 }}
               >

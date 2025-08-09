@@ -32,17 +32,11 @@ import { useState } from 'react';
 import useAuth from '../hooks/useAuth';
 
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
-
-const statusConfig = {
-  'Active': { label: 'Active', color: 'secondary' },
-  'Pending Initial Draft': {
-    label: 'Pending Initial Draft',
-    color: 'action.main',
-  },
-};
+import DeletePolicyDialog from '../components/DeletePolicyDialog';
 
 const Policies = () => {
   const [updatePolicyOpen, setUpdatePolicyOpen] = useState(false);
+  const [deletePolicyOpen, setDeletePolicyOpen] = useState(false);
   const [policy, setPolicy] = useState(null);
 
   const [page, setPage] = useState(0);
@@ -50,9 +44,14 @@ const Policies = () => {
 
   const { user, agent } = useAuth();
 
-  const { data: policies, refetch: refetchPolicies } = useQuery({
+  const {
+    data: policies = [],
+    refetch: refetchPolicies,
+    isError,
+  } = useQuery({
     queryKey: ['policies', user?.uid, agent?.role],
     queryFn: () => getPolicies({ agentId: user.uid, agentRole: agent.role }),
+    enabled: !!agent,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
@@ -64,8 +63,10 @@ const Policies = () => {
     { label: 'Policy Number', key: 'policyNumber' },
     { label: 'Client Name', key: 'clientName' },
     { label: 'Carrier', key: 'carrier' },
+    { label: 'Policy Type', key: 'policyType' },
     { label: 'Premium Amount', key: 'premiumAmount' },
     { label: 'Status', key: 'policyStatus' },
+    { label: 'Effective Date', key: 'effectiveDate' },
   ];
 
   const handleUpdatePolicy = (policyData) => {
@@ -73,7 +74,24 @@ const Policies = () => {
     setUpdatePolicyOpen(true);
   };
 
-  if (!policies || !user) {
+  const statusConfig = {
+    'Active': { label: 'Active', bgcolor: 'secondary' },
+    'Pending': { label: 'Pending', bgcolor: 'secondary' },
+    'Lapsed': { label: 'Lapsed', bgcolor: 'error.main', color: '#fff' },
+    'Cancelled': { label: 'Cancelled', bgcolor: 'error.main', color: '#fff' },
+  };
+
+  if (isError) {
+    return (
+      <Stack alignItems='center' justifyContent='center' sx={{ py: 4 }}>
+        <Alert severity='error' sx={{ my: 2 }}>
+          Failed to load clients. Please refresh or try again later.
+        </Alert>
+      </Stack>
+    );
+  }
+
+  if (!policies) {
     return null;
   }
 
@@ -83,6 +101,15 @@ const Policies = () => {
         <UpdatePolicyDialog
           open={updatePolicyOpen}
           setOpen={setUpdatePolicyOpen}
+          policy={policy}
+          refetchPolicies={refetchPolicies}
+        />
+      )}
+
+      {deletePolicyOpen && (
+        <DeletePolicyDialog
+          open={deletePolicyOpen}
+          setOpen={setDeletePolicyOpen}
           policy={policy}
           refetchPolicies={refetchPolicies}
         />
@@ -145,32 +172,39 @@ const Policies = () => {
 
             <TableBody>
               {policies.map((p) => {
-                const cfg = statusConfig['Active'] || {};
                 console.log('Policy:', p);
                 return (
                   <TableRow key={p.id} hover>
                     <TableCell>{p.policyNumber}</TableCell>
                     <TableCell>{p.clientName}</TableCell>
                     <TableCell>{p.carrier}</TableCell>
-                    <TableCell>{p.premiumAmount}</TableCell>
+                    <TableCell>{`$${
+                      parseFloat(p.premiumAmount).toLocaleString() || 0
+                    }`}</TableCell>
                     <TableCell>
                       <Chip
-                        label={cfg.label}
-                        sx={{ backgroundColor: cfg.color }}
-                        size='small'
+                        label={p.policyStatus}
+                        sx={{
+                          color: statusConfig[p.policyStatus]?.color,
+                          backgroundColor:
+                            statusConfig[p.policyStatus]?.bgcolor,
+                        }}
                       />
                     </TableCell>
                     <TableCell align='right'>
                       <IconButton
                         size='small'
+                        title='Edit / View Policy'
                         onClick={() => handleUpdatePolicy(p)}
                       >
                         <EditIcon />
                       </IconButton>
                       <IconButton
                         size='small'
+                        title='Delete Policy'
                         onClick={() => {
-                          // Open delete dialog here
+                          setPolicy(p);
+                          setDeletePolicyOpen(true);
                         }}
                       >
                         <DeleteIcon />

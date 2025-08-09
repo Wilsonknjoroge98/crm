@@ -14,7 +14,7 @@ app.use(
       'http://localhost:5174',
       'http://localhost:4173',
     ],
-    methods: ['GET', 'POST', 'PATCH'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   }),
 );
 
@@ -44,7 +44,8 @@ app.get('/clients', async (req, res) => {
         id: doc.id,
         ...doc.data(),
       }));
-      res.json(clients);
+      console.log('Fetched clients:', clients);
+      res.json(clients || []);
     }
   } catch (error) {
     console.error('Error fetching clients:', error);
@@ -78,7 +79,7 @@ app.get('/policies', async (req, res) => {
         id: doc.id,
         ...doc.data(),
       }));
-      res.json(policies);
+      res.json(policies || []);
     }
   } catch (error) {
     console.error('Error fetching policies:', error);
@@ -109,6 +110,8 @@ app.get('/agent', async (req, res) => {
   const db = new Firestore();
 
   const { uid } = req.query;
+
+  console.log('Fetching agent', uid);
   if (!uid) {
     return res.status(400).json({ error: 'Missing agent UID' });
   }
@@ -168,6 +171,7 @@ app.post('/policy', async (req, res) => {
       .collection('clients')
       .doc(clientId)
       .update({
+        policyIds: Firestore.FieldValue.arrayUnion(docRef.id),
         policyData: Firestore.FieldValue.arrayUnion({
           id: docRef.id,
           carrier: policy.carrier,
@@ -259,7 +263,7 @@ app.delete('/policy', async (req, res) => {
   try {
     const clientSnapshot = await db
       .collection('clients')
-      .where('policyData.id', '==', policyId)
+      .where('policyIds', 'array-contains', policyId)
       .get();
 
     if (clientSnapshot.empty) {
@@ -271,8 +275,14 @@ app.delete('/policy', async (req, res) => {
     const policyData = clientDoc
       .data()
       .policyData.filter((policy) => policy.id !== policyId);
+
+    const policyIds = clientDoc
+      .data()
+      .policyIds.filter((id) => id !== policyId);
+
     await db.collection('clients').doc(clientDoc.id).update({
       policyData: policyData,
+      policyIds: policyIds,
     });
 
     await db.collection('policies').doc(policyId).delete();
