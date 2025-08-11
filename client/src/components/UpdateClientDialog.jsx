@@ -24,7 +24,6 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [form, setForm] = useState({ ...client });
   const [phoneError, setPhoneError] = useState(false);
   const [zipCodeError, setZipCodeError] = useState(false);
-  const [incomeError, setIncomeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [updatesMade, setUpdatesMade] = useState(false);
   const [disabled, setDisabled] = useState(true);
@@ -65,8 +64,6 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
       setPhoneError(!/^[0-9]{10}$/.test(value));
     } else if (name === 'zip') {
       setZipCodeError(!/^[0-9]{5}$/.test(value));
-    } else if (name === 'income') {
-      setIncomeError(!/^\d+$/.test(value));
     } else if (name === 'email') {
       setEmailError(!/^\S+@\S+\.\S+$/.test(value));
     }
@@ -181,6 +178,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
               value={form.maritalStatus}
               onChange={handleChange}
               fullWidth
+              required
             >
               {maritalOptions.map((status) => (
                 <MenuItem key={status} value={status}>

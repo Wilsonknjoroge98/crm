@@ -2,6 +2,7 @@ import './App.css';
 
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 import SidePanel from './components/SidePanel';
 import NavBar from './components/NavBar';
@@ -17,6 +18,8 @@ const App = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
+  const isMediumScreen = useMediaQuery((theme) => theme.breakpoints.down('xl'));
 
   useEffect(() => {
     if (pathname === '/signup') return;
@@ -39,7 +42,14 @@ const App = () => {
         }}
       >
         <SidePanel />
-        <Box sx={{ flex: 1, ml: '240px', pt: '64px' }}>
+        <Box
+          pt={user ? '64px' : 0}
+          sx={
+            user
+              ? { flex: 1, ml: '240px' }
+              : { ml: '240px', mt: isMediumScreen ? 3 : 20 }
+          }
+        >
           {' '}
           <Outlet />
           <Stack

@@ -152,7 +152,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
           <Grid item size={6}>
             <TextField
               name='phone'
-              label='Phone '
+              label='Phone'
               value={form.phone}
               onChange={handleChange}
               error={phoneError}
@@ -182,6 +182,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
               value={form.maritalStatus}
               onChange={handleChange}
               fullWidth
+              required
             >
               {maritalOptions.map((status) => (
                 <MenuItem key={status} value={status}>
@@ -197,7 +198,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
           <Grid item size={6}>
             <TextField
               name='address'
-              label='Address '
+              label='Address'
               value={form.address}
               onChange={handleChange}
               fullWidth
@@ -224,6 +225,8 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
               sx={{ width: '100%' }}
               value={form.state}
               onChange={handleChange}
+              fullWidth
+              required
             >
               {STATES.map((option) => (
                 <MenuItem key={option} value={option}>
@@ -235,7 +238,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
           <Grid item size={6}>
             <TextField
               name='zip'
-              label='Zip Code '
+              label='Zip Code'
               value={form.zip}
               onChange={handleChange}
               error={zipCodeError}
@@ -252,6 +255,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
               value={form.occupation}
               onChange={handleChange}
               fullWidth
+              required
             />
           </Grid>
           <Grid item size={6}>
@@ -262,6 +266,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
               value={form.income}
               thousandSeparator=','
               customInput={TextField}
+              required
               onValueChange={(values) => {
                 const { value } = values; // raw value without formatting
                 setForm((prev) => ({ ...prev, income: value }));

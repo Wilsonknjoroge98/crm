@@ -81,6 +81,12 @@ const Clients = () => {
     { label: 'Income', key: 'income' },
   ];
 
+  const carrierMap = {
+    'Liberty Bankers Insurance Group': 'Liberty Bankers',
+    'Royal Neighbors of America': 'RNA',
+    'Mutual of Omaha': 'MOO',
+  };
+
   const handleUpdateClient = (clientData) => {
     setClient(clientData);
     setUpdateClientOpen(true);
@@ -276,7 +282,9 @@ const Clients = () => {
                               {c.policyData.map((policy) => (
                                 <Chip
                                   key={policy.id}
-                                  label={`${policy.carrier} | #${policy.policyNumber} `}
+                                  label={`${
+                                    carrierMap[policy.carrier] || policy.carrier
+                                  } | #${policy.policyNumber} `}
                                   size='small'
                                 />
                               ))}

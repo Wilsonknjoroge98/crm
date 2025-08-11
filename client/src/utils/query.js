@@ -211,6 +211,38 @@ const getAgent = async (uid) => {
   }
 };
 
+const getAgents = async () => {
+  const isDev = import.meta.env.DEV;
+
+  console.log('Getting all agents');
+
+  // request config for compulife server
+  const options = {
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/agents` : `${BASE_URL}/agents`,
+    params: { mode: import.meta.env.MODE },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    console.log('Agents fetched:', response.data);
+
+    return response.data;
+  } catch (error) {
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
 const patchPolicy = async ({ policy }) => {
   const isDev = import.meta.env.DEV;
 
@@ -332,4 +364,5 @@ export {
   getAgent,
   deleteClient,
   deletePolicy,
+  getAgents,
 };

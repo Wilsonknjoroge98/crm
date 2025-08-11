@@ -13,18 +13,15 @@ import {
   Typography,
   InputAdornment,
   FormControl,
-  FormLabel,
-  RadioGroup,
   FormControlLabel,
-  Radio,
   Alert,
   Stack,
   Checkbox,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { patchPolicy } from '../utils/query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { patchPolicy, getAgents } from '../utils/query';
 import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
 import { enqueueSnackbar } from 'notistack';
 
@@ -84,6 +81,11 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     },
   });
 
+  const { data: agents } = useQuery({
+    queryKey: ['agents'],
+    queryFn: getAgents,
+  });
+
   const handleChange = (e) => {
     setUpdatesMade(true);
 
@@ -115,7 +117,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
       ...prev,
       beneficiaries: [
         ...prev.beneficiaries,
-        { fullName: '', relationship: '', share: '' },
+        { firstName: '', lastName: '', relationship: '', share: '' },
       ],
     }));
   };
@@ -126,7 +128,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
       ...prev,
       contingentBeneficiaries: [
         ...prev.contingentBeneficiaries,
-        { fullName: '', relationship: '', share: '' },
+        { firstName: '', lastName: '', relationship: '', share: '' },
       ],
     }));
   };
@@ -166,7 +168,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     }
 
     if (modifiedForm.beneficiaries.length !== 0) {
-      const keys = ['fullName', 'relationship', 'share'];
+      const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
         keys.some((key) => b[key] === ''),
       );
@@ -184,7 +186,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     }
 
     if (modifiedForm.contingentBeneficiaries.length !== 0) {
-      const keys = ['fullName', 'relationship', 'share'];
+      const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
         keys.some((key) => b[key] === ''),
       );
@@ -230,13 +232,12 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                   control={
                     <Checkbox
                       checked={form.splitPolicy === true}
-                      onChange={() => {
-                        setUpdatesMade(true);
+                      onChange={() =>
                         setForm((prev) => ({
                           ...prev,
                           splitPolicy: true,
-                        }));
-                      }}
+                        }))
+                      }
                     />
                   }
                   label='Yes'
@@ -257,6 +258,53 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                 />
               </Stack>
             </FormControl>
+            {form.splitPolicy && (
+              <Stack direction='row' spacing={2} sx={{ mt: 2 }}>
+                <TextField
+                  select
+                  name='splitPolicyAgent'
+                  label='Agent'
+                  value={form?.splitPolicyAgent}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                >
+                  {agents.length !== 0 &&
+                    agents.map((agent) => (
+                      <MenuItem key={agent.uid} value={agent.uid}>
+                        {agent.name}
+                      </MenuItem>
+                    ))}
+                </TextField>
+
+                <NumericFormat
+                  style={{ width: '100%' }}
+                  name='splitPolicyPercentage'
+                  label="Second Agent's Percentage"
+                  value={form?.splitPolicyPercentage}
+                  thousandSeparator=','
+                  onChange={handleChange}
+                  customInput={TextField}
+                  required
+                  isAllowed={(values) => {
+                    const { floatValue } = values;
+                    return floatValue === undefined || floatValue <= 100;
+                  }}
+                  onValueChange={(values) => {
+                    const { value } = values; // raw value without formatting
+                    setForm({ ...form, splitPolicyPercentage: value });
+                  }}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position='start'>%</InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </Stack>
+            )}
+            <Divider sx={{ my: 2 }} />
           </Grid>
           <Grid item size={6}>
             <TextField
@@ -284,6 +332,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.carrier}
               onChange={handleChange}
               fullWidth
+              required
             >
               {Object.keys(CARRIER_PRODUCTS).map((carrier) => (
                 <MenuItem key={carrier} value={carrier}>
@@ -300,6 +349,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.policyType}
               onChange={handleChange}
               fullWidth
+              required
             >
               {(CARRIER_PRODUCTS[form.carrier] || []).map((type) => (
                 <MenuItem key={type} value={type}>
@@ -315,6 +365,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.policyNumber}
               onChange={handleChange}
               fullWidth
+              required
             />
           </Grid>
 
@@ -326,6 +377,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.policyStatus}
               onChange={handleChange}
               fullWidth
+              required
             >
               {statuses.map((s) => (
                 <MenuItem key={s} value={s}>
@@ -342,6 +394,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.coverageAmount}
               thousandSeparator=','
               customInput={TextField}
+              required
               onValueChange={(values) => {
                 setUpdatesMade(true);
                 const { value } = values; // raw value without formatting
@@ -357,13 +410,13 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
             />
           </Grid>
           <Grid item size={6}>
-            {/* currency formatting */}
             <NumericFormat
               name='premiumAmount'
               label='Monthly Premium Amount'
               value={form.premiumAmount}
               thousandSeparator=','
               customInput={TextField}
+              required
               onValueChange={(values) => {
                 setUpdatesMade(true);
                 const { value } = values; // raw value without formatting
@@ -387,6 +440,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.premiumFrequency}
               onChange={handleChange}
               fullWidth
+              required
             >
               {frequencies.map((f) => (
                 <MenuItem key={f} value={f}>
@@ -404,6 +458,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.dateSold}
               onChange={handleChange}
               fullWidth
+              required
             />
           </Grid>
           <Grid item size={6}>
@@ -415,6 +470,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.effectiveDate}
               onChange={handleChange}
               fullWidth
+              required
             />
           </Grid>
           <Grid item size={6}>
@@ -425,6 +481,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               value={form.draftDay}
               onChange={handleChange}
               fullWidth
+              required
             >
               {draftDays.map((d) => (
                 <MenuItem key={d} value={d}>
@@ -444,17 +501,29 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
           {form.beneficiaries.map((b, i) => (
             <Fragment key={i}>
               <Grid container spacing={2}>
-                <Grid item size={4}>
+                <Grid item size={3}>
                   <TextField
-                    value={b.fullName}
-                    label='Full Name'
+                    value={b.firstName}
+                    label='First Name'
+                    required
                     onChange={(e) =>
-                      handleBeneficiaryChange(i, 'fullName', e.target.value)
+                      handleBeneficiaryChange(i, 'firstName', e.target.value)
                     }
                     fullWidth
                   />
                 </Grid>
-                <Grid item size={4}>
+                <Grid item size={3}>
+                  <TextField
+                    value={b.lastName}
+                    label='Last Name'
+                    required
+                    onChange={(e) =>
+                      handleBeneficiaryChange(i, 'lastName', e.target.value)
+                    }
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item size={3}>
                   <TextField
                     select
                     value={b.relationship}
@@ -471,37 +540,42 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     ))}
                   </TextField>
                 </Grid>
-                <Grid item size={3}>
-                  <NumericFormat
-                    style={{ width: '100%' }}
-                    name='share'
-                    label='Share'
-                    value={b.share}
-                    thousandSeparator=','
-                    customInput={TextField}
-                    isAllowed={(values) => {
-                      const { floatValue } = values;
-                      return floatValue === undefined || floatValue <= 100;
-                    }}
-                    onValueChange={(values) => {
-                      const { value } = values; // raw value without formatting
-                      handleBeneficiaryChange(i, 'share', value);
-                    }}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position='start'>%</InputAdornment>
-                        ),
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item size={1}>
-                  <IconButton
-                    onClick={() => handleDeleteBeneficiary('primary', i)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                <Grid size={3}>
+                  <Stack direction='row' spacing={1} alignItems='center'>
+                    <NumericFormat
+                      style={{ width: '100%' }}
+                      name='share'
+                      label='Share'
+                      value={b.share}
+                      thousandSeparator=','
+                      customInput={TextField}
+                      required
+                      isAllowed={(values) => {
+                        const { floatValue } = values;
+                        return floatValue === undefined || floatValue <= 100;
+                      }}
+                      onValueChange={(values) => {
+                        const { value } = values; // raw value without formatting
+                        handleBeneficiaryChange(i, 'share', value);
+                      }}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position='start'>%</InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+                    {i !== 0 && (
+                      <Stack direction='row' spacing={1} alignItems='center'>
+                        <IconButton
+                          onClick={() => handleDeleteBeneficiary('primary', i)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    )}
+                  </Stack>
                 </Grid>
               </Grid>
             </Fragment>
@@ -522,21 +596,34 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
           {form.contingentBeneficiaries.map((b, i) => (
             <Fragment key={i}>
               <Grid container spacing={2}>
-                <Grid item size={4}>
+                <Grid item size={3}>
                   <TextField
-                    value={b.fullName}
-                    label='Full Name'
+                    value={b.firstName}
+                    label='First Name'
+                    required
                     onChange={(e) =>
-                      handleContingentChange(i, 'fullName', e.target.value)
+                      handleContingentChange(i, 'firstName', e.target.value)
                     }
                     fullWidth
                   />
                 </Grid>
-                <Grid item size={4}>
+                <Grid item size={3}>
+                  <TextField
+                    value={b.lastName}
+                    label='Last Name'
+                    required
+                    onChange={(e) =>
+                      handleContingentChange(i, 'lastName', e.target.value)
+                    }
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item size={3}>
                   <TextField
                     select
                     value={b.relationship}
                     label='Relationship'
+                    required
                     onChange={(e) =>
                       handleContingentChange(i, 'relationship', e.target.value)
                     }
@@ -549,37 +636,41 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     ))}
                   </TextField>
                 </Grid>
-                <Grid item size={3}>
-                  <NumericFormat
-                    style={{ width: '100%' }}
-                    label='Share'
-                    value={b.share}
-                    max={100}
-                    thousandSeparator=','
-                    customInput={TextField}
-                    isAllowed={(values) => {
-                      const { floatValue } = values;
-                      return floatValue === undefined || floatValue <= 100;
-                    }}
-                    onValueChange={(values) => {
-                      const { value } = values;
-                      handleContingentChange(i, 'share', value);
-                    }}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position='start'>%</InputAdornment>
-                        ),
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item size={1}>
-                  <IconButton
-                    onClick={() => handleDeleteBeneficiary('contingent', i)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                <Grid size={3}>
+                  <Stack direction='row' spacing={1} alignItems='center'>
+                    <NumericFormat
+                      style={{ width: '100%' }}
+                      name='share'
+                      label='Share'
+                      value={b.share}
+                      thousandSeparator=','
+                      customInput={TextField}
+                      required
+                      isAllowed={(values) => {
+                        const { floatValue } = values;
+                        return floatValue === undefined || floatValue <= 100;
+                      }}
+                      onValueChange={(values) => {
+                        const { value } = values; // raw value without formatting
+                        handleBeneficiaryChange(i, 'share', value);
+                      }}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position='start'>%</InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+
+                    <Stack direction='row' spacing={1} alignItems='center'>
+                      <IconButton
+                        onClick={() => handleDeleteBeneficiary('contingent', i)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
                 </Grid>
               </Grid>
             </Fragment>

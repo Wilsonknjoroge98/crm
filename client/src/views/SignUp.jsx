@@ -63,7 +63,13 @@ export default function SignUp() {
     try {
       const user = await createUserWithEmailAndPassword(auth, email, password);
       createAgent({
-        agent: { name, email, uid: user.user.uid, role: 'agent' },
+        agent: {
+          name,
+          email,
+          uid: user.user.uid,
+          role: 'agent',
+          compRate: 0.8,
+        },
       });
       navigate('/clients');
     } catch (error) {
@@ -88,7 +94,6 @@ export default function SignUp() {
       sx={{
         maxWidth: 400,
         mx: 'auto',
-        my: 8,
         p: 4,
         borderRadius: 2,
       }}

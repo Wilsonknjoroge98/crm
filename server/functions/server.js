@@ -129,6 +129,21 @@ app.get('/agent', async (req, res) => {
   }
 });
 
+app.get('/agents', async (req, res) => {
+  const db = new Firestore();
+
+  console.log('Fetching all agents');
+
+  try {
+    const agents = await db.collection('agents').get();
+    const agentData = agents.docs.map((doc) => doc.data());
+    res.json(agentData);
+  } catch (error) {
+    console.error('Error fetching agent:', error);
+    res.status(500).json({ error: 'Failed to fetch agent' });
+  }
+});
+
 app.post('/client', async (req, res) => {
   const db = new Firestore();
   const { client } = req.body;
@@ -159,11 +174,26 @@ app.post('/policy', async (req, res) => {
       .json({ error: 'Missing policy, client ID, or agent ID' });
   }
 
+  const agentSnapshot = await db
+    .collection('agents')
+    .where('uid', '==', agentId)
+    .get();
+
+  if (agentSnapshot.empty) {
+    return res.status(404).json({ error: 'Agent not found' });
+  }
+
+  const compRate = agentSnapshot.docs[0].data().compRate;
+
+  // Beneficiary date of birth
+  // Beneficiary phone numbers
+
   try {
     const docRef = await db.collection('policies').add({
       ...policy,
       clientId,
       agentId,
+      compRate,
       createdAt: Timestamp.now(),
     });
 
@@ -207,12 +237,41 @@ app.patch('/policy', async (req, res) => {
   const db = new Firestore();
   const { policyId, policy } = req.body;
 
-  if (!policyId || !policy) {
-    return res.status(400).json({ error: 'Missing policy ID or data' });
+  if (!policyId || !policy || !policy.clientId) {
+    return res
+      .status(400)
+      .json({ error: 'Missing policy ID, data, or client ID' });
   }
 
   try {
+    const clientRef = db.collection('clients').doc(policy.clientId);
+    const clientSnap = await clientRef.get();
+
+    if (!clientSnap.exists) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const clientData = clientSnap.data();
+    const policyData = Array.isArray(clientData.policyData)
+      ? [...clientData.policyData]
+      : [];
+
+    // Replace the matching object
+    const index = policyData.findIndex((p) => p.id === policyId);
+    if (index !== -1) {
+      policyData[index] = {
+        ...policyData[index],
+        carrier: policy.carrier,
+        policyNumber: policy.policyNumber,
+      };
+    }
+
+    // Update the client with the new array
+    await clientRef.update({ policyData });
+
+    // Also update the policies collection
     await db.collection('policies').doc(policyId).update(policy);
+
     res.status(200).json({ id: policyId, ...policy });
   } catch (error) {
     console.error('Error updating policy:', error);
