@@ -59,8 +59,8 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     contingentBeneficiaries: [],
     notes: '',
     splitPolicy: '',
-    splitPolicyAgent: '',
-    splitPolicyPercentage: '',
+    splitPolicyAgent: undefined,
+    splitPolicyShare: undefined,
   };
 
   const { mutate: createPolicy, isPending } = useMutation({
@@ -90,8 +90,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     queryKey: ['agents'],
     queryFn: getAgents,
   });
-
-  console.log('agents:', agents);
 
   const [form, setForm] = useState(initialForm);
 
@@ -157,14 +155,20 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   };
 
   const handleSubmit = () => {
+    const agentIds = !form.splitPolicy
+      ? [user.uid]
+      : [user.uid, form.splitPolicyAgent];
+
+    console.log('user id:', user.uid);
+    console.log('split policy agent:', form.splitPolicyAgent);
+    console.log('split policy share:', form.splitPolicyShare);
+
     createPolicy({
       policy: { ...form },
+      agentIds,
       clientId: client.id,
-      agentId: user.uid,
     });
   };
-
-  console.log('Form:', form);
 
   useEffect(() => {
     if (
@@ -187,8 +191,16 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     console.log('Modified Form:', modifiedForm);
 
     const hasEmptyFields = Object.values(modifiedForm).some((key) => {
-      return key === '' || key === undefined;
+      return key === '';
     });
+
+    if (modifiedForm.splitPolicy) {
+      if (!modifiedForm.splitPolicyAgent || !modifiedForm.splitPolicyShare) {
+        console.log('Empty fields detected');
+        setDisabled(true);
+        return;
+      }
+    }
 
     if (hasEmptyFields) {
       console.log('Empty fields detected');
@@ -292,25 +304,28 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 <TextField
                   select
                   name='splitPolicyAgent'
-                  label='Agent'
+                  label='Other Agent'
                   value={form?.splitPolicyAgent}
                   onChange={handleChange}
                   fullWidth
                   required
                 >
                   {agents.length !== 0 &&
-                    agents.map((agent) => (
-                      <MenuItem key={agent.uid} value={agent.uid}>
-                        {agent.name}
-                      </MenuItem>
-                    ))}
+                    agents.map((agent) => {
+                      if (agent.uid === user.uid) return null; // Skip current user
+                      return (
+                        <MenuItem key={agent.uid} value={agent.uid}>
+                          {agent.name}
+                        </MenuItem>
+                      );
+                    })}
                 </TextField>
 
                 <NumericFormat
                   style={{ width: '100%' }}
-                  name='splitPolicyPercentage'
-                  label="Second Agent's Percentage"
-                  value={form?.splitPolicyPercentage}
+                  name='splitPolicyShare'
+                  label='Other Agent’s Commission Share'
+                  value={form?.splitPolicyShare}
                   thousandSeparator=','
                   onChange={handleChange}
                   customInput={TextField}
@@ -321,7 +336,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                   }}
                   onValueChange={(values) => {
                     const { value } = values; // raw value without formatting
-                    setForm({ ...form, splitPolicyPercentage: value });
+                    setForm({ ...form, splitPolicyShare: value });
                   }}
                   slotProps={{
                     input: {

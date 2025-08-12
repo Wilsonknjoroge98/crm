@@ -31,7 +31,7 @@ app.get('/clients', async (req, res) => {
     if (agentRole !== 'admin') {
       const clientData = await db
         .collection('clients')
-        .where('agentId', '==', agentId)
+        .where('agentIds', 'array-contains', agentId)
         .get();
       const clients = clientData.docs.map((doc) => ({
         id: doc.id,
@@ -66,7 +66,7 @@ app.get('/policies', async (req, res) => {
     if (agentRole !== 'admin') {
       const policyData = await db
         .collection('policies')
-        .where('agentId', '==', agentId)
+        .where('agentIds', 'array-contains', agentId)
         .get();
       const policies = policyData.docs.map((doc) => ({
         id: doc.id,
@@ -166,9 +166,12 @@ app.post('/client', async (req, res) => {
 
 app.post('/policy', async (req, res) => {
   const db = new Firestore();
-  const { policy, clientId, agentId } = req.body;
+  const { policy, clientId, agentIds } = req.body;
 
-  if (!policy || !clientId || !agentId) {
+  console.log('Posting policy:', policy);
+
+  if (!policy || !clientId || !agentIds) {
+    console.log('Missing data');
     return res
       .status(400)
       .json({ error: 'Missing policy, client ID, or agent ID' });
@@ -176,10 +179,11 @@ app.post('/policy', async (req, res) => {
 
   const agentSnapshot = await db
     .collection('agents')
-    .where('uid', '==', agentId)
+    .where('uid', 'in', agentIds)
     .get();
 
   if (agentSnapshot.empty) {
+    console.error('Agent not found for ID:', agentIds);
     return res.status(404).json({ error: 'Agent not found' });
   }
 
@@ -189,27 +193,32 @@ app.post('/policy', async (req, res) => {
   // Beneficiary phone numbers
 
   try {
-    const docRef = await db.collection('policies').add({
+    const policyRef = await db.collection('policies').add({
       ...policy,
       clientId,
-      agentId,
+      agentIds,
       compRate,
       createdAt: Timestamp.now(),
     });
 
-    await db
-      .collection('clients')
-      .doc(clientId)
-      .update({
-        policyIds: Firestore.FieldValue.arrayUnion(docRef.id),
-        policyData: Firestore.FieldValue.arrayUnion({
-          id: docRef.id,
-          carrier: policy.carrier,
-          policyNumber: policy.policyNumber,
-        }),
-      });
+    const clientRef = db.collection('clients').doc(clientId);
 
-    res.status(201).json({ id: docRef.id, ...policy, client: clientId });
+    await clientRef.update({
+      agentIds: agentIds,
+      policyIds: Firestore.FieldValue.arrayUnion(policyRef.id),
+      policyData: Firestore.FieldValue.arrayUnion({
+        id: policyRef.id,
+        carrier: policy.carrier,
+        policyNumber: policy.policyNumber,
+      }),
+    });
+
+    res.status(201).json({
+      id: policyRef.id,
+      ...policy,
+      agentIds: agentIds,
+      client: clientId,
+    });
   } catch (error) {
     console.error('Error creating policy:', error);
     res.status(500).json({ error: 'Failed to create policy' });
@@ -245,16 +254,14 @@ app.patch('/policy', async (req, res) => {
 
   try {
     const clientRef = db.collection('clients').doc(policy.clientId);
-    const clientSnap = await clientRef.get();
+    const clientSnapshot = await clientRef.get();
 
-    if (!clientSnap.exists) {
+    if (!clientSnapshot.exists) {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    const clientData = clientSnap.data();
-    const policyData = Array.isArray(clientData.policyData)
-      ? [...clientData.policyData]
-      : [];
+    const clientData = clientSnapshot.data();
+    const policyData = [...clientData.policyData] || [];
 
     // Replace the matching object
     const index = policyData.findIndex((p) => p.id === policyId);
@@ -266,8 +273,10 @@ app.patch('/policy', async (req, res) => {
       };
     }
 
+    console.log('Updated client data:', clientData);
+
     // Update the client with the new array
-    await clientRef.update({ policyData });
+    await clientRef.update({ policyData, agentIds: policy.agentIds });
 
     // Also update the policies collection
     await db.collection('policies').doc(policyId).update(policy);

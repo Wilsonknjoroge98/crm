@@ -85,6 +85,8 @@ const Clients = () => {
     'Liberty Bankers Insurance Group': 'Liberty Bankers',
     'Royal Neighbors of America': 'RNA',
     'Mutual of Omaha': 'MOO',
+    'American Amicable': 'AmAm',
+    'Combined by Chubb': 'Chubb',
   };
 
   const handleUpdateClient = (clientData) => {
@@ -189,7 +191,7 @@ const Clients = () => {
           </Stack>
         </Stack>
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2}>
+        {/* <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2}>
           <TextField
             fullWidth
             placeholder='Search by name or email…'
@@ -208,7 +210,7 @@ const Clients = () => {
             InputLabelProps={{ shrink: true }}
             size='small'
           />
-        </Stack>
+        </Stack> */}
 
         <TableContainer component={Paper}>
           <Table>

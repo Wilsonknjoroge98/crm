@@ -214,8 +214,6 @@ const getAgent = async (uid) => {
 const getAgents = async () => {
   const isDev = import.meta.env.DEV;
 
-  console.log('Getting all agents');
-
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -225,8 +223,6 @@ const getAgents = async () => {
 
   try {
     const response = await axios.request(options);
-
-    console.log('Agents fetched:', response.data);
 
     return response.data;
   } catch (error) {
@@ -269,17 +265,16 @@ const patchPolicy = async ({ policy }) => {
   return response.data;
 };
 
-const postPolicy = async ({ policy, clientId, agentId }) => {
+const postPolicy = async ({ policy, clientId, agentIds }) => {
   const isDev = import.meta.env.DEV;
 
-  console.log('Posting policy:', policy);
-  console.log('Client ID:', clientId);
-  console.log('Agent ID:', agentId);
-
   // client side validation
-  if (!policy || !clientId || !agentId) {
+  if (!policy || !clientId || !agentIds) {
+    console.log('missing data');
     throw new Error('Missing data');
   }
+
+  console.log('Posting Policy: ', policy);
 
   const controller = new AbortController();
   // request config for custom firebase endpoint
@@ -288,7 +283,7 @@ const postPolicy = async ({ policy, clientId, agentId }) => {
     data: {
       policy: policy,
       clientId: clientId,
-      agentId: agentId,
+      agentIds: agentIds,
       mode: import.meta.env.MODE,
     },
     signal: controller.signal,

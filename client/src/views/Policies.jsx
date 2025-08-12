@@ -15,6 +15,7 @@ import {
   Stack,
   Chip,
   TablePagination,
+  Skeleton,
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -48,6 +49,7 @@ const Policies = () => {
     data: policies = [],
     refetch: refetchPolicies,
     isError,
+    isLoading,
   } = useQuery({
     queryKey: ['policies', user?.uid, agent?.role],
     queryFn: () => getPolicies({ agentId: user.uid, agentRole: agent.role }),
@@ -67,6 +69,9 @@ const Policies = () => {
     { label: 'Premium Amount', key: 'premiumAmount' },
     { label: 'Status', key: 'policyStatus' },
     { label: 'Effective Date', key: 'effectiveDate' },
+    { label: 'Split Policy', key: 'splitPolicy' },
+    { label: 'Split Policy Agent', key: 'splitPolicyAgent' },
+    { label: 'Split Policy Percentage', key: 'splitPolicyPercentage' },
   ];
 
   const handleUpdatePolicy = (policyData) => {
@@ -76,8 +81,8 @@ const Policies = () => {
 
   const statusConfig = {
     'Active': { label: 'Active', bgcolor: 'secondary' },
-    'Pending': { label: 'Pending', bgcolor: 'secondary' },
-    'Lapsed': { label: 'Lapsed', bgcolor: 'error.main', color: '#fff' },
+    'Pending': { label: 'Pending', bgcolor: 'info.main', color: '#fff' },
+    'Lapsed': { label: 'Lapsed', bgcolor: 'action.main' },
     'Cancelled': { label: 'Cancelled', bgcolor: 'error.main', color: '#fff' },
   };
 
@@ -171,48 +176,70 @@ const Policies = () => {
             </TableHead>
 
             <TableBody>
-              {policies.map((p) => {
-                console.log('Policy:', p);
-                return (
-                  <TableRow key={p.id} hover>
-                    <TableCell>{p.policyNumber}</TableCell>
-                    <TableCell>{p.clientName}</TableCell>
-                    <TableCell>{p.carrier}</TableCell>
-                    <TableCell>{`$${
-                      parseFloat(p.premiumAmount).toLocaleString() || 0
-                    }`}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={p.policyStatus}
-                        sx={{
-                          color: statusConfig[p.policyStatus]?.color,
-                          backgroundColor:
-                            statusConfig[p.policyStatus]?.bgcolor,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell align='right'>
-                      <IconButton
-                        size='small'
-                        title='Edit / View Policy'
-                        onClick={() => handleUpdatePolicy(p)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size='small'
-                        title='Delete Policy'
-                        onClick={() => {
-                          setPolicy(p);
-                          setDeletePolicyOpen(true);
-                        }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {isLoading
+                ? Array.from({ length: rowsPerPage }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton />
+                      </TableCell>
+                      <TableCell align='right'>
+                        <Skeleton variant='circular' width={32} height={32} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : policies
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((p) => {
+                      console.log('Policy:', p);
+                      return (
+                        <TableRow key={p.id} hover>
+                          <TableCell>{p.policyNumber}</TableCell>
+                          <TableCell>{p.clientName}</TableCell>
+                          <TableCell>{p.carrier}</TableCell>
+                          <TableCell>{`$${
+                            parseFloat(p.premiumAmount).toLocaleString() || 0
+                          }`}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={p.policyStatus}
+                              sx={{
+                                color: statusConfig[p.policyStatus]?.color,
+                                backgroundColor:
+                                  statusConfig[p.policyStatus]?.bgcolor,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell align='right'>
+                            <IconButton
+                              size='small'
+                              title='Edit / View Policy'
+                              onClick={() => handleUpdatePolicy(p)}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              size='small'
+                              title='Delete Policy'
+                              onClick={() => {
+                                setPolicy(p);
+                                setDeletePolicyOpen(true);
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
             </TableBody>
           </Table>
         </TableContainer>

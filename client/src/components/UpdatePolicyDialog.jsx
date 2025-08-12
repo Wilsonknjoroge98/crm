@@ -24,6 +24,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { patchPolicy, getAgents } from '../utils/query';
 import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
 import { enqueueSnackbar } from 'notistack';
+import useAuth from '../hooks/useAuth';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
@@ -35,6 +36,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [updatesMade, setUpdatesMade] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (policy) {
@@ -51,7 +53,6 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
       enqueueSnackbar('Policy updated successfully!', {
         variant: 'success',
         style: {
-          color: '#1A1A1A',
           fontWeight: 'bold',
           fontFamily: `"Libre Baskerville", serif`,
           fontSize: '1rem',
@@ -85,6 +86,14 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     queryKey: ['agents'],
     queryFn: getAgents,
   });
+
+  const handleSubmit = () => {
+    const agentIds = !form.splitPolicy
+      ? [user.uid]
+      : [user.uid, form.splitPolicyAgent];
+
+    updatePolicy({ policy: { ...form, agentIds } });
+  };
 
   const handleChange = (e) => {
     setUpdatesMade(true);
@@ -157,14 +166,22 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
 
     console.log('Modified Form:', modifiedForm);
 
-    const hasEmptyFields = Object.values(modifiedForm).some((key) => {
-      return key === '' || key === undefined;
-    });
+    const hasEmptyFields = Object.values(modifiedForm).some(
+      (key) => key === '',
+    );
 
     if (hasEmptyFields || !updatesMade) {
       console.log('Empty fields detected');
       setDisabled(true);
       return;
+    }
+
+    if (modifiedForm.splitPolicy) {
+      if (!modifiedForm.splitPolicyAgent || !modifiedForm.splitPolicyShare) {
+        console.log('Empty split policy fields detected');
+        setDisabled(true);
+        return;
+      }
     }
 
     if (modifiedForm.beneficiaries.length !== 0) {
@@ -232,12 +249,13 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                   control={
                     <Checkbox
                       checked={form.splitPolicy === true}
-                      onChange={() =>
+                      onChange={() => {
+                        setUpdatesMade(true);
                         setForm((prev) => ({
                           ...prev,
                           splitPolicy: true,
-                        }))
-                      }
+                        }));
+                      }}
                     />
                   }
                   label='Yes'
@@ -246,12 +264,13 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                   control={
                     <Checkbox
                       checked={form.splitPolicy === false}
-                      onChange={() =>
+                      onChange={() => {
+                        setUpdatesMade(true);
                         setForm((prev) => ({
                           ...prev,
                           splitPolicy: false,
-                        }))
-                      }
+                        }));
+                      }}
                     />
                   }
                   label='No'
@@ -263,25 +282,28 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                 <TextField
                   select
                   name='splitPolicyAgent'
-                  label='Agent'
+                  label='Other Agent'
                   value={form?.splitPolicyAgent}
                   onChange={handleChange}
                   fullWidth
                   required
                 >
-                  {agents.length !== 0 &&
-                    agents.map((agent) => (
-                      <MenuItem key={agent.uid} value={agent.uid}>
-                        {agent.name}
-                      </MenuItem>
-                    ))}
+                  {Array.isArray(agents) &&
+                    agents.map((agent) => {
+                      if (agent.uid === user.uid) return null; // Skip current user
+                      return (
+                        <MenuItem key={agent.uid} value={agent.uid}>
+                          {agent.name}
+                        </MenuItem>
+                      );
+                    })}
                 </TextField>
 
                 <NumericFormat
                   style={{ width: '100%' }}
-                  name='splitPolicyPercentage'
-                  label="Second Agent's Percentage"
-                  value={form?.splitPolicyPercentage}
+                  name='splitPolicyShare'
+                  label='Other Agent’s Commission Share'
+                  value={form?.splitPolicyShare}
                   thousandSeparator=','
                   onChange={handleChange}
                   customInput={TextField}
@@ -292,7 +314,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                   }}
                   onValueChange={(values) => {
                     const { value } = values; // raw value without formatting
-                    setForm({ ...form, splitPolicyPercentage: value });
+                    setForm({ ...form, splitPolicyShare: value });
                   }}
                   slotProps={{
                     input: {
@@ -685,7 +707,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
       <DialogActions>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
         <Button
-          onClick={() => updatePolicy({ policy: form })}
+          onClick={handleSubmit}
           variant='contained'
           disabled={disabled || isPending}
           color='action'

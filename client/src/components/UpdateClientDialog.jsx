@@ -58,10 +58,12 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const handleChange = (e) => {
     setUpdatesMade(true);
 
-    const { name, value } = e.target;
+    const name = e.target.name;
+    let value = e.target.value;
 
     if (name === 'phone') {
-      setPhoneError(!/^[0-9]{10}$/.test(value));
+      setPhoneError(!/^\d{3}-?\d{3}-?\d{4}$/.test(value));
+      value = value.replace(/-/g, '');
     } else if (name === 'zip') {
       setZipCodeError(!/^[0-9]{5}$/.test(value));
     } else if (name === 'email') {

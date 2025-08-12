@@ -85,7 +85,7 @@ export const CARRIER_PRODUCTS = {
     'XUL',
   ],
   'American Home Life': ['FE'],
-  'Americo': ['Eagle Select ', 'HMS 125'],
+  'Americo': ['Eagle Select ', 'HMS 125', 'IUL'],
   'Ameritas': ['CLEAR EDGE TERM', 'IUL'],
   'Baltimore Life': ['iProvide', 'aPriority'],
   'Combined by Chubb': ['Preferred Final Expense'],

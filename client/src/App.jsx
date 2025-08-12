@@ -11,10 +11,14 @@ import Typography from '@mui/material/Typography';
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import Maintenance from './views/Maintenance';
+
 import useAuth from './hooks/useAuth';
 import { useEffect } from 'react';
 
 const App = () => {
+  // return <Maintenance />;
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -44,42 +48,33 @@ const App = () => {
         <SidePanel />
         <Box
           pt={user ? '64px' : 0}
-          sx={
-            user
-              ? { flex: 1, ml: '240px' }
-              : { ml: '240px', mt: isMediumScreen ? 3 : 20 }
-          }
+          pb='48px'
+          sx={{
+            flex: 1,
+            ml: '240px',
+            mt: user ? 0 : isMediumScreen ? 3 : 20,
+          }}
         >
-          {' '}
           <Outlet />
-          <Stack
-            sx={{
-              position: 'fixed',
-              bottom: 0,
-              left: '50%',
-              width: '100%',
-              p: 2,
-            }}
-            direction='row'
-            alignItems='center'
-            alignSelf='center'
-            spacing={1}
-          >
-            <Typography
-              sx={{ fontFamily: 'Space Grotesk', fontStyle: 'serif' }}
-              variant='body2'
-              color='text.secondary'
-              align='center'
-            >
-              Powered by <strong>Final Expense Digital</strong>
-            </Typography>
-            <Box
-              component='img'
-              src='fedigital.png'
-              sx={{ maxHeight: '30px' }}
-            />
-          </Stack>
         </Box>
+
+        {/* Footer */}
+        <Stack
+          sx={{
+            p: 2,
+            mt: 'auto',
+            ml: '240px',
+          }}
+          direction='row'
+          alignItems='center'
+          justifyContent='center'
+          spacing={1}
+        >
+          <Typography variant='body2' color='text.secondary'>
+            Powered by <strong>Final Expense Digital</strong>
+          </Typography>
+          <Box component='img' src='fedigital.png' sx={{ maxHeight: '35px' }} />
+        </Stack>
       </Stack>
     </>
   );
