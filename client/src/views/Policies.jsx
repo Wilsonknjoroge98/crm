@@ -24,7 +24,7 @@ import {
 } from '@mui/icons-material';
 
 import { useQuery } from '@tanstack/react-query';
-import { getPolicies } from '../utils/query';
+import { getPolicies, getAgents } from '../utils/query';
 
 import { CSVLink } from 'react-csv';
 
@@ -61,6 +61,11 @@ const Policies = () => {
     cacheTime: 1000 * 60 * 10, // 10 minutes
   });
 
+  const { data: agents } = useQuery({
+    queryKey: ['agents'],
+    queryFn: getAgents,
+  });
+
   const headers = [
     { label: 'Policy Number', key: 'policyNumber' },
     { label: 'Client Name', key: 'clientName' },
@@ -71,8 +76,19 @@ const Policies = () => {
     { label: 'Effective Date', key: 'effectiveDate' },
     { label: 'Split Policy', key: 'splitPolicy' },
     { label: 'Split Policy Agent', key: 'splitPolicyAgent' },
-    { label: 'Split Policy Percentage', key: 'splitPolicyPercentage' },
+    { label: 'Split Policy Percentage', key: 'splitPolicyShare' },
   ];
+
+  console.log(agents);
+
+  const getAgentEmail = (agents, id) => {
+    return agents.filter((a) => a.uid === id)[0]['email'] || '';
+  };
+
+  const exportData = (policies || []).map((policy) => ({
+    ...policy,
+    splitPolicyAgent: getAgentEmail(agents, policy?.splitPolicyAgent), // replace key with email
+  }));
 
   const handleUpdatePolicy = (policyData) => {
     setPolicy(policyData);
@@ -108,6 +124,7 @@ const Policies = () => {
           setOpen={setUpdatePolicyOpen}
           policy={policy}
           refetchPolicies={refetchPolicies}
+          agents={agents}
         />
       )}
 
@@ -136,7 +153,7 @@ const Policies = () => {
             spacing={2}
           >
             <CSVLink
-              data={policies || []}
+              data={exportData || []}
               headers={headers}
               filename={`policies_${new Date().toISOString().slice(0, 10)}.csv`}
               style={{ textDecoration: 'none' }}

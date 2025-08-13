@@ -20,8 +20,8 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { patchPolicy, getAgents } from '../utils/query';
+import { useMutation } from '@tanstack/react-query';
+import { patchPolicy } from '../utils/query';
 import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
 import { enqueueSnackbar } from 'notistack';
 import useAuth from '../hooks/useAuth';
@@ -32,7 +32,13 @@ const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 
 import { NumericFormat } from 'react-number-format';
 
-const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
+const UpdatePolicyDialog = ({
+  open,
+  setOpen,
+  policy,
+  refetchPolicies,
+  agents,
+}) => {
   const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [updatesMade, setUpdatesMade] = useState(false);
@@ -80,11 +86,6 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
         },
       });
     },
-  });
-
-  const { data: agents } = useQuery({
-    queryKey: ['agents'],
-    queryFn: getAgents,
   });
 
   const handleSubmit = () => {
