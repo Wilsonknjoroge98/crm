@@ -17,22 +17,22 @@ import {
   Alert,
   Stack,
   Checkbox,
-} from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { useEffect, useState, Fragment } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { patchPolicy, getAgents } from '../utils/query';
-import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
-import { enqueueSnackbar } from 'notistack';
-import useAuth from '../hooks/useAuth';
+} from "@mui/material";
+import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { useEffect, useState, Fragment } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { patchPolicy } from "../utils/query";
+import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from "../utils/constants";
+import { enqueueSnackbar } from "notistack";
+import useAuth from "../hooks/useAuth";
 
-const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
-const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
+const frequencies = ["Monthly", "Quarterly", "Semi-Annual", "Annual"];
+const statuses = ["Active", "Pending", "Lapsed", "Cancelled"];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 
-import { NumericFormat } from 'react-number-format';
+import { NumericFormat } from "react-number-format";
 
-const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
+const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) => {
   const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [updatesMade, setUpdatesMade] = useState(false);
@@ -50,47 +50,40 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
       refetchPolicies();
       setForm(null);
       setOpen(false);
-      enqueueSnackbar('Policy updated successfully!', {
-        variant: 'success',
+      enqueueSnackbar("Policy updated successfully!", {
+        variant: "success",
         style: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
           fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
+          fontSize: "1rem",
         },
         autoHideDuration: 5000,
         anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
+          vertical: "bottom",
+          horizontal: "right",
         },
       });
     },
     onError: (error) => {
-      console.error('Error updating policy:', error);
-      enqueueSnackbar('Failed to update policy.', {
-        variant: 'error',
+      console.error("Error updating policy:", error);
+      enqueueSnackbar("Failed to update policy.", {
+        variant: "error",
         style: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
           fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
+          fontSize: "1rem",
         },
         autoHideDuration: 5000,
         anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
+          vertical: "bottom",
+          horizontal: "right",
         },
       });
     },
   });
 
-  const { data: agents } = useQuery({
-    queryKey: ['agents'],
-    queryFn: getAgents,
-  });
-
   const handleSubmit = () => {
-    const agentIds = !form.splitPolicy
-      ? [user.uid]
-      : [user.uid, form.splitPolicyAgent];
+    const agentIds = !form.splitPolicy ? [user.uid] : [user.uid, form.splitPolicyAgent];
 
     updatePolicy({ policy: { ...form, agentIds } });
   };
@@ -100,7 +93,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
 
     const { name, value } = e.target;
 
-    const transformed = name === 'policyNumber' ? value.toUpperCase() : value;
+    const transformed = name === "policyNumber" ? value.toUpperCase() : value;
     setForm((prev) => ({ ...prev, [name]: transformed }));
   };
 
@@ -126,7 +119,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
       ...prev,
       beneficiaries: [
         ...prev.beneficiaries,
-        { firstName: '', lastName: '', relationship: '', share: '' },
+        { firstName: "", lastName: "", relationship: "", share: "" },
       ],
     }));
   };
@@ -137,14 +130,14 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
       ...prev,
       contingentBeneficiaries: [
         ...prev.contingentBeneficiaries,
-        { firstName: '', lastName: '', relationship: '', share: '' },
+        { firstName: "", lastName: "", relationship: "", share: "" },
       ],
     }));
   };
 
   const handleDeleteBeneficiary = (type, index) => {
     setUpdatesMade(true);
-    if (type === 'primary') {
+    if (type === "primary") {
       setForm((prev) => ({
         ...prev,
         beneficiaries: prev.beneficiaries.filter((_, i) => i !== index),
@@ -152,9 +145,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     } else {
       setForm((prev) => ({
         ...prev,
-        contingentBeneficiaries: prev.contingentBeneficiaries.filter(
-          (_, i) => i !== index,
-        ),
+        contingentBeneficiaries: prev.contingentBeneficiaries.filter((_, i) => i !== index),
       }));
     }
   };
@@ -164,69 +155,67 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     const modifiedForm = { ...form };
     delete modifiedForm.notes;
 
-    console.log('Modified Form:', modifiedForm);
+    console.log("Modified Form:", modifiedForm);
 
-    const hasEmptyFields = Object.values(modifiedForm).some(
-      (key) => key === '',
-    );
+    const hasEmptyFields = Object.values(modifiedForm).some((key) => key === "");
 
     if (hasEmptyFields || !updatesMade) {
-      console.log('Empty fields detected');
+      console.log("Empty fields detected");
       setDisabled(true);
       return;
     }
 
     if (modifiedForm.splitPolicy) {
       if (!modifiedForm.splitPolicyAgent || !modifiedForm.splitPolicyShare) {
-        console.log('Empty split policy fields detected');
+        console.log("Empty split policy fields detected");
         setDisabled(true);
         return;
       }
     }
 
     if (modifiedForm.beneficiaries.length !== 0) {
-      const keys = ['firstName', 'lastName', 'relationship', 'share'];
+      const keys = ["firstName", "lastName", "relationship", "share"];
       const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
-        keys.some((key) => b[key] === ''),
+        keys.some((key) => b[key] === "")
       );
 
       const shareValue = modifiedForm.beneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0,
+        0
       );
 
       if (hasEmptyFields || shareValue !== 100) {
-        console.log('Empty fields in beneficiaries');
+        console.log("Empty fields in beneficiaries");
         setDisabled(true);
         return;
       }
     }
 
     if (modifiedForm.contingentBeneficiaries.length !== 0) {
-      const keys = ['firstName', 'lastName', 'relationship', 'share'];
+      const keys = ["firstName", "lastName", "relationship", "share"];
       const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
-        keys.some((key) => b[key] === ''),
+        keys.some((key) => b[key] === "")
       );
 
       const shareValue = modifiedForm.contingentBeneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0,
+        0
       );
 
       if (hasEmptyFields || shareValue !== 100) {
-        console.log('Empty fields in beneficiaries');
+        console.log("Empty fields in beneficiaries");
         setDisabled(true);
         return;
       }
 
       if (hasEmptyFields) {
-        console.log('Empty fields in contingent beneficiaries');
+        console.log("Empty fields in contingent beneficiaries");
         setDisabled(true);
         return;
       }
     }
 
-    console.log('Form is valid, enabling submit button');
+    console.log("Form is valid, enabling submit button");
     setDisabled(false);
   }, [form]);
 
@@ -241,7 +230,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
         <Grid container spacing={2} p={2}>
           <Grid size={12}>
             <FormControl error={true} fullWidth>
-              <Alert sx={{ width: 'fit-content' }} severity='warning'>
+              <Alert sx={{ width: "fit-content" }} severity='warning'>
                 Is this a split policy?
               </Alert>
               <Stack direction='row' spacing={2}>
@@ -300,7 +289,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                 </TextField>
 
                 <NumericFormat
-                  style={{ width: '100%' }}
+                  style={{ width: "100%" }}
                   name='splitPolicyShare'
                   label='Other Agent’s Commission Share'
                   value={form?.splitPolicyShare}
@@ -318,9 +307,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                   }}
                   slotProps={{
                     input: {
-                      startAdornment: (
-                        <InputAdornment position='start'>%</InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position='start'>%</InputAdornment>,
                     },
                   }}
                 />
@@ -329,12 +316,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
             <Divider sx={{ my: 2 }} />
           </Grid>
           <Grid item size={6}>
-            <TextField
-              label='Client Name'
-              value={form.clientName}
-              fullWidth
-              disabled
-            />
+            <TextField label='Client Name' value={form.clientName} fullWidth disabled />
           </Grid>
           <Grid size={6}>
             <TextField
@@ -410,7 +392,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
           </Grid>
           <Grid item size={6}>
             <NumericFormat
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               name='coverageAmount'
               label='Coverage Amount'
               value={form.coverageAmount}
@@ -424,9 +406,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
+                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
                 },
               }}
             />
@@ -446,12 +426,10 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
+                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
                 },
               }}
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             />
           </Grid>
           <Grid item size={6}>
@@ -528,9 +506,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     value={b.firstName}
                     label='First Name'
                     required
-                    onChange={(e) =>
-                      handleBeneficiaryChange(i, 'firstName', e.target.value)
-                    }
+                    onChange={(e) => handleBeneficiaryChange(i, "firstName", e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -539,9 +515,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     value={b.lastName}
                     label='Last Name'
                     required
-                    onChange={(e) =>
-                      handleBeneficiaryChange(i, 'lastName', e.target.value)
-                    }
+                    onChange={(e) => handleBeneficiaryChange(i, "lastName", e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -550,9 +524,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     select
                     value={b.relationship}
                     label='Relationship'
-                    onChange={(e) =>
-                      handleBeneficiaryChange(i, 'relationship', e.target.value)
-                    }
+                    onChange={(e) => handleBeneficiaryChange(i, "relationship", e.target.value)}
                     fullWidth
                   >
                     {RELATIONSHIP_OPTIONS.map((option) => (
@@ -565,7 +537,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                 <Grid size={3}>
                   <Stack direction='row' spacing={1} alignItems='center'>
                     <NumericFormat
-                      style={{ width: '100%' }}
+                      style={{ width: "100%" }}
                       name='share'
                       label='Share'
                       value={b.share}
@@ -578,21 +550,17 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                       }}
                       onValueChange={(values) => {
                         const { value } = values; // raw value without formatting
-                        handleBeneficiaryChange(i, 'share', value);
+                        handleBeneficiaryChange(i, "share", value);
                       }}
                       slotProps={{
                         input: {
-                          startAdornment: (
-                            <InputAdornment position='start'>%</InputAdornment>
-                          ),
+                          startAdornment: <InputAdornment position='start'>%</InputAdornment>,
                         },
                       }}
                     />
                     {i !== 0 && (
                       <Stack direction='row' spacing={1} alignItems='center'>
-                        <IconButton
-                          onClick={() => handleDeleteBeneficiary('primary', i)}
-                        >
+                        <IconButton onClick={() => handleDeleteBeneficiary("primary", i)}>
                           <DeleteIcon />
                         </IconButton>
                       </Stack>
@@ -623,9 +591,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     value={b.firstName}
                     label='First Name'
                     required
-                    onChange={(e) =>
-                      handleContingentChange(i, 'firstName', e.target.value)
-                    }
+                    onChange={(e) => handleContingentChange(i, "firstName", e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -634,9 +600,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     value={b.lastName}
                     label='Last Name'
                     required
-                    onChange={(e) =>
-                      handleContingentChange(i, 'lastName', e.target.value)
-                    }
+                    onChange={(e) => handleContingentChange(i, "lastName", e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -646,9 +610,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                     value={b.relationship}
                     label='Relationship'
                     required
-                    onChange={(e) =>
-                      handleContingentChange(i, 'relationship', e.target.value)
-                    }
+                    onChange={(e) => handleContingentChange(i, "relationship", e.target.value)}
                     fullWidth
                   >
                     {RELATIONSHIP_OPTIONS.map((option) => (
@@ -661,7 +623,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                 <Grid size={3}>
                   <Stack direction='row' spacing={1} alignItems='center'>
                     <NumericFormat
-                      style={{ width: '100%' }}
+                      style={{ width: "100%" }}
                       name='share'
                       label='Share'
                       value={b.share}
@@ -674,21 +636,17 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
                       }}
                       onValueChange={(values) => {
                         const { value } = values; // raw value without formatting
-                        handleBeneficiaryChange(i, 'share', value);
+                        handleBeneficiaryChange(i, "share", value);
                       }}
                       slotProps={{
                         input: {
-                          startAdornment: (
-                            <InputAdornment position='start'>%</InputAdornment>
-                          ),
+                          startAdornment: <InputAdornment position='start'>%</InputAdornment>,
                         },
                       }}
                     />
 
                     <Stack direction='row' spacing={1} alignItems='center'>
-                      <IconButton
-                        onClick={() => handleDeleteBeneficiary('contingent', i)}
-                      >
+                      <IconButton onClick={() => handleDeleteBeneficiary("contingent", i)}>
                         <DeleteIcon />
                       </IconButton>
                     </Stack>
@@ -712,7 +670,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
           disabled={disabled || isPending}
           color='action'
         >
-          {isPending ? 'Updating...' : 'Update Policy'}
+          {isPending ? "Updating..." : "Update Policy"}
         </Button>
       </DialogActions>
     </Dialog>

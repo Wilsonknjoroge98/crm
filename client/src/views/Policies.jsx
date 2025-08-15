@@ -16,24 +16,24 @@ import {
   Chip,
   TablePagination,
   Skeleton,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import { useQuery } from '@tanstack/react-query';
-import { getPolicies } from '../utils/query';
+import { useQuery } from "@tanstack/react-query";
+import { getPolicies, getAgents } from "../utils/query";
 
-import { CSVLink } from 'react-csv';
+import { CSVLink } from "react-csv";
 
-import { useState } from 'react';
+import { useState } from "react";
 
-import useAuth from '../hooks/useAuth';
+import useAuth from "../hooks/useAuth";
 
-import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
-import DeletePolicyDialog from '../components/DeletePolicyDialog';
+import UpdatePolicyDialog from "../components/UpdatePolicyDialog";
+import DeletePolicyDialog from "../components/DeletePolicyDialog";
 
 const Policies = () => {
   const [updatePolicyOpen, setUpdatePolicyOpen] = useState(false);
@@ -51,7 +51,7 @@ const Policies = () => {
     isError,
     isLoading,
   } = useQuery({
-    queryKey: ['policies', user?.uid, agent?.role],
+    queryKey: ["policies", user?.uid, agent?.role],
     queryFn: () => getPolicies({ agentId: user.uid, agentRole: agent.role }),
     enabled: !!agent,
     refetchOnWindowFocus: false,
@@ -61,17 +61,22 @@ const Policies = () => {
     cacheTime: 1000 * 60 * 10, // 10 minutes
   });
 
+  const { data: agents } = useQuery({
+    queryKey: ["agents"],
+    queryFn: getAgents,
+  });
+
   const headers = [
-    { label: 'Policy Number', key: 'policyNumber' },
-    { label: 'Client Name', key: 'clientName' },
-    { label: 'Carrier', key: 'carrier' },
-    { label: 'Policy Type', key: 'policyType' },
-    { label: 'Premium Amount', key: 'premiumAmount' },
-    { label: 'Status', key: 'policyStatus' },
-    { label: 'Effective Date', key: 'effectiveDate' },
-    { label: 'Split Policy', key: 'splitPolicy' },
-    { label: 'Split Policy Agent', key: 'splitPolicyAgent' },
-    { label: 'Split Policy Percentage', key: 'splitPolicyPercentage' },
+    { label: "Policy Number", key: "policyNumber" },
+    { label: "Client Name", key: "clientName" },
+    { label: "Carrier", key: "carrier" },
+    { label: "Policy Type", key: "policyType" },
+    { label: "Premium Amount", key: "premiumAmount" },
+    { label: "Status", key: "policyStatus" },
+    { label: "Effective Date", key: "effectiveDate" },
+    { label: "Split Policy", key: "splitPolicy" },
+    { label: "Split Policy Agent", key: "splitPolicyAgent" },
+    { label: "Split Policy Percentage", key: "splitPolicyPercentage" },
   ];
 
   const handleUpdatePolicy = (policyData) => {
@@ -80,10 +85,10 @@ const Policies = () => {
   };
 
   const statusConfig = {
-    'Active': { label: 'Active', bgcolor: 'secondary' },
-    'Pending': { label: 'Pending', bgcolor: 'info.main', color: '#fff' },
-    'Lapsed': { label: 'Lapsed', bgcolor: 'action.main' },
-    'Cancelled': { label: 'Cancelled', bgcolor: 'error.main', color: '#fff' },
+    Active: { label: "Active", bgcolor: "secondary" },
+    Pending: { label: "Pending", bgcolor: "info.main", color: "#fff" },
+    Lapsed: { label: "Lapsed", bgcolor: "action.main" },
+    Cancelled: { label: "Cancelled", bgcolor: "error.main", color: "#fff" },
   };
 
   if (isError) {
@@ -108,6 +113,7 @@ const Policies = () => {
           setOpen={setUpdatePolicyOpen}
           policy={policy}
           refetchPolicies={refetchPolicies}
+          agents={agents}
         />
       )}
 
@@ -122,54 +128,42 @@ const Policies = () => {
 
       <Container sx={{ mt: 4 }}>
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
+          direction={{ xs: "column", sm: "row" }}
           justifyContent='space-between'
-          alignItems={{ xs: 'stretch', sm: 'center' }}
+          alignItems={{ xs: "stretch", sm: "center" }}
           spacing={2}
           mb={2}
         >
           <Typography variant='h4'>Policies</Typography>
-          <Stack
-            width={'fit-content'}
-            direction='row'
-            alignItems='center'
-            spacing={2}
-          >
+          <Stack width={"fit-content"} direction='row' alignItems='center' spacing={2}>
             <CSVLink
               data={policies || []}
               headers={headers}
               filename={`policies_${new Date().toISOString().slice(0, 10)}.csv`}
-              style={{ textDecoration: 'none' }}
+              style={{ textDecoration: "none" }}
             >
               <Button variant='outlined' color='info'>
                 Export CSV
               </Button>
             </CSVLink>
-            {/* <Button
-              variant='contained'
-              color='action'
-              startIcon={<AddIcon />}
-              onClick={() => setCreatePolicyOpen(true)}
-            >
-              New Policy
-            </Button> */}
           </Stack>
         </Stack>
 
         <Alert severity='warning' sx={{ mb: 3 }}>
-          <strong>Policy Sync Notice:</strong> Some recently added policies may
-          not appear due to a temporary sync issue. If you don’t see a policy
-          you just created, please refresh the page.
+          <strong>Policy Sync Notice:</strong> Some recently added policies may not appear due to a
+          temporary sync issue. If you don’t see a policy you just created, please refresh the page.
         </Alert>
 
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
+                {agent && agent["role"] === "admin" && <TableCell>Agent</TableCell>}
                 <TableCell>Policy #</TableCell>
                 <TableCell>Client</TableCell>
                 <TableCell>Carrier</TableCell>
                 <TableCell>Premium</TableCell>
+                <TableCell>Effective Date</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align='right'>Actions</TableCell>
               </TableRow>
@@ -196,50 +190,56 @@ const Policies = () => {
                       </TableCell>
                     </TableRow>
                   ))
-                : policies
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((p) => {
-                      console.log('Policy:', p);
-                      return (
-                        <TableRow key={p.id} hover>
-                          <TableCell>{p.policyNumber}</TableCell>
-                          <TableCell>{p.clientName}</TableCell>
-                          <TableCell>{p.carrier}</TableCell>
-                          <TableCell>{`$${
-                            parseFloat(p.premiumAmount).toLocaleString() || 0
-                          }`}</TableCell>
+                : policies.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((p) => {
+                    console.log("Policy:", p);
+                    return (
+                      <TableRow key={p.id} hover>
+                        {agent && agent["role"] === "admin" && (
                           <TableCell>
-                            <Chip
-                              label={p.policyStatus}
-                              sx={{
-                                color: statusConfig[p.policyStatus]?.color,
-                                backgroundColor:
-                                  statusConfig[p.policyStatus]?.bgcolor,
-                              }}
-                            />
+                            {p.agentIds
+                              .map((id) => agents.find((a) => a.uid === id)?.name)
+                              .join(", ")}
                           </TableCell>
-                          <TableCell align='right'>
-                            <IconButton
-                              size='small'
-                              title='Edit / View Policy'
-                              onClick={() => handleUpdatePolicy(p)}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton
-                              size='small'
-                              title='Delete Policy'
-                              onClick={() => {
-                                setPolicy(p);
-                                setDeletePolicyOpen(true);
-                              }}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                        )}
+                        <TableCell>{p.policyNumber}</TableCell>
+                        <TableCell>{p.clientName}</TableCell>
+                        <TableCell>{p.carrier}</TableCell>
+
+                        <TableCell>{`$${
+                          parseFloat(p.premiumAmount).toLocaleString() || 0
+                        }`}</TableCell>
+                        <TableCell>{p.effectiveDate}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={p.policyStatus}
+                            sx={{
+                              color: statusConfig[p.policyStatus]?.color,
+                              backgroundColor: statusConfig[p.policyStatus]?.bgcolor,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align='right'>
+                          <IconButton
+                            size='small'
+                            title='Edit / View Policy'
+                            onClick={() => handleUpdatePolicy(p)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            size='small'
+                            title='Delete Policy'
+                            onClick={() => {
+                              setPolicy(p);
+                              setDeletePolicyOpen(true);
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
             </TableBody>
           </Table>
         </TableContainer>
