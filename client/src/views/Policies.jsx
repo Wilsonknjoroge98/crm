@@ -79,6 +79,17 @@ const Policies = () => {
     { label: "Split Policy Percentage", key: "splitPolicyPercentage" },
   ];
 
+  console.log(agents);
+
+  const getAgentEmail = (agents, id) => {
+    return agents.filter((a) => a.uid === id)[0]["email"] || "";
+  };
+
+  const exportData = (policies || []).map((policy) => ({
+    ...policy,
+    splitPolicyAgent: getAgentEmail(agents, policy?.splitPolicyAgent), // replace key with email
+  }));
+
   const handleUpdatePolicy = (policyData) => {
     setPolicy(policyData);
     setUpdatePolicyOpen(true);
@@ -114,6 +125,7 @@ const Policies = () => {
           policy={policy}
           refetchPolicies={refetchPolicies}
           agents={agents}
+          agents={agents}
         />
       )}
 
@@ -137,7 +149,7 @@ const Policies = () => {
           <Typography variant='h4'>Policies</Typography>
           <Stack width={"fit-content"} direction='row' alignItems='center' spacing={2}>
             <CSVLink
-              data={policies || []}
+              data={exportData || []}
               headers={headers}
               filename={`policies_${new Date().toISOString().slice(0, 10)}.csv`}
               style={{ textDecoration: "none" }}
