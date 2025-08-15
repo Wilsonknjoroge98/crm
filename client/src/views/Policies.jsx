@@ -76,10 +76,8 @@ const Policies = () => {
     { label: "Effective Date", key: "effectiveDate" },
     { label: "Split Policy", key: "splitPolicy" },
     { label: "Split Policy Agent", key: "splitPolicyAgent" },
-    { label: "Split Policy Percentage", key: "splitPolicyPercentage" },
+    { label: "Split Policy Percentage", key: "splitPolicyShare" },
   ];
-
-  console.log(agents);
 
   const getAgentEmail = (agents, id) => {
     return agents.filter((a) => a.uid === id)[0]["email"] || "";
@@ -124,7 +122,6 @@ const Policies = () => {
           setOpen={setUpdatePolicyOpen}
           policy={policy}
           refetchPolicies={refetchPolicies}
-          agents={agents}
           agents={agents}
         />
       )}
