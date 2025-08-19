@@ -96,7 +96,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    const uppercasedFields = ['policyNumber']; // Add other fields if needed
+    const uppercasedFields = ['policyNumber'];
     const transformedValue = uppercasedFields.includes(name)
       ? value.toUpperCase()
       : value;
@@ -158,10 +158,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     const agentIds = !form.splitPolicy
       ? [user.uid]
       : [user.uid, form.splitPolicyAgent];
-
-    console.log('user id:', user.uid);
-    console.log('split policy agent:', form.splitPolicyAgent);
-    console.log('split policy share:', form.splitPolicyShare);
 
     createPolicy({
       policy: { ...form },

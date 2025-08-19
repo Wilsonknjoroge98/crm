@@ -361,4 +361,50 @@ app.delete('/policy', async (req, res) => {
   }
 });
 
+// const toTitleCase = (name) => {
+//   return name
+//     .toLowerCase()
+//     .split(' ')
+//     .filter(Boolean) // removes extra spaces
+//     .map((word) => word[0].toUpperCase() + word.slice(1))
+//     .join(' ');
+// };
+
+// const updateFields = async () => {
+//   const firestore = new Firestore();
+
+//   // const policiesCollection = firestore.collection('policies');
+
+//   // const policiesSnapshot = await policiesCollection.get();
+//   // policiesSnapshot.forEach((doc) => {
+//   //   const data = doc.data();
+//   //   const updatedData = {
+//   //     ...data,
+//   //     clientName: toTitleCase(data.clientName),
+//   //   };
+//   //   policiesCollection.doc(doc.id).update(updatedData);
+//   // });
+
+//   const clientsCollection = firestore.collection('clients');
+
+//   const clientsSnapshot = await clientsCollection.get();
+//   clientsSnapshot.forEach((doc) => {
+//     console.log(doc.id);
+//     const data = doc.data();
+//     const updatedData = {
+//       ...data,
+//       firstName:
+//         data.firstName[0].toUpperCase() + data.firstName.slice(1).toLowerCase(),
+//       lastName:
+//         data.lastName[0].toUpperCase() + data.lastName.slice(1).toLowerCase(),
+//       email: data.email.toLowerCase(),
+//     };
+//     clientsCollection.doc(doc.id).update(updatedData);
+//   });
+// };
+
+// updateFields()
+//   .then(() => console.log('Fields updated successfully'))
+//   .catch((error) => console.error('Error updating fields:', error));
+
 module.exports = app;

@@ -71,9 +71,23 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
     },
   });
 
+  function standardizeName(name) {
+    const lowerCaseName = name.toLowerCase().trim();
+
+    return lowerCaseName.charAt(0).toUpperCase() + lowerCaseName.slice(1);
+  }
+
   const handleChange = (e) => {
     const name = e.target.name;
     let value = e.target.value;
+
+    if (name === 'firstName' || name === 'lastName') {
+      value = standardizeName(value);
+    }
+
+    if (name === 'email') {
+      value = value.toLowerCase();
+    }
 
     if (name === 'phone') {
       setPhoneError(!/^\d{3}-?\d{3}-?\d{4}$/.test(value));
