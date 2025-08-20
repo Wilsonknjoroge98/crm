@@ -1,27 +1,4 @@
-// Policies.jsx
-import {
-  Container,
-  Typography,
-  Alert,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Button,
-  Stack,
-  Chip,
-  TablePagination,
-  Skeleton,
-} from '@mui/material';
-import {
-  Visibility as VisibilityIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-} from '@mui/icons-material';
+import { Container, Typography, Alert, Button, Stack } from '@mui/material';
 
 import { useQuery } from '@tanstack/react-query';
 import { getPolicies, getAgents } from '../utils/query';
@@ -34,6 +11,7 @@ import useAuth from '../hooks/useAuth';
 
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import DeletePolicyDialog from '../components/DeletePolicyDialog';
+import PoliciesGrid from '../components/PoliciesGrid';
 
 const Policies = () => {
   const [updatePolicyOpen, setUpdatePolicyOpen] = useState(false);
@@ -173,121 +151,24 @@ const Policies = () => {
             </CSVLink>
           </Stack>
         </Stack>
-
+        {/* 
         <Alert severity='warning' sx={{ mb: 3 }}>
           <strong>Policy Sync Notice:</strong> Some recently added policies may
           not appear due to a temporary sync issue. If you don’t see a policy
           you just created, please refresh the page.
-        </Alert>
+        </Alert> */}
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                {agent && agent['role'] === 'admin' && (
-                  <TableCell>Agent</TableCell>
-                )}
-                <TableCell>Policy #</TableCell>
-                <TableCell>Client</TableCell>
-                <TableCell>Carrier</TableCell>
-                <TableCell>Premium</TableCell>
-                <TableCell>Effective Date</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align='right'>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {agentsLoading || policiesLoading
-                ? Array.from({ length: rowsPerPage }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Skeleton />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton />
-                      </TableCell>
-                      <TableCell align='right'>
-                        <Skeleton variant='circular' width={32} height={32} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                : policies
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((p) => {
-                      return (
-                        <TableRow key={p.id} hover>
-                          {agent && agent['role'] === 'admin' && (
-                            <TableCell>
-                              {p.agentIds.map((id) => (
-                                <Typography variant='body2' key={id}>
-                                  {agents.find((a) => a.uid === id)?.name}
-                                </Typography>
-                              ))}
-                            </TableCell>
-                          )}
-                          <TableCell>{p.policyNumber}</TableCell>
-                          <TableCell>{p.clientName}</TableCell>
-                          <TableCell>{p.carrier}</TableCell>
-
-                          <TableCell>{`$${
-                            parseFloat(p.premiumAmount).toLocaleString() || 0
-                          }`}</TableCell>
-                          <TableCell>{p.effectiveDate}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={p.policyStatus}
-                              sx={{
-                                color: statusConfig[p.policyStatus]?.color,
-                                backgroundColor:
-                                  statusConfig[p.policyStatus]?.bgcolor,
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell align='right'>
-                            <IconButton
-                              size='small'
-                              title='Edit / View Policy'
-                              onClick={() => handleUpdatePolicy(p)}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton
-                              size='small'
-                              title='Delete Policy'
-                              onClick={() => {
-                                setPolicy(p);
-                                setDeletePolicyOpen(true);
-                              }}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {policies && (
-          <TablePagination
-            component='div'
-            count={policies.length}
-            page={page}
-            onPageChange={(e, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(parseInt(e.target.value, 10));
-              setPage(0); // reset to first page
-            }}
-          />
-        )}
+        <PoliciesGrid
+          agent={agent}
+          agents={agents}
+          policies={policies}
+          policiesLoading={policiesLoading}
+          agentsLoading={agentsLoading}
+          statusConfig={statusConfig}
+          handleUpdatePolicy={handleUpdatePolicy}
+          setPolicy={setPolicy}
+          setDeletePolicyOpen={setDeletePolicyOpen}
+        />
       </Container>
     </>
   );

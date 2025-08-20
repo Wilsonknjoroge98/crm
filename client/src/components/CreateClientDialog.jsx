@@ -25,6 +25,8 @@ import { useMutation } from '@tanstack/react-query';
 import { postClient } from '../utils/query';
 import useAuth from '../hooks/useAuth';
 
+import { toTitleCase } from '../utils/helpers';
+
 const initialForm = {
   firstName: '',
   lastName: '',
@@ -71,22 +73,36 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
     },
   });
 
-  function standardizeName(name) {
-    const lowerCaseName = name.toLowerCase().trim();
-
-    return lowerCaseName.charAt(0).toUpperCase() + lowerCaseName.slice(1);
-  }
+  const standardizeAddress = (address) => {
+    return address
+      .toLowerCase()
+      .split(/\s+/)
+      .map((part) => {
+        const idx = part.search(/[a-z]/i);
+        if (idx === -1) return part;
+        return (
+          part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1)
+        );
+      })
+      .join(' ');
+  };
 
   const handleChange = (e) => {
     const name = e.target.name;
     let value = e.target.value;
 
-    if (name === 'firstName' || name === 'lastName') {
-      value = standardizeName(value);
+    const titleCaseFields = ['firstName', 'lastName', 'city', 'occupation'];
+
+    if (titleCaseFields.includes(name)) {
+      value = toTitleCase(value);
     }
 
     if (name === 'email') {
       value = value.toLowerCase();
+    }
+
+    if (name === 'address') {
+      value = standardizeAddress(value);
     }
 
     if (name === 'phone') {

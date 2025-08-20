@@ -163,9 +163,11 @@ const UpdatePolicyDialog = ({
 
     console.log('Modified Form:', modifiedForm);
 
-    const hasEmptyFields = Object.values(modifiedForm).some(
-      (key) => key === '',
-    );
+    const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
+      key !== 'splitPolicyAgent' &&
+        key !== 'splitPolicyShare' &&
+        modifiedForm[key] === '';
+    });
 
     if (hasEmptyFields || !updatesMade) {
       console.log('Empty fields detected');
@@ -212,12 +214,6 @@ const UpdatePolicyDialog = ({
 
       if (hasEmptyFields || shareValue !== 100) {
         console.log('Empty fields in beneficiaries');
-        setDisabled(true);
-        return;
-      }
-
-      if (hasEmptyFields) {
-        console.log('Empty fields in contingent beneficiaries');
         setDisabled(true);
         return;
       }
@@ -287,10 +283,10 @@ const UpdatePolicyDialog = ({
                 >
                   {Array.isArray(agents) &&
                     agents.map((agent) => {
-                      if (agent.uid === user.uid) return null; // Skip current user
+                      if (user && agent?.uid === user?.uid) return null; // Skip current user
                       return (
-                        <MenuItem key={agent.uid} value={agent.uid}>
-                          {agent.name}
+                        <MenuItem key={agent?.uid} value={agent?.uid}>
+                          {agent?.name}
                         </MenuItem>
                       );
                     })}

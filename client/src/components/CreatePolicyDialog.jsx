@@ -30,6 +30,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { enqueueSnackbar } from 'notistack';
 
 import useAuth from '../hooks/useAuth';
+import { toTitleCase } from '../utils/helpers';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
@@ -107,8 +108,23 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const handleBeneficiaryChange = (i, field, value) => {
     const newList = [...form.beneficiaries];
 
+    if (field === 'firstName' || field === 'lastName') {
+      value = toTitleCase(value);
+    }
+
     newList[i][field] = value;
     setForm((prev) => ({ ...prev, beneficiaries: newList }));
+  };
+
+  const handleContingentChange = (i, field, value) => {
+    const newList = [...form.contingentBeneficiaries];
+
+    if (field === 'firstName' || field === 'lastName') {
+      value = toTitleCase(value);
+    }
+
+    newList[i][field] = value;
+    setForm((prev) => ({ ...prev, contingentBeneficiaries: newList }));
   };
 
   const handleAddBeneficiary = () => {
@@ -135,13 +151,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
         ),
       }));
     }
-  };
-
-  const handleContingentChange = (i, field, value) => {
-    const newList = [...form.contingentBeneficiaries];
-
-    newList[i][field] = value;
-    setForm((prev) => ({ ...prev, contingentBeneficiaries: newList }));
   };
 
   const handleAddContingent = () => {
@@ -181,14 +190,23 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   }, [client?.id]);
 
   useEffect(() => {
+    if (!form) return;
     const modifiedForm = { ...form };
     delete modifiedForm.notes;
 
     console.log('Modified Form:', modifiedForm);
 
-    const hasEmptyFields = Object.values(modifiedForm).some((key) => {
-      return key === '';
+    const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
+      key !== 'splitPolicyAgent' &&
+        key !== 'splitPolicyShare' &&
+        modifiedForm[key] === '';
     });
+
+    if (hasEmptyFields) {
+      console.log('Empty fields detected');
+      setDisabled(true);
+      return;
+    }
 
     if (modifiedForm.splitPolicy) {
       if (!modifiedForm.splitPolicyAgent || !modifiedForm.splitPolicyShare) {
@@ -196,12 +214,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
         setDisabled(true);
         return;
       }
-    }
-
-    if (hasEmptyFields) {
-      console.log('Empty fields detected');
-      setDisabled(true);
-      return;
     }
 
     if (modifiedForm.beneficiaries.length !== 0) {
@@ -235,12 +247,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
 
       if (hasEmptyFields || shareValue !== 100) {
         console.log('Empty fields in beneficiaries');
-        setDisabled(true);
-        return;
-      }
-
-      if (hasEmptyFields) {
-        console.log('Empty fields in contingent beneficiaries');
         setDisabled(true);
         return;
       }

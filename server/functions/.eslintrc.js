@@ -8,6 +8,7 @@ module.exports = {
   },
   extends: ['eslint:recommended', 'google'],
   rules: {
+    'require-jsdoc': 'off',
     'no-restricted-globals': ['error', 'name', 'length'],
     'prefer-arrow-callback': 'error',
     'quotes': ['error', 'single', { allowTemplateLiterals: true }],

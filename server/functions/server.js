@@ -1,6 +1,7 @@
 const cors = require('cors');
 const express = require('express');
 const app = express();
+const { faker } = require('@faker-js/faker');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 
@@ -17,6 +18,11 @@ app.use(
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   }),
 );
+
+const isEmulator =
+  !!process.env.FIRESTORE_EMULATOR_HOST ||
+  !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+  process.env.FUNCTIONS_EMULATOR === 'true';
 
 app.get('/clients', async (req, res) => {
   const db = new Firestore();
@@ -361,50 +367,273 @@ app.delete('/policy', async (req, res) => {
   }
 });
 
-// const toTitleCase = (name) => {
-//   return name
-//     .toLowerCase()
-//     .split(' ')
-//     .filter(Boolean) // removes extra spaces
-//     .map((word) => word[0].toUpperCase() + word.slice(1))
-//     .join(' ');
-// };
+const carriers = [
+  'Mutual of Omaha',
+  'SBLI',
+  'Baltimore Life',
+  'American Amicable',
+  'Royal Neighbors',
+];
+const policyTypes = [
+  'FEX Level Death Benefit',
+  'iProvide',
+  'Whole Life',
+  'Term 20',
+];
+const leadSources = [
+  'GetSeniorQuotes.com',
+  'Facebook Ads',
+  'Referral',
+  'Direct Mail',
+];
+const policyStatuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
+const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed'];
 
-// const updateFields = async () => {
-//   const firestore = new Firestore();
+function randDate(start, end) {
+  const d = new Date(
+    start.getTime() + Math.random() * (end.getTime() - start.getTime()),
+  );
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
 
-//   // const policiesCollection = firestore.collection('policies');
+function randomPhone() {
+  return faker.string.numeric(10);
+}
 
-//   // const policiesSnapshot = await policiesCollection.get();
-//   // policiesSnapshot.forEach((doc) => {
-//   //   const data = doc.data();
-//   //   const updatedData = {
-//   //     ...data,
-//   //     clientName: toTitleCase(data.clientName),
-//   //   };
-//   //   policiesCollection.doc(doc.id).update(updatedData);
-//   // });
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-//   const clientsCollection = firestore.collection('clients');
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 
-//   const clientsSnapshot = await clientsCollection.get();
-//   clientsSnapshot.forEach((doc) => {
-//     console.log(doc.id);
-//     const data = doc.data();
-//     const updatedData = {
-//       ...data,
-//       firstName:
-//         data.firstName[0].toUpperCase() + data.firstName.slice(1).toLowerCase(),
-//       lastName:
-//         data.lastName[0].toUpperCase() + data.lastName.slice(1).toLowerCase(),
-//       email: data.email.toLowerCase(),
-//     };
-//     clientsCollection.doc(doc.id).update(updatedData);
-//   });
-// };
+async function getAgents() {
+  const firestore = new Firestore();
+  const snap = await firestore
+    .collection('agents')
+    .where('role', 'in', ['agent', 'admin'])
+    .get();
+  return snap.docs.map((d) => ({
+    uid: d.get('uid') ?? d.id,
+    name: d.get('name') ?? 'Agent',
+    email: d.get('email') ?? '',
+    compRate: d.get('compRate') ?? 0.8,
+    role: d.get('role') ?? 'agent',
+  }));
+}
 
-// updateFields()
-//   .then(() => console.log('Fields updated successfully'))
-//   .catch((error) => console.error('Error updating fields:', error));
+function buildClient(seedRunId, agentPool) {
+  const firstName = faker.person.firstName();
+  const lastName = faker.person.lastName();
+  const agentIds = faker.helpers.arrayElements(
+    agentPool.map((a) => a.uid),
+    faker.number.int({ min: 1, max: Math.min(2, agentPool.length) }),
+  );
+  return {
+    firstName,
+    lastName,
+    email: faker.internet.email({ firstName, lastName }).toLowerCase(),
+    phone: randomPhone(),
+    address: faker.location.streetAddress(),
+    city: faker.location.city(),
+    state: faker.location.state(),
+    zip: faker.location.zipCode(),
+    dob: randDate(new Date(1930, 0, 1), new Date(1975, 11, 31)),
+    income: faker.number.int({ min: 15000, max: 120000 }).toString(),
+    maritalStatus: pick(maritalStatuses),
+    occupation: faker.person.jobTitle(),
+    notes: faker.lorem.sentence(),
+    agentIds,
+    policyIds: [],
+    policyData: [],
+    createdAt: Timestamp.now(),
+    seedRunId,
+  };
+}
+
+function buildPolicy(seedRunId, clientId, clientName, agents, clientAgentIds) {
+  const agentIds = faker.helpers.arrayElements(
+    clientAgentIds.length ? clientAgentIds : agents.map((a) => a.uid),
+    faker.number.int({
+      min: 1,
+      max: Math.min(2, Math.max(1, clientAgentIds.length)),
+    }),
+  );
+
+  const carrier = pick(carriers);
+  const policyNumber = faker.string.alphanumeric({
+    length: 12,
+    casing: 'mixed',
+  });
+  const policyType = pick(policyTypes);
+  const premiumAmount = faker.finance.amount({ min: 35, max: 250, dec: 2 });
+  const coverageAmount = faker.number.int({ min: 5000, max: 30000 }).toString();
+  const compRate = 0.8;
+  const policyStatus = pick(policyStatuses);
+
+  const sold = new Date();
+  sold.setDate(sold.getDate() - faker.number.int({ min: 0, max: 120 }));
+  const effective = new Date(sold);
+  effective.setDate(sold.getDate() + faker.number.int({ min: 0, max: 14 }));
+
+  console.log(agentIds);
+
+  const splitPolicy = agentIds.length === 2 && Math.random() < 0.3;
+  const splitPolicyAgent = splitPolicy ? agentIds[1] : '';
+  const splitPolicyShare = splitPolicy
+    ? ['25', '50'][faker.number.int({ min: 0, max: 1 })]
+    : '';
+
+  return {
+    clientId,
+    clientName,
+    agentIds,
+    carrier,
+    policyNumber,
+    policyType,
+    premiumAmount, // string
+    premiumFrequency: 'Monthly',
+    coverageAmount, // string
+    compRate, // number
+    policyStatus,
+    effectiveDate: effective.toISOString().slice(0, 10),
+    dateSold: sold.toISOString().slice(0, 10),
+    draftDay: faker.number.int({ min: 1, max: 28 }).toString(),
+    leadSource: pick(leadSources),
+    notes: '',
+    beneficiaries: [
+      {
+        firstName: faker.person.firstName(),
+        lastName: faker.person.lastName(),
+        relationship: pick(['Spouse', 'Child', 'Sibling', 'Parent']),
+        share: '100',
+      },
+    ],
+    contingentBeneficiaries: [],
+    splitPolicy,
+    splitPolicyAgent,
+    splitPolicyShare, // string like "25" or "50"
+    createdAt: Timestamp.now(),
+    seedRunId,
+  };
+}
+
+async function seedOnce({
+  clients,
+  minPoliciesPerClient,
+  maxPoliciesPerClient,
+  seedRunId,
+}) {
+  if (!isEmulator) {
+    return;
+    // throw new functions.https.HttpsError(
+    //   'failed-precondition',
+    //   'Seeding is blocked outside of the emulator. Start emulators and try again.',
+    // );
+  }
+
+  const db = new Firestore();
+  const agents = await getAgents();
+  if (agents.length < 2) {
+    console.error('Need at least two agents for seeding.');
+    // throw new functions.https.HttpsError(
+    //   'failed-precondition',
+    //   "Need at least two agents in 'agents' collection (created via Auth callback) before seeding.",
+    // );
+  }
+
+  const clientDocs = [];
+  const policyDocs = [];
+
+  for (let i = 0; i < clients; i++) {
+    const clientRef = db.collection('clients').doc();
+    const c = buildClient(seedRunId, agents);
+    clientDocs.push({ ref: clientRef, data: c });
+
+    const policyCount = faker.number.int({
+      min: minPoliciesPerClient,
+      max: maxPoliciesPerClient,
+    });
+    for (let k = 0; k < policyCount; k++) {
+      const pRef = db.collection('policies').doc();
+      const p = buildPolicy(
+        seedRunId,
+        clientRef.id,
+        `${c.firstName} ${c.lastName}`,
+        agents,
+        c.agentIds,
+      );
+      p.id = pRef.id;
+
+      c.policyIds.push(pRef.id);
+      c.policyData.push({
+        id: pRef.id,
+        carrier: p.carrier,
+        policyNumber: p.policyNumber,
+      });
+
+      policyDocs.push({ ref: pRef, data: p });
+    }
+  }
+
+  const writes = [
+    ...clientDocs.map((cd) => ({ type: 'client', ...cd })),
+    ...policyDocs.map((pd) => ({ type: 'policy', ...pd })),
+  ];
+
+  const chunks = chunk(writes, 450);
+  for (const group of chunks) {
+    const batch = db.batch();
+    for (const w of group) {
+      batch.set(w.ref, w.data);
+    }
+    await batch.commit();
+  }
+
+  return {
+    seedRunId,
+    clientsCreated: clientDocs.length,
+    policiesCreated: policyDocs.length,
+  };
+}
+
+async function wipeSeed(seedRunId) {
+  if (!isEmulator) {
+    console.error('Wipe is blocked outside of the emulator.');
+    // throw new functions.https.HttpsError(
+    //   'failed-precondition',
+    //   'Wipe is blocked outside of the emulator.',
+    // );
+  }
+
+  const db = new Firestore();
+  const collections = ['policies', 'clients']; // delete policies first (refs live on clients)
+
+  for (const col of collections) {
+    while (true) {
+      const snap = await db
+        .collection(col)
+        .where('seedRunId', '==', seedRunId)
+        .limit(500)
+        .get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      if (snap.size < 500) break;
+    }
+  }
+  return { seedRunId, status: 'wiped' };
+}
+
+// seedOnce({
+//   clients: 10,
+//   minPoliciesPerClient: 0,
+//   maxPoliciesPerClient: 1,
+//   seedRunId: 'test-seed-run',
+// });
 
 module.exports = app;

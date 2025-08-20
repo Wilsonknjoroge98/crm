@@ -31,3 +31,11 @@ export const stringToColor = (str) => {
     hex = hslToHex(hue, sat, (light -= 2));
   return hex;
 };
+
+export const toTitleCase = (str) =>
+  str
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(' ');

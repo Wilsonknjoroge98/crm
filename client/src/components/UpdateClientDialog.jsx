@@ -18,6 +18,8 @@ import { patchClient } from '../utils/query';
 import { STATES } from '../utils/constants';
 import { NumericFormat } from 'react-number-format';
 
+import { toTitleCase } from '../utils/helpers';
+
 const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
@@ -55,6 +57,20 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
     if (client) setForm({ ...client });
   }, [client]);
 
+  const standardizeAddress = (address) => {
+    return address
+      .toLowerCase()
+      .split(/\s+/)
+      .map((part) => {
+        const idx = part.search(/[a-z]/i);
+        if (idx === -1) return part;
+        return (
+          part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1)
+        );
+      })
+      .join(' ');
+  };
+
   function standardizeName(name) {
     const lowerCaseName = name.toLowerCase().trim();
 
@@ -67,12 +83,18 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
     const name = e.target.name;
     let value = e.target.value;
 
-    if (name === 'firstName' || name === 'lastName') {
-      value = standardizeName(value);
+    const titleCaseFields = ['firstName', 'lastName', 'city', 'occupation'];
+
+    if (titleCaseFields.includes(name)) {
+      value = toTitleCase(value);
     }
 
     if (name === 'email') {
       value = value.toLowerCase();
+    }
+
+    if (name === 'address') {
+      value = standardizeAddress(value);
     }
 
     if (name === 'phone') {
