@@ -18,6 +18,22 @@ const theme = createTheme({
     accent: {
       main: '#5DA9E9', // Light Blue
     },
+    info: {
+      main: '#D6EAF8',
+      contrastText: '#1A1A1A',
+    },
+    warning: {
+      main: '#FCF3CF',
+      contrastText: '#1A1A1A',
+    },
+    success: {
+      main: '#D5F5E3',
+      contrastText: '#1A1A1A',
+    },
+    error: {
+      main: '#FADBD8',
+      contrastText: '#1A1A1A',
+    },
     background: {
       default: '#F2F2F2',
       paper: '#FFFFFF',

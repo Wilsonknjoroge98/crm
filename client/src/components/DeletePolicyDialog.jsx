@@ -17,15 +17,19 @@ import { enqueueSnackbar } from 'notistack';
 
 import { deletePolicy } from '../utils/query';
 
+import useAuth from '../hooks/useAuth';
+
 const DeletePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   const [confirm, setConfirm] = useState(false);
+
+  const { userToken } = useAuth();
 
   useEffect(() => {
     if (!open) setConfirm(false);
   }, [open]);
 
   const { mutate, isLoading, isError, error } = useMutation({
-    mutationFn: ({ policyId }) => deletePolicy({ policyId }),
+    mutationFn: deletePolicy,
     onSuccess: () => {
       refetchPolicies();
       enqueueSnackbar('Policy deleted successfully.', {
@@ -62,7 +66,7 @@ const DeletePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
 
   const handleDelete = () => {
     if (!policy?.id) return;
-    mutate({ policyId: policy.id });
+    mutate({ token: userToken, data: { policyId: policy.id } });
   };
 
   return (

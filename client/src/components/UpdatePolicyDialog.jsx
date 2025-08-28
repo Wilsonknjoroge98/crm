@@ -24,6 +24,7 @@ import { useMutation } from '@tanstack/react-query';
 import { patchPolicy } from '../utils/query';
 import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
 import { enqueueSnackbar } from 'notistack';
+
 import useAuth from '../hooks/useAuth';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
@@ -42,7 +43,7 @@ const UpdatePolicyDialog = ({
   const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [updatesMade, setUpdatesMade] = useState(false);
-  const { user } = useAuth();
+  const { user, userToken } = useAuth();
 
   useEffect(() => {
     if (policy) {
@@ -89,7 +90,7 @@ const UpdatePolicyDialog = ({
   });
 
   const handleSubmit = () => {
-    updatePolicy({ policy: { ...form } });
+    updatePolicy({ token: userToken, data: { ...form } });
   };
 
   const handleChange = (e) => {

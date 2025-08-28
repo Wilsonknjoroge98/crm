@@ -4,12 +4,16 @@ const app = express();
 const { faker } = require('@faker-js/faker');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
+const admin = require('firebase-admin');
+
+admin.initializeApp();
 
 app.use(express.json());
 
 app.use(
   cors({
     origin: [
+      'https://hourglasslifegroup.com',
       'https://hourglass-ef3ca.web.app',
       'http://localhost:5173',
       'http://localhost:5174',
@@ -23,6 +27,30 @@ const isEmulator =
   !!process.env.FIRESTORE_EMULATOR_HOST ||
   !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
   process.env.FUNCTIONS_EMULATOR === 'true';
+
+const authMiddleware = async (req, res, next) => {
+  try {
+    const idToken = (req.headers.authorization || '').replace('Bearer ', '');
+    console.log('Verifying ID token:', idToken);
+    if (!idToken) {
+      return res.status(401).json({ error: 'Missing Authorization' });
+    }
+
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    // derive identity & role ONLY from the verified token
+    req.user = {
+      uid: decoded.uid,
+      role: decoded.role || 'agent', // from custom claims you set server-side
+      email: decoded.email,
+    };
+    next();
+  } catch (e) {
+    console.error('Auth error', e);
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+app.use(authMiddleware);
 
 app.get('/clients', async (req, res) => {
   const db = new Firestore();
@@ -50,7 +78,6 @@ app.get('/clients', async (req, res) => {
         id: doc.id,
         ...doc.data(),
       }));
-      console.log('Fetched clients:', clients);
       res.json(clients || []);
     }
   } catch (error) {
@@ -96,6 +123,8 @@ app.get('/policies', async (req, res) => {
 app.post('/agent', async (req, res) => {
   const db = new Firestore();
   const { agent } = req.body;
+
+  console.log('Creating agent:', agent);
 
   if (!agent || !agent.email) {
     return res.status(400).json({ error: 'Missing agent data or email' });

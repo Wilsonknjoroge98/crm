@@ -50,7 +50,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
   const [emailError, setEmailError] = useState(false);
   const [disabled, setDisabled] = useState(true);
 
-  const { user } = useAuth();
+  const { user, userToken } = useAuth();
 
   const { mutate: createClient, isPending } = useMutation({
     mutationFn: postClient,
@@ -119,7 +119,8 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
 
   const handleSubmit = () => {
     createClient({
-      client: { ...form, agentIds: [user.uid] },
+      token: userToken,
+      data: { ...form, agentIds: [user.uid] },
     });
   };
 

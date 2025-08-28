@@ -7,15 +7,28 @@ import { getAgent } from '../utils/query';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
+  const [userToken, setUserToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
 
       if (user) {
+        const idToken = await user.getIdToken();
+
+        setUserToken(idToken);
+
+        user.onIdTokenChanged?.(async (refreshedUser) => {
+          if (refreshedUser) {
+            const refreshedToken = await refreshedUser.getIdToken(true);
+            setUserToken(refreshedToken);
+          }
+        });
+
         setIsAuthenticated(true);
       } else {
+        setUserToken(null);
         setIsAuthenticated(false);
       }
     });
@@ -24,7 +37,7 @@ export const useAuth = () => {
 
   const { data: agent, error } = useQuery({
     queryKey: ['agent', user?.uid],
-    queryFn: () => getAgent(user.uid),
+    queryFn: () => getAgent({ token: userToken, data: { uid: user.uid } }),
     enabled: !!user,
     retry: false,
   });
@@ -34,6 +47,7 @@ export const useAuth = () => {
     agent,
     isAuthenticated,
     error,
+    userToken,
   };
 };
 

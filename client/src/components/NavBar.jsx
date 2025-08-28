@@ -27,11 +27,11 @@ const drawerWidth = 240;
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, userToken, isAuthenticated } = useAuth();
 
   const { data: agentData } = useQuery({
     queryKey: ['agent', user?.uid, isAuthenticated],
-    queryFn: () => getAgent(user.uid),
+    queryFn: () => getAgent({ token: userToken, data: { uid: user?.uid } }),
   });
 
   const getInitials = (name) => {

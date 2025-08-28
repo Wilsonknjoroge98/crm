@@ -1,8 +1,8 @@
 // ClientsGrid.js
 import * as React from 'react';
 import PropTypes from 'prop-types';
-import { DataGrid, GridActionsCellItem, GridToolbar } from '@mui/x-data-grid';
-import { Stack, Typography, Chip, Box, Paper } from '@mui/material';
+import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
+import { Stack, Typography, Chip } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
@@ -49,7 +49,13 @@ export default function ClientsGrid({
         sortable: false,
         filterable: false,
         renderCell: (params) => (
-          <Stack>
+          <Stack
+            sx={{
+              width: '100%',
+              height: '100%',
+              justifyContent: 'flex-end',
+            }}
+          >
             {(params.value || []).map((id) => (
               <Typography variant='caption' key={id}>
                 {agentNameById[id] || id}
@@ -132,12 +138,32 @@ export default function ClientsGrid({
           const c = params.row;
           const policies = (c && c.policyData) || [];
           if (!policies.length) {
-            return <Chip color='error' label='Missing Policies' size='small' />;
+            return (
+              <Stack
+                sx={{
+                  py: 2,
+                  width: '100%',
+                  overflowX: 'auto',
+                  justifyContent: 'center',
+                }}
+              >
+                <Chip
+                  sx={{ color: '#000' }}
+                  color='error'
+                  label='Missing Policies'
+                  size='small'
+                />
+              </Stack>
+            );
           }
           return (
             <Stack
-              spacing={1}
-              sx={{ py: 0.5, width: '100%', overflowX: 'auto' }}
+              sx={{
+                py: 2,
+                width: '100%',
+                overflowX: 'auto',
+                justifyContent: 'center',
+              }}
             >
               {policies.map((p) => (
                 <Chip
@@ -155,10 +181,10 @@ export default function ClientsGrid({
       {
         field: 'actions',
         type: 'actions',
-        headerName: 'Actions',
+        headerName: '',
         align: 'right',
         headerAlign: 'right',
-        minWidth: 150,
+        width: 60,
         getActions: (params) => {
           const c = params.row;
           return [
@@ -167,21 +193,21 @@ export default function ClientsGrid({
               icon={<AddCircleIcon />}
               label='Add Policy'
               onClick={() => handleAddPolicies && handleAddPolicies(c)}
-              showInMenu={false}
+              showInMenu={true}
             />,
             <GridActionsCellItem
               key='edit'
               icon={<EditIcon />}
               label='Update Client'
               onClick={() => handleUpdateClient && handleUpdateClient(c)}
-              showInMenu={false}
+              showInMenu={true}
             />,
             <GridActionsCellItem
               key='delete'
               icon={<DeleteIcon />}
               label='Delete Client'
               onClick={() => handleDeleteClient && handleDeleteClient(c)}
-              showInMenu={false}
+              showInMenu={true}
             />,
           ];
         },
@@ -199,8 +225,10 @@ export default function ClientsGrid({
   ]);
 
   return (
-    <Paper elevation={1} sx={{ minHeight: 300, maxHeight: 600 }}>
+    <Stack sx={{ minHeight: 600, maxHeight: 600 }}>
       <DataGrid
+        sx={{ border: 'none', boxShadow: 'none', bgcolor: 'transparent' }}
+        rowHeight={60}
         rows={rows || []}
         loading={!!clientsLoading}
         getRowId={(row) => row.id}
@@ -210,16 +238,12 @@ export default function ClientsGrid({
         initialState={{
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
-        slots={showToolbar ? { toolbar: GridToolbar } : undefined}
-        slotProps={
-          showToolbar ? { toolbar: { showQuickFilter: true } } : undefined
-        }
-        sx={{
-          '& .MuiDataGrid-cell': { py: 1 },
-          '& .MuiChip-root': { maxWidth: '100%' },
-        }}
+        // slots={showToolbar ? { toolbar: GridToolbar } : undefined}
+        // slotProps={
+        //   showToolbar ? { toolbar: { showQuickFilter: true } } : undefined
+        // }
       />
-    </Paper>
+    </Stack>
   );
 }
 

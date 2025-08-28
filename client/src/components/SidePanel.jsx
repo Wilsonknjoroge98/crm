@@ -4,20 +4,18 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Toolbar,
   Typography,
   Box,
-  Divider,
   Stack,
 } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
+// import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import DescriptionIcon from '@mui/icons-material/Description';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import SupervisedUserCircleIcon from '@mui/icons-material/SupervisedUserCircle';
-import PrintIcon from '@mui/icons-material/Print';
-import BarChartIcon from '@mui/icons-material/BarChart';
+// import AssignmentIcon from '@mui/icons-material/Assignment';
+// import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+// import SupervisedUserCircleIcon from '@mui/icons-material/SupervisedUserCircle';
+// import PrintIcon from '@mui/icons-material/Print';
+// import BarChartIcon from '@mui/icons-material/BarChart';
 import BuildIcon from '@mui/icons-material/Build';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -107,7 +105,6 @@ const SidePanel = () => {
 
               return (
                 <ListItem
-                  button
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{

@@ -18,10 +18,7 @@ const Policies = () => {
   const [deletePolicyOpen, setDeletePolicyOpen] = useState(false);
   const [policy, setPolicy] = useState(null);
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  const { user, agent } = useAuth();
+  const { user, agent, userToken } = useAuth();
 
   const {
     data: policies = [],
@@ -30,7 +27,11 @@ const Policies = () => {
     isLoading: policiesLoading,
   } = useQuery({
     queryKey: ['policies', user?.uid, agent?.role],
-    queryFn: () => getPolicies({ agentId: user.uid, agentRole: agent.role }),
+    queryFn: () =>
+      getPolicies({
+        token: userToken,
+        data: { agentId: user.uid, agentRole: agent.role },
+      }),
     enabled: !!agent,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -41,7 +42,7 @@ const Policies = () => {
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery({
     queryKey: ['agents'],
-    queryFn: getAgents,
+    queryFn: () => getAgents({ token: userToken }),
   });
 
   const headers = [
@@ -80,13 +81,6 @@ const Policies = () => {
   const handleUpdatePolicy = (policyData) => {
     setPolicy(policyData);
     setUpdatePolicyOpen(true);
-  };
-
-  const statusConfig = {
-    Active: { label: 'Active', bgcolor: 'secondary' },
-    Pending: { label: 'Pending', bgcolor: 'info.main', color: '#fff' },
-    Lapsed: { label: 'Lapsed', bgcolor: 'action.main' },
-    Cancelled: { label: 'Cancelled', bgcolor: 'error.main', color: '#fff' },
   };
 
   if (isError) {
@@ -145,18 +139,12 @@ const Policies = () => {
               filename={`policies_${new Date().toISOString().slice(0, 10)}.csv`}
               style={{ textDecoration: 'none' }}
             >
-              <Button variant='outlined' color='info'>
+              <Button variant='outlined' color='info.main'>
                 Export CSV
               </Button>
             </CSVLink>
           </Stack>
         </Stack>
-        {/* 
-        <Alert severity='warning' sx={{ mb: 3 }}>
-          <strong>Policy Sync Notice:</strong> Some recently added policies may
-          not appear due to a temporary sync issue. If you don’t see a policy
-          you just created, please refresh the page.
-        </Alert> */}
 
         <PoliciesGrid
           agent={agent}
@@ -164,7 +152,6 @@ const Policies = () => {
           policies={policies}
           policiesLoading={policiesLoading}
           agentsLoading={agentsLoading}
-          statusConfig={statusConfig}
           handleUpdatePolicy={handleUpdatePolicy}
           setPolicy={setPolicy}
           setDeletePolicyOpen={setDeletePolicyOpen}

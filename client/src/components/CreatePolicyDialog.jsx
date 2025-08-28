@@ -38,7 +38,7 @@ const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
 
-  const { user } = useAuth();
+  const { user, userToken } = useAuth();
 
   const initialForm = {
     policyNumber: '',
@@ -89,7 +89,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
 
   const { data: agents } = useQuery({
     queryKey: ['agents'],
-    queryFn: getAgents,
+    queryFn: () => getAgents({ token: userToken }),
   });
 
   const [form, setForm] = useState(initialForm);
@@ -169,9 +169,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       : [user.uid, form.splitPolicyAgent];
 
     createPolicy({
-      policy: { ...form },
-      agentIds,
-      clientId: client.id,
+      token: userToken,
+      data: {
+        policy: { ...form },
+        agentIds,
+        clientId: client.id,
+      },
     });
   };
 

@@ -22,11 +22,11 @@ const Clients = () => {
   const [deleteClientOpen, setDeleteClientOpen] = useState(false);
   const [client, setClient] = useState(null);
 
-  const { user, agent } = useAuth();
+  const { user, agent, userToken } = useAuth();
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
-    queryFn: getAgents,
+    queryFn: () => getAgents({ token: userToken }),
   });
 
   const {
@@ -36,8 +36,12 @@ const Clients = () => {
     isError,
   } = useQuery({
     queryKey: ['clients', user?.uid, agent?.role],
-    queryFn: () => getClients({ agentId: user.uid, agentRole: agent.role }),
-    enabled: !!agent,
+    queryFn: () =>
+      getClients({
+        token: userToken,
+        data: { agentId: user.uid, agentRole: agent.role },
+      }),
+    enabled: !!agent && !!userToken,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -80,8 +84,6 @@ const Clients = () => {
     setClient(clientData);
     setDeleteClientOpen(true);
   };
-
-  console.log('clients', clients);
 
   if (isError) {
     return (
@@ -151,7 +153,7 @@ const Clients = () => {
               headers={headers}
               filename={`clients_${new Date().toISOString().slice(0, 10)}.csv`}
             >
-              <Button variant='outlined' color='info'>
+              <Button variant='outlined' color='info.main'>
                 Export CSV
               </Button>
             </CSVLink>

@@ -18,6 +18,8 @@ import { auth } from '../utils/firebase';
 import { postAgent } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 
+import useAuth from '../hooks/useAuth';
+
 export default function SignUp() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -26,6 +28,8 @@ export default function SignUp() {
   const [confirmPass, setConfirmPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const { userToken } = useAuth();
 
   const { mutate: createAgent } = useMutation({
     mutationFn: postAgent,
@@ -61,12 +65,19 @@ export default function SignUp() {
 
     setLoading(true);
     try {
-      const user = await createUserWithEmailAndPassword(auth, email, password);
+      const { user } = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+
+      const token = await user.getIdToken();
       createAgent({
-        agent: {
+        token,
+        data: {
           name,
           email,
-          uid: user.user.uid,
+          uid: user.uid,
           role: 'agent',
           compRate: 0.8,
         },

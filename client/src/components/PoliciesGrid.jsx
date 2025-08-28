@@ -2,7 +2,7 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
-import { Stack, Typography, Chip, Box, Paper } from '@mui/material';
+import { Stack, Typography, Chip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
@@ -12,7 +12,6 @@ export default function PoliciesGrid({
   policies,
   policiesLoading,
   agentsLoading,
-  statusConfig,
   handleUpdatePolicy,
   setPolicy,
   setDeletePolicyOpen,
@@ -24,6 +23,13 @@ export default function PoliciesGrid({
     });
     return map;
   }, [agents]);
+
+  const statusConfig = {
+    Active: { label: 'Active', bgcolor: 'success.main' },
+    Pending: { label: 'Pending', bgcolor: 'info.main' },
+    Lapsed: { label: 'Lapsed', bgcolor: 'warning.main' },
+    Cancelled: { label: 'Cancelled', bgcolor: 'error.main' },
+  };
 
   console.log('Agent name by id', agentNameById);
 
@@ -104,26 +110,35 @@ export default function PoliciesGrid({
         field: 'policyStatus',
         headerName: 'Status',
         flex: 1,
-        minWidth: 140,
+        width: 60,
         renderCell: (params) => {
           const status = params.value;
           const cfg = statusConfig?.[status] || {};
           return (
-            <Chip
-              label={status}
+            <Stack
               sx={{
-                color: cfg.color || 'inherit',
-                backgroundColor: cfg.bgcolor || 'transparent',
+                py: 2,
+                width: '100%',
+                overflowX: 'auto',
+                justifyContent: 'center',
               }}
-              size='small'
-            />
+            >
+              <Chip
+                label={status}
+                sx={{
+                  color: cfg.color || 'inherit',
+                  backgroundColor: cfg.bgcolor || 'transparent',
+                }}
+                size='small'
+              />
+            </Stack>
           );
         },
       },
       {
         field: 'actions',
         type: 'actions',
-        headerName: 'Actions',
+        headerName: '',
         align: 'right',
         headerAlign: 'right',
         getActions: (params) => {
@@ -134,7 +149,7 @@ export default function PoliciesGrid({
               icon={<EditIcon />}
               label='Edit / View Policy'
               onClick={() => handleUpdatePolicy && handleUpdatePolicy(p)}
-              showInMenu={false}
+              showInMenu={true}
             />,
             <GridActionsCellItem
               key='delete'
@@ -144,7 +159,7 @@ export default function PoliciesGrid({
                 setPolicy && setPolicy(p);
                 setDeletePolicyOpen && setDeletePolicyOpen(true);
               }}
-              showInMenu={false}
+              showInMenu={true}
             />,
           ];
         },
@@ -162,9 +177,11 @@ export default function PoliciesGrid({
   ]);
 
   return (
-    <Paper elevation={1} sx={{ minHeight: 300, maxHeight: 600 }}>
+    <Stack sx={{ minHeight: 200, maxHeight: 600 }}>
       <DataGrid
+        sx={{ border: 'none', boxShadow: 'none', bgcolor: 'transparent' }}
         rows={policies || []}
+        rowHeight={60}
         loading={!!policiesLoading || !!agentsLoading}
         getRowId={(row) => row.id}
         columns={columns}
@@ -173,11 +190,8 @@ export default function PoliciesGrid({
         initialState={{
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
-        sx={{
-          '& .MuiDataGrid-cell': { py: 1 },
-        }}
       />
-    </Paper>
+    </Stack>
   );
 }
 
@@ -187,7 +201,6 @@ PoliciesGrid.propTypes = {
   policies: PropTypes.array,
   policiesLoading: PropTypes.bool,
   agentsLoading: PropTypes.bool,
-  statusConfig: PropTypes.object,
   handleUpdatePolicy: PropTypes.func,
   setPolicy: PropTypes.func,
   setDeletePolicyOpen: PropTypes.func,

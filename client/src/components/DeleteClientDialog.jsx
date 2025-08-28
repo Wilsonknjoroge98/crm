@@ -17,15 +17,19 @@ import { enqueueSnackbar } from 'notistack';
 
 import { deleteClient } from '../utils/query';
 
+import useAuth from '../hooks/useAuth';
+
 const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [confirm, setConfirm] = useState(false);
+
+  const { userToken } = useAuth();
 
   useEffect(() => {
     if (!open) setConfirm(false);
   }, [open]);
 
   const { mutate, isPending, isError, error } = useMutation({
-    mutationFn: ({ clientId }) => deleteClient({ clientId }),
+    mutationFn: deleteClient,
     onSuccess: () => {
       enqueueSnackbar('Client deleted successfully.', {
         variant: 'success',
@@ -62,7 +66,7 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
 
   const handleDelete = () => {
     if (!client?.id) return;
-    mutate({ clientId: client.id });
+    mutate({ token: userToken, data: { clientId: client.id } });
   };
 
   const fullName = client

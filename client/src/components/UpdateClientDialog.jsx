@@ -20,6 +20,10 @@ import { NumericFormat } from 'react-number-format';
 
 import { toTitleCase } from '../utils/helpers';
 
+import { enqueueSnackbar } from 'notistack';
+
+import useAuth from '../hooks/useAuth';
+
 const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
@@ -29,6 +33,8 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [emailError, setEmailError] = useState(false);
   const [updatesMade, setUpdatesMade] = useState(false);
   const [disabled, setDisabled] = useState(true);
+
+  const { userToken } = useAuth();
 
   const { mutate: updateClient, isPending } = useMutation({
     mutationFn: patchClient,
@@ -110,7 +116,10 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   };
 
   const handleSubmit = () => {
-    updateClient({ clientId: client.id, client: form });
+    updateClient({
+      token: userToken,
+      data: { clientId: client.id, client: form },
+    });
   };
 
   const handleCancel = () => {

@@ -3,8 +3,10 @@ import axios from 'axios';
 const BASE_URL = import.meta.env.VITE_API_URL;
 const DEV_URL = import.meta.env.VITE_DEV_URL;
 
-const getClients = async ({ agentId, agentRole }) => {
+const getClients = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
+
+  const { agentId, agentRole } = data || {};
 
   if (!agentId || !agentRole) {
     return [];
@@ -30,6 +32,9 @@ const getClients = async ({ agentId, agentRole }) => {
 
   // request config for compulife server
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'GET',
     // signal: signal,
     url: isDev ? `${DEV_URL}/clients` : `${BASE_URL}/clients`,
@@ -64,8 +69,10 @@ const getClients = async ({ agentId, agentRole }) => {
   }
 };
 
-const getPolicies = async ({ agentId, agentRole }) => {
+const getPolicies = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
+
+  const { agentId, agentRole } = data || {};
 
   if (!agentId || !agentRole) {
     return [];
@@ -73,6 +80,9 @@ const getPolicies = async ({ agentId, agentRole }) => {
 
   // request config for compulife server
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'GET',
     // signal: signal,
     url: isDev ? `${DEV_URL}/policies` : `${BASE_URL}/policies`,
@@ -103,21 +113,24 @@ const getPolicies = async ({ agentId, agentRole }) => {
   }
 };
 
-const postClient = async ({ client }) => {
+const postClient = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
-  console.log('Posting client:', client);
+  console.log('Posting client:', data);
 
   // client side validation
-  if (!client) {
+  if (!data) {
     throw new Error('Missing data');
   }
 
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'POST',
-    data: { client: client, mode: import.meta.env.MODE },
+    data: { client: data, mode: import.meta.env.MODE },
     signal: controller.signal,
     url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
   };
@@ -129,10 +142,12 @@ const postClient = async ({ client }) => {
   return response.data;
 };
 
-const patchClient = async ({ clientId, client }) => {
+const patchClient = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
-  console.log('Patching client:', client);
+  console.log('Patching client:', data);
+
+  const { clientId, client } = data || {};
 
   // client side validation
   if (!client) {
@@ -142,6 +157,9 @@ const patchClient = async ({ clientId, client }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'PATCH',
     data: { clientId: clientId, client: client, mode: import.meta.env.MODE },
     signal: controller.signal,
@@ -155,21 +173,23 @@ const patchClient = async ({ clientId, client }) => {
   return response.data;
 };
 
-const postAgent = async ({ agent }) => {
+const postAgent = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
-  console.log('Posting agent:', agent);
 
   // client side validation
 
-  if (!agent) {
+  if (!data) {
     throw new Error('Missing data');
   }
 
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'POST',
-    data: { agent: agent, mode: import.meta.env.MODE },
+    data: { agent: data, mode: import.meta.env.MODE },
     signal: controller.signal,
     url: isDev ? `${DEV_URL}/agent` : `${BASE_URL}/agent`,
   };
@@ -179,13 +199,20 @@ const postAgent = async ({ agent }) => {
   return response.data;
 };
 
-const getAgent = async (uid) => {
+const getAgent = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
-  console.log('Getting agent:', uid);
+  const { uid } = data || {};
+
+  if (!uid) {
+    throw new Error('Missing UID');
+  }
 
   // request config for compulife server
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'GET',
     url: isDev ? `${DEV_URL}/agent` : `${BASE_URL}/agent`,
     params: { uid: uid, mode: import.meta.env.MODE },
@@ -193,8 +220,6 @@ const getAgent = async (uid) => {
 
   try {
     const response = await axios.request(options);
-
-    console.log('Agent fetched:', response.data);
 
     return response.data;
   } catch (error) {
@@ -211,11 +236,18 @@ const getAgent = async (uid) => {
   }
 };
 
-const getAgents = async () => {
+const getAgents = async ({ token }) => {
   const isDev = import.meta.env.DEV;
+
+  if (!token) {
+    throw new Error('Missing token');
+  }
 
   // request config for compulife server
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'GET',
     url: isDev ? `${DEV_URL}/agents` : `${BASE_URL}/agents`,
     params: { mode: import.meta.env.MODE },
@@ -239,21 +271,24 @@ const getAgents = async () => {
   }
 };
 
-const patchPolicy = async ({ policy }) => {
+const patchPolicy = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
-  console.log('Patching policy:', policy);
+  console.log({ token, data });
 
   // client side validation
-  if (!policy) {
+  if (!data) {
     throw new Error('Missing data');
   }
 
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'PATCH',
-    data: { policyId: policy.id, policy: policy, mode: import.meta.env.MODE },
+    data: { policyId: data.id, policy: data, mode: import.meta.env.MODE },
     signal: controller.signal,
     url: isDev ? `${DEV_URL}/policy` : `${BASE_URL}/policy`,
   };
@@ -265,8 +300,10 @@ const patchPolicy = async ({ policy }) => {
   return response.data;
 };
 
-const postPolicy = async ({ policy, clientId, agentIds }) => {
+const postPolicy = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
+
+  const { policy, clientId, agentIds } = data || {};
 
   // client side validation
   if (!policy || !clientId || !agentIds) {
@@ -279,6 +316,9 @@ const postPolicy = async ({ policy, clientId, agentIds }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'POST',
     data: {
       policy: policy,
@@ -297,8 +337,10 @@ const postPolicy = async ({ policy, clientId, agentIds }) => {
   return response.data;
 };
 
-const deleteClient = async ({ clientId }) => {
+const deleteClient = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
+
+  const { clientId } = data || {};
 
   console.log('Deleting client with ID:', clientId);
   // client side validation
@@ -309,6 +351,9 @@ const deleteClient = async ({ clientId }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'DELETE',
     data: { clientId: clientId, mode: import.meta.env.MODE },
     signal: controller.signal,
@@ -322,8 +367,10 @@ const deleteClient = async ({ clientId }) => {
   return response.data;
 };
 
-const deletePolicy = async ({ policyId }) => {
+const deletePolicy = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
+
+  const { policyId } = data || {};
 
   console.log('Deleting policy with ID:', policyId);
 
@@ -335,6 +382,9 @@ const deletePolicy = async ({ policyId }) => {
   // request config for custom firebase endpoint
 
   const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     method: 'DELETE',
     data: { policyId: policyId, mode: import.meta.env.MODE },
     signal: controller.signal,
