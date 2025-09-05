@@ -118,13 +118,9 @@ const SidePanel = () => {
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
-                    backgroundColor:
-                      isActive && (index === 0 || index === 1 || index === 2)
-                        ? '#2C2C2C'
-                        : 'transparent',
+                    backgroundColor: isActive && index < 4 ? '#2C2C2C' : 'transparent',
                     '&:hover': {
-                      backgroundColor:
-                        index === 0 || index === 1 || index === 2 ? '#2C2C2C' : 'transparent',
+                      backgroundColor: index < 4 ? '#2C2C2C' : 'transparent',
                     },
                   }}
                 >

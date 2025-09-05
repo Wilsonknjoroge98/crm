@@ -70,6 +70,10 @@ const Leaderboard = () => {
             </Alert>
           )}
 
+          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', m: 1 }}>
+            * Dollar amounts represent <strong>annualized premium</strong> all time.
+          </Typography>
+
           {isLoading ? (
             <Stack spacing={2}>
               {Array.from({ length: 6 }).map((_, i) => (

@@ -477,9 +477,11 @@ app.get('/leaderboard', async (req, res) => {
 
         leaderboard[agentName] = leaderboard[agentName] || { count: 0, premiumAmount: 0 };
         leaderboard[agentName].count += 1;
-        leaderboard[agentName].premiumAmount += Number(policy.premiumAmount);
+        leaderboard[agentName].premiumAmount += Number(policy.premiumAmount * 12);
       }
     }
+
+    delete leaderboard['Shea Morales'];
 
     // Convert leaderboard object to array
     const leaderboardArray = Object.entries(leaderboard).map(([name, data]) => ({
