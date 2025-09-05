@@ -1,4 +1,3 @@
-// PoliciesGrid.jsx
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
@@ -31,8 +30,6 @@ export default function PoliciesGrid({
     Cancelled: { label: 'Cancelled', bgcolor: 'error.main' },
   };
 
-  console.log('Agent name by id', agentNameById);
-
   const isAdmin = agent && agent['role'] === 'admin';
 
   const columns = React.useMemo(() => {
@@ -43,18 +40,41 @@ export default function PoliciesGrid({
         field: 'agentIds',
         headerName: 'Agent',
         flex: 1,
-        minWidth: 140,
+        width: 100,
         sortable: false,
         filterable: false,
-        renderCell: (params) => (
-          <Stack sx={{ width: '100%' }}>
-            {(params.value || []).map((id) => (
-              <Typography variant='caption' key={id}>
-                {agentNameById[id] || id}
-              </Typography>
-            ))}
-          </Stack>
-        ),
+        renderCell: (params) => {
+          const ids = params.value;
+          const agents = ids.map((id) => agentNameById[id]);
+
+          console.log(ids);
+          console.log(agents);
+
+          return (
+            <Stack
+              sx={{
+                width: '100%',
+                height: '100%',
+                justifyContent: 'flex-end',
+              }}
+            >
+              {agents.sort().map((agent) => (
+                <Stack
+                  sx={{
+                    height: '100%',
+                    width: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography variant='caption' key={agent}>
+                    {agent}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          );
+        },
       });
     }
 
@@ -63,34 +83,29 @@ export default function PoliciesGrid({
         field: 'policyNumber',
         headerName: 'Policy #',
         flex: 1,
-        minWidth: 120,
-        renderCell: (params) => (
-          <Typography variant='caption'>{params.value}</Typography>
-        ),
+        minWidth: 80,
+        renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {
         field: 'clientName',
         headerName: 'Client',
         flex: 1,
-        minWidth: 160,
-        renderCell: (params) => (
-          <Typography variant='caption'>{params.value}</Typography>
-        ),
+        minWidth: 100,
+        renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {
         field: 'carrier',
         headerName: 'Carrier',
         flex: 1,
-        minWidth: 140,
-        renderCell: (params) => (
-          <Typography variant='caption'>{params.value}</Typography>
-        ),
+        width: 100,
+        renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {
         field: 'premiumAmount',
         headerName: 'Premium',
         flex: 1,
-        minWidth: 120,
+        width: 100,
+        valueGetter: (value, row) => parseFloat(row.premiumAmount),
         renderCell: (params) => {
           const val = parseFloat(params.value);
           return (
@@ -104,13 +119,13 @@ export default function PoliciesGrid({
         field: 'effectiveDate',
         headerName: 'Effective Date',
         flex: 1,
-        minWidth: 140,
+        width: 80,
       },
       {
         field: 'policyStatus',
         headerName: 'Status',
         flex: 1,
-        width: 60,
+        width: 80,
         renderCell: (params) => {
           const status = params.value;
           const cfg = statusConfig?.[status] || {};
@@ -167,17 +182,10 @@ export default function PoliciesGrid({
     );
 
     return cols;
-  }, [
-    isAdmin,
-    agentNameById,
-    handleUpdatePolicy,
-    setPolicy,
-    setDeletePolicyOpen,
-    statusConfig,
-  ]);
+  }, [isAdmin, agentNameById, handleUpdatePolicy, setPolicy, setDeletePolicyOpen, statusConfig]);
 
   return (
-    <Stack sx={{ minHeight: 200, maxHeight: 600 }}>
+    <Stack sx={{ minHeight: 600, maxHeight: 800, maxWidth: 1200 }}>
       <DataGrid
         sx={{ border: 'none', boxShadow: 'none', bgcolor: 'transparent' }}
         rows={policies || []}

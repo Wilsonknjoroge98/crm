@@ -18,8 +18,6 @@ import { auth } from '../utils/firebase';
 import { postAgent } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 
-import useAuth from '../hooks/useAuth';
-
 export default function SignUp() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -28,8 +26,6 @@ export default function SignUp() {
   const [confirmPass, setConfirmPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-
-  const { userToken } = useAuth();
 
   const { mutate: createAgent } = useMutation({
     mutationFn: postAgent,
@@ -65,11 +61,7 @@ export default function SignUp() {
 
     setLoading(true);
     try {
-      const { user } = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      );
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
 
       const token = await user.getIdToken();
       createAgent({
@@ -86,10 +78,8 @@ export default function SignUp() {
     } catch (error) {
       console.error(error);
       let message = 'Sign up failed. Please try again.';
-      if (error.code === 'auth/email-already-in-use')
-        message = 'Email is already in use.';
-      if (error.code === 'auth/invalid-email')
-        message = 'Invalid email address.';
+      if (error.code === 'auth/email-already-in-use') message = 'Email is already in use.';
+      if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
       if (error.code === 'auth/weak-password')
         message = 'Password should be at least 6 characters.';
       setErrorMsg(message);
@@ -129,7 +119,7 @@ export default function SignUp() {
           fullWidth
           margin='normal'
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value.toLowerCase())}
           required
         />
 

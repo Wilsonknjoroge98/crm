@@ -16,6 +16,7 @@
   "main": "index.js",
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
+    "axios": "^1.11.0",
     "cors": "^2.8.5",
     "dayjs": "^1.11.13",
     "dotenv": "^17.2.1",

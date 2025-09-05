@@ -134,7 +134,7 @@ const Clients = () => {
         />
       )}
 
-      <Container sx={{ mt: 4, minWidth: 1200 }}>
+      <Container sx={{ mt: 4 }}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent='space-between'
@@ -142,12 +142,7 @@ const Clients = () => {
           mb={2}
         >
           <Typography variant='h4'>Clients</Typography>
-          <Stack
-            width={'fit-content'}
-            direction='row'
-            alignItems='center'
-            spacing={2}
-          >
+          <Stack width={'fit-content'} direction='row' alignItems='center' spacing={2}>
             <CSVLink
               data={clients || []}
               headers={headers}

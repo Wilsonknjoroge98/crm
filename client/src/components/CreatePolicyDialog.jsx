@@ -33,7 +33,13 @@ import useAuth from '../hooks/useAuth';
 import { toTitleCase } from '../utils/helpers';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
-const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
+const statuses = [
+  'Active',
+  'Pending',
+  'Lapsed',
+  'Insufficient Funds',
+  'Cancelled',
+];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
@@ -200,9 +206,11 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     console.log('Modified Form:', modifiedForm);
 
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
-      key !== 'splitPolicyAgent' &&
+      return (
+        key !== 'splitPolicyAgent' &&
         key !== 'splitPolicyShare' &&
-        modifiedForm[key] === '';
+        modifiedForm[key] === ''
+      );
     });
 
     if (hasEmptyFields) {

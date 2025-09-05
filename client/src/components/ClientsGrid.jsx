@@ -30,6 +30,8 @@ export default function ClientsGrid({
 
   const isAdmin = agent && agent['role'] === 'admin';
 
+  const policyCount = (row) => row?.policyData?.length ?? 0;
+
   const rows = clients.map((client) => {
     return {
       ...client,
@@ -45,24 +47,41 @@ export default function ClientsGrid({
         field: 'agentIds',
         headerName: 'Agent',
         flex: 1,
-        minWidth: 120,
+        width: 100,
         sortable: false,
         filterable: false,
-        renderCell: (params) => (
-          <Stack
-            sx={{
-              width: '100%',
-              height: '100%',
-              justifyContent: 'flex-end',
-            }}
-          >
-            {(params.value || []).map((id) => (
-              <Typography variant='caption' key={id}>
-                {agentNameById[id] || id}
-              </Typography>
-            ))}
-          </Stack>
-        ),
+        renderCell: (params) => {
+          const ids = params.value;
+          const agents = ids.map((id) => agentNameById[id]);
+
+          console.log(ids);
+          console.log(agents);
+
+          return (
+            <Stack
+              sx={{
+                width: '100%',
+                height: '100%',
+                justifyContent: 'flex-end',
+              }}
+            >
+              {agents.sort().map((agent) => (
+                <Stack
+                  sx={{
+                    height: '100%',
+                    width: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography variant='caption' key={agent}>
+                    {agent}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          );
+        },
       });
     }
 
@@ -70,8 +89,8 @@ export default function ClientsGrid({
       {
         field: 'fullName',
         headerName: 'Name',
-        flex: 0.5,
-        minWidth: 160,
+        flex: 1,
+        width: 100,
         renderCell: (params) => {
           const c = params.row;
           return <Typography variant='caption'>{c.fullName}</Typography>;
@@ -80,14 +99,19 @@ export default function ClientsGrid({
       {
         field: 'contact',
         headerName: 'Contact',
-        flex: 1.2,
-        minWidth: 240,
+        flex: 1,
+        width: 200,
         sortable: false,
         filterable: false,
         renderCell: (params) => {
           const c = params.row;
           return (
-            <Stack spacing={0.5} sx={{ width: '100%' }}>
+            <Stack
+              spacing={0.5}
+              py={1}
+              direction='column'
+              sx={{ width: '100%', justifyContent: 'center' }}
+            >
               {c.email && (
                 <Stack direction='row' spacing={1} alignItems='center'>
                   <EmailIcon fontSize='small' />
@@ -107,17 +131,15 @@ export default function ClientsGrid({
       {
         field: 'addressBlock',
         headerName: 'Address',
-        flex: 1.5,
-        minWidth: 240,
+        flex: 1,
+        width: 100,
         sortable: false,
         filterable: false,
         renderCell: (params) => {
           const c = params.row;
           return (
-            <Stack spacing={0} sx={{ width: '100%' }}>
-              {c.address && (
-                <Typography variant='caption'>{c.address}</Typography>
-              )}
+            <Stack py={1} sx={{ width: '100%' }}>
+              {c.address && <Typography variant='caption'>{c.address}</Typography>}
               {(c.city || c.state || c.zip) && (
                 <Typography variant='caption'>
                   {[c.city, c.state].filter(Boolean).join(', ')} {c.zip || ''}
@@ -130,10 +152,11 @@ export default function ClientsGrid({
       {
         field: 'policies',
         headerName: 'Policies',
-        flex: 0.5,
-        minWidth: 290,
-        sortable: false,
-        filterable: false,
+        flex: 1,
+        width: 100,
+        sortable: true,
+        filterable: true,
+        valueGetter: (value, row) => policyCount(row),
         renderCell: (params) => {
           const c = params.row;
           const policies = (c && c.policyData) || [];
@@ -147,12 +170,7 @@ export default function ClientsGrid({
                   justifyContent: 'center',
                 }}
               >
-                <Chip
-                  sx={{ color: '#000' }}
-                  color='error'
-                  label='Missing Policies'
-                  size='small'
-                />
+                <Chip sx={{ color: '#000' }} color='error' label='Missing Policies' size='small' />
               </Stack>
             );
           }
@@ -169,9 +187,9 @@ export default function ClientsGrid({
                 <Chip
                   key={p.id}
                   size='small'
-                  label={`${
-                    (carrierMap && carrierMap[p.carrier]) || p.carrier
-                  } | #${p.policyNumber}`}
+                  label={`${(carrierMap && carrierMap[p.carrier]) || p.carrier} | #${
+                    p.policyNumber
+                  }`}
                 />
               ))}
             </Stack>
@@ -183,8 +201,8 @@ export default function ClientsGrid({
         type: 'actions',
         headerName: '',
         align: 'right',
+        width: 10,
         headerAlign: 'right',
-        width: 60,
         getActions: (params) => {
           const c = params.row;
           return [
@@ -225,7 +243,7 @@ export default function ClientsGrid({
   ]);
 
   return (
-    <Stack sx={{ minHeight: 600, maxHeight: 600 }}>
+    <Stack sx={{ minHeight: 600, maxHeight: 800, maxWidth: 1200 }}>
       <DataGrid
         sx={{ border: 'none', boxShadow: 'none', bgcolor: 'transparent' }}
         rowHeight={60}

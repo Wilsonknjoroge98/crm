@@ -8,9 +8,11 @@ import {
   Box,
   Stack,
 } from '@mui/material';
-// import DashboardIcon from '@mui/icons-material/Dashboard';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import DescriptionIcon from '@mui/icons-material/Description';
+import InsightsIcon from '@mui/icons-material/Insights';
+import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 // import AssignmentIcon from '@mui/icons-material/Assignment';
 // import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 // import SupervisedUserCircleIcon from '@mui/icons-material/SupervisedUserCircle';
@@ -25,16 +27,21 @@ import useAuth from '../hooks/useAuth';
 const drawerWidth = 240;
 
 const navItems = [
-  {
-    text: 'Dashboard',
-    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-    path: '/dashboard',
-  },
   { text: 'Clients', icon: <PeopleIcon />, path: '/clients' },
   {
     text: 'Policies',
     icon: <DescriptionIcon />,
     path: '/policies',
+  },
+  {
+    text: 'Leaderboard',
+    icon: <LeaderboardIcon />,
+    path: '/leaderboard',
+  },
+  {
+    text: 'Insights',
+    icon: <InsightsIcon />,
+    path: '/insights',
   },
   {
     text: 'Documents',
@@ -76,7 +83,10 @@ const SidePanel = () => {
   const handleItemClick = (path) => {
     if (
       location.pathname !== path &&
-      (path === '/clients' || path === '/policies')
+      (path === '/clients' ||
+        path === '/policies' ||
+        path === '/insights' ||
+        path === '/leaderboard')
     ) {
       navigate(path);
     }
@@ -109,12 +119,12 @@ const SidePanel = () => {
                   onClick={() => handleItemClick(path)}
                   sx={{
                     backgroundColor:
-                      isActive && (index === 1 || index === 2)
+                      isActive && (index === 0 || index === 1 || index === 2)
                         ? '#2C2C2C'
                         : 'transparent',
                     '&:hover': {
                       backgroundColor:
-                        index === 1 || index === 2 ? '#2C2C2C' : 'transparent',
+                        index === 0 || index === 1 || index === 2 ? '#2C2C2C' : 'transparent',
                     },
                   }}
                 >
@@ -145,18 +155,8 @@ const SidePanel = () => {
           </List>
         )}
       </Box>
-      <Stack
-        direction='row'
-        justifyContent='center'
-        alignContent='center'
-        m={1}
-      >
-        <Box
-          component='img'
-          src='logo.png'
-          alt='Logo'
-          sx={{ maxWidth: '235px' }}
-        />
+      <Stack direction='row' justifyContent='center' alignContent='center' m={1}>
+        <Box component='img' src='logo.png' alt='Logo' sx={{ maxWidth: '235px' }} />
       </Stack>
     </Drawer>
   );

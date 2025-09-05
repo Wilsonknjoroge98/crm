@@ -8,12 +8,56 @@ const Clients = lazy(() => import('../views/Clients'));
 const Policies = lazy(() => import('../views/Policies'));
 const Login = lazy(() => import('../views/Login'));
 const SignUp = lazy(() => import('../views/SignUp'));
+const Insights = lazy(() => import('../views/Insights'));
+const Leaderboard = lazy(() => import('../views/Leaderboard'));
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
     children: [
+      {
+        path: '/leaderboard',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Leaderboard />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/insights',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Insights />
+          </Suspense>
+        ),
+      },
       {
         path: '/clients',
         index: true,

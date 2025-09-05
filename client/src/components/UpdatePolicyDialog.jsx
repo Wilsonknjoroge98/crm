@@ -28,7 +28,13 @@ import { enqueueSnackbar } from 'notistack';
 import useAuth from '../hooks/useAuth';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
-const statuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
+const statuses = [
+  'Active',
+  'Pending',
+  'Lapsed',
+  'Insufficient Funds',
+  'Cancelled',
+];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 
 import { NumericFormat } from 'react-number-format';
@@ -165,10 +171,14 @@ const UpdatePolicyDialog = ({
     console.log('Modified Form:', modifiedForm);
 
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
-      key !== 'splitPolicyAgent' &&
+      return (
+        key !== 'splitPolicyAgent' &&
         key !== 'splitPolicyShare' &&
-        modifiedForm[key] === '';
+        modifiedForm[key] === ''
+      );
     });
+
+    console.log({ hasEmptyFields });
 
     if (hasEmptyFields || !updatesMade) {
       console.log('Empty fields detected');

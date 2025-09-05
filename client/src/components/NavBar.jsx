@@ -1,15 +1,6 @@
 // NavBar.jsx
 import React from 'react';
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Avatar,
-  Box,
-  Stack,
-  Menu,
-  MenuItem,
-} from '@mui/material';
+import { AppBar, Toolbar, Typography, Avatar, Box, Stack, Menu, MenuItem } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase'; // Ensure this path is correct

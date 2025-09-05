@@ -271,6 +271,41 @@ const getAgents = async ({ token }) => {
   }
 };
 
+const getLeaderboard = async ({ token }) => {
+  const isDev = import.meta.env.DEV;
+
+  if (!token) {
+    throw new Error('Missing token');
+  }
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/leaderboard` : `${BASE_URL}/leaderboard`,
+    params: { mode: import.meta.env.MODE },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
 const patchPolicy = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
@@ -410,4 +445,5 @@ export {
   deleteClient,
   deletePolicy,
   getAgents,
+  getLeaderboard,
 };
