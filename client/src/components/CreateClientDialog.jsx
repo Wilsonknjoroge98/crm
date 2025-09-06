@@ -9,6 +9,8 @@ import {
   MenuItem,
   Divider,
   InputAdornment,
+  LinearProgress,
+  CircularProgress,
 } from '@mui/material';
 
 const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
@@ -80,9 +82,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
       .map((part) => {
         const idx = part.search(/[a-z]/i);
         if (idx === -1) return part;
-        return (
-          part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1)
-        );
+        return part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1);
       })
       .join(' ');
   };
@@ -303,9 +303,7 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
+                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
                 },
               }}
             />
@@ -331,15 +329,28 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={disabled || isPending}
-          sx={{ ml: 1 }}
-          variant='contained'
-          color='action'
-        >
-          {isPending ? 'Saving...' : 'Save Client'}
-        </Button>
+        {isPending ? (
+          <CircularProgress
+            variant='indeterminate'
+            sx={{
+              ml: 1,
+              color: 'action.main',
+              width: '100%',
+              height: '100%',
+              borderRadius: 'inherit',
+            }}
+          />
+        ) : (
+          <Button
+            onClick={handleSubmit}
+            disabled={disabled || isPending}
+            sx={{ ml: 1 }}
+            variant='contained'
+            color='action'
+          >
+            Save Client
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

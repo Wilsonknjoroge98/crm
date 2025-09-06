@@ -11,14 +11,12 @@ import Typography from '@mui/material/Typography';
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import Maintenance from './views/Maintenance';
-
 import useAuth from './hooks/useAuth';
 import { useEffect } from 'react';
 
+// import Maintenance from './views/Maintenance';
 const App = () => {
   // return <Maintenance />;
-
   const { user } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -33,7 +31,7 @@ const App = () => {
     } else {
       navigate('/login');
     }
-  }, [user, navigate]);
+  }, [user]);
 
   return (
     <>
