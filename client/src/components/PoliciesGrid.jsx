@@ -27,6 +27,7 @@ export default function PoliciesGrid({
     Active: { label: 'Active', bgcolor: 'success.main' },
     Pending: { label: 'Pending', bgcolor: 'info.main' },
     Lapsed: { label: 'Lapsed', bgcolor: 'warning.main' },
+    'Insufficient Funds': { label: 'Insufficient Funds', bgcolor: 'warning.main' },
     Cancelled: { label: 'Cancelled', bgcolor: 'error.main' },
   };
 

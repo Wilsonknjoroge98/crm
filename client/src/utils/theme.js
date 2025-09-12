@@ -1,5 +1,5 @@
 // theme.js
-import { createTheme } from '@mui/material/styles';
+import { createTheme, alpha } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
@@ -20,11 +20,17 @@ const theme = createTheme({
     },
     info: {
       main: '#D6EAF8',
+      alertBackground: '#e5f6fd',
+      alertTextColor: '#2E3A59',
+      alertIconColor: '#1C7EBB',
       contrastText: '#1A1A1A',
     },
     warning: {
       main: '#FCF3CF',
       contrastText: '#1A1A1A',
+      alertBackground: '#fff4e6',
+      alertTextColor: '#7A4A00',
+      alertIconColor: '#D48806',
     },
     success: {
       main: '#D5F5E3',
@@ -32,6 +38,9 @@ const theme = createTheme({
     },
     error: {
       main: '#FADBD8',
+      alertBackground: '#fff1f0',
+      alertTextColor: '#611A15',
+      alertIconColor: '#D32F2F',
       contrastText: '#1A1A1A',
     },
     background: {
@@ -104,6 +113,34 @@ const theme = createTheme({
           letterSpacing: '0.3px',
           textTransform: 'capitalize',
         },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        standardInfo: ({ theme }) => ({
+          marginBottom: theme.spacing(2),
+          color: alpha(theme.palette.info.alertTextColor, 0.9),
+          backgroundColor: alpha(theme.palette.info.alertBackground, 0.9),
+          '& .MuiAlert-icon': {
+            color: alpha(theme.palette.info.alertIconColor, 0.9),
+          },
+        }),
+        standardWarning: ({ theme }) => ({
+          marginBottom: theme.spacing(2),
+          color: alpha(theme.palette.warning.alertTextColor, 0.9),
+          backgroundColor: alpha(theme.palette.warning.alertBackground, 0.9),
+          '& .MuiAlert-icon': {
+            color: alpha(theme.palette.warning.alertIconColor, 0.9),
+          },
+        }),
+        standardError: ({ theme }) => ({
+          marginBottom: theme.spacing(2),
+          color: alpha(theme.palette.error.alertTextColor, 0.9),
+          backgroundColor: alpha(theme.palette.error.alertBackground, 0.9),
+          '& .MuiAlert-icon': {
+            color: alpha(theme.palette.error.alertIconColor, 0.9),
+          },
+        }),
       },
     },
     MuiInputBase: {

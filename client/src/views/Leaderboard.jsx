@@ -65,14 +65,22 @@ const Leaderboard = () => {
       >
         <CardContent>
           {isError && (
-            <Alert severity='error' sx={{ mb: 2 }}>
+            <Alert
+              severity='error'
+              sx={{
+                mb: 2,
+                color: theme.palette.warning.alertTextColor,
+                backgroundColor: theme.palette.warning.alertBackground,
+                '& .MuiAlert-icon': { color: theme.palette.warning.alertIconColor },
+              }}
+            >
               Failed to load data. {error?.message || 'Please try again later.'}
             </Alert>
           )}
 
-          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', m: 1 }}>
-            * Dollar amounts represent <strong>annualized premium</strong> all time.
-          </Typography>
+          <Alert severity='info'>
+            Dollar amounts represent <strong>annualized</strong> premium all time.
+          </Alert>
 
           {isLoading ? (
             <Stack spacing={2}>

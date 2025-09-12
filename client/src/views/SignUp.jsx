@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../utils/firebase';
 import { postAgent } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
+import { toTitleCase } from '../utils/helpers';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -110,7 +111,7 @@ export default function SignUp() {
           fullWidth
           margin='normal'
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setName(toTitleCase(e.target.value))}
         />
 
         <TextField

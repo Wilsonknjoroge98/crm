@@ -11,25 +11,6 @@ const getClients = async ({ token, data }) => {
   if (!agentId || !agentRole) {
     return [];
   }
-
-  // eslint-disable-next-line no-unused-vars
-  // const [_key, _faceAmount, data] = queryKey;
-  // client side validation
-  //   if (
-  //     !isDev &&
-  //     (!reduxData?.state ||
-  //       !reduxData?.birthDay ||
-  //       !reduxData?.birthMonth ||
-  //       !reduxData?.birthYear ||
-  //       !reduxData?.sex ||
-  //       !reduxData?.smoker ||
-  //       !reduxData?.faceAmount)
-  //   ) {
-  //     throw new Error('Missing data');
-  //   }
-
-  // const controller = new AbortController();
-
   // request config for compulife server
   const options = {
     headers: {
@@ -41,6 +22,46 @@ const getClients = async ({ token, data }) => {
     params: {
       agentId: agentId,
       agentRole: agentRole,
+      mode: import.meta.env.MODE,
+    },
+  };
+
+  // abort request when notified by react-query
+  // signal?.addEventListener('abort', () => {
+  //   controller.abort();
+  // });
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error clients policies:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 500;
+
+      if (status === 500) {
+        return { error: 'Internal Server Error' };
+      }
+    }
+
+    throw error;
+  }
+};
+
+const getInsights = async ({ token }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    // signal: signal,
+    url: isDev ? `${DEV_URL}/insights` : `${BASE_URL}/insights`,
+    params: {
       mode: import.meta.env.MODE,
     },
   };
@@ -364,12 +385,24 @@ const postPolicy = async ({ token, data }) => {
     signal: controller.signal,
     url: isDev ? `${DEV_URL}/policy` : `${BASE_URL}/policy`,
   };
+  try {
+    // response from server
+    const response = await axios.request(options);
 
-  // response from server
-  const response = await axios.request(options);
+    // return to component
+    return response.data;
+  } catch (error) {
+    console.error('Error posting policy:', error);
 
-  // return to component
-  return response.data;
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 500;
+
+      if (status === 409) throw new Error('Policy number already exists');
+      throw new Error('Internal Server Error');
+    }
+
+    throw error;
+  }
 };
 
 const deleteClient = async ({ token, data }) => {
@@ -446,4 +479,5 @@ export {
   deletePolicy,
   getAgents,
   getLeaderboard,
+  getInsights,
 };

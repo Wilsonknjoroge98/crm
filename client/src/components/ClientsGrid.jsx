@@ -54,9 +54,6 @@ export default function ClientsGrid({
           const ids = params.value;
           const agents = ids.map((id) => agentNameById[id]);
 
-          console.log(ids);
-          console.log(agents);
-
           return (
             <Stack
               sx={{
@@ -256,10 +253,6 @@ export default function ClientsGrid({
         initialState={{
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
-        // slots={showToolbar ? { toolbar: GridToolbar } : undefined}
-        // slotProps={
-        //   showToolbar ? { toolbar: { showQuickFilter: true } } : undefined
-        // }
       />
     </Stack>
   );

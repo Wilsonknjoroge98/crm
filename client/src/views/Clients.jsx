@@ -95,10 +95,6 @@ const Clients = () => {
     );
   }
 
-  if (!clients && !clientsLoading) {
-    return null;
-  }
-
   return (
     <>
       {createClientOpen && (

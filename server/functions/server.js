@@ -53,14 +53,14 @@ const authMiddleware = async (req, res, next) => {
 app.use(authMiddleware);
 
 app.get('/clients', async (req, res) => {
-  console.log('Getting clients');
-  const db = new Firestore();
-
   const { agentId, agentRole } = req.query;
 
   if (!agentId || !agentRole) {
     return res.status(400).json({ error: 'Missing agentId' });
   }
+
+  console.log('Getting clients');
+  const db = new Firestore();
 
   try {
     if (agentRole !== 'admin') {
@@ -72,6 +72,9 @@ app.get('/clients', async (req, res) => {
         id: doc.id,
         ...doc.data(),
       }));
+
+      const unknownClients = clients.filter((c) => c.source == 'unknown').length;
+      console.log({ unknownClients });
       res.json(clients);
     } else {
       const clientData = await db.collection('clients').get();
@@ -189,6 +192,8 @@ app.post('/client', async (req, res) => {
   const db = new Firestore();
   const { client } = req.body;
 
+  console.log('Posting client:', client);
+
   if (!client) {
     return res.status(400).json({ error: 'Missing client data' });
   }
@@ -198,6 +203,10 @@ app.post('/client', async (req, res) => {
       const response = await axios.request({
         headers: {
           Authorization: `Bearer ${process.env.LEADS_BEARER_TOKEN}`,
+        },
+        params: {
+          phone: client.phone,
+          name: `${client.firstName} ${client.lastName}`,
         },
         method: 'GET',
         url: 'https://us-central1-life-quoter.cloudfunctions.net/app/get-leads',
@@ -213,36 +222,12 @@ app.post('/client', async (req, res) => {
 
   const leads = await getLeads();
 
-  const matchingLeadPhone = leads.find((lead) => {
-    if (lead?.phone) {
-      return lead.phone === client.phone;
+  for (const lead of leads) {
+    if (lead?.ad) {
+      client.source = lead.ad;
+      client.leadId = lead.id;
+      break;
     }
-    return false;
-  });
-
-  let matchingLeadName = undefined;
-
-  if (!matchingLeadPhone) {
-    matchingLeadName = leads.find((lead) => {
-      if (lead?.name) {
-        return lead.name.toLowerCase() === `${client.firstName} ${client.lastName}`.toLowerCase();
-      }
-      return false;
-    });
-  }
-  // ELajJcGGeMLu3oAsGLyp
-  const matches = matchingLeadName || matchingLeadPhone;
-
-  console.log({ matchingLeadName, matchingLeadPhone });
-
-  if (matches) console.log('Matched lead record!');
-
-  if (matches) {
-    const source = matchingLeadName?.ad || matchingLeadPhone?.ad || 'unknown';
-    const leadId = matchingLeadName?.id || matchingLeadPhone.id || null;
-
-    client.source = source;
-    client.leadId = leadId;
   }
 
   try {
@@ -270,6 +255,19 @@ app.post('/policy', async (req, res) => {
     return res.status(400).json({ error: 'Missing policy, client ID, or agent ID' });
   }
 
+  const policyNumber = policy.policyNumber.trim();
+
+  console.log('Updating policy', policy.policyId, policyNumber);
+
+  const policySnapshot = await db
+    .collection('policies')
+    .where('policyNumber', '==', policyNumber)
+    .get();
+
+  if (policySnapshot.size > 0) {
+    return res.status(409).json({ error: 'Policy number already exists' });
+  }
+
   const agentSnapshot = await db.collection('agents').where('uid', 'in', agentIds).get();
 
   if (agentSnapshot.empty) {
@@ -285,6 +283,7 @@ app.post('/policy', async (req, res) => {
   try {
     const policyRef = await db.collection('policies').add({
       ...policy,
+      policyNumber,
       clientId,
       agentIds,
       compRate,
@@ -334,7 +333,6 @@ app.patch('/client', async (req, res) => {
 });
 
 app.patch('/policy', async (req, res) => {
-  console.log('Updating policy');
   const db = new Firestore();
   const { policyId, policy } = req.body;
 
@@ -501,6 +499,36 @@ app.get('/leaderboard', async (req, res) => {
   }
 });
 
+app.get('/insights', async (req, res) => {
+  const db = new Firestore();
+  const ref = db.collection('clients');
+
+  const snapshot = await ref.get();
+  const clients = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+
+  const maps = clients.reduce(
+    (acc, c) => {
+      const key = (c.source || 'unknown').trim();
+      acc.all[key] = (acc.all[key] || 0) + 1;
+      if (key !== 'unknown') acc.known[key] = (acc.known[key] || 0) + 1;
+      return acc;
+    },
+    { all: {}, known: {} },
+  );
+
+  const total = Object.values(maps.known).reduce((s, n) => s + n, 0) || 1;
+  const unknownClients = maps.all['unknown'] || 0;
+
+  const sources = Object.entries(maps.known)
+    .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 100) }))
+    .sort((a, b) => b.count - a.count);
+
+  res.status(200).send({ sources, total, unknownClients });
+});
+
 // const carriers = [
 //   'Mutual of Omaha',
 //   'SBLI',
@@ -510,7 +538,7 @@ app.get('/leaderboard', async (req, res) => {
 // ];
 // const policyTypes = ['FEX Level Death Benefit', 'iProvide', 'Whole Life', 'Term 20'];
 // const leadSources = ['GetSeniorQuotes.com', 'Facebook Ads', 'Referral', 'Direct Mail'];
-// const policyStatuses = ['Active', 'Pending', 'Lapsed', 'Cancelled'];
+// const policyStatuses = ['Active', 'Pending', 'Lapsed', 'Cancelled', 'Insufficient Funds'];
 // const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed'];
 // const adSources = [
 //   'annie_5_11_25',
@@ -595,7 +623,7 @@ app.get('/leaderboard', async (req, res) => {
 //   const carrier = pick(carriers);
 //   const policyNumber = faker.string.alphanumeric({
 //     length: 12,
-//     casing: 'mixed',
+//     casing: 'upper',
 //   });
 //   const policyType = pick(policyTypes);
 //   const premiumAmount = faker.finance.amount({ min: 35, max: 250, dec: 2 });
