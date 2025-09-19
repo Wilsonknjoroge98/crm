@@ -50,6 +50,43 @@ const getClients = async ({ token, data }) => {
   }
 };
 
+const getAccount = async ({ token, email }) => {
+  const isDev = import.meta.env.DEV;
+
+  console.log('Getting client account', email);
+
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    // signal: signal,
+    url: isDev ? `${DEV_URL}/client-account` : `${BASE_URL}/client-account`,
+    params: {
+      email: email,
+      mode: import.meta.env.MODE,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error clients policies:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
 const getInsights = async ({ token }) => {
   const isDev = import.meta.env.DEV;
 
@@ -469,6 +506,7 @@ const deletePolicy = async ({ token, data }) => {
 export {
   getClients,
   getPolicies,
+  getAccount,
   postClient,
   patchClient,
   postPolicy,

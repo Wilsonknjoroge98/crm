@@ -1,11 +1,22 @@
 // NavBar.jsx
 import React from 'react';
-import { AppBar, Toolbar, Typography, Avatar, Box, Stack, Menu, MenuItem } from '@mui/material';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Avatar,
+  Box,
+  Stack,
+  Menu,
+  MenuItem,
+  Button,
+  Divider,
+} from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase'; // Ensure this path is correct
 
-import { getAgent } from '../utils/query';
+import { getAgent, getAccount } from '../utils/query';
 import { useQuery } from '@tanstack/react-query';
 
 import useAuth from '../hooks/useAuth';
@@ -23,6 +34,11 @@ export default function NavBar() {
   const { data: agentData } = useQuery({
     queryKey: ['agent', user?.uid, isAuthenticated],
     queryFn: () => getAgent({ token: userToken, data: { uid: user?.uid } }),
+  });
+
+  const { data: accountData } = useQuery({
+    queryKey: ['account', user?.email, isAuthenticated],
+    queryFn: () => getAccount({ email: user?.email, token: userToken }),
   });
 
   const getInitials = (name) => {
@@ -103,12 +119,37 @@ export default function NavBar() {
           onClose={handleMenuClose}
           PaperProps={{
             sx: {
-              mt: 1,
-              minWidth: 150,
+              width: 200, // custom width
+              height: 200, // custom height
+              borderRadius: 2,
+              p: 2,
             },
           }}
         >
-          <MenuItem onClick={handleSignOut}>Logout</MenuItem>
+          <MenuItem onClick={handleSignOut}> Logout</MenuItem>
+          <Divider />
+          <MenuItem onClick={handleSignOut}>
+            <Typography variant='body1'> Lead Count</Typography>
+            <Typography variant='h6'>: {accountData?.leadCount || 0}</Typography>
+          </MenuItem>
+          <MenuItem onClick={handleSignOut}>
+            <Button
+              variant='contained'
+              onClick={() =>
+                window.open(
+                  `https://buy.stripe.com/14AdR909SfQz0KedGJ6Ri00?prefilled_email=${user?.email}`,
+                  '_blank',
+                )
+              }
+              sx={{
+                bgcolor: (theme) => theme.palette.action.main,
+                color: (theme) => theme.palette.action.contrastText,
+              }}
+            >
+              {' '}
+              Buy Leads
+            </Button>
+          </MenuItem>
         </Menu>
       </Toolbar>
     </AppBar>

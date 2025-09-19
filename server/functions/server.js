@@ -187,6 +187,38 @@ app.get('/agents', async (req, res) => {
   }
 });
 
+app.get('/client-account', async (req, res) => {
+  const { email } = req.query;
+
+  console.log('Getting account for', email);
+
+  const getAccount = async () => {
+    console.log(process.env.LEADS_BEARER_TOKEN);
+    try {
+      const response = await axios.request({
+        headers: {
+          Authorization: `Bearer ${process.env.LEADS_BEARER_TOKEN}`,
+        },
+        params: {
+          email: email,
+        },
+        method: 'GET',
+        url: 'https://us-central1-life-quoter.cloudfunctions.net/app/agent-account',
+      });
+
+      console.log('Account Fetched:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching leads:', error.message);
+      throw error;
+    }
+  };
+
+  const account = await getAccount();
+  console.log('Account details', account);
+  res.status(200).json(account);
+});
+
 app.post('/client', async (req, res) => {
   console.log('Creating client');
   const db = new Firestore();
@@ -528,6 +560,91 @@ app.get('/insights', async (req, res) => {
 
   res.status(200).send({ sources, total, unknownClients });
 });
+
+// const getAgeDistribution = async () => {
+//   const db = new Firestore();
+
+//   const ref = db.collection('clients');
+//   const snap = await ref.get();
+
+//   const clients = snap.docs.map((doc) => doc.data()).filter((obj) => obj.leadId);
+
+//   console.log('len clients', clients.length);
+
+//   const getLeads = async () => {
+//     try {
+//       const response = await axios.request({
+//         headers: {
+//           Authorization: `Bearer ${process.env.LEADS_BEARER_TOKEN}`,
+//         },
+//         method: 'GET',
+//         url: 'https://us-central1-life-quoter.cloudfunctions.net/app/get-leads-temp',
+//       });
+
+//       console.log('Leads fetched:', response.data.length);
+//       return response.data;
+//     } catch (error) {
+//       console.error('Error fetching leads:', error);
+//       throw error;
+//     }
+//   };
+
+//   const leads = await getLeads();
+
+//   const BRACKETS = ['50-60', '60-70', '70-80', '80-90', '90+'];
+
+//   const getIndex = (num) => {
+//     if (num < 60) return 0;
+//     if (num < 70) return 1;
+//     if (num < 80) return 2;
+//     if (num < 90) return 3;
+
+//     return 4;
+//   };
+
+//   console.log('clients', typeof clients);
+
+//   const results = clients.reduce((acc, curr) => {
+//     const lead = leads.find((lead) => lead.id == curr.leadId);
+//     console.log('Comparing IDs:', lead.id, curr.leadId);
+
+//     if (lead) {
+//       console.log('lead found', lead.id);
+//     }
+
+//     if (!lead) {
+//       console.log('No matching id record');
+//       return acc;
+//     }
+
+//     const getAge = (day, month, year) => {
+//       if (!day || !month || !year) return NaN;
+//       const today = new Date();
+//       let age = today.getFullYear() - year;
+//       const m = today.getMonth() + 1 - month;
+//       if (m < 0 || (m === 0 && today.getDate() < day)) {
+//         age--;
+//       }
+//       return age;
+//     };
+
+//     const age = getAge(lead.birthDay, lead.birthMonth, lead.birthYear);
+
+//     if (isNaN(age)) {
+//       console.log('Not a number', age);
+//     }
+//     const index = getIndex(age);
+//     const currValue = acc[BRACKETS[index]] || 0;
+
+//     acc[BRACKETS[index]] = currValue + 1;
+
+//     return acc;
+//   }, {});
+
+//   console.log({ results });
+// };
+
+// getAgeDistribution();
 
 // const carriers = [
 //   'Mutual of Omaha',
