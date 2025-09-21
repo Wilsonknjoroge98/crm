@@ -11,10 +11,15 @@ import {
   MenuItem,
   Button,
   Divider,
+  Chip,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import LogoutIcon from '@mui/icons-material/Logout';
+import AccountDetails from './AccountDetails';
 import { signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase'; // Ensure this path is correct
+
+import dayjs from 'dayjs';
 
 import { getAgent, getAccount } from '../utils/query';
 import { useQuery } from '@tanstack/react-query';
@@ -119,20 +124,31 @@ export default function NavBar() {
           onClose={handleMenuClose}
           PaperProps={{
             sx: {
-              width: 200, // custom width
-              height: 200, // custom height
+              width: 300,
+              height: 'fit-content',
               borderRadius: 2,
-              p: 2,
+              p: 0,
             },
           }}
         >
-          <MenuItem onClick={handleSignOut}> Logout</MenuItem>
-          <Divider />
-          <MenuItem onClick={handleSignOut}>
-            <Typography variant='body1'> Lead Count</Typography>
-            <Typography variant='h6'>: {accountData?.leadCount || 0}</Typography>
-          </MenuItem>
-          <MenuItem onClick={handleSignOut}>
+          <Stack
+            direction='column'
+            justifyContent='space-between'
+            alignItems='center'
+            p={2}
+            spacing={2}
+          >
+            <Button
+              variant='text'
+              endIcon={<LogoutIcon />}
+              onClick={handleSignOut}
+              sx={{ alignSelf: 'flex-end' }}
+            >
+              Logout
+            </Button>
+
+            {accountData && <AccountDetails data={accountData} />}
+
             <Button
               variant='contained'
               onClick={() =>
@@ -146,10 +162,9 @@ export default function NavBar() {
                 color: (theme) => theme.palette.action.contrastText,
               }}
             >
-              {' '}
-              Buy Leads
+              Purchase Leads
             </Button>
-          </MenuItem>
+          </Stack>
         </Menu>
       </Toolbar>
     </AppBar>

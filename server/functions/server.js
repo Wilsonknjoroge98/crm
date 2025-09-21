@@ -2,7 +2,7 @@ const cors = require('cors');
 const express = require('express');
 const axios = require('axios');
 const app = express();
-// const { faker } = require('@faker-js/faker');
+const { faker } = require('@faker-js/faker');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
@@ -24,10 +24,10 @@ app.use(
   }),
 );
 
-// const isEmulator =
-//   !!process.env.FIRESTORE_EMULATOR_HOST ||
-//   !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
-//   process.env.FUNCTIONS_EMULATOR === 'true';
+const isEmulator =
+  !!process.env.FIRESTORE_EMULATOR_HOST ||
+  !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+  process.env.FUNCTIONS_EMULATOR === 'true';
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -309,20 +309,21 @@ app.post('/policy', async (req, res) => {
 
   const compRate = agentSnapshot.docs[0].data().compRate;
 
-  // Beneficiary date of birth
-  // Beneficiary phone numbers
-
   try {
+    const clientRef = db.collection('clients').doc(clientId);
+
+    const clientSnap = await clientRef.get();
+    const source = clientSnap.data()?.source ?? null;
+
     const policyRef = await db.collection('policies').add({
       ...policy,
       policyNumber,
       clientId,
       agentIds,
       compRate,
+      source,
       createdAt: Timestamp.now(),
     });
-
-    const clientRef = db.collection('clients').doc(clientId);
 
     await clientRef.update({
       agentIds: agentIds,
