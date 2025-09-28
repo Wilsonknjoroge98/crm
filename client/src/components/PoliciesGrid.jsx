@@ -33,6 +33,10 @@ export default function PoliciesGrid({
 
   const isAdmin = agent && agent['role'] === 'admin';
 
+  for (const p of policies) {
+    console.log('createdAt', p.createdAtMs);
+  }
+
   const columns = React.useMemo(() => {
     const cols = [];
 
@@ -42,14 +46,12 @@ export default function PoliciesGrid({
         headerName: 'Agent',
         flex: 1,
         width: 100,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
+        valueGetter: (value) =>
+          value.map((id) => agentNameById[id] || '').find((a) => a !== 'Shea Morales') || '',
         renderCell: (params) => {
-          const ids = params.value;
-          const agents = ids.map((id) => agentNameById[id]);
-
-          console.log(ids);
-          console.log(agents);
+          const value = params.value;
 
           return (
             <Stack
@@ -59,20 +61,19 @@ export default function PoliciesGrid({
                 justifyContent: 'flex-end',
               }}
             >
-              {agents.sort().map((agent) => (
-                <Stack
-                  sx={{
-                    height: '100%',
-                    width: '100%',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Typography variant='caption' key={agent}>
-                    {agent}
-                  </Typography>
-                </Stack>
-              ))}
+              <Stack
+                direction={'row'}
+                sx={{
+                  height: '100%',
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                }}
+              >
+                <Typography variant='caption' key={value}>
+                  {value}
+                </Typography>
+              </Stack>
             </Stack>
           );
         },
@@ -80,6 +81,22 @@ export default function PoliciesGrid({
     }
 
     cols.push(
+      {
+        field: 'createdAtMs',
+        headerName: 'Created',
+        filterable: true,
+        sortable: true,
+        width: 170,
+
+        renderCell: (params) => {
+          return params.value ? new Date(params.value).toLocaleString() : 'unknown';
+        },
+        sortComparator: (v1, v2) => {
+          const a = v1 ?? 0;
+          const b = v2 ?? 0;
+          return a - b;
+        },
+      },
       {
         field: 'policyNumber',
         headerName: 'Policy #',
@@ -150,6 +167,13 @@ export default function PoliciesGrid({
             </Stack>
           );
         },
+      },
+      {
+        field: 'source',
+        headerName: 'Ad Source',
+        flex: 1,
+        minWidth: 80,
+        renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {
         field: 'actions',

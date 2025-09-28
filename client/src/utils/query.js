@@ -36,7 +36,7 @@ const getClients = async ({ token, data }) => {
 
     return response.data;
   } catch (error) {
-    console.error('Error clients policies:', error);
+    console.error('Error getting clients:', error);
     // Rethrow for React Query to recognize it
     if (axios.isAxiosError(error)) {
       const status = error.response?.status ?? 500;
@@ -73,7 +73,7 @@ const getAccount = async ({ token, email }) => {
 
     return response.data;
   } catch (error) {
-    console.error('Error clients policies:', error);
+    console.error('Error getting account:', error);
     // Rethrow for React Query to recognize it
     if (axios.isAxiosError(error)) {
       // Optional: normalize structure
@@ -113,7 +113,7 @@ const getInsights = async ({ token }) => {
 
     return response.data;
   } catch (error) {
-    console.error('Error clients policies:', error);
+    console.error('Error getting policies:', error);
     // Rethrow for React Query to recognize it
     if (axios.isAxiosError(error)) {
       // Optional: normalize structure

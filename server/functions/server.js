@@ -2,7 +2,7 @@ const cors = require('cors');
 const express = require('express');
 const axios = require('axios');
 const app = express();
-const { faker } = require('@faker-js/faker');
+// const { faker } = require('@faker-js/faker');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
@@ -24,10 +24,10 @@ app.use(
   }),
 );
 
-const isEmulator =
-  !!process.env.FIRESTORE_EMULATOR_HOST ||
-  !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
-  process.env.FUNCTIONS_EMULATOR === 'true';
+// const isEmulator =
+//   !!process.env.FIRESTORE_EMULATOR_HOST ||
+//   !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+//   process.env.FUNCTIONS_EMULATOR === 'true';
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -106,17 +106,62 @@ app.get('/policies', async (req, res) => {
         .collection('policies')
         .where('agentIds', 'array-contains', agentId)
         .get();
-      const policies = policyData.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      res.json(policies);
+      const policies = policyData.docs.map((doc) => {
+        const data = doc.data();
+        let createdAtMs = null;
+
+        if (data.createdAt) {
+          if (typeof data.createdAt.toMillis === 'function') {
+            // Firestore Timestamp
+            createdAtMs = data.createdAt.toMillis();
+          } else if (data.createdAt instanceof Date) {
+            // Plain JS Date
+            createdAtMs = data.createdAt.getTime();
+          } else if (typeof data.createdAt === 'number') {
+            // Already a timestamp (ms)
+            createdAtMs = data.createdAt;
+          } else if (typeof data.createdAt === 'string') {
+            // Parseable string
+            createdAtMs = Date.parse(data.createdAt);
+          }
+        }
+
+        return {
+          id: doc.id,
+          createdAtMs,
+          ...data,
+        };
+      });
+
+      res.json(policies || []);
     } else {
       const policyData = await db.collection('policies').get();
-      const policies = policyData.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const policies = policyData.docs.map((doc) => {
+        const data = doc.data();
+        let createdAtMs = null;
+
+        if (data.createdAt) {
+          if (typeof data.createdAt.toMillis === 'function') {
+            // Firestore Timestamp
+            createdAtMs = data.createdAt.toMillis();
+          } else if (data.createdAt instanceof Date) {
+            // Plain JS Date
+            createdAtMs = data.createdAt.getTime();
+          } else if (typeof data.createdAt === 'number') {
+            // Already a timestamp (ms)
+            createdAtMs = data.createdAt;
+          } else if (typeof data.createdAt === 'string') {
+            // Parseable string
+            createdAtMs = Date.parse(data.createdAt);
+          }
+        }
+
+        return {
+          id: doc.id,
+          createdAtMs,
+          ...data,
+        };
+      });
       res.json(policies || []);
     }
   } catch (error) {
@@ -562,6 +607,27 @@ app.get('/insights', async (req, res) => {
   res.status(200).send({ sources, total, unknownClients });
 });
 
+// const noSource = async () => {
+//   const db = new Firestore();
+//   const clientsRef = db.collection('clients');
+
+//   const clientsSnap = await clientsRef.get();
+
+//   const noSources = [];
+
+//   clientsSnap.docs.map((doc) => {
+//     const data = doc.data();
+
+//     if (!data.source) {
+//       noSources.push(doc.id);
+//     }
+//   });
+
+//   console.log('No data for these ids', noSources);
+// };
+
+// noSource();
+
 // const getAgeDistribution = async () => {
 //   const db = new Firestore();
 
@@ -776,6 +842,7 @@ app.get('/insights', async (req, res) => {
 //     dateSold: sold.toISOString().slice(0, 10),
 //     draftDay: faker.number.int({ min: 1, max: 28 }).toString(),
 //     leadSource: pick(leadSources),
+//     source: pick(adSources),
 //     notes: '',
 //     beneficiaries: [
 //       {

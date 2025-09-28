@@ -5,3 +5,7 @@ body {
   width: 100%;
   overflow-x: hidden;
 }
+
+.pac-container {
+  z-index: 9999 !important;
+}

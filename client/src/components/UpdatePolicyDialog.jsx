@@ -28,24 +28,12 @@ import { enqueueSnackbar } from 'notistack';
 import useAuth from '../hooks/useAuth';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
-const statuses = [
-  'Active',
-  'Pending',
-  'Lapsed',
-  'Insufficient Funds',
-  'Cancelled',
-];
+const statuses = ['Active', 'Pending', 'Lapsed', 'Insufficient Funds', 'Cancelled'];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 
 import { NumericFormat } from 'react-number-format';
 
-const UpdatePolicyDialog = ({
-  open,
-  setOpen,
-  policy,
-  refetchPolicies,
-  agents,
-}) => {
+const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) => {
   const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [updatesMade, setUpdatesMade] = useState(false);
@@ -156,9 +144,7 @@ const UpdatePolicyDialog = ({
     } else {
       setForm((prev) => ({
         ...prev,
-        contingentBeneficiaries: prev.contingentBeneficiaries.filter(
-          (_, i) => i !== index,
-        ),
+        contingentBeneficiaries: prev.contingentBeneficiaries.filter((_, i) => i !== index),
       }));
     }
   };
@@ -168,17 +154,9 @@ const UpdatePolicyDialog = ({
     const modifiedForm = { ...form };
     delete modifiedForm.notes;
 
-    console.log('Modified Form:', modifiedForm);
-
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
-      return (
-        key !== 'splitPolicyAgent' &&
-        key !== 'splitPolicyShare' &&
-        modifiedForm[key] === ''
-      );
+      return key !== 'splitPolicyAgent' && key !== 'splitPolicyShare' && modifiedForm[key] === '';
     });
-
-    console.log({ hasEmptyFields });
 
     if (hasEmptyFields || !updatesMade) {
       console.log('Empty fields detected');
@@ -322,9 +300,7 @@ const UpdatePolicyDialog = ({
                   }}
                   slotProps={{
                     input: {
-                      startAdornment: (
-                        <InputAdornment position='start'>%</InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position='start'>%</InputAdornment>,
                     },
                   }}
                 />
@@ -333,12 +309,7 @@ const UpdatePolicyDialog = ({
             <Divider sx={{ my: 2 }} />
           </Grid>
           <Grid item size={6}>
-            <TextField
-              label='Client Name'
-              value={form.clientName}
-              fullWidth
-              disabled
-            />
+            <TextField label='Client Name' value={form.clientName} fullWidth disabled />
           </Grid>
           <Grid size={6}>
             <TextField
@@ -428,9 +399,7 @@ const UpdatePolicyDialog = ({
               }}
               slotProps={{
                 input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
+                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
                 },
               }}
             />
@@ -450,9 +419,7 @@ const UpdatePolicyDialog = ({
               }}
               slotProps={{
                 input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
+                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
                 },
               }}
               style={{ width: '100%' }}
@@ -532,9 +499,7 @@ const UpdatePolicyDialog = ({
                     value={b.firstName}
                     label='First Name'
                     required
-                    onChange={(e) =>
-                      handleBeneficiaryChange(i, 'firstName', e.target.value)
-                    }
+                    onChange={(e) => handleBeneficiaryChange(i, 'firstName', e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -543,9 +508,7 @@ const UpdatePolicyDialog = ({
                     value={b.lastName}
                     label='Last Name'
                     required
-                    onChange={(e) =>
-                      handleBeneficiaryChange(i, 'lastName', e.target.value)
-                    }
+                    onChange={(e) => handleBeneficiaryChange(i, 'lastName', e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -554,9 +517,7 @@ const UpdatePolicyDialog = ({
                     select
                     value={b.relationship}
                     label='Relationship'
-                    onChange={(e) =>
-                      handleBeneficiaryChange(i, 'relationship', e.target.value)
-                    }
+                    onChange={(e) => handleBeneficiaryChange(i, 'relationship', e.target.value)}
                     fullWidth
                   >
                     {RELATIONSHIP_OPTIONS.map((option) => (
@@ -586,17 +547,13 @@ const UpdatePolicyDialog = ({
                       }}
                       slotProps={{
                         input: {
-                          startAdornment: (
-                            <InputAdornment position='start'>%</InputAdornment>
-                          ),
+                          startAdornment: <InputAdornment position='start'>%</InputAdornment>,
                         },
                       }}
                     />
                     {i !== 0 && (
                       <Stack direction='row' spacing={1} alignItems='center'>
-                        <IconButton
-                          onClick={() => handleDeleteBeneficiary('primary', i)}
-                        >
+                        <IconButton onClick={() => handleDeleteBeneficiary('primary', i)}>
                           <DeleteIcon />
                         </IconButton>
                       </Stack>
@@ -627,9 +584,7 @@ const UpdatePolicyDialog = ({
                     value={b.firstName}
                     label='First Name'
                     required
-                    onChange={(e) =>
-                      handleContingentChange(i, 'firstName', e.target.value)
-                    }
+                    onChange={(e) => handleContingentChange(i, 'firstName', e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -638,9 +593,7 @@ const UpdatePolicyDialog = ({
                     value={b.lastName}
                     label='Last Name'
                     required
-                    onChange={(e) =>
-                      handleContingentChange(i, 'lastName', e.target.value)
-                    }
+                    onChange={(e) => handleContingentChange(i, 'lastName', e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -650,9 +603,7 @@ const UpdatePolicyDialog = ({
                     value={b.relationship}
                     label='Relationship'
                     required
-                    onChange={(e) =>
-                      handleContingentChange(i, 'relationship', e.target.value)
-                    }
+                    onChange={(e) => handleContingentChange(i, 'relationship', e.target.value)}
                     fullWidth
                   >
                     {RELATIONSHIP_OPTIONS.map((option) => (
@@ -682,17 +633,13 @@ const UpdatePolicyDialog = ({
                       }}
                       slotProps={{
                         input: {
-                          startAdornment: (
-                            <InputAdornment position='start'>%</InputAdornment>
-                          ),
+                          startAdornment: <InputAdornment position='start'>%</InputAdornment>,
                         },
                       }}
                     />
 
                     <Stack direction='row' spacing={1} alignItems='center'>
-                      <IconButton
-                        onClick={() => handleDeleteBeneficiary('contingent', i)}
-                      >
+                      <IconButton onClick={() => handleDeleteBeneficiary('contingent', i)}>
                         <DeleteIcon />
                       </IconButton>
                     </Stack>

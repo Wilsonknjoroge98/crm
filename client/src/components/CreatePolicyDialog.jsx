@@ -193,8 +193,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     const modifiedForm = { ...form };
     delete modifiedForm.notes;
 
-    console.log('Modified Form:', modifiedForm);
-
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
       return key !== 'splitPolicyAgent' && key !== 'splitPolicyShare' && modifiedForm[key] === '';
     });

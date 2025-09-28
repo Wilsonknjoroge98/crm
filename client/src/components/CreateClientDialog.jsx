@@ -17,7 +17,7 @@ const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 import { enqueueSnackbar } from 'notistack';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import { STATES } from '../utils/constants';
 
@@ -51,7 +51,12 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
   const [zipCodeError, setZipCodeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [disabled, setDisabled] = useState(true);
+  const inputRef = useRef(null);
 
+  function getAddressComponent(components, type) {
+    const comp = components.find((c) => c.types.includes(type));
+    return comp ? comp.long_name : '';
+  }
   const { user, userToken } = useAuth();
 
   const { mutate: createClient, isPending } = useMutation({
@@ -74,6 +79,40 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
       });
     },
   });
+
+  useEffect(() => {
+    if (!window.google) return;
+
+    const timer = setTimeout(() => {
+      if (!inputRef.current) return;
+
+      console.log(inputRef.current);
+
+      const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+        fields: ['address_components'],
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        console.log(place.address_components);
+        if (!place.address_components) return;
+
+        const addressComponents = place.address_components;
+        const streetNumber = getAddressComponent(addressComponents, 'street_number');
+        const route = getAddressComponent(addressComponents, 'route');
+        const city = getAddressComponent(addressComponents, 'locality');
+        const zip = getAddressComponent(addressComponents, 'postal_code');
+        const state = getAddressComponent(addressComponents, 'administrative_area_level_1');
+
+        console.log({ streetNumber, route, city, zip, state });
+
+        const fullStreet = [streetNumber, route].filter(Boolean).join(' ');
+        setForm((prev) => ({ ...prev, address: fullStreet, city, zip, state }));
+      });
+    }, 500); // wait 500ms
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const standardizeAddress = (address) => {
     return address
@@ -225,14 +264,15 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
           <Grid item size={12}>
             <Divider sx={{ my: 2 }} />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={6}>
             <TextField
               name='address'
-              label='Address'
+              label='Street Address'
               value={form.address}
               onChange={handleChange}
               fullWidth
               required
+              inputRef={inputRef}
             />
           </Grid>
 
