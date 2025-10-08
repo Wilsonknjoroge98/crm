@@ -138,32 +138,37 @@ export default function NavBar() {
             p={2}
             spacing={2}
           >
-            <Button
-              variant='text'
-              endIcon={<LogoutIcon />}
-              onClick={handleSignOut}
-              sx={{ alignSelf: 'flex-end' }}
-            >
-              Logout
-            </Button>
-
             {accountData && <AccountDetails data={accountData} />}
+            <Stack direction='row' spacing={1} maxHeight={30}>
+              <Button
+                variant='contained'
+                onClick={() =>
+                  window.open(
+                    `https://buy.stripe.com/7sY3cv09S0VF0KefOR6Ri01?prefilled_email=${user?.email}`,
+                    '_blank',
+                  )
+                }
+                sx={{
+                  bgcolor: (theme) => theme.palette.action.main,
+                  color: (theme) => theme.palette.action.contrastText,
+                  fontSize: 10,
+                }}
+              >
+                Purchase Leads
+              </Button>
 
-            <Button
-              variant='contained'
-              onClick={() =>
-                window.open(
-                  `https://buy.stripe.com/14AdR909SfQz0KedGJ6Ri00?prefilled_email=${user?.email}`,
-                  '_blank',
-                )
-              }
-              sx={{
-                bgcolor: (theme) => theme.palette.action.main,
-                color: (theme) => theme.palette.action.contrastText,
-              }}
-            >
-              Purchase Leads
-            </Button>
+              <Button
+                variant='outlined'
+                endIcon={<LogoutIcon />}
+                sx={{
+                  fontSize: 10,
+                  boxShadow: 'none',
+                }}
+                onClick={handleSignOut}
+              >
+                Logout
+              </Button>
+            </Stack>
           </Stack>
         </Menu>
       </Toolbar>

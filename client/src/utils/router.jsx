@@ -1,8 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import App from '../App';
-import CircularProgress from '@mui/material/CircularProgress';
 import { PuffLoader } from 'react-spinners';
+import Commissions from '../views/Commissions';
 
 const Clients = lazy(() => import('../views/Clients'));
 const Policies = lazy(() => import('../views/Policies'));
@@ -55,6 +55,27 @@ const router = createBrowserRouter([
             }
           >
             <Insights />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/commissions',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Commissions />
           </Suspense>
         ),
       },

@@ -72,7 +72,7 @@ export default function SignUp() {
           email,
           uid: user.uid,
           role: 'agent',
-          compRate: 0.8,
+          compRate: 105,
         },
       });
       navigate('/clients');

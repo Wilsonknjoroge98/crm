@@ -127,6 +127,40 @@ const getInsights = async ({ token }) => {
   }
 };
 
+const getCommissions = async ({ token }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    // signal: signal,
+    url: isDev ? `${DEV_URL}/commissions` : `${BASE_URL}/commissions`,
+    params: {
+      mode: import.meta.env.MODE,
+    },
+  };
+
+  // abort request when notified by react-query
+  // signal?.addEventListener('abort', () => {
+  //   controller.abort();
+  // });
+
+  try {
+    const response = await axios.request(options);
+
+    console.log('Commissions fetched:', response.data);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting commissions:', error);
+
+    throw error;
+  }
+};
+
 const getPolicies = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
@@ -518,4 +552,5 @@ export {
   getAgents,
   getLeaderboard,
   getInsights,
+  getCommissions,
 };

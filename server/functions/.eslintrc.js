@@ -11,7 +11,7 @@ module.exports = {
     'require-jsdoc': 'off',
     'no-restricted-globals': ['error', 'name', 'length'],
     'prefer-arrow-callback': 'error',
-    'quotes': ['error', 'single', { allowTemplateLiterals: true }],
+    'quotes': ['error', 'single', { allowTemplateLiterals: true, avoidEscape: true }],
     'linebreak-style': 0,
     'object-curly-spacing': ['error', 'always'],
     'max-len': ['error', { code: 120 }],

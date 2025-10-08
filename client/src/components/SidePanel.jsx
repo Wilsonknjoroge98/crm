@@ -14,10 +14,10 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import InsightsIcon from '@mui/icons-material/Insights';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 // import AssignmentIcon from '@mui/icons-material/Assignment';
-// import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 // import SupervisedUserCircleIcon from '@mui/icons-material/SupervisedUserCircle';
 // import PrintIcon from '@mui/icons-material/Print';
-// import BarChartIcon from '@mui/icons-material/BarChart';
+import BarChartIcon from '@mui/icons-material/BarChart';
 import BuildIcon from '@mui/icons-material/Build';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -42,6 +42,11 @@ const navItems = [
     text: 'Insights',
     icon: <InsightsIcon />,
     path: '/insights',
+  },
+  {
+    text: 'Commissions',
+    icon: <AttachMoneyIcon />,
+    path: '/commissions',
   },
   {
     text: 'Documents',
@@ -86,7 +91,8 @@ const SidePanel = () => {
       (path === '/clients' ||
         path === '/policies' ||
         path === '/insights' ||
-        path === '/leaderboard')
+        path === '/leaderboard' ||
+        path === '/commissions')
     ) {
       navigate(path);
     }
@@ -118,9 +124,9 @@ const SidePanel = () => {
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
-                    backgroundColor: isActive && index < 4 ? '#2C2C2C' : 'transparent',
+                    backgroundColor: isActive && index < 5 ? '#2C2C2C' : 'transparent',
                     '&:hover': {
-                      backgroundColor: index < 4 ? '#2C2C2C' : 'transparent',
+                      backgroundColor: index < 5 ? '#2C2C2C' : 'transparent',
                     },
                   }}
                 >

@@ -221,6 +221,7 @@ export default function PoliciesGrid({
         disableRowSelectionOnClick
         pageSizeOptions={[10, 25, 50, 100]}
         initialState={{
+          sorting: { sortModel: [{ field: 'createdAtMs', sort: 'desc' }] },
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
       />

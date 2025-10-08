@@ -104,11 +104,13 @@ const Leaderboard = () => {
                     <ListItem
                       disableGutters
                       sx={{
-                        py: 1.25,
-                        px: 1.5,
+                        px: 0,
+                        py: 1,
                         borderRadius: 1.5,
                         ...(top && {
-                          backgroundColor: alpha(theme.palette.action.main, 0.35),
+                          py: 1.25,
+                          px: 1.5,
+                          backgroundColor: alpha(theme.palette.action.main, 0.3),
                           boxShadow: theme.shadows[1],
                         }),
                       }}

@@ -86,7 +86,7 @@ export const CARRIER_PRODUCTS = {
     'XUL',
   ],
   'American Home Life': ['FE'],
-  Americo: ['Eagle Select ', 'HMS 125', 'IUL'],
+  Americo: ['Eagle Select', 'HMS 125', 'IUL', 'Term 100'],
   Ameritas: ['CLEAR EDGE TERM', 'IUL'],
   'Baltimore Life': ['iProvide', 'aPriority'],
   'Combined by Chubb': [
@@ -132,11 +132,7 @@ export const CARRIER_PRODUCTS = {
     'Term Life Express',
   ],
   NLG: ['Term', 'Universal Life'],
-  'North American': [
-    'BUILDER PLUS 3',
-    'PROTECTION BUILDER IUL',
-    'SMART BUILDER 2 IUL',
-  ],
+  'North American': ['BUILDER PLUS 3', 'PROTECTION BUILDER IUL', 'SMART BUILDER 2 IUL'],
   'Pekin Life': ['Transitional Term'],
   'Royal Neighbors of America': [
     'FEX',

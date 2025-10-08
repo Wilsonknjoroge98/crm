@@ -1,0 +1,846 @@
+carrier_name,product_type,agent level,payout rate
+Mutual of Omaha,Accidental Death,140,130
+Mutual of Omaha,Accidental Death,135,125
+Mutual of Omaha,Accidental Death,130,120
+Mutual of Omaha,Accidental Death,125,115
+Mutual of Omaha,Accidental Death,120,110
+Mutual of Omaha,Accidental Death,115,105
+Mutual of Omaha,Accidental Death,110,100
+Mutual of Omaha,Accidental Death,105,95
+Mutual of Omaha,Accidental Death,145,130
+Mutual of Omaha,Accidental Death,95,85
+Mutual of Omaha,Accidental Death,100,90
+Mutual of Omaha,Accidental Death,80,70
+Mutual of Omaha,Accidental Death,85,75
+Mutual of Omaha,Accidental Death,90,80
+Foresters,Advantage Plus II,140,115
+Foresters,Advantage Plus II,145,115
+Foresters,Advantage Plus II,135,110
+Foresters,Advantage Plus II,130,105
+Foresters,Advantage Plus II,125,100
+Foresters,Advantage Plus II,120,95
+Foresters,Advantage Plus II,115,90
+Foresters,Advantage Plus II,110,85
+Foresters,Advantage Plus II,105,80
+Foresters,Advantage Plus II,100,75
+Foresters,Advantage Plus II,95,75
+Foresters,Advantage Plus II,90,70
+Foresters,Advantage Plus II,85,65
+Foresters,Advantage Plus II,80,60
+Ethos,Ameritas IUL,85,65
+Ethos,Ameritas IUL,90,70
+Ethos,Ameritas IUL,95,75
+Ethos,Ameritas IUL,100,80
+Ethos,Ameritas IUL,105,85
+Ethos,Ameritas IUL,110,90
+Ethos,Ameritas IUL,115,95
+Ethos,Ameritas IUL,120,100
+Ethos,Ameritas IUL,125,105
+Ethos,Ameritas IUL,130,110
+Ethos,Ameritas IUL,135,115
+Ethos,Ameritas IUL,140,120
+Ethos,Ameritas IUL,145,125
+Ethos,Ameritas IUL,80,60
+Ethos,Ameritas SI Term,125,110
+Ethos,Ameritas SI Term,145,120
+Ethos,Ameritas SI Term,80,87.5
+Ethos,Ameritas SI Term,85,90
+Ethos,Ameritas SI Term,90,92.5
+Ethos,Ameritas SI Term,100,97.5
+Ethos,Ameritas SI Term,105,100
+Ethos,Ameritas SI Term,110,102.5
+Ethos,Ameritas SI Term,115,105
+Ethos,Ameritas SI Term,120,107.5
+Ethos,Ameritas SI Term,95,95
+Ethos,Ameritas SI Term,130,112.5
+Ethos,Ameritas SI Term,135,115
+Ethos,Ameritas SI Term,140,117.5
+Foresters,Bright Future Childrens WL,140,115
+Foresters,Bright Future Childrens WL,145,115
+Foresters,Bright Future Childrens WL,80,60
+Foresters,Bright Future Childrens WL,85,65
+Foresters,Bright Future Childrens WL,90,70
+Foresters,Bright Future Childrens WL,95,75
+Foresters,Bright Future Childrens WL,100,75
+Foresters,Bright Future Childrens WL,105,80
+Foresters,Bright Future Childrens WL,115,90
+Foresters,Bright Future Childrens WL,120,95
+Foresters,Bright Future Childrens WL,125,100
+Foresters,Bright Future Childrens WL,130,105
+Foresters,Bright Future Childrens WL,135,110
+Foresters,Bright Future Childrens WL,110,85
+North American,BUILDER PLUS 3,130,105
+North American,BUILDER PLUS 3,135,110
+North American,BUILDER PLUS 3,145,115
+North American,BUILDER PLUS 3,120,95
+North American,BUILDER PLUS 3,125,100
+North American,BUILDER PLUS 3,80,55
+North American,BUILDER PLUS 3,85,60
+North American,BUILDER PLUS 3,95,70
+North American,BUILDER PLUS 3,100,75
+North American,BUILDER PLUS 3,105,80
+North American,BUILDER PLUS 3,110,85
+North American,BUILDER PLUS 3,115,90
+North American,BUILDER PLUS 3,90,65
+Mutual of Omaha,Children's Whole Life,115,85
+Mutual of Omaha,Children's Whole Life,110,80
+Mutual of Omaha,Children's Whole Life,105,75
+Mutual of Omaha,Children's Whole Life,100,70
+Mutual of Omaha,Children's Whole Life,95,65
+Mutual of Omaha,Children's Whole Life,90,60
+Mutual of Omaha,Children's Whole Life,85,55
+Mutual of Omaha,Children's Whole Life,80,50
+Mutual of Omaha,Children's Whole Life,120,90
+Mutual of Omaha,Children's Whole Life,125,92
+Mutual of Omaha,Children's Whole Life,130,95
+Mutual of Omaha,Children's Whole Life,135,97
+Mutual of Omaha,Children's Whole Life,140,100
+Mutual of Omaha,Children's Whole Life,145,100
+Ameritas,CLEAR EDGE TERM,85,72.5
+Ameritas,CLEAR EDGE TERM,80,67.5
+Ameritas,CLEAR EDGE TERM,90,77.5
+Ameritas,CLEAR EDGE TERM,95,82.5
+Ameritas,CLEAR EDGE TERM,100,87.5
+Ameritas,CLEAR EDGE TERM,105,92.5
+Ameritas,CLEAR EDGE TERM,110,97.5
+Ameritas,CLEAR EDGE TERM,115,102.5
+Ameritas,CLEAR EDGE TERM,120,107.5
+Ameritas,CLEAR EDGE TERM,125,112.5
+Ameritas,CLEAR EDGE TERM,130,117.5
+Ameritas,CLEAR EDGE TERM,135,122.5
+Ameritas,CLEAR EDGE TERM,145,127.5
+Americo,Eagle Select ,80,75
+Americo,Eagle Select ,85,80
+Americo,Eagle Select ,90,85
+Americo,Eagle Select ,95,90
+Americo,Eagle Select ,100,95
+Americo,Eagle Select ,105,100
+Americo,Eagle Select ,110,105
+Americo,Eagle Select ,115,110
+Americo,Eagle Select ,120,115
+Americo,Eagle Select ,125,120
+Americo,Eagle Select ,130,125
+Americo,Eagle Select ,135,130
+Americo,Eagle Select ,140,135
+Americo,Eagle Select ,145,135
+American Amicable,Family Protector,120,110
+American Amicable,Family Protector,145,130
+American Amicable,Family Protector,140,130
+American Amicable,Family Protector,135,125
+American Amicable,Family Protector,130,120
+American Amicable,Family Protector,125,115
+American Amicable,Family Protector,110,100
+American Amicable,Family Protector,115,105
+American Amicable,Family Protector,105,95
+American Amicable,Family Protector,100,90
+American Amicable,Family Protector,95,85
+American Amicable,Family Protector,90,80
+American Amicable,Family Protector,80,70
+American Amicable,Family Protector,85,75
+American Home Life,FE,80,65
+American Home Life,FE,85,70
+American Home Life,FE,90,75
+American Home Life,FE,95,80
+American Home Life,FE,100,85
+American Home Life,FE,105,90
+American Home Life,FE,110,100
+American Home Life,FE,115,105
+American Home Life,FE,120,110
+American Home Life,FE,125,115
+American Home Life,FE,130,120
+American Home Life,FE,125,115
+American Home Life,FE,120,110
+American Home Life,FE,115,105
+American Home Life,FE,110,100
+American Home Life,FE,105,90
+American Home Life,FE,100,85
+American Home Life,FE,90,75
+American Home Life,FE,85,70
+American Home Life,FE,80,65
+American Home Life,FE,145,130
+American Home Life,FE,135,125
+American Home Life,FE,95,80
+American Home Life,FE,130,120
+American Home Life,FE,135,125
+American Home Life,FE,140,130
+Transamerica,FE,95,95
+Transamerica,FE,140,140
+Transamerica,FE,135,135
+Transamerica,FE,130,130
+Transamerica,FE,120,120
+Transamerica,FE,115,115
+Transamerica,FE,110,110
+Transamerica,FE,105,105
+Transamerica,FE,100,100
+Transamerica,FE,125,125
+Transamerica,FE,85,85
+Transamerica,FE,90,90
+Transamerica,FE,80,80
+Royal Neighbors of America,FEX,135,120
+Royal Neighbors of America,FEX,145,125
+Royal Neighbors of America,FEX,100,85
+Royal Neighbors of America,FEX,125,110
+Royal Neighbors of America,FEX,80,75
+Royal Neighbors of America,FEX,85,80
+Royal Neighbors of America,FEX,90,80
+Royal Neighbors of America,FEX,95,85
+Royal Neighbors of America,FEX,130,115
+Royal Neighbors of America,FEX,105,90
+Royal Neighbors of America,FEX,110,95
+Royal Neighbors of America,FEX,115,100
+Royal Neighbors of America,FEX,120,105
+Royal Neighbors of America,FEX GRADED,80,50
+Royal Neighbors of America,FEX GRADED,85,55
+Royal Neighbors of America,FEX GRADED,90,55
+Royal Neighbors of America,FEX GRADED,95,57.5
+Royal Neighbors of America,FEX GRADED,100,57.5
+Royal Neighbors of America,FEX GRADED,105,60
+Royal Neighbors of America,FEX GRADED,110,62.5
+Royal Neighbors of America,FEX GRADED,115,65
+Royal Neighbors of America,FEX GRADED,120,67.5
+Royal Neighbors of America,FEX GRADED,125,70
+Royal Neighbors of America,FEX GRADED,130,72.5
+Royal Neighbors of America,FEX GRADED,135,75
+Royal Neighbors of America,FEX GRADED,145,77.5
+Royal Neighbors of America,FEX GUARANTEED ISSUE,145,31
+Royal Neighbors of America,FEX GUARANTEED ISSUE,135,29
+Royal Neighbors of America,FEX GUARANTEED ISSUE,130,27
+Royal Neighbors of America,FEX GUARANTEED ISSUE,125,25
+Royal Neighbors of America,FEX GUARANTEED ISSUE,120,23
+Royal Neighbors of America,FEX GUARANTEED ISSUE,115,21
+Royal Neighbors of America,FEX GUARANTEED ISSUE,110,19
+Royal Neighbors of America,FEX GUARANTEED ISSUE,100,15
+Royal Neighbors of America,FEX GUARANTEED ISSUE,95,15
+Royal Neighbors of America,FEX GUARANTEED ISSUE,90,13
+Royal Neighbors of America,FEX GUARANTEED ISSUE,85,13
+Royal Neighbors of America,FEX GUARANTEED ISSUE,105,17
+Royal Neighbors of America,FEX GUARANTEED ISSUE,80,11
+Mutual of Omaha,Final Expense,80,70
+Mutual of Omaha,Final Expense,85,74
+Mutual of Omaha,Final Expense,90,78
+Mutual of Omaha,Final Expense,95,82
+Mutual of Omaha,Final Expense,100,86
+Mutual of Omaha,Final Expense,105,90
+Mutual of Omaha,Final Expense,110,95
+Mutual of Omaha,Final Expense,115,100
+Mutual of Omaha,Final Expense,120,105
+Mutual of Omaha,Final Expense,125,110
+Mutual of Omaha,Final Expense,130,115
+Mutual of Omaha,Final Expense,135,120
+Mutual of Omaha,Final Expense,140,125
+Mutual of Omaha,Final Expense,145,125
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,110,90
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,105,85
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,100,80
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,115,95
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,120,100
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,125,105
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,130,110
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,95,75
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,90,70
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,85,65
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,80,60
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,135,115
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID AT AGE 100,140,117
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,115,55
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,110,50
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,105,45
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,135,75
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,100,40
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,120,60
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,125,65
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,130,70
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,90,30
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,95,35
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,85,25
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,80,25
+Liberty Bankers Insurance Group,FLEX 4 LIFE WL PAID IN 10 YEARS,140,77
+Corebridge,GIWL,80,55
+Corebridge,GIWL,85,55
+Corebridge,GIWL,95,57.5
+Corebridge,GIWL,90,57.5
+Corebridge,GIWL,140,80
+Corebridge,GIWL,135,77.5
+Corebridge,GIWL,130,75
+Corebridge,GIWL,125,72.5
+Corebridge,GIWL,120,70
+Corebridge,GIWL,115,67.5
+Corebridge,GIWL,110,65
+Corebridge,GIWL,105,62.5
+Corebridge,GIWL,100,60
+Americo,HMS 125,110,110
+Americo,HMS 125,115,115
+Americo,HMS 125,120,120
+Americo,HMS 125,125,125
+Americo,HMS 125,130,130
+Americo,HMS 125,135,135
+Americo,HMS 125,145,145
+Americo,HMS 125,140,140
+Americo,HMS 125,100,100
+Americo,HMS 125,105,105
+Americo,HMS 125,80,80
+Americo,HMS 125,85,85
+Americo,HMS 125,90,90
+Americo,HMS 125,95,95
+American Amicable,Home Protector,100,100
+American Amicable,Home Protector,80,80
+American Amicable,Home Protector,85,85
+American Amicable,Home Protector,90,90
+American Amicable,Home Protector,95,95
+American Amicable,Home Protector,105,105
+American Amicable,Home Protector,110,110
+American Amicable,Home Protector,115,115
+American Amicable,Home Protector,120,120
+American Amicable,Home Protector,125,125
+American Amicable,Home Protector,130,130
+American Amicable,Home Protector,135,135
+American Amicable,Home Protector,140,140
+American Amicable,Home Protector,145,145
+Ameritas,IUL,145,120
+Ameritas,IUL,135,115
+Ameritas,IUL,130,110
+Ameritas,IUL,125,105
+Ameritas,IUL,120,100
+Ameritas,IUL,115,95
+Ameritas,IUL,110,90
+Ameritas,IUL,105,85
+Ameritas,IUL,100,80
+Ameritas,IUL,95,75
+Ameritas,IUL,90,70
+Ameritas,IUL,80,60
+Ameritas,IUL,85,65
+Mutual of Omaha,IUL,140,125
+Mutual of Omaha,IUL,145,125
+Mutual of Omaha,IUL,80,65
+Mutual of Omaha,IUL,130,115
+Mutual of Omaha,IUL,135,120
+Mutual of Omaha,IUL,85,70
+Mutual of Omaha,IUL,95,80
+Mutual of Omaha,IUL,100,85
+Mutual of Omaha,IUL,105,90
+Mutual of Omaha,IUL,110,95
+Mutual of Omaha,IUL,115,100
+Mutual of Omaha,IUL,120,105
+Mutual of Omaha,IUL,125,110
+Mutual of Omaha,IUL,90,75
+Mutual of Omaha,IULE,80,70
+Mutual of Omaha,IULE,110,100
+Mutual of Omaha,IULE,105,95
+Mutual of Omaha,IULE,100,90
+Mutual of Omaha,IULE,95,85
+Mutual of Omaha,IULE,90,80
+Mutual of Omaha,IULE,85,75
+Mutual of Omaha,IULE,120,110
+Mutual of Omaha,IULE,145,130
+Mutual of Omaha,IULE,140,130
+Mutual of Omaha,IULE,135,125
+Mutual of Omaha,IULE,130,120
+Mutual of Omaha,IULE,125,115
+Mutual of Omaha,IULE,115,105
+Royal Neighbors of America,JET TERM,90,80
+Royal Neighbors of America,JET TERM,85,80
+Royal Neighbors of America,JET TERM,80,75
+Royal Neighbors of America,JET TERM,95,85
+Royal Neighbors of America,JET TERM,100,85
+Royal Neighbors of America,JET TERM,105,90
+Royal Neighbors of America,JET TERM,110,95
+Royal Neighbors of America,JET TERM,115,100
+Royal Neighbors of America,JET TERM,120,110
+Royal Neighbors of America,JET TERM,125,110
+Royal Neighbors of America,JET TERM,130,115
+Royal Neighbors of America,JET TERM,135,120
+Royal Neighbors of America,JET TERM,145,125
+Royal Neighbors of America,JET WHOLE LIFE,145,125
+Royal Neighbors of America,JET WHOLE LIFE,80,75
+Royal Neighbors of America,JET WHOLE LIFE,90,80
+Royal Neighbors of America,JET WHOLE LIFE,135,120
+Royal Neighbors of America,JET WHOLE LIFE,130,115
+Royal Neighbors of America,JET WHOLE LIFE,125,110
+Royal Neighbors of America,JET WHOLE LIFE,120,105
+Royal Neighbors of America,JET WHOLE LIFE,110,95
+Royal Neighbors of America,JET WHOLE LIFE,105,90
+Royal Neighbors of America,JET WHOLE LIFE,100,85
+Royal Neighbors of America,JET WHOLE LIFE,95,85
+Royal Neighbors of America,JET WHOLE LIFE,85,80
+Royal Neighbors of America,JET WHOLE LIFE,115,100
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,80,50
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,85,55
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,90,55
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,95,60
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,100,60
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,105,65
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,110,70
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,115,75
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,120,85
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,125,85
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,130,90
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,135,95
+Royal Neighbors of America,JET YOUTH WHOLE LIFE,145,100
+Ethos,JH ROP,80,70
+Ethos,JH ROP,95,85
+Ethos,JH ROP,110,100
+Ethos,JH ROP,105,95
+Ethos,JH ROP,100,90
+Ethos,JH ROP,90,80
+Ethos,JH ROP,85,75
+Ethos,JH ROP,115,105
+Ethos,JH ROP,120,115
+Ethos,JH ROP,125,125
+Ethos,JH ROP,130,130
+Ethos,JH ROP,135,135
+Ethos,JH ROP,140,145
+Ethos,JH ROP,145,145
+Ethos,LGA Prime,95,95
+Ethos,LGA Prime,90,92.5
+Ethos,LGA Prime,85,90
+Ethos,LGA Prime,80,87.5
+Ethos,LGA Prime,100,97.5
+Ethos,LGA Prime,105,100
+Ethos,LGA Prime,110,102.5
+Ethos,LGA Prime,115,105
+Ethos,LGA Prime,120,107.5
+Ethos,LGA Prime,125,110
+Ethos,LGA Prime,130,112.5
+Ethos,LGA Prime,135,115
+Ethos,LGA Prime,140,117.5
+Ethos,LGA Prime,145,120
+Liberty Bankers Insurance Group,MODIFIED WL,110,70
+Liberty Bankers Insurance Group,MODIFIED WL,105,67.5
+Liberty Bankers Insurance Group,MODIFIED WL,100,65
+Liberty Bankers Insurance Group,MODIFIED WL,95,62.5
+Liberty Bankers Insurance Group,MODIFIED WL,115,75
+Liberty Bankers Insurance Group,MODIFIED WL,120,77.5
+Liberty Bankers Insurance Group,MODIFIED WL,125,80
+Liberty Bankers Insurance Group,MODIFIED WL,130,85
+Liberty Bankers Insurance Group,MODIFIED WL,90,60
+Liberty Bankers Insurance Group,MODIFIED WL,85,55
+Liberty Bankers Insurance Group,MODIFIED WL,80,50
+Liberty Bankers Insurance Group,MODIFIED WL,135,87.5
+Liberty Bankers Insurance Group,MODIFIED WL,140,88
+Foresters,Planright FEX,140,125
+Foresters,Planright FEX,85,75
+Foresters,Planright FEX,90,80
+Foresters,Planright FEX,95,85
+Foresters,Planright FEX,100,90
+Foresters,Planright FEX,105,95
+Foresters,Planright FEX,110,100
+Foresters,Planright FEX,115,105
+Foresters,Planright FEX,120,110
+Foresters,Planright FEX,125,115
+Foresters,Planright FEX,130,120
+Foresters,Planright FEX,80,70
+Foresters,Planright FEX,135,122.5
+Foresters,Planright FEX,145,125
+Foresters,Prepared II ADB,140,135
+Foresters,Prepared II ADB,90,85
+Foresters,Prepared II ADB,85,80
+Foresters,Prepared II ADB,80,75
+Foresters,Prepared II ADB,95,90
+Foresters,Prepared II ADB,100,95
+Foresters,Prepared II ADB,105,100
+Foresters,Prepared II ADB,110,105
+Foresters,Prepared II ADB,115,110
+Foresters,Prepared II ADB,120,115
+Foresters,Prepared II ADB,125,120
+Foresters,Prepared II ADB,130,125
+Foresters,Prepared II ADB,135,130
+Foresters,Prepared II ADB,145,135
+North American,PROTECTION BUILDER IUL,80,50
+North American,PROTECTION BUILDER IUL,85,55
+North American,PROTECTION BUILDER IUL,90,60
+North American,PROTECTION BUILDER IUL,95,65
+North American,PROTECTION BUILDER IUL,100,70
+North American,PROTECTION BUILDER IUL,105,75
+North American,PROTECTION BUILDER IUL,110,80
+North American,PROTECTION BUILDER IUL,115,85
+North American,PROTECTION BUILDER IUL,120,90
+North American,PROTECTION BUILDER IUL,130,100
+North American,PROTECTION BUILDER IUL,125,95
+North American,PROTECTION BUILDER IUL,135,105
+North American,PROTECTION BUILDER IUL,145,110
+American Amicable,Secure Life,90,90
+American Amicable,Secure Life,80,80
+American Amicable,Secure Life,85,85
+American Amicable,Secure Life,95,95
+American Amicable,Secure Life,100,100
+American Amicable,Secure Life,105,105
+American Amicable,Secure Life,110,110
+American Amicable,Secure Life,115,115
+American Amicable,Secure Life,120,120
+American Amicable,Secure Life,125,125
+American Amicable,Secure Life,130,130
+American Amicable,Secure Life,135,135
+American Amicable,Secure Life,140,140
+American Amicable,Secure Life,145,140
+American Amicable,Senior/Family Choice,140,125
+American Amicable,Senior/Family Choice,135,120
+American Amicable,Senior/Family Choice,130,115
+American Amicable,Senior/Family Choice,125,110
+American Amicable,Senior/Family Choice,120,105
+American Amicable,Senior/Family Choice,115,100
+American Amicable,Senior/Family Choice,110,95
+American Amicable,Senior/Family Choice,105,90
+American Amicable,Senior/Family Choice,100,85
+American Amicable,Senior/Family Choice,95,80
+American Amicable,Senior/Family Choice,90,75
+American Amicable,Senior/Family Choice,85,70
+American Amicable,Senior/Family Choice,145,125
+American Amicable,Senior/Family Choice,80,65
+Kansas City Life,SIGNATURE TERM,115,110
+Kansas City Life,SIGNATURE TERM,80,75
+Kansas City Life,SIGNATURE TERM,85,80
+Kansas City Life,SIGNATURE TERM,90,85
+Kansas City Life,SIGNATURE TERM,95,90
+Kansas City Life,SIGNATURE TERM,100,95
+Kansas City Life,SIGNATURE TERM,105,100
+Kansas City Life,SIGNATURE TERM,110,105
+Kansas City Life,SIGNATURE TERM,140,135
+Kansas City Life,SIGNATURE TERM,145,135
+Kansas City Life,SIGNATURE TERM,135,130
+Kansas City Life,SIGNATURE TERM,130,125
+Kansas City Life,SIGNATURE TERM,125,120
+Kansas City Life,SIGNATURE TERM,120,115
+Kansas City Life,SIGNATURE TERM ROP,85,80
+Kansas City Life,SIGNATURE TERM ROP,90,85
+Kansas City Life,SIGNATURE TERM ROP,95,90
+Kansas City Life,SIGNATURE TERM ROP,100,95
+Kansas City Life,SIGNATURE TERM ROP,105,100
+Kansas City Life,SIGNATURE TERM ROP,110,105
+Kansas City Life,SIGNATURE TERM ROP,115,110
+Kansas City Life,SIGNATURE TERM ROP,120,115
+Kansas City Life,SIGNATURE TERM ROP,125,120
+Kansas City Life,SIGNATURE TERM ROP,130,125
+Kansas City Life,SIGNATURE TERM ROP,135,130
+Kansas City Life,SIGNATURE TERM ROP,145,135
+Kansas City Life,SIGNATURE TERM ROP,80,75
+Kansas City Life,SIGNATURE TERM ROP,140,135
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,105,95
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,145,130
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,80,70
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,85,75
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,95,85
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,100,90
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,110,100
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,115,105
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,120,110
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,125,115
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,130,120
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,135,125
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,90,80
+Liberty Bankers Insurance Group,SIMPLIFIED ISSUE MARKET FE,140,130
+Corebridge,SIWL,80,72
+Corebridge,SIWL,85,77
+Corebridge,SIWL,90,82
+Corebridge,SIWL,140,132
+Corebridge,SIWL,95,87
+Corebridge,SIWL,100,92
+Corebridge,SIWL,105,97
+Corebridge,SIWL,110,102
+Corebridge,SIWL,115,107
+Corebridge,SIWL,120,112
+Corebridge,SIWL,125,117
+Corebridge,SIWL,130,122
+Corebridge,SIWL,135,127
+North American,SMART BUILDER 2 IUL,80,50
+North American,SMART BUILDER 2 IUL,85,55
+North American,SMART BUILDER 2 IUL,90,60
+North American,SMART BUILDER 2 IUL,95,65
+North American,SMART BUILDER 2 IUL,100,70
+North American,SMART BUILDER 2 IUL,105,75
+North American,SMART BUILDER 2 IUL,110,80
+North American,SMART BUILDER 2 IUL,115,85
+North American,SMART BUILDER 2 IUL,125,95
+North American,SMART BUILDER 2 IUL,120,90
+North American,SMART BUILDER 2 IUL,130,100
+North American,SMART BUILDER 2 IUL,135,105
+North American,SMART BUILDER 2 IUL,145,110
+Foresters,Smart UL,140,120
+Foresters,Smart UL,80,72.5
+Foresters,Smart UL,85,75
+Foresters,Smart UL,95,80
+Foresters,Smart UL,100,85
+Foresters,Smart UL,105,87.5
+Foresters,Smart UL,110,90
+Foresters,Smart UL,115,95
+Foresters,Smart UL,120,100
+Foresters,Smart UL,125,105
+Foresters,Smart UL,130,110
+Foresters,Smart UL,135,115
+Foresters,Smart UL,145,120
+Foresters,Smart UL,90,77.5
+Foresters,Strong Foundation,140,145
+Foresters,Strong Foundation,85,90
+Foresters,Strong Foundation,80,85
+Foresters,Strong Foundation,90,95
+Foresters,Strong Foundation,95,100
+Foresters,Strong Foundation,100,105
+Foresters,Strong Foundation,105,110
+Foresters,Strong Foundation,110,115
+Foresters,Strong Foundation,115,120
+Foresters,Strong Foundation,120,125
+Foresters,Strong Foundation,125,130
+Foresters,Strong Foundation,130,135
+Foresters,Strong Foundation,135,140
+Foresters,Strong Foundation,145,145
+Ladder,TERM,105,95
+Ladder,TERM,100,90
+Ladder,TERM,95,85
+Ladder,TERM,90,80
+Ladder,TERM,80,70
+Ladder,TERM,145,130
+Ladder,TERM,85,75
+Ladder,TERM,110,100
+Ladder,TERM,115,105
+Ladder,TERM,120,110
+Ladder,TERM,125,115
+Ladder,TERM,130,120
+Ladder,TERM,135,125
+Ladder,TERM,140,130
+NLG,Term,85,55
+NLG,Term,95,65
+NLG,Term,90,60
+NLG,Term,80,50
+NLG,Term,100,70
+NLG,Term,105,75
+NLG,Term,110,80
+NLG,Term,115,85
+NLG,Term,120,90
+NLG,Term,125,95
+NLG,Term,130,100
+NLG,Term,135,105
+NLG,Term,140,110
+Mutual of Omaha,Term Life Answers,85,55
+Mutual of Omaha,Term Life Answers,80,50
+Mutual of Omaha,Term Life Answers,90,60
+Mutual of Omaha,Term Life Answers,95,65
+Mutual of Omaha,Term Life Answers,100,70
+Mutual of Omaha,Term Life Answers,105,75
+Mutual of Omaha,Term Life Answers,110,80
+Mutual of Omaha,Term Life Answers,115,85
+Mutual of Omaha,Term Life Answers,120,90
+Mutual of Omaha,Term Life Answers,125,95
+Mutual of Omaha,Term Life Answers,130,100
+Mutual of Omaha,Term Life Answers,145,110
+Mutual of Omaha,Term Life Answers,140,110
+Mutual of Omaha,Term Life Answers,135,105
+Mutual of Omaha,Term Life Express,80,80
+Mutual of Omaha,Term Life Express,85,85
+Mutual of Omaha,Term Life Express,90,90
+Mutual of Omaha,Term Life Express,95,95
+Mutual of Omaha,Term Life Express,100,100
+Mutual of Omaha,Term Life Express,105,105
+Mutual of Omaha,Term Life Express,110,110
+Mutual of Omaha,Term Life Express,115,115
+Mutual of Omaha,Term Life Express,120,120
+Mutual of Omaha,Term Life Express,125,125
+Mutual of Omaha,Term Life Express,130,130
+Mutual of Omaha,Term Life Express,140,140
+Mutual of Omaha,Term Life Express,145,145
+Mutual of Omaha,Term Life Express,135,135
+American Amicable,Term Made Simple,105,95
+American Amicable,Term Made Simple,100,90
+American Amicable,Term Made Simple,95,85
+American Amicable,Term Made Simple,90,80
+American Amicable,Term Made Simple,85,75
+American Amicable,Term Made Simple,80,70
+American Amicable,Term Made Simple,110,100
+American Amicable,Term Made Simple,115,105
+American Amicable,Term Made Simple,120,110
+American Amicable,Term Made Simple,125,115
+American Amicable,Term Made Simple,130,120
+American Amicable,Term Made Simple,135,125
+American Amicable,Term Made Simple,140,130
+American Amicable,Term Made Simple,145,130
+Ethos,TruStage GAWL,80,2.5
+Ethos,TruStage GAWL,85,2.5
+Ethos,TruStage GAWL,90,2.5
+Ethos,TruStage GAWL,95,5
+Ethos,TruStage GAWL,100,7.5
+Ethos,TruStage GAWL,105,10
+Ethos,TruStage GAWL,110,12.5
+Ethos,TruStage GAWL,115,15
+Ethos,TruStage GAWL,120,17.5
+Ethos,TruStage GAWL,125,20
+Ethos,TruStage GAWL,130,22.5
+Ethos,TruStage GAWL,135,25
+Ethos,TruStage GAWL,140,27.5
+Ethos,TruStage GAWL,145,30
+Ethos,TruStage SITL,80,22.5
+Ethos,TruStage SITL,85,25
+Ethos,TruStage SITL,90,27.5
+Ethos,TruStage SITL,95,30
+Ethos,TruStage SITL,100,32.5
+Ethos,TruStage SITL,105,35
+Ethos,TruStage SITL,110,37.5
+Ethos,TruStage SITL,120,42.5
+Ethos,TruStage SITL,115,40
+Ethos,TruStage SITL,145,55
+Ethos,TruStage SITL,140,52.5
+Ethos,TruStage SITL,135,50
+Ethos,TruStage SITL,130,47.5
+Ethos,TruStage SITL,125,45
+Ethos,TruStage TAWL,145,120
+Ethos,TruStage TAWL,140,120
+Ethos,TruStage TAWL,135,117.5
+Ethos,TruStage TAWL,130,115
+Ethos,TruStage TAWL,125,110
+Ethos,TruStage TAWL,120,105
+Ethos,TruStage TAWL,110,95
+Ethos,TruStage TAWL,115,100
+Ethos,TruStage TAWL,100,87.5
+Ethos,TruStage TAWL,105,90
+Ethos,TruStage TAWL,95,85
+Ethos,TruStage TAWL,90,82.5
+Ethos,TruStage TAWL,85,80
+Ethos,TruStage TAWL,80,77.5
+Transamerica,UL,80,50
+Transamerica,UL,85,55
+Transamerica,UL,90,60
+Transamerica,UL,100,75
+Transamerica,UL,140,120
+Transamerica,UL,135,115
+Transamerica,UL,130,110
+Transamerica,UL,125,105
+Transamerica,UL,120,100
+Transamerica,UL,115,95
+Transamerica,UL,110,90
+Transamerica,UL,105,80
+Transamerica,UL,95,70
+NLG,Universal Life,80,50
+NLG,Universal Life,85,55
+NLG,Universal Life,90,60
+NLG,Universal Life,95,65
+NLG,Universal Life,100,70
+NLG,Universal Life,105,75
+NLG,Universal Life,110,80
+NLG,Universal Life,115,85
+NLG,Universal Life,125,95
+NLG,Universal Life,130,100
+NLG,Universal Life,135,105
+NLG,Universal Life,140,110
+NLG,Universal Life,120,90
+Aetna,Whole Life,80,70
+Aetna,Whole Life,85,70
+Aetna,Whole Life,90,77.5
+Aetna,Whole Life,95,85
+Aetna,Whole Life,100,92.5
+Aetna,Whole Life,105,100
+Aetna,Whole Life,110,107.5
+Aetna,Whole Life,115,115
+Aetna,Whole Life,120,120
+Aetna,Whole Life,125,125
+Aetna,Whole Life,130,130
+Aetna,Whole Life,135,137
+Aetna,Whole Life,140,144
+American Amicable,XUL,125,90
+American Amicable,XUL,80,45
+American Amicable,XUL,85,50
+American Amicable,XUL,90,55
+American Amicable,XUL,95,60
+American Amicable,XUL,100,76
+American Amicable,XUL,105,70
+American Amicable,XUL,110,75
+American Amicable,XUL,115,80
+American Amicable,XUL,130,95
+American Amicable,XUL,120,85
+American Amicable,XUL,145,105
+American Amicable,XUL,140,105
+American Amicable,XUL,135,100
+Foresters,Your Term,140,135
+Foresters,Your Term,145,135
+Foresters,Your Term,135,130
+Foresters,Your Term,130,125
+Foresters,Your Term,125,120
+Foresters,Your Term,120,115
+Foresters,Your Term,115,110
+Foresters,Your Term,110,105
+Foresters,Your Term,105,100
+Foresters,Your Term,100,95
+Foresters,Your Term,95,90
+Foresters,Your Term,90,85
+Foresters,Your Term,80,75
+Foresters,Your Term,85,80
+Baltimore Life,iProvide,145,135
+Baltimore Life,iProvide,140,135
+Baltimore Life,iProvide,135,130
+Baltimore Life,iProvide,130,125
+Baltimore Life,iProvide,125,120
+Baltimore Life,iProvide,120,115
+Baltimore Life,iProvide,115,110
+Baltimore Life,iProvide,110,105
+Baltimore Life,iProvide,105,95
+Baltimore Life,iProvide,100,85
+Baltimore Life,iProvide,95,75
+Baltimore Life,iProvide,90,65
+Baltimore Life,iProvide,85,60
+Baltimore Life,iProvide,80,55
+Baltimore Life,aPriority,145,120
+Baltimore Life,aPriority,140,120
+Baltimore Life,aPriority,135,115
+Baltimore Life,aPriority,130,110
+Baltimore Life,aPriority,125,105
+Baltimore Life,aPriority,120,100
+Baltimore Life,aPriority,115,95
+Baltimore Life,aPriority,110,90
+Baltimore Life,aPriority,105,85
+Baltimore Life,aPriority,100,80
+Baltimore Life,aPriority,95,75
+Baltimore Life,aPriority,90,70
+Baltimore Life,aPriority,85,65
+Baltimore Life,aPriority,80,60
+Combined by Chubb,Preferred Final Expense,145,130
+Combined by Chubb,Preferred Final Expense,140,130
+Combined by Chubb,Preferred Final Expense,135,125
+Combined by Chubb,Preferred Final Expense,130,120
+Combined by Chubb,Preferred Final Expense,125,115
+Combined by Chubb,Preferred Final Expense,120,110
+Combined by Chubb,Preferred Final Expense,115,105
+Combined by Chubb,Preferred Final Expense,110,100
+Combined by Chubb,Preferred Final Expense,105,95
+Combined by Chubb,Preferred Final Expense,100,90
+Combined by Chubb,Preferred Final Expense,95,85
+Combined by Chubb,Preferred Final Expense,90,80
+Combined by Chubb,Preferred Final Expense,85,75
+Combined by Chubb,Preferred Final Expense,80,70
+Illinois Mutual,Final Expense,145,125
+Illinois Mutual,Final Expense,140,125
+Illinois Mutual,Final Expense,135,120
+Illinois Mutual,Final Expense,130,115
+Illinois Mutual,Final Expense,125,110
+Illinois Mutual,Final Expense,120,105
+Illinois Mutual,Final Expense,115,100
+Illinois Mutual,Final Expense,110,95
+Illinois Mutual,Final Expense,105,90
+Illinois Mutual,Final Expense,100,85
+Illinois Mutual,Final Expense,95,80
+Illinois Mutual,Final Expense,90,75
+Illinois Mutual,Final Expense,85,70
+Illinois Mutual,Final Expense,80,65
+Pekin Life,Transitional Term,145,115
+Pekin Life,Transitional Term,140,115
+Pekin Life,Transitional Term,135,110
+Pekin Life,Transitional Term,130,105
+Pekin Life,Transitional Term,125,100
+Pekin Life,Transitional Term,120,95
+Pekin Life,Transitional Term,115,90
+Pekin Life,Transitional Term,110,85
+Pekin Life,Transitional Term,105,80
+Pekin Life,Transitional Term,100,75
+Pekin Life,Transitional Term,95,70
+Pekin Life,Transitional Term,90,65
+Pekin Life,Transitional Term,85,60
+Pekin Life,Transitional Term,80,55
+SBLI,FEX Level Death Benefit,145,135
+SBLI,FEX Level Death Benefit,140,135
+SBLI,FEX Level Death Benefit,135,130
+SBLI,FEX Level Death Benefit,130,125
+SBLI,FEX Level Death Benefit,125,120
+SBLI,FEX Level Death Benefit,120,115
+SBLI,FEX Level Death Benefit,115,110
+SBLI,FEX Level Death Benefit,110,105
+SBLI,FEX Level Death Benefit,105,100
+SBLI,FEX Level Death Benefit,100,95
+SBLI,FEX Level Death Benefit,95,90
+SBLI,FEX Level Death Benefit,90,85
+SBLI,FEX Level Death Benefit,85,80
+SBLI,FEX Level Death Benefit,80,75

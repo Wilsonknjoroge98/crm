@@ -84,6 +84,22 @@ export default function ClientsGrid({
 
     cols.push(
       {
+        field: 'createdAtMs',
+        headerName: 'Created',
+        filterable: true,
+        sortable: true,
+        width: 170,
+
+        renderCell: (params) => {
+          return params.value ? new Date(params.value).toLocaleString() : 'unknown';
+        },
+        sortComparator: (v1, v2) => {
+          const a = v1 ?? 0;
+          const b = v2 ?? 0;
+          return a - b;
+        },
+      },
+      {
         field: 'fullName',
         headerName: 'Name',
         flex: 1,
@@ -251,6 +267,7 @@ export default function ClientsGrid({
         disableRowSelectionOnClick
         pageSizeOptions={[10, 25, 50, 100]}
         initialState={{
+          sorting: { sortModel: [{ field: 'createdAtMs', sort: 'desc' }] },
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
       />

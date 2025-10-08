@@ -1,4 +1,4 @@
-import { Stack, Box, Divider, Chip, Typography } from '@mui/material';
+import { Stack, Box, Divider, Chip, Typography, Button } from '@mui/material';
 import dayjs from 'dayjs';
 
 const AccountDetails = ({ data }) => {
@@ -8,10 +8,6 @@ const AccountDetails = ({ data }) => {
 
   return (
     <>
-      <Typography variant='h6' gutterBottom>
-        Account Details
-      </Typography>
-
       <Stack spacing={1}>
         <Stack direction='row' justifyContent='space-between'>
           <Typography variant='body2' color='text.secondary'>
@@ -45,7 +41,7 @@ const AccountDetails = ({ data }) => {
 
         <Stack direction='row' justifyContent='space-between'>
           <Typography variant='body2' color='text.secondary'>
-            Delivering
+            Delivering:
           </Typography>
           <Typography variant='body2'>{data?.deliver ? 'Yes' : 'No'}</Typography>
         </Stack>
