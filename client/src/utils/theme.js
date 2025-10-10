@@ -69,14 +69,9 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: '3px',
-          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
+          borderRadius: 3,
+          boxShadow: 'none',
           padding: '8px 20px',
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            boxShadow: '0 6px 18px rgba(0, 0, 0, 0.15)',
-            transform: 'translateY(-1px)',
-          },
         },
       },
     },
