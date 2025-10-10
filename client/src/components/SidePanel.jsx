@@ -34,14 +34,9 @@ const navItems = [
     path: '/policies',
   },
   {
-    text: 'Leaderboard',
+    text: 'Premiums',
     icon: <LeaderboardIcon />,
-    path: '/leaderboard',
-  },
-  {
-    text: 'Insights',
-    icon: <InsightsIcon />,
-    path: '/insights',
+    path: '/premiums',
   },
   {
     text: 'Commissions',
@@ -49,53 +44,51 @@ const navItems = [
     path: '/commissions',
   },
   {
-    text: 'Documents',
-    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-    path: '/documents',
+    text: 'Insights',
+    icon: <InsightsIcon />,
+    path: '/insights',
   },
-  {
-    text: 'Lead Vendors',
-    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-    path: '/lead-vendors',
-  },
-  {
-    text: 'Expenses',
-    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-    path: '/expenses',
-  },
-  {
-    text: 'Agent Hierarchy',
-    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-    path: '/agent-hierarchy',
-  },
-  {
-    text: 'Printing Services',
-    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-    path: '/printing',
-  },
-  {
-    text: 'Reports',
-    icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-    path: '/reports',
-  },
+  // {
+  //   text: 'Documents',
+  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+  //   path: '/documents',
+  // },
+  // {
+  //   text: 'Lead Vendors',
+  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+  //   path: '/lead-vendors',
+  // },
+  // {
+  //   text: 'Expenses',
+  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+  //   path: '/expenses',
+  // },
+  // {
+  //   text: 'Agent Hierarchy',
+  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+  //   path: '/agent-hierarchy',
+  // },
+  // {
+  //   text: 'Printing Services',
+  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+  //   path: '/printing',
+  // },
+  // {
+  //   text: 'Reports',
+  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
+  //   path: '/reports',
+  // },
 ];
 
 const SidePanel = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, agent } = useAuth();
+
+  const role = agent?.role || 'agent';
 
   const handleItemClick = (path) => {
-    if (
-      location.pathname !== path &&
-      (path === '/clients' ||
-        path === '/policies' ||
-        path === '/insights' ||
-        path === '/leaderboard' ||
-        path === '/commissions')
-    ) {
-      navigate(path);
-    }
+    navigate(path);
   };
 
   return (
@@ -116,8 +109,12 @@ const SidePanel = () => {
       <Box sx={{ height: '100%' }}>
         {isAuthenticated && (
           <List>
-            {navItems.map(({ text, icon, path }, index) => {
+            {navItems.map(({ text, icon, path, role }, index) => {
               const isActive = location.pathname === path;
+
+              if (role && role === 'admin' && agent?.role !== 'admin') {
+                return null;
+              }
 
               return (
                 <ListItem

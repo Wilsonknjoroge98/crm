@@ -87,7 +87,7 @@ const getAccount = async ({ token, email }) => {
   }
 };
 
-const getInsights = async ({ token }) => {
+const getPremiums = async ({ token }) => {
   const isDev = import.meta.env.DEV;
 
   // request config for compulife server
@@ -97,7 +97,7 @@ const getInsights = async ({ token }) => {
     },
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/insights` : `${BASE_URL}/insights`,
+    url: isDev ? `${DEV_URL}/premiums` : `${BASE_URL}/premiums`,
     params: {
       mode: import.meta.env.MODE,
     },
@@ -127,7 +127,7 @@ const getInsights = async ({ token }) => {
   }
 };
 
-const getCommissions = async ({ token }) => {
+const getCommissions = async ({ token, startDate, endDate }) => {
   const isDev = import.meta.env.DEV;
 
   // request config for compulife server
@@ -140,6 +140,8 @@ const getCommissions = async ({ token }) => {
     url: isDev ? `${DEV_URL}/commissions` : `${BASE_URL}/commissions`,
     params: {
       mode: import.meta.env.MODE,
+      startDate,
+      endDate,
     },
   };
 
@@ -363,7 +365,7 @@ const getAgents = async ({ token }) => {
   }
 };
 
-const getLeaderboard = async ({ token }) => {
+const getInsights = async ({ token }) => {
   const isDev = import.meta.env.DEV;
 
   if (!token) {
@@ -376,7 +378,7 @@ const getLeaderboard = async ({ token }) => {
       Authorization: `Bearer ${token}`,
     },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/leaderboard` : `${BASE_URL}/leaderboard`,
+    url: isDev ? `${DEV_URL}/insights` : `${BASE_URL}/insights`,
     params: { mode: import.meta.env.MODE },
   };
 
@@ -550,7 +552,7 @@ export {
   deleteClient,
   deletePolicy,
   getAgents,
-  getLeaderboard,
   getInsights,
+  getPremiums,
   getCommissions,
 };

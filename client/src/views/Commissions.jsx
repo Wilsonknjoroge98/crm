@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCommissions } from '../utils/query';
 import {
@@ -12,17 +13,35 @@ import {
   Stack,
   Avatar,
   Divider,
+  Button,
 } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
+
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
 
 import useAuth from '../hooks/useAuth';
+import { useEffect } from 'react';
 
 const Commissions = () => {
+  const [startDate, setStartDate] = useState(dayjs('2025-07-15').format('YYYY-MM-DD'));
+  const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [totalCommissions, setTotalCommissions] = useState(0);
+
   const { userToken } = useAuth();
-  const { data = [], isLoading } = useQuery({
+  const {
+    data = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['commissions'],
     queryFn: () =>
       getCommissions({
         token: userToken,
+        startDate,
+        endDate,
       }),
     onSuccess: (data) => {
       console.log('Commissions data fetched successfully:', data);
@@ -32,11 +51,71 @@ const Commissions = () => {
     },
   });
 
-  console.log('Commissions data:', data);
+  const handleStartChange = (newValue) => {
+    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
+    setStartDate(formatted);
+    if (onChange) onChange({ startDate: formatted, endDate });
+  };
+
+  const handleEndChange = (newValue) => {
+    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
+    setEndDate(formatted);
+    if (onChange) onChange({ startDate, endDate: formatted });
+  };
+
+  useEffect(() => {
+    const total = Object.values(data).reduce((sum, value) => sum + value, 0);
+    setTotalCommissions(total);
+  }, [data]); // Refetch when dates change
+
+  console.log('Start Date:', startDate);
+  console.log('End Date:', endDate);
 
   return (
     <Container sx={{ mt: 4 }}>
-      <Typography variant='h4'> Commission Breakdown</Typography>
+      <Stack justifyContent='space-between' spacing={2} mb={2}>
+        <Typography variant='h4'> Commissions</Typography>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <Box display='flex' justifyContent='space-between' alignItems='center'>
+            <Stack direction={'row'} spacing={2} alignItems='center'>
+              <DatePicker
+                label='Start Date'
+                value={startDate ? dayjs(startDate) : null}
+                onChange={handleStartChange}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    variant: 'outlined',
+                    sx: { minWidth: 150 },
+                  },
+                }}
+              />
+              <DatePicker
+                label='End Date'
+                value={endDate ? dayjs(endDate) : null}
+                onChange={handleEndChange}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    variant: 'outlined',
+                    sx: { minWidth: 150 },
+                  },
+                }}
+              />
+            </Stack>
+            <Button
+              variant='contained'
+              color='action'
+              startIcon={<RefreshIcon />}
+              onClick={() => refetch()}
+              sx={isLoading ? { opacity: 0.3 } : {}}
+              disabled={isLoading}
+            >
+              Refresh
+            </Button>
+          </Box>
+        </LocalizationProvider>
+      </Stack>
       <Card
         elevation={0}
         sx={{
@@ -70,16 +149,6 @@ const Commissions = () => {
                       }}
                     >
                       <Stack direction='row' spacing={2} alignItems='center'>
-                        <Avatar
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            bgcolor: 'primary.main',
-                            fontSize: 14,
-                          }}
-                        >
-                          {key[0].toUpperCase()}
-                        </Avatar>
                         <Box>
                           <Typography variant='subtitle1' fontWeight={500}>
                             {key}
@@ -87,7 +156,7 @@ const Commissions = () => {
                         </Box>
                       </Stack>
 
-                      <Typography variant='subtitle1' sx={{ fontWeight: 600, color: 'success' }}>
+                      <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
                         $
                         {value.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
@@ -102,6 +171,26 @@ const Commissions = () => {
               </List>
             )}
           </Box>
+          <Stack direction={'row'} justifyContent='space-between' alignItems='center' mt={2}>
+            <Typography mt={2} variant='subtitle1' fontWeight={600}>
+              Total Commissions
+            </Typography>
+            <Typography
+              p={1}
+              mt={2}
+              borderRadius={1}
+              textAlign='right'
+              width={'fit-content'}
+              sx={{ backgroundColor: 'success.main' }}
+              fontWeight={600}
+            >
+              $
+              {totalCommissions.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Typography>
+          </Stack>
         </CardContent>
       </Card>
     </Container>

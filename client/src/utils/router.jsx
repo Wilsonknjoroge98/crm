@@ -2,14 +2,14 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import App from '../App';
 import { PuffLoader } from 'react-spinners';
-import Commissions from '../views/Commissions';
 
 const Clients = lazy(() => import('../views/Clients'));
 const Policies = lazy(() => import('../views/Policies'));
 const Login = lazy(() => import('../views/Login'));
 const SignUp = lazy(() => import('../views/SignUp'));
 const Insights = lazy(() => import('../views/Insights'));
-const Leaderboard = lazy(() => import('../views/Leaderboard'));
+const Premiums = lazy(() => import('../views/Premiums'));
+const Commissions = lazy(() => import('../views/Commissions'));
 
 const router = createBrowserRouter([
   {
@@ -17,7 +17,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       {
-        path: '/leaderboard',
+        path: '/premiums',
         element: (
           <Suspense
             fallback={
@@ -33,7 +33,7 @@ const router = createBrowserRouter([
               </div>
             }
           >
-            <Leaderboard />
+            <Premiums />
           </Suspense>
         ),
       },

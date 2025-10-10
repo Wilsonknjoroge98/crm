@@ -346,10 +346,38 @@ app.post('/client', async (req, res) => {
 
   for (const lead of leads) {
     if (lead?.ad) {
-      client.source = lead.ad;
       client.leadId = lead.id;
       break;
     }
+  }
+
+  const HYROS_BODY = {
+    method: 'GET',
+    url: 'https://api.hyros.com/v1/api/v1.0/leads',
+    headers: {
+      'Content-Type': 'application/json',
+      'API-Key': process.env.HYROS_SECRET_KEY,
+    },
+    params: {
+      email: client.email,
+    },
+  };
+
+  try {
+    const response = await axios.request(HYROS_BODY);
+    const lead = response.data.result[0] || [];
+
+    let source = lead?.lastSource?.sourceLinkAd?.name || null;
+
+    if (!source) {
+      source = lead?.firstSource?.sourceLinkAd?.name || null;
+    }
+
+    console.log('Hyros source:', source);
+
+    client.source = source;
+  } catch (error) {
+    console.error('Error fetching Hyros data:', error);
   }
 
   try {
@@ -379,7 +407,7 @@ app.post('/policy', async (req, res) => {
 
   const policyNumber = policy.policyNumber.trim();
 
-  console.log('Updating policy', policy.policyId, policyNumber);
+  console.log('Updating policy', policyNumber);
 
   const policySnapshot = await db
     .collection('policies')
@@ -397,11 +425,119 @@ app.post('/policy', async (req, res) => {
     return res.status(404).json({ error: 'Agent not found' });
   }
 
+  const calculateCommissions = (agentData, agent, policy, premium) => {
+    let sheaCommission = 0;
+
+    const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
+    const productRates = carrierRates?.[policy.policyType?.trim()];
+
+    const agentProductRate = productRates?.[String(agent.level)] / 100 || 1;
+
+    const agentCommission = Math.round(premium * agentProductRate);
+
+    console.log('agent commission:', {
+      agent: agent.name,
+      agentCommission,
+      premium,
+      agentProductRate,
+    });
+
+    if (agent.uid === process.env.SHEA_UID) {
+      sheaCommission += agentCommission;
+      console.log('Shea commission from sale:', agentCommission);
+    }
+
+    if (agent.uplineUid) {
+      const upline = agentData.find((a) => a.uid === agent.uplineUid);
+
+      if (!upline) {
+        console.error('Upline not found for agent:', agent.uid, agent.name);
+        return sheaCommission;
+      }
+
+      const uplineProductRate = productRates?.[String(upline.level)] / 100 || 1;
+      const uplineCommission = Math.round(premium * (uplineProductRate - agentProductRate));
+
+      if (upline.uid === process.env.SHEA_UID) {
+        sheaCommission += uplineCommission;
+        console.log('Shea commission from upline:', uplineCommission);
+      }
+
+      if (upline.uplineUid) {
+        const secondUpline = agentData.find((a) => a.uid === upline.uplineUid);
+
+        if (!secondUpline) {
+          console.error('Second upline not found for agent:', upline.uid, upline.name);
+          return sheaCommission;
+        }
+        const secondUplineProductRate = productRates?.[String(secondUpline.level)] / 100 || 1;
+        const secondUplineCommission = Math.round(
+          premium * (secondUplineProductRate - uplineProductRate),
+        );
+
+        if (secondUpline.uid === process.env.SHEA_UID) {
+          sheaCommission += secondUplineCommission;
+          console.log('Shea commission from second upline:', secondUplineCommission);
+        }
+      }
+    }
+
+    return sheaCommission;
+  };
+
   try {
     const clientRef = db.collection('clients').doc(clientId);
 
     const clientSnap = await clientRef.get();
-    const source = clientSnap.data()?.source ?? null;
+    const client = clientSnap.data();
+    const source = client?.source ?? 'unknown';
+
+    const agents = await db.collection('agents').get();
+    const agentData = agents.docs.map((doc) => doc.data());
+
+    let commission = 0;
+
+    if (agentIds.length === 2 && policy.splitPolicy) {
+      const splitPremium = Math.round((policy.premiumAmount * 12) / 2);
+
+      const agent1 = agentData.find((a) => a.uid === agentIds[0]);
+      const agent2 = agentData.find((a) => a.uid === agentIds[1]);
+
+      commission = commission + calculateCommissions(agentData, agent1, policy, splitPremium);
+      commission = commission + calculateCommissions(agentData, agent2, policy, splitPremium);
+    } else {
+      const agent = agentData.find((a) => a.uid === agentIds[0]);
+      const premium = Math.round(policy.premiumAmount * 12);
+      commission = commission + calculateCommissions(agentData, agent, policy, premium);
+    }
+
+    const HYROS_BODY = {
+      method: 'POST',
+      url: 'https://api.hyros.com/v1/api/v1.0/orders',
+      headers: {
+        'Content-Type': 'application/json',
+        'API-Key': process.env.HYROS_SECRET_KEY,
+      },
+      data: {
+        'stage': 'Sale',
+        'phoneNumbers': [client.phone],
+        'email': client.email,
+        'items': [
+          {
+            'name': `${policy.carrier} - ${policy.policyType}`,
+            'price': commission,
+            'quantity': 1,
+          },
+        ],
+      },
+    };
+
+    try {
+      const hyrosResponse = await axios.request(HYROS_BODY);
+      console.log('Hyros order created:', hyrosResponse.data);
+    } catch (error) {
+      console.error('Error creating Hyros order:', error.response?.data || error.message);
+    }
 
     const policyRef = await db.collection('policies').add({
       ...policy,
@@ -567,7 +703,22 @@ app.delete('/policy', async (req, res) => {
   }
 });
 
-app.get('/leaderboard', async (req, res) => {
+app.get('/premiums', async (req, res) => {
+  const { mode } = req.query;
+
+  if (mode === 'development') {
+    return res.status(200).json([
+      { name: 'Alice Johnson', count: 15, premiumAmount: 18000 },
+      { name: 'Bob Smith', count: 12, premiumAmount: 15000 },
+      { name: 'Charlie Brown', count: 10, premiumAmount: 12000 },
+      { name: 'Diana Prince', count: 8, premiumAmount: 10000 },
+      { name: 'Ethan Hunt', count: 7, premiumAmount: 9000 },
+      { name: 'Fiona Glenanne', count: 6, premiumAmount: 8000 },
+      { name: 'George Bailey', count: 5, premiumAmount: 7000 },
+      { name: 'Hannah Montana', count: 4, premiumAmount: 6000 },
+    ]);
+  }
+
   console.log('Getting leaderboard');
   const db = new Firestore();
   try {
@@ -593,9 +744,11 @@ app.get('/leaderboard', async (req, res) => {
       for (const agentId of policy.agentIds) {
         const agentName = agents.find((a) => a.uid === agentId)?.name || 'Unknown Agent';
 
+        const premiumPoints = Math.round(Number(policy.premiumAmount * 12));
+
         leaderboard[agentName] = leaderboard[agentName] || { count: 0, premiumAmount: 0 };
         leaderboard[agentName].count += 1;
-        leaderboard[agentName].premiumAmount += Number(policy.premiumAmount * 12);
+        leaderboard[agentName].premiumAmount += premiumPoints;
       }
     }
 
@@ -620,6 +773,22 @@ app.get('/leaderboard', async (req, res) => {
 });
 
 app.get('/insights', async (req, res) => {
+  const { mode } = req.query;
+
+  if (mode === 'development') {
+    return res.status(200).json({
+      sources: [
+        { name: 'WK | Annie Winner | 5/11/25', count: 20, pct: 20 },
+        { name: 'TJ | Alana Book | 8/1/25', count: 20, pct: 20 },
+        { name: 'WK | E Philip 4 | 9/4/25', count: 20, pct: 20 },
+        { name: 'TJ | Alana Mug 7/13/25', count: 10, pct: 10 },
+        { name: 'WK | E Philip 2 | 9/4/25', count: 10, pct: 10 },
+        { name: 'WK | Annie Scam Hook 2 | 9/7/25', count: 10, pct: 10 },
+      ],
+      total: 100,
+      unknownClients: 5,
+    });
+  }
   const db = new Firestore();
   const ref = db.collection('clients');
 
@@ -650,6 +819,31 @@ app.get('/insights', async (req, res) => {
 });
 
 app.get('/commissions', async (req, res) => {
+  const { startDate, endDate, mode } = req.query;
+
+  if (!startDate || !endDate) {
+    console.error('Missing startDate or endDate');
+    return res.status(400).json({ error: 'Missing startDate or endDate' });
+  }
+
+  if (mode === 'development') {
+    console.log('Development mode: returning sample data');
+
+    const sampleCommissions = {
+      'Shea Morales': 12000,
+      'Bob Brown': 2000,
+      'John Doe': 8000,
+      'Jane Smith': 6000,
+      'Alice Johnson': 4000,
+    };
+
+    const sortedCommissions = Object.fromEntries(
+      Object.entries(sampleCommissions).sort(([, a], [, b]) => b - a),
+    );
+    return res.status(200).send(sortedCommissions);
+  }
+
+  console.log('Calculating commissions from', startDate, 'to', endDate);
   const db = new Firestore();
 
   const policySnapshot = await db.collection('policies').get();
@@ -658,32 +852,44 @@ app.get('/commissions', async (req, res) => {
   const agents = agentSnapshot.docs.map((doc) => doc.data());
 
   const commissions = {};
+  let annualPremiumTotal = 0;
 
   for (const policy of policies) {
-    // skip if before July 15, 2025
     const effectiveDate = policy.effectiveDate;
 
-    if (new Date(effectiveDate) < new Date('2025-07-15')) {
-      console.log('Skipping policy before 2025-07-15:', policy.policyNumber, effectiveDate);
+    if (new Date(effectiveDate) < new Date(startDate)) {
+      console.log('Skipping policy before start date:', policy.policyNumber, effectiveDate);
       continue;
     }
 
-    if (new Date(effectiveDate) > new Date()) {
-      console.log('Skipping policy after today:', policy.policyNumber, effectiveDate);
+    if (new Date(effectiveDate) > new Date(endDate)) {
+      console.log('Skipping policy after end date:', policy.policyNumber, effectiveDate);
       continue;
     }
+
+    const commissionsTotal = Object.values(commissions).reduce((a, b) => a + b, 0);
+
+    console.log(
+      'Commissions total so far:',
+      commissionsTotal,
+      'Annual premium so far:',
+      annualPremiumTotal,
+      'Shea premium so far:',
+      commissions['Shea Morales'],
+    );
 
     console.log('Processing policy:', {
       carrier: policy.carrier,
       policyType: policy.policyType,
       policyNumber: policy.policyNumber,
-      agentIds: policy.agentIds,
       premiumAmount: policy.premiumAmount,
     });
 
     const monthlyPremium = Math.round(Number(policy.premiumAmount)) || 0;
+    console.log('Monthly premium:', monthlyPremium);
     const annualPremium = Math.round(monthlyPremium * 12);
-
+    annualPremiumTotal = annualPremiumTotal + annualPremium;
+    console.log('Annual premium:', annualPremium);
     const policyType = policy.policyType;
     const policyCarrier = policy.carrier;
 
@@ -691,15 +897,14 @@ app.get('/commissions', async (req, res) => {
       console.log('Split policy detected');
 
       const [agent1, agent2] = agents.filter((agent) => policy.agentIds.includes(agent.uid));
+      const splitPremium = Math.round(annualPremium / 2);
+      console.log('Split premium:', splitPremium);
 
-      // TODO: there are cases where the write-in is not 50/50
-      const splitPremium = annualPremium / 2;
       const agent1Level = agent1.level;
       const agent2Level = agent2.level;
 
       const carrierRates = PRODUCT_RATES[policyCarrier?.trim()];
       const productRates = carrierRates?.[policyType?.trim()];
-
 
       let agent1ProductRate = productRates?.[String(agent1Level)] / 100;
       let agent2ProductRate = productRates?.[String(agent2Level)] / 100;
@@ -711,118 +916,107 @@ app.get('/commissions', async (req, res) => {
           agent1Level,
           agent2Level,
         });
-
         agent1ProductRate = 1;
         agent2ProductRate = 1;
-      };
+      }
 
+      const agent1Commission = Math.round(splitPremium * agent1ProductRate);
       console.log(
-        `Computing ${policyCarrier} ${policyType} rate for agent 1:`,
-        agent1?.name,
-        'Level:',
-        agent1?.level,
+        `Agent 1 commission: ${agent1?.name} ${agent1Commission} product rate: ${agent1ProductRate}`,
       );
-
+      const agent2Commission = Math.round(splitPremium * agent2ProductRate);
       console.log(
-        `Computing ${policyCarrier} ${policyType} rate for agent 2:`,
-        agent2?.name,
-        'Level:',
-        agent2?.level,
+        `Agent 2 commission: ${agent2?.name} ${agent2Commission} product rate: ${agent2ProductRate}`,
       );
-
-      // split premium should use splitPolicy percentage
-      let agent1Commission = Math.round(splitPremium * agent1ProductRate);
-      let agent2Commission = Math.round(splitPremium * agent2ProductRate);
 
       commissions[agent1.name] = (commissions[agent1.name] || 0) + agent1Commission;
       commissions[agent2.name] = (commissions[agent2.name] || 0) + agent2Commission;
 
-      console.log('Initial commissions:', {
-        agent1: { name: agent1.name, commission: agent1Commission },
-        agent2: { name: agent2.name, commission: agent2Commission },
-      });
-
+      // ---- agent 1 uplines ----
       if (agent1.uplineUid) {
-        const upline = agents.find((agent) => agent.uid === agent1.uplineUid);
-        const uplineProductRate = productRates?.[String(upline.level)] / 100
+        const upline = agents.find((a) => a.uid === agent1.uplineUid);
+        const uplineProductRate = productRates?.[String(upline?.level)] / 100;
 
-        console.log(`Found upline for agent 1:`, agent1.name, upline?.name);
+        if (!upline || !uplineProductRate) {
+          console.error('No upline found for agent 1', agent1.name);
+          continue;
+        }
 
         if (upline) {
-          const uplineCommission = Math.round(
-            annualPremium * (uplineProductRate - agent1ProductRate),
+          console.log(
+            `Found upline for agent 1: ${upline?.name} product rate: ${uplineProductRate}`,
           );
-
+          const uplineCommission = Math.round(
+            splitPremium * (uplineProductRate - agent1ProductRate),
+          );
           commissions[upline.name] = (commissions[upline.name] || 0) + uplineCommission;
 
-          console.log('Commission upline:', upline.name, uplineCommission);
-          console.log('Commission seller:', agent1.name, agent1Commission);
+          console.log('Commission upline:', uplineCommission);
 
           if (upline.uplineUid) {
-            const secondUpline = agents.find((agent) => agent.uid === upline.uplineUid);
-            const secondUplineProductRate = productRates?.[String(secondUpline.level)] / 100
+            const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
+            const secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
 
-            console.log(`Found 2nd upline for agent 1:`, secondUpline?.name);
             if (secondUpline) {
-              const secondUplineCommission = Math.round(
-                annualPremium * (secondUplineProductRate - uplineProductRate),
+              console.log(
+                `Found upline for upline of agent 1: ${secondUpline?.name} product rate: ${secondUplineProductRate}`,
               );
-
+              const secondUplineCommission = Math.round(
+                splitPremium * (secondUplineProductRate - uplineProductRate),
+              );
               commissions[secondUpline.name] =
                 (commissions[secondUpline.name] || 0) + secondUplineCommission;
 
-              commissions[upline.name] = (commissions[upline.name] || 0) + uplineCommission;
-
-              console.log('Commission 2nd upline:', secondUpline.name, secondUplineCommission);
+              console.log('Commission 2nd upline:', secondUplineCommission);
             }
-        } else {
-          console.error('No upline found for agent 1', agent1.name);
-          console.log('Commission seller:', agent1.name, agent1Commission);
+          }
         }
-      } else {
-        commissions[agent1.name] = (commissions[agent1.name] || 0) + agent1Commission;
       }
 
+      // ---- agent 2 uplines ----
       if (agent2.uplineUid) {
-        const upline = agents.find((agent) => agent.uid === agent2.uplineUid);
-        const uplineProductRate = productRates?.[String(upline.level)] / 100
+        const upline = agents.find((a) => a.uid === agent2.uplineUid);
+        const uplineProductRate = productRates?.[String(upline?.level)] / 100;
 
-        console.log(`Found upline for agent 2:`, upline?.name);
-        if (upline) {
-          const uplineCommission = Math.round(
-            annualPremium * (uplineProductRate - agent2ProductRate),
-          );
-
-          commissions[upline.name] = (commissions[upline.name] || 0) + uplineCommission;
-        
-          console.log('Commission upline:', upline.name, uplineCommission);
-          console.log('Commission seller:', agent2.name, agent2Commission);
-        } else {
+        if (!upline || !uplineProductRate) {
           console.error('No upline found for agent 2', agent2.name);
-          console.log('Commission seller:', agent2.name, agent2Commission);
+          continue;
         }
-      } else {
-        commissions[agent2.name] = (commissions[agent2.name] || 0) + agent2Commission;
-      }
 
-      console.log('Final commissions after upline adjustments:', {
-        agent1: { name: agent1.name, commission: agent1Commission },
-        agent2: { name: agent2.name, commission: agent2Commission },
-      });
+        if (upline) {
+          console.log(`Found upline for agent 2: ${upline?.name} level: ${upline?.level}`);
+          const uplineCommission = Math.round(
+            splitPremium * (uplineProductRate - agent2ProductRate),
+          );
+          commissions[upline.name] = (commissions[upline.name] || 0) + uplineCommission;
+
+          console.log('Commission upline:', uplineCommission);
+
+          if (upline.uplineUid) {
+            const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
+            const secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+
+            if (secondUpline) {
+              console.log(
+                `Found upline for upline of agent 2: ${secondUpline?.name} level: ${secondUpline?.level}`,
+              );
+              const secondUplineCommission = Math.round(
+                splitPremium * (secondUplineProductRate - uplineProductRate),
+              );
+              commissions[secondUpline.name] =
+                (commissions[secondUpline.name] || 0) + secondUplineCommission;
+
+              console.log('Commission 2nd upline:', secondUplineCommission);
+            }
+          }
+        }
+      }
 
       console.log('policy processed:', policy.policyNumber, agent1.name, agent2.name);
     } else {
       console.log('Single agent policy detected');
       const agent = agents.find((a) => a.uid === policy.agentIds[0]);
-
       const agentLevel = agent.level;
-
-      console.log(
-        `Computing ${policyCarrier} ${policyType} rate for agent:`,
-        agent?.name,
-        'Level:',
-        agentLevel,
-      );
 
       const carrierRates = PRODUCT_RATES[policyCarrier?.trim()];
       const productRates = carrierRates?.[policyType?.trim()];
@@ -838,44 +1032,57 @@ app.get('/commissions', async (req, res) => {
         agentProductRate = 1;
       }
 
-      let sellerCommission = Math.round(annualPremium * agentProductRate);
+      const sellerCommission = Math.round(annualPremium * agentProductRate);
       commissions[agent.name] = (commissions[agent.name] || 0) + sellerCommission;
 
-      console.log('Initial commission:', { agent: agent.name, commission: sellerCommission });
+      console.log(
+        `Agent commission: ${agent?.name} ${sellerCommission} product rate: ${agentProductRate}`,
+      );
 
       if (agent.uplineUid) {
         const upline = agents.find((a) => a.uid === agent.uplineUid);
-        const uplineProductRate = productRates?.[String(upline.level)] / 100;
-        console.log('Found upline for agent:', upline?.name);
-        if (upline) {
-          const uplineCommission = Math.round(annualPremium * (uplineProductRate - agentProductRate));
+        const uplineProductRate = productRates?.[String(upline?.level)] / 100;
 
+        if (!upline || !uplineProductRate) {
+          console.error('No upline found for agent', agent.name);
+          continue;
+        }
+
+        if (upline) {
+          console.log(`Found upline for agent: ${upline?.name} product rate: ${uplineProductRate}`);
+          const uplineCommission = Math.round(
+            annualPremium * (uplineProductRate - agentProductRate),
+          );
           commissions[upline.name] = (commissions[upline.name] || 0) + uplineCommission;
+
+          console.log('Commission upline:', uplineCommission);
 
           if (upline.uplineUid) {
             const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
-            const secondUplineProductRate = productRates?.[String(secondUpline.level)] / 100
-           
-            const secondUplineCommission = Math.round(annualPremium * (secondUplineProductRate - uplineProductRate));
+            const secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
 
-            commissions[secondUpline.name] = (commissions[secondUpline.name] || 0) + secondUplineCommission;
+            if (secondUpline) {
+              console.log(
+                `Found 2nd upline for agent: ${secondUpline?.name} product rate: ${secondUplineProductRate}`,
+              );
+              const secondUplineCommission = Math.round(
+                annualPremium * (secondUplineProductRate - uplineProductRate),
+              );
+              commissions[secondUpline.name] =
+                (commissions[secondUpline.name] || 0) + secondUplineCommission;
 
-             console.log('Found 2nd upline for agent:', secondUpline?.name);
+              console.log('Commission 2nd upline:', secondUplineCommission);
+            }
           }
-
-          console.log('Commission upline:', upline.name, uplineCommission);
-          console.log('Commission seller:', agent.name, sellerCommission);
-        } 
+        }
       }
-
-      console.log('Final commission after upline adjustments:', {
-        agent: agent.name,
-        commission: sellerCommission,
-      });
       console.log('policy processed:', policy.policyNumber, agent.name);
     }
   }
-  res.status(200).send(commissions);
+  const sortedCommissions = Object.fromEntries(
+    Object.entries(commissions).sort(([, a], [, b]) => b - a),
+  );
+  res.status(200).send(sortedCommissions);
 });
 
 // const noSource = async () => {
@@ -1312,5 +1519,27 @@ app.get('/commissions', async (req, res) => {
 // };
 
 // updateClients();
+
+// const updatePolicies = async () => {
+//   const db = new Firestore();
+//   const policiesSnapshot = await db.collection('policies').get();
+//   const policies = policiesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+//   for (const policy of policies) {
+//     const clientId = policy.clientId;
+//     const clientRef = db.collection('clients').doc(clientId);
+//     const clientDoc = await clientRef.get();
+
+//     const clientData = clientDoc.data();
+//     const source = clientData?.source || 'unknown';
+
+//     if (policy.source !== source) {
+//       console.log(`Updating policy ${policy.id} source from ${policy.source} to ${source}`);
+//       await db.collection('policies').doc(policy.id).update({ source });
+//     }
+//   }
+// };
+
+// updatePolicies();
 
 module.exports = app;

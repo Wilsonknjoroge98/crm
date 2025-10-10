@@ -52,7 +52,7 @@ const Insights = () => {
 
   return (
     <Container sx={{ mt: 4 }}>
-      <Typography variant='h4'>Client Insights</Typography>
+      <Typography variant='h4'>Creative Insights</Typography>
 
       <Card
         sx={{
@@ -63,11 +63,11 @@ const Insights = () => {
           boxShadow: 0,
         }}
       >
+        <Alert severity='info'>
+          Excludes clients with no source specified ({unknownClients} client
+          {unknownClients === 1 ? '' : 's'})
+        </Alert>
         <CardContent>
-          <Alert severity='info'>
-            Excludes clients with no source specified ({unknownClients} client
-            {unknownClients === 1 ? '' : 's'})
-          </Alert>
           {isLoading && (
             <Stack spacing={2}>
               {PLACEHOLDER_SOURCES.map((_, i) => (
@@ -112,21 +112,6 @@ const Insights = () => {
                               {pct}%
                             </Typography>
                           </Stack>
-                          <Tooltip title={`${pct}% of total`} placement='top' arrow>
-                            <LinearProgress
-                              variant='determinate'
-                              value={pct}
-                              sx={{
-                                height: 8,
-                                borderRadius: 1,
-                                // Uses your theme colors (dark bg, gold accents)
-                                '& .MuiLinearProgress-bar': {
-                                  borderRadius: 1,
-                                  backgroundColor: (theme) => theme.palette.secondary.main,
-                                },
-                              }}
-                            />
-                          </Tooltip>
                         </Stack>
                       }
                     />
