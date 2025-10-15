@@ -61,7 +61,7 @@ const getAccount = async ({ token, email }) => {
     },
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/client-account` : `${BASE_URL}/client-account`,
+    url: isDev ? `${DEV_URL}/agent-account` : `${BASE_URL}/agent-account`,
     params: {
       email: email,
       mode: import.meta.env.MODE,
@@ -75,19 +75,11 @@ const getAccount = async ({ token, email }) => {
   } catch (error) {
     console.error('Error getting account:', error);
     // Rethrow for React Query to recognize it
-    if (axios.isAxiosError(error)) {
-      // Optional: normalize structure
-      const status = error.response?.status ?? 500;
-      const message = error.response?.data?.message || error.message;
-      const err = new Error(message);
-      err.status = status;
-      throw err;
-    }
     throw error;
   }
 };
 
-const getPremiums = async ({ token }) => {
+const getPremiums = async ({ token, startDate, endDate }) => {
   const isDev = import.meta.env.DEV;
 
   // request config for compulife server
@@ -100,6 +92,8 @@ const getPremiums = async ({ token }) => {
     url: isDev ? `${DEV_URL}/premiums` : `${BASE_URL}/premiums`,
     params: {
       mode: import.meta.env.MODE,
+      startDate,
+      endDate,
     },
   };
 
@@ -127,7 +121,59 @@ const getPremiums = async ({ token }) => {
   }
 };
 
-const getCommissions = async ({ token, startDate, endDate }) => {
+const getStripeCharges = async ({ token, startDate, endDate }) => {
+  const isDev = import.meta.env.DEV;
+  console.log('Fetching revenue for dates:', startDate, endDate);
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/stripe-charges` : `${BASE_URL}/stripe-charges`,
+    params: {
+      startDate,
+      endDate,
+      mode: import.meta.env.MODE,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting revenue:', error);
+    throw error;
+  }
+};
+
+const getAdSpend = async ({ token, startDate, endDate }) => {
+  const isDev = import.meta.env.DEV;
+  console.log('Fetching ad spend for dates:', startDate, endDate);
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/ad-spend` : `${BASE_URL}/ad-spend`,
+    params: {
+      startDate,
+      endDate,
+      mode: import.meta.env.MODE,
+    },
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting ad spend:', error);
+    throw error;
+  }
+};
+
+const getCommissions = async ({ token, startDate, endDate, agent }) => {
   const isDev = import.meta.env.DEV;
 
   // request config for compulife server
@@ -142,6 +188,7 @@ const getCommissions = async ({ token, startDate, endDate }) => {
       mode: import.meta.env.MODE,
       startDate,
       endDate,
+      agent: { uid: agent?.uid, role: agent?.role },
     },
   };
 
@@ -365,6 +412,103 @@ const getAgents = async ({ token }) => {
   }
 };
 
+const deleteExpense = async ({ token, expenseId }) => {
+  const isDev = import.meta.env.DEV;
+
+  if (!expenseId) {
+    throw new Error('Missing expense ID');
+  }
+
+  const controller = new AbortController();
+  // request config for custom firebase endpoint
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'DELETE',
+    data: { expenseId: expenseId, mode: import.meta.env.MODE },
+    signal: controller.signal,
+    url: isDev ? `${DEV_URL}/expense` : `${BASE_URL}/expense`,
+  };
+
+  // response from server
+  const response = await axios.request(options);
+  console.log('Delete response:', response.data);
+
+  // return to component
+  return response.data;
+};
+
+const postExpense = async ({ token, name, amount, date }) => {
+  const isDev = import.meta.env.DEV;
+
+  // client side validation
+  if (!name || !amount || !date) {
+    console.log('missing data');
+    throw new Error('Missing data');
+  }
+
+  console.log('Posting Expense: ', { name, amount, date });
+
+  const controller = new AbortController();
+  // request config for custom firebase endpoint
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'POST',
+    data: {
+      name: name,
+      amount: amount,
+      date: date,
+      mode: import.meta.env.MODE,
+    },
+    signal: controller.signal,
+    url: isDev ? `${DEV_URL}/expense` : `${BASE_URL}/expense`,
+  };
+
+  try {
+    // response from server
+    const response = await axios.request(options);
+
+    // return to component
+    return response.data;
+  } catch (error) {
+    console.error('Error posting expense:', error);
+
+    if (axios.isAxiosError(error)) {
+      throw new Error('Internal Server Error');
+    }
+
+    throw error;
+  }
+};
+
+const getExpenses = async ({ token, startDate, endDate }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/expenses` : `${BASE_URL}/expenses`,
+    params: {
+      startDate,
+      endDate,
+      mode: import.meta.env.MODE,
+    },
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting expenses:', error);
+    throw error;
+  }
+};
+
 const getInsights = async ({ token }) => {
   const isDev = import.meta.env.DEV;
 
@@ -554,5 +698,10 @@ export {
   getAgents,
   getInsights,
   getPremiums,
+  getStripeCharges,
+  postExpense,
+  deleteExpense,
+  getExpenses,
+  getAdSpend,
   getCommissions,
 };

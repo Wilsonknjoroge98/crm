@@ -18,19 +18,29 @@ import {
   Skeleton,
   Box,
   Chip,
+  Button,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 
 import { useTheme } from '@mui/material/styles';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
+
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { getPremiums } from '../utils/query';
 
+import RefreshIcon from '@mui/icons-material/Refresh';
+
 import useAuth from '../hooks/useAuth';
 
 const Premiums = () => {
+  const [startDate, setStartDate] = useState(dayjs().add(-30, 'day').format('YYYY-MM-DD'));
+  const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [totalPremium, setTotalPremium] = useState(0);
   const { userToken } = useAuth();
   const theme = useTheme();
@@ -40,11 +50,14 @@ const Premiums = () => {
     isError,
     error,
     isLoading,
+    refetch,
   } = useQuery({
     queryKey: ['data'],
     queryFn: () =>
       getPremiums({
         token: userToken,
+        startDate,
+        endDate,
       }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -58,9 +71,61 @@ const Premiums = () => {
     setTotalPremium(total);
   }, [data]);
 
+  const handleStartChange = (newValue) => {
+    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
+    setStartDate(formatted);
+  };
+
+  const handleEndChange = (newValue) => {
+    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
+    setEndDate(formatted);
+  };
+
   return (
     <Container sx={{ mt: 4 }}>
-      <Typography variant='h4'>Premium Leaderboard</Typography>
+      <Stack justifyContent='space-between' spacing={2} mb={2}>
+        <Typography variant='h4'>Premium Leaderboard</Typography>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <Box display='flex' justifyContent='space-between' alignItems='center'>
+            <Stack direction={'row'} spacing={2} alignItems='center'>
+              <DatePicker
+                label='Start Date'
+                value={startDate ? dayjs(startDate) : null}
+                onChange={handleStartChange}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    variant: 'outlined',
+                    sx: { minWidth: 150 },
+                  },
+                }}
+              />
+              <DatePicker
+                label='End Date'
+                value={endDate ? dayjs(endDate) : null}
+                onChange={handleEndChange}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    variant: 'outlined',
+                    sx: { minWidth: 150 },
+                  },
+                }}
+              />
+            </Stack>
+            <Button
+              variant='contained'
+              color='action'
+              startIcon={<RefreshIcon />}
+              onClick={() => refetch()}
+              sx={isLoading ? { opacity: 0.3 } : {}}
+              disabled={isLoading}
+            >
+              Refresh
+            </Button>
+          </Box>
+        </LocalizationProvider>
+      </Stack>
       <Card
         elevation={0}
         sx={{
@@ -85,9 +150,9 @@ const Premiums = () => {
           </Alert>
         )}
 
-        <Alert severity='info'>
+        {/* <Alert severity='info'>
           Dollar amounts represent <strong>annualized</strong> premium all time.
-        </Alert>
+        </Alert> */}
         <CardContent>
           {isLoading ? (
             <Stack spacing={2}>

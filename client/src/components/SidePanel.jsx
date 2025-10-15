@@ -8,17 +8,12 @@ import {
   Box,
   Stack,
 } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import DescriptionIcon from '@mui/icons-material/Description';
 import InsightsIcon from '@mui/icons-material/Insights';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
-// import AssignmentIcon from '@mui/icons-material/Assignment';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-// import SupervisedUserCircleIcon from '@mui/icons-material/SupervisedUserCircle';
-// import PrintIcon from '@mui/icons-material/Print';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import BuildIcon from '@mui/icons-material/Build';
+import BusinessIcon from '@mui/icons-material/Business';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -47,6 +42,12 @@ const navItems = [
     text: 'Insights',
     icon: <InsightsIcon />,
     path: '/insights',
+  },
+  {
+    text: 'Cash Flow',
+    icon: <BusinessIcon />,
+    path: '/cashflow',
+    role: 'admin',
   },
   // {
   //   text: 'Documents',
@@ -85,8 +86,6 @@ const SidePanel = () => {
   const location = useLocation();
   const { isAuthenticated, agent } = useAuth();
 
-  const role = agent?.role || 'agent';
-
   const handleItemClick = (path) => {
     navigate(path);
   };
@@ -112,7 +111,7 @@ const SidePanel = () => {
             {navItems.map(({ text, icon, path, role }, index) => {
               const isActive = location.pathname === path;
 
-              if (role && role === 'admin' && agent?.role !== 'admin') {
+              if (role === 'admin' && agent?.role !== 'admin') {
                 return null;
               }
 
@@ -121,9 +120,9 @@ const SidePanel = () => {
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
-                    backgroundColor: isActive && index < 5 ? '#2C2C2C' : 'transparent',
+                    backgroundColor: isActive && index < 6 ? '#2C2C2C' : 'transparent',
                     '&:hover': {
-                      backgroundColor: index < 5 ? '#2C2C2C' : 'transparent',
+                      backgroundColor: index < 6 ? '#2C2C2C' : 'transparent',
                     },
                   }}
                 >

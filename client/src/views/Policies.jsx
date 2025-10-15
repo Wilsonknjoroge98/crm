@@ -67,9 +67,7 @@ const Policies = () => {
   const exportData = (policies || []).map((policy) => ({
     ...policy,
     splitPolicyShare: policy.splitPolicy ? policy?.splitPolicyShare : 'N/A', // replace key with email
-    splitPolicyAgent: policy.splitPolicy
-      ? getAgentEmail(agents, policy?.splitPolicyAgent)
-      : 'N/A',
+    splitPolicyAgent: policy.splitPolicy ? getAgentEmail(agents, policy?.splitPolicyAgent) : 'N/A',
     sellingAgent: policy.splitPolicy
       ? getAgentEmail(
           agents,
@@ -127,21 +125,14 @@ const Policies = () => {
           mb={2}
         >
           <Typography variant='h4'>Policies</Typography>
-          <Stack
-            width={'fit-content'}
-            direction='row'
-            alignItems='center'
-            spacing={2}
-          >
+          <Stack width={'fit-content'} direction='row' alignItems='center' spacing={2}>
             <CSVLink
               data={exportData || []}
               headers={headers}
               filename={`policies_${new Date().toISOString().slice(0, 10)}.csv`}
               style={{ textDecoration: 'none' }}
             >
-              <Button variant='outlined' color='info.main'>
-                Export CSV
-              </Button>
+              <Button variant='outlined'>Export CSV</Button>
             </CSVLink>
           </Stack>
         </Stack>

@@ -26,11 +26,11 @@ import useAuth from '../hooks/useAuth';
 import { useEffect } from 'react';
 
 const Commissions = () => {
-  const [startDate, setStartDate] = useState(dayjs('2025-07-15').format('YYYY-MM-DD'));
+  const [startDate, setStartDate] = useState(dayjs().add(-30, 'day').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [totalCommissions, setTotalCommissions] = useState(0);
 
-  const { userToken } = useAuth();
+  const { userToken, agent } = useAuth();
   const {
     data = [],
     isLoading,
@@ -42,6 +42,7 @@ const Commissions = () => {
         token: userToken,
         startDate,
         endDate,
+        agent,
       }),
     onSuccess: (data) => {
       console.log('Commissions data fetched successfully:', data);
@@ -54,13 +55,11 @@ const Commissions = () => {
   const handleStartChange = (newValue) => {
     const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
     setStartDate(formatted);
-    if (onChange) onChange({ startDate: formatted, endDate });
   };
 
   const handleEndChange = (newValue) => {
     const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
     setEndDate(formatted);
-    if (onChange) onChange({ startDate, endDate: formatted });
   };
 
   useEffect(() => {
@@ -68,13 +67,10 @@ const Commissions = () => {
     setTotalCommissions(total);
   }, [data]); // Refetch when dates change
 
-  console.log('Start Date:', startDate);
-  console.log('End Date:', endDate);
-
   return (
     <Container sx={{ mt: 4 }}>
       <Stack justifyContent='space-between' spacing={2} mb={2}>
-        <Typography variant='h4'> Commissions</Typography>
+        <Typography variant='h4'>Commissions</Typography>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <Box display='flex' justifyContent='space-between' alignItems='center'>
             <Stack direction={'row'} spacing={2} alignItems='center'>

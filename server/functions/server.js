@@ -2,6 +2,7 @@ const cors = require('cors');
 const express = require('express');
 const axios = require('axios');
 const app = express();
+const dayjs = require('dayjs');
 // const { faker } = require('@faker-js/faker');
 const { PRODUCT_RATES } = require('./constants');
 
@@ -277,23 +278,22 @@ app.get('/agents', async (req, res) => {
   }
 });
 
-app.get('/client-account', async (req, res) => {
+app.get('/agent-account', async (req, res) => {
   const { email } = req.query;
 
   console.log('Getting account for', email);
 
-  const getAccount = async () => {
-    console.log(process.env.LEADS_BEARER_TOKEN);
+  const getAgentAccount = async () => {
     try {
       const response = await axios.request({
         headers: {
-          Authorization: `Bearer ${process.env.LEADS_BEARER_TOKEN}`,
+          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
         },
         params: {
           email: email,
         },
         method: 'GET',
-        url: 'https://us-central1-life-quoter.cloudfunctions.net/app/agent-account',
+        url: `${process.env.GSQ_BASE_URL}/agent-account`,
       });
 
       console.log('Account Fetched:', response.data);
@@ -304,7 +304,7 @@ app.get('/client-account', async (req, res) => {
     }
   };
 
-  const account = await getAccount();
+  const account = await getAgentAccount();
   console.log('Account details', account);
   res.status(200).json(account);
 });
@@ -320,18 +320,19 @@ app.post('/client', async (req, res) => {
     return res.status(400).json({ error: 'Missing client data' });
   }
 
-  const getLeads = async () => {
+  const getGSQLeads = async () => {
     try {
       const response = await axios.request({
+        method: 'GET',
         headers: {
-          Authorization: `Bearer ${process.env.LEADS_BEARER_TOKEN}`,
+          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
         },
         params: {
           phone: client.phone,
           name: `${client.firstName} ${client.lastName}`,
+          email: client.email,
         },
-        method: 'GET',
-        url: 'https://us-central1-life-quoter.cloudfunctions.net/app/get-leads',
+        url: `${process.env.GSQ_BASE_URL}/find-leads`,
       });
 
       console.log('Leads fetched:', response.data.length);
@@ -342,43 +343,49 @@ app.post('/client', async (req, res) => {
     }
   };
 
-  const leads = await getLeads();
+  const leads = await getGSQLeads();
 
   for (const lead of leads) {
-    if (lead?.ad) {
+    if (lead?.id) {
       client.leadId = lead.id;
       break;
     }
   }
 
-  const HYROS_BODY = {
-    method: 'GET',
-    url: 'https://api.hyros.com/v1/api/v1.0/leads',
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.HYROS_SECRET_KEY,
-    },
-    params: {
-      email: client.email,
-    },
+  const getHyrosSource = async () => {
+    const HYROS_BODY = {
+      method: 'GET',
+      url: 'https://api.hyros.com/v1/api/v1.0/leads',
+      headers: {
+        'Content-Type': 'application/json',
+        'API-Key': process.env.HYROS_SECRET_KEY,
+      },
+      params: {
+        email: client.email,
+      },
+    };
+
+    try {
+      const response = await axios.request(HYROS_BODY);
+      const lead = response.data.result[0] || [];
+
+      let source = lead?.lastSource?.sourceLinkAd?.name || null;
+
+      if (!source) {
+        source = lead?.firstSource?.sourceLinkAd?.name || null;
+
+        if (!source) {
+          return 'unknown';
+        }
+      }
+
+      return source;
+    } catch (error) {
+      console.error('Error fetching Hyros data:', error);
+    }
   };
 
-  try {
-    const response = await axios.request(HYROS_BODY);
-    const lead = response.data.result[0] || [];
-
-    let source = lead?.lastSource?.sourceLinkAd?.name || null;
-
-    if (!source) {
-      source = lead?.firstSource?.sourceLinkAd?.name || null;
-    }
-
-    console.log('Hyros source:', source);
-
-    client.source = source;
-  } catch (error) {
-    console.error('Error fetching Hyros data:', error);
-  }
+  client.source = await getHyrosSource();
 
   try {
     const docRef = await db.collection('clients').add({
@@ -424,6 +431,57 @@ app.post('/policy', async (req, res) => {
     console.error('Agent not found for ID:', agentIds);
     return res.status(404).json({ error: 'Agent not found' });
   }
+
+  const sendGSQEvent = async (client) => {
+    try {
+      const BODY = {
+        headers: {
+          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
+        },
+        method: 'POST',
+        url: `${process.env.GSQ_BASE_URL}/sold`,
+        data: {
+          email: client.email,
+          phone: client.phone,
+        },
+      };
+      const response = axios.request(BODY);
+      console.log(response.date);
+    } catch (error) {
+      console.error('Error sending mark lead sold:', error);
+      throw error;
+    }
+  };
+
+  const sendHyrosEvent = async (commission, client, policy) => {
+    const HYROS_BODY = {
+      method: 'POST',
+      url: 'https://api.hyros.com/v1/api/v1.0/orders',
+      headers: {
+        'Content-Type': 'application/json',
+        'API-Key': process.env.HYROS_SECRET_KEY,
+      },
+      data: {
+        'stage': 'Sale',
+        'phoneNumbers': [client.phone],
+        'email': client.email,
+        'items': [
+          {
+            'name': `${policy.carrier} - ${policy.policyType}`,
+            'price': commission,
+            'quantity': 1,
+          },
+        ],
+      },
+    };
+
+    try {
+      const hyrosResponse = await axios.request(HYROS_BODY);
+      console.log('Hyros order created:', hyrosResponse.data);
+    } catch (error) {
+      console.error('Error creating Hyros order:', error.response?.data || error.message);
+    }
+  };
 
   const calculateCommissions = (agentData, agent, policy, premium) => {
     let sheaCommission = 0;
@@ -490,6 +548,9 @@ app.post('/policy', async (req, res) => {
 
     const clientSnap = await clientRef.get();
     const client = clientSnap.data();
+
+    await sendGSQEvent(client);
+
     const source = client?.source ?? 'unknown';
 
     const agents = await db.collection('agents').get();
@@ -511,33 +572,7 @@ app.post('/policy', async (req, res) => {
       commission = commission + calculateCommissions(agentData, agent, policy, premium);
     }
 
-    const HYROS_BODY = {
-      method: 'POST',
-      url: 'https://api.hyros.com/v1/api/v1.0/orders',
-      headers: {
-        'Content-Type': 'application/json',
-        'API-Key': process.env.HYROS_SECRET_KEY,
-      },
-      data: {
-        'stage': 'Sale',
-        'phoneNumbers': [client.phone],
-        'email': client.email,
-        'items': [
-          {
-            'name': `${policy.carrier} - ${policy.policyType}`,
-            'price': commission,
-            'quantity': 1,
-          },
-        ],
-      },
-    };
-
-    try {
-      const hyrosResponse = await axios.request(HYROS_BODY);
-      console.log('Hyros order created:', hyrosResponse.data);
-    } catch (error) {
-      console.error('Error creating Hyros order:', error.response?.data || error.message);
-    }
+    await sendHyrosEvent(commission, client, policy);
 
     const policyRef = await db.collection('policies').add({
       ...policy,
@@ -704,7 +739,7 @@ app.delete('/policy', async (req, res) => {
 });
 
 app.get('/premiums', async (req, res) => {
-  const { mode } = req.query;
+  const { mode, startDate, endDate } = req.query;
 
   if (mode === 'development') {
     return res.status(200).json([
@@ -722,6 +757,9 @@ app.get('/premiums', async (req, res) => {
   console.log('Getting leaderboard');
   const db = new Firestore();
   try {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
     const policiesSnapshot = await db.collection('policies').get();
     const policies = policiesSnapshot.docs.map((doc) => ({
       id: doc.id,
@@ -737,6 +775,18 @@ app.get('/premiums', async (req, res) => {
     const leaderboard = {};
 
     for (const policy of policies) {
+      const effectiveDate = new Date(policy.effectiveDate);
+
+      if (new Date(effectiveDate) < start) {
+        console.log('Skipping policy before start date:', policy.policyNumber, effectiveDate);
+        continue;
+      }
+
+      if (new Date(effectiveDate) > end) {
+        console.log('Skipping policy after end date:', policy.policyNumber, effectiveDate);
+        continue;
+      }
+
       policy.agentIds = policy.agentIds || [];
       policy.premiumAmount = Number(policy.premiumAmount) || 0;
 
@@ -819,29 +869,32 @@ app.get('/insights', async (req, res) => {
 });
 
 app.get('/commissions', async (req, res) => {
-  const { startDate, endDate, mode } = req.query;
+  const { startDate, endDate } = req.query;
 
   if (!startDate || !endDate) {
     console.error('Missing startDate or endDate');
     return res.status(400).json({ error: 'Missing startDate or endDate' });
   }
 
-  if (mode === 'development') {
-    console.log('Development mode: returning sample data');
+  const startTimestamp = dayjs(startDate, 'YYYY-MM-DD').startOf('day');
+  const endTimestamp = dayjs(endDate, 'YYYY-MM-DD').endOf('day');
 
-    const sampleCommissions = {
-      'Shea Morales': 12000,
-      'Bob Brown': 2000,
-      'John Doe': 8000,
-      'Jane Smith': 6000,
-      'Alice Johnson': 4000,
-    };
+  // if (mode === 'development') {
+  //   console.log('Development mode: returning sample data');
 
-    const sortedCommissions = Object.fromEntries(
-      Object.entries(sampleCommissions).sort(([, a], [, b]) => b - a),
-    );
-    return res.status(200).send(sortedCommissions);
-  }
+  //   const sampleCommissions = {
+  //     'Shea Morales': 12000,
+  //     'Bob Brown': 2000,
+  //     'John Doe': 8000,
+  //     'Jane Smith': 6000,
+  //     'Alice Johnson': 4000,
+  //   };
+
+  //   const sortedCommissions = Object.fromEntries(
+  //     Object.entries(sampleCommissions).sort(([, a], [, b]) => b - a),
+  //   );
+  //   return res.status(200).send(sortedCommissions);
+  // }
 
   console.log('Calculating commissions from', startDate, 'to', endDate);
   const db = new Firestore();
@@ -857,12 +910,12 @@ app.get('/commissions', async (req, res) => {
   for (const policy of policies) {
     const effectiveDate = policy.effectiveDate;
 
-    if (new Date(effectiveDate) < new Date(startDate)) {
+    if (dayjs(effectiveDate).isBefore(startTimestamp)) {
       console.log('Skipping policy before start date:', policy.policyNumber, effectiveDate);
       continue;
     }
 
-    if (new Date(effectiveDate) > new Date(endDate)) {
+    if (dayjs(effectiveDate).isAfter(endTimestamp)) {
       console.log('Skipping policy after end date:', policy.policyNumber, effectiveDate);
       continue;
     }
@@ -910,12 +963,21 @@ app.get('/commissions', async (req, res) => {
       let agent2ProductRate = productRates?.[String(agent2Level)] / 100;
 
       if (!agent1ProductRate || !agent2ProductRate) {
-        console.error('Product rate calculation failed', {
-          policyCarrier,
-          policyType,
-          agent1Level,
-          agent2Level,
-        });
+        const id = `${policy.carrier}-${policyType}`;
+
+        const docRef = db.collection('missingRates').doc(id);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+          await docRef.set({
+            carrier: policy.carrier,
+            policyType: policyType,
+            type: 'split',
+            agent1Level,
+            agent2Level,
+            createdAt: Timestamp.now(),
+          });
+        }
         agent1ProductRate = 1;
         agent2ProductRate = 1;
       }
@@ -935,11 +997,29 @@ app.get('/commissions', async (req, res) => {
       // ---- agent 1 uplines ----
       if (agent1.uplineUid) {
         const upline = agents.find((a) => a.uid === agent1.uplineUid);
-        const uplineProductRate = productRates?.[String(upline?.level)] / 100;
+        let uplineProductRate = productRates?.[String(upline?.level)] / 100;
 
-        if (!upline || !uplineProductRate) {
+        if (!upline) {
           console.error('No upline found for agent 1', agent1.name);
           continue;
+        }
+
+        if (!uplineProductRate) {
+          const id = `${policy.carrier}-${policyType}`;
+          const docRef = db.collection('missingRates').doc(id);
+          const docSnap = await docRef.get();
+
+          if (!docSnap.exists) {
+            await docRef.set({
+              carrier: policy.carrier,
+              policyType: policyType,
+              type: 'split',
+              agent1Level,
+              createdAt: Timestamp.now(),
+            });
+          }
+
+          uplineProductRate = 1;
         }
 
         if (upline) {
@@ -955,7 +1035,29 @@ app.get('/commissions', async (req, res) => {
 
           if (upline.uplineUid) {
             const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
-            const secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+            let secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+
+            if (!secondUpline) {
+              console.error('No upline found for upline agent', upline.name);
+              continue;
+            }
+
+            if (!secondUplineProductRate) {
+              const id = `${policy.carrier}-${policyType}`;
+              const docRef = db.collection('missingRates').doc(id);
+              const docSnap = await docRef.get();
+              if (!docSnap.exists) {
+                await docRef.set({
+                  carrier: policy.carrier,
+                  policyType: policyType,
+                  type: 'split',
+                  agent1Level,
+                  createdAt: Timestamp.now(),
+                });
+              }
+
+              secondUplineProductRate = 1;
+            }
 
             if (secondUpline) {
               console.log(
@@ -976,14 +1078,33 @@ app.get('/commissions', async (req, res) => {
       // ---- agent 2 uplines ----
       if (agent2.uplineUid) {
         const upline = agents.find((a) => a.uid === agent2.uplineUid);
-        const uplineProductRate = productRates?.[String(upline?.level)] / 100;
+        let uplineProductRate = productRates?.[String(upline?.level)] / 100;
 
-        if (!upline || !uplineProductRate) {
+        if (!uplineProductRate) {
+          const id = `${policy.carrier}-${policyType}`;
+
+          const docRef = db.collection('missingRates').doc(id);
+          const docSnap = await docRef.get();
+
+          if (!docSnap.exists) {
+            await docRef.set({
+              carrier: policy.carrier,
+              policyType: policyType,
+              type: 'split',
+              agent2Level: upline.level,
+              createdAt: Timestamp.now(),
+            });
+          }
+
+          uplineProductRate = 1;
+        }
+
+        if (!upline) {
           console.error('No upline found for agent 2', agent2.name);
           continue;
         }
 
-        if (upline) {
+        if (upline && uplineProductRate) {
           console.log(`Found upline for agent 2: ${upline?.name} level: ${upline?.level}`);
           const uplineCommission = Math.round(
             splitPremium * (uplineProductRate - agent2ProductRate),
@@ -994,7 +1115,30 @@ app.get('/commissions', async (req, res) => {
 
           if (upline.uplineUid) {
             const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
-            const secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+            let secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+
+            if (!secondUpline) {
+              console.error('No second upline found for agent', upline.name);
+              continue;
+            }
+
+            if (!secondUplineProductRate) {
+              const id = `${policy.carrier}-${policyType}`;
+
+              const docRef = db.collection('missingRates').doc(id);
+              const docSnap = await docRef.get();
+
+              if (!docSnap.exists) {
+                await docRef.set({
+                  carrier: policy.carrier,
+                  policyType: policyType,
+                  type: 'split',
+                  agent2Level: upline.level,
+                  createdAt: Timestamp.now(),
+                });
+              }
+              secondUplineProductRate = 1;
+            }
 
             if (secondUpline) {
               console.log(
@@ -1024,6 +1168,21 @@ app.get('/commissions', async (req, res) => {
       let agentProductRate = productRateValue / 100;
 
       if (!agentProductRate) {
+        const id = `${policy.carrier}-${policyType}`;
+
+        const docRef = db.collection('missingRates').doc(id);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+          await docRef.set({
+            carrier: policy.carrier,
+            policyType: policyType,
+            type: 'single',
+            agentLevel,
+            createdAt: Timestamp.now(),
+          });
+        }
+
         console.error('Single policy calculation failed', {
           policyCarrier,
           policyType,
@@ -1041,14 +1200,32 @@ app.get('/commissions', async (req, res) => {
 
       if (agent.uplineUid) {
         const upline = agents.find((a) => a.uid === agent.uplineUid);
-        const uplineProductRate = productRates?.[String(upline?.level)] / 100;
+        let uplineProductRate = productRates?.[String(upline?.level)] / 100;
 
-        if (!upline || !uplineProductRate) {
+        if (!upline) {
           console.error('No upline found for agent', agent.name);
           continue;
         }
 
-        if (upline) {
+        if (!uplineProductRate) {
+          const id = `${policy.carrier}-${policyType}`;
+
+          const docRef = db.collection('missingRates').doc(id);
+          const docSnap = await docRef.get();
+
+          if (!docSnap.exists) {
+            await docRef.set({
+              carrier: policy.carrier,
+              policyType: policyType,
+              type: 'single',
+              agentLevel: upline.level,
+              createdAt: Timestamp.now(),
+            });
+          }
+          uplineProductRate = 1;
+        }
+
+        if (upline && uplineProductRate) {
           console.log(`Found upline for agent: ${upline?.name} product rate: ${uplineProductRate}`);
           const uplineCommission = Math.round(
             annualPremium * (uplineProductRate - agentProductRate),
@@ -1059,7 +1236,31 @@ app.get('/commissions', async (req, res) => {
 
           if (upline.uplineUid) {
             const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
-            const secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+            let secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+
+            if (!secondUpline) {
+              console.error('No second upline found for agent', upline.name);
+              continue;
+            }
+
+            if (!secondUplineProductRate) {
+              const id = `${policy.carrier}-${policyType}`;
+
+              const docRef = db.collection('missingRates').doc(id);
+              const docSnap = await docRef.get();
+
+              if (!docSnap.exists) {
+                await docRef.set({
+                  carrier: policy.carrier,
+                  policyType: policyType,
+                  type: 'single',
+                  agentLevel: upline.level,
+                  createdAt: Timestamp.now(),
+                });
+              }
+
+              secondUplineProductRate = 1;
+            }
 
             if (secondUpline) {
               console.log(
@@ -1079,117 +1280,193 @@ app.get('/commissions', async (req, res) => {
       console.log('policy processed:', policy.policyNumber, agent.name);
     }
   }
+
   const sortedCommissions = Object.fromEntries(
     Object.entries(commissions).sort(([, a], [, b]) => b - a),
   );
   res.status(200).send(sortedCommissions);
 });
 
-// const noSource = async () => {
-//   const db = new Firestore();
-//   const clientsRef = db.collection('clients');
+// meta
+app.get('/ad-spend', async (req, res) => {
+  const { startDate, endDate, mode } = req.query;
+  if (mode === 'development') {
+    console.log('Development mode: returning sample data');
+    return res.status(200).send({ total: Math.round(1234.56) });
+  }
 
-//   const clientsSnap = await clientsRef.get();
+  if (!startDate || !endDate) {
+    console.error('Missing startDate or endDate');
+    return res.status(400).json({ error: 'Missing startDate or endDate' });
+  }
 
-//   const noSources = [];
+  const startTimestamp = dayjs(startDate, 'YYYY-MM-DD').startOf('day');
+  const endTimestamp = dayjs(endDate, 'YYYY-MM-DD').endOf('day');
 
-//   clientsSnap.docs.map((doc) => {
-//     const data = doc.data();
+  console.log('Ad spend from', startDate, 'to', endDate);
 
-//     if (!data.source) {
-//       noSources.push(doc.id);
-//     }
-//   });
+  try {
+    const response = await axios.request({
+      method: 'GET',
+      url: process.env.META_MARKETING_URL,
+      params: {
+        fields: 'spend',
+        time_range: JSON.stringify({ since: startTimestamp, until: endTimestamp }),
+        access_token: process.env.META_MARKETING_ACCESS_TOKEN,
+      },
+    });
 
-//   console.log('No data for these ids', noSources);
-// };
+    // Extract spend (if multiple rows, sum them)
+    console.log('Meta response data:', response.data);
+    const spend = Number(response.data['data'][0].spend);
 
-// noSource();
+    const totalSpend = spend || 0;
 
-// const getAgeDistribution = async () => {
-//   const db = new Firestore();
+    console.log(`Total spend from ${startDate} to ${endDate}: $${totalSpend.toFixed(2)}`);
+    res.status(200).send({ total: Math.round(Number(totalSpend)) });
+  } catch (error) {
+    console.error('Error fetching spend:', error.response?.data || error.message);
+    res.status(500).send({ error: 'Failed to fetch spend data' });
+  }
+});
 
-//   const ref = db.collection('clients');
-//   const snap = await ref.get();
+// stripe
+app.get('/stripe-charges', async (req, res) => {
+  const { startDate, endDate, mode } = req.query;
 
-//   const clients = snap.docs.map((doc) => doc.data()).filter((obj) => obj.leadId);
+  if (mode === 'development') {
+    console.log('Development mode: returning sample data');
+    return res.status(200).send({ total: Math.round(12345.67) });
+  }
 
-//   console.log('len clients', clients.length);
+  if (!startDate || !endDate) {
+    console.error('Missing startDate or endDate');
+    return res.status(400).send({ error: 'Missing startDate or endDate' });
+  }
 
-//   const getLeads = async () => {
-//     try {
-//       const response = await axios.request({
-//         headers: {
-//           Authorization: `Bearer ${process.env.LEADS_BEARER_TOKEN}`,
-//         },
-//         method: 'GET',
-//         url: 'https://us-central1-life-quoter.cloudfunctions.net/app/get-leads-temp',
-//       });
+  const startTimestamp = dayjs(startDate).startOf('day').unix();
+  const endTimestamp = dayjs(endDate).endOf('day').unix();
 
-//       console.log('Leads fetched:', response.data.length);
-//       return response.data;
-//     } catch (error) {
-//       console.error('Error fetching leads:', error);
-//       throw error;
-//     }
-//   };
+  console.log('Reconciliation from', startDate, 'to', endDate);
 
-//   const leads = await getLeads();
+  try {
+    let totalRevenue = 0;
+    let hasMore = true;
+    let startingAfter = null;
 
-//   const BRACKETS = ['50-60', '60-70', '70-80', '80-90', '90+'];
+    while (hasMore) {
+      const response = await axios.get('https://api.stripe.com/v1/charges', {
+        headers: {
+          Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        },
+        params: {
+          limit: 100,
+          created: {
+            gte: startTimestamp,
+            lte: endTimestamp,
+          },
+          ...(startingAfter && { starting_after: startingAfter }),
+        },
+      });
 
-//   const getIndex = (num) => {
-//     if (num < 60) return 0;
-//     if (num < 70) return 1;
-//     if (num < 80) return 2;
-//     if (num < 90) return 3;
+      const charges = response.data.data;
+      const DO_NOT_INCLUDE = ['sheamoralesffl@gmail.com'];
+      charges.forEach((charge) => {
+        if (
+          charge.paid &&
+          !charge.refunded &&
+          !DO_NOT_INCLUDE.includes(charge.billing_details.email)
+        ) {
+          totalRevenue += charge.amount; // Amount is in cents
+        }
+      });
 
-//     return 4;
-//   };
+      hasMore = response.data.has_more;
+      if (hasMore) {
+        startingAfter = charges[charges.length - 1].id;
+      }
+    }
 
-//   console.log('clients', typeof clients);
+    console.log(
+      `Total revenue from ${startDate} to ${endDate}: $${(totalRevenue / 100).toLocaleString()}`,
+    );
 
-//   const results = clients.reduce((acc, curr) => {
-//     const lead = leads.find((lead) => lead.id == curr.leadId);
-//     console.log('Comparing IDs:', lead.id, curr.leadId);
+    const total = totalRevenue / 100; // Return in dollars
+    res.status(200).send({ total });
+  } catch (error) {
+    console.error('Error fetching Stripe revenue:', error.response?.data || error.message);
+    res.status(500).send({ error: 'Failed to fetch revenue data' });
+  }
+});
 
-//     if (lead) {
-//       console.log('lead found', lead.id);
-//     }
+app.post('/expense', async (req, res) => {
+  console.log('Creating expense');
+  const db = new Firestore();
+  const { name, amount, date } = req.body;
 
-//     if (!lead) {
-//       console.log('No matching id record');
-//       return acc;
-//     }
+  if (!name || !amount || !date) {
+    return res.status(400).json({ error: 'Missing name, amount, or date' });
+  }
 
-//     const getAge = (day, month, year) => {
-//       if (!day || !month || !year) return NaN;
-//       const today = new Date();
-//       let age = today.getFullYear() - year;
-//       const m = today.getMonth() + 1 - month;
-//       if (m < 0 || (m === 0 && today.getDate() < day)) {
-//         age--;
-//       }
-//       return age;
-//     };
+  try {
+    const expenseRef = await db.collection('expenses').add({
+      name,
+      amount: Math.round(Number(amount)),
+      date,
+      createdAt: Timestamp.now(),
+    });
+    res.status(201).json({ id: expenseRef.id, name, amount: Math.round(Number(amount)), date });
+  } catch (error) {
+    console.error('Error creating expense:', error);
+    res.status(500).json({ error: 'Failed to create expense' });
+  }
+});
 
-//     const age = getAge(lead.birthDay, lead.birthMonth, lead.birthYear);
+app.get('/expenses', async (req, res) => {
+  const db = new Firestore();
+  const { startDate, endDate } = req.query;
 
-//     if (isNaN(age)) {
-//       console.log('Not a number', age);
-//     }
-//     const index = getIndex(age);
-//     const currValue = acc[BRACKETS[index]] || 0;
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: 'Missing startDate or endDate' });
+  }
 
-//     acc[BRACKETS[index]] = currValue + 1;
+  try {
+    const snapshot = await db
+      .collection('expenses')
+      .where('date', '>=', startDate)
+      .where('date', '<=', endDate)
+      .orderBy('date', 'desc')
+      .get();
 
-//     return acc;
-//   }, {});
+    const expenses = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-//   console.log({ results });
-// };
+    res.status(200).json(expenses);
+  } catch (error) {
+    console.error('Error fetching expenses:', error);
+    res.status(500).json({ error: 'Failed to fetch expenses' });
+  }
+});
 
-// getAgeDistribution();
+app.delete('/expense', async (req, res) => {
+  console.log('Deleting expense');
+  const db = new Firestore();
+  const { expenseId } = req.body;
+
+  if (!expenseId) {
+    return res.status(400).json({ error: 'Missing expense ID' });
+  }
+
+  try {
+    await db.collection('expenses').doc(expenseId).delete();
+    res.status(200).json({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting expense:', error);
+    res.status(500).json({ error: 'Failed to delete expense' });
+  }
+});
 
 // const policyTypes = {
 //   'Mutual of Omaha': ['Accidental Death', `Children's Whole Life`, 'Final Expense', 'IUL'],
@@ -1449,7 +1726,7 @@ app.get('/commissions', async (req, res) => {
 //         Authorization: `Bearer ${process.env.LEADS_BEARER_TOKEN}`,
 //       },
 //       method: 'GET',
-//       url: 'https://us-central1-life-quoter.cloudfunctions.net/app/get-leads',
+//       url: `${process.env.GSQ_BASE_URL}/get-leads`,
 //     });
 
 //     console.log('Leads fetched:', response.data.length);

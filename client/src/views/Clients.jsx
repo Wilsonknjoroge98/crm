@@ -144,9 +144,7 @@ const Clients = () => {
               headers={headers}
               filename={`clients_${new Date().toISOString().slice(0, 10)}.csv`}
             >
-              <Button variant='outlined' color='info.main'>
-                Export CSV
-              </Button>
+              <Button variant='outlined'>Export CSV</Button>
             </CSVLink>
 
             <Button
