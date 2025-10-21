@@ -180,7 +180,8 @@ const CashFlowSummary = () => {
   useEffect(() => {
     console.log('Expenses data changed:', expensesData);
     if (expensesData && Array.isArray(expensesData)) {
-      setExpenses(expensesData);
+      const sortedExpenses = [...expensesData].sort((a, b) => b?.amount - a?.amount);
+      setExpenses(sortedExpenses);
     }
   }, [expensesData]);
 
@@ -336,6 +337,7 @@ const CashFlowSummary = () => {
                 <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Stack direction='row' alignItems='center' spacing={1}>
                     <Typography>{e.name}</Typography>
+                    <Typography variant='caption'>{dayjs(e.date).format('MMM D, YYYY')}</Typography>
                     <IconButton
                       aria-label='delete'
                       size='small'
@@ -426,7 +428,6 @@ const CashFlowSummary = () => {
                 <Typography variant='h6'>Net Cash Flow:</Typography>
                 <Typography
                   p={1}
-                  mt={2}
                   borderRadius={1}
                   textAlign='right'
                   width={'fit-content'}

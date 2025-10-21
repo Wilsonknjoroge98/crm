@@ -50,6 +50,54 @@ const getClients = async ({ token, data }) => {
   }
 };
 
+const getLeads = async ({ token, data }) => {
+  console.log('Fetching leads with data:', data);
+  const isDev = import.meta.env.DEV;
+
+  const { agentId, agentRole } = data || {};
+
+  if (!agentId || !agentRole) {
+    return [];
+  }
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    // signal: signal,
+    url: isDev ? `${DEV_URL}/leads` : `${BASE_URL}/leads`,
+    params: {
+      agentId: agentId,
+      agentRole: agentRole,
+      mode: import.meta.env.MODE,
+    },
+  };
+
+  // abort request when notified by react-query
+  // signal?.addEventListener('abort', () => {
+  //   controller.abort();
+  // });
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting leads:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 500;
+
+      if (status === 500) {
+        return { error: 'Internal Server Error' };
+      }
+    }
+
+    throw error;
+  }
+};
+
 const getAccount = async ({ token, email }) => {
   const isDev = import.meta.env.DEV;
 
@@ -704,4 +752,5 @@ export {
   getExpenses,
   getAdSpend,
   getCommissions,
+  getLeads,
 };

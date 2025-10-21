@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const dayjs = require('dayjs');
-// const { faker } = require('@faker-js/faker');
+const { faker } = require('@faker-js/faker');
 const { PRODUCT_RATES } = require('./constants');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
@@ -26,10 +26,57 @@ app.use(
   }),
 );
 
-// const isEmulator =
-//   !!process.env.FIRESTORE_EMULATOR_HOST ||
-//   !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
-//   process.env.FUNCTIONS_EMULATOR === 'true';
+const isEmulator =
+  !!process.env.FIRESTORE_EMULATOR_HOST ||
+  !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+  process.env.FUNCTIONS_EMULATOR === 'true';
+
+app.post('/gsq-lead', async (req, res) => {
+  const auth = req.headers['authorization']?.split(' ')[1];
+
+  if (auth !== process.env.GSQ_TOKEN) {
+    return res.status(401).send({ message: 'Unauthorized' });
+  }
+
+  const { firstName, lastName, email, phone, dob, leadSource, issuedTo, sold } = req.body;
+
+  if (!firstName || !lastName || !email || !phone || !dob || !leadSource || !issuedTo) {
+    return res.status(400).send({ message: 'Missing required fields' });
+  }
+
+  try {
+    const db = new Firestore();
+    const leadsRef = db.collection('leads');
+
+    const leadPhoneSnap = await db.collection('leads').where('phone', '==', phone).get();
+
+    if (!leadPhoneSnap.empty) {
+      return res.status(409).send({ message: 'Lead with this phone number already exists' });
+    }
+
+    const leadEmailSnap = await db.collection('leads').where('email', '==', email).get();
+    if (!leadEmailSnap.empty) {
+      return res.status(409).send({ message: 'Lead with this email already exists' });
+    }
+
+    await leadsRef.add({
+      firstName,
+      lastName,
+      email,
+      phone,
+      dob,
+      issuedTo,
+      leadSource,
+      sold: sold || false,
+      createdAt: Timestamp.now(),
+    });
+
+    res.status(201).send({ message: 'Lead saved successfully' });
+  } catch (error) {
+    console.error('Error saving lead:', error);
+    res.status(500).send({ message: 'Failed to save lead' });
+  }
+});
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -99,7 +146,7 @@ app.get('/clients', async (req, res) => {
 
       const unknownClients = clients.filter((c) => c.source == 'unknown').length;
       console.log({ unknownClients });
-      res.json(clients);
+      res.status(200).json(clients || []);
     } else {
       const clientData = await db.collection('clients').get();
       const clients = clientData.docs.map((doc) => {
@@ -128,11 +175,95 @@ app.get('/clients', async (req, res) => {
           ...data,
         };
       });
-      res.json(clients || []);
+      res.status(200).json(clients || []);
     }
   } catch (error) {
     console.error('Error fetching clients:', error);
     res.status(500).json({ error: 'Failed to fetch clients' });
+  }
+});
+
+app.get('/leads', async (req, res) => {
+  const { agentId, agentRole } = req.query;
+
+  if (!agentId || !agentRole) {
+    return res.status(400).json({ error: 'Missing agentId' });
+  }
+
+  const db = new Firestore();
+
+  const agentSnapshot = await db.collection('agents').where('uid', '==', agentId).get();
+  const agentData = agentSnapshot.docs.map((doc) => doc.data());
+  const agentEmail = agentData[0].email;
+
+  try {
+    if (agentRole !== 'admin') {
+      const leadsQuerySnapshot = await db
+        .collection('leads')
+        .where('issuedTo', '==', agentEmail)
+        .get();
+
+      const leads = leadsQuerySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        let createdAtMs = null;
+
+        if (data.createdAt) {
+          if (typeof data.createdAt.toMillis === 'function') {
+            // Firestore Timestamp
+            createdAtMs = data.createdAt.toMillis();
+          } else if (data.createdAt instanceof Date) {
+            // Plain JS Date
+            createdAtMs = data.createdAt.getTime();
+          } else if (typeof data.createdAt === 'number') {
+            // Already a timestamp (ms)
+            createdAtMs = data.createdAt;
+          } else if (typeof data.createdAt === 'string') {
+            // Parseable string
+            createdAtMs = Date.parse(data.createdAt);
+          }
+        }
+
+        return {
+          id: doc.id,
+          createdAtMs,
+          ...data,
+        };
+      });
+
+      res.status(200).json(leads || []);
+    } else {
+      const leadData = await db.collection('leads').get();
+      const leads = leadData.docs.map((doc) => {
+        const data = doc.data();
+        let createdAtMs = null;
+
+        if (data.createdAt) {
+          if (typeof data.createdAt.toMillis === 'function') {
+            // Firestore Timestamp
+            createdAtMs = data.createdAt.toMillis();
+          } else if (data.createdAt instanceof Date) {
+            // Plain JS Date
+            createdAtMs = data.createdAt.getTime();
+          } else if (typeof data.createdAt === 'number') {
+            // Already a timestamp (ms)
+            createdAtMs = data.createdAt;
+          } else if (typeof data.createdAt === 'string') {
+            // Parseable string
+            createdAtMs = Date.parse(data.createdAt);
+          }
+        }
+
+        return {
+          id: doc.id,
+          createdAtMs,
+          ...data,
+        };
+      });
+      res.status(200).json(leads || []);
+    }
+  } catch (error) {
+    console.error('Error fetching leads:', error);
+    res.status(500).json({ error: 'Failed to fetch leads' });
   }
 });
 
@@ -361,18 +492,18 @@ app.post('/client', async (req, res) => {
         'API-Key': process.env.HYROS_SECRET_KEY,
       },
       params: {
-        email: client.email,
+        emails: client.email,
       },
     };
 
     try {
       const response = await axios.request(HYROS_BODY);
-      const lead = response.data.result[0] || [];
+      const hyrosData = response.data.result[0] || [];
 
-      let source = lead?.lastSource?.sourceLinkAd?.name || null;
+      let source = hyrosData?.lastSource?.sourceLinkAd?.name || null;
 
       if (!source) {
-        source = lead?.firstSource?.sourceLinkAd?.name || null;
+        source = hyrosData?.firstSource?.sourceLinkAd?.name || null;
 
         if (!source) {
           return 'unknown';
@@ -432,27 +563,30 @@ app.post('/policy', async (req, res) => {
     return res.status(404).json({ error: 'Agent not found' });
   }
 
+  // send mark lead sold to GSQ DB
   const sendGSQEvent = async (client) => {
     try {
       const BODY = {
+        url: `${process.env.GSQ_BASE_URL}/sold`,
         headers: {
           Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
         },
         method: 'POST',
-        url: `${process.env.GSQ_BASE_URL}/sold`,
         data: {
           email: client.email,
           phone: client.phone,
         },
       };
-      const response = axios.request(BODY);
-      console.log(response.date);
+      const response = await axios.request(BODY);
+      console.log('GSQ response:', response.data);
+      return response.data;
     } catch (error) {
       console.error('Error sending mark lead sold:', error);
       throw error;
     }
   };
 
+  // send sale to Hyros
   const sendHyrosEvent = async (commission, client, policy) => {
     const HYROS_BODY = {
       method: 'POST',
@@ -592,6 +726,16 @@ app.post('/policy', async (req, res) => {
         policyNumber: policy.policyNumber,
       }),
     });
+
+    // mark lead as sold in CRM DB
+    const leadRef = db.collection('leads').where('phone', '==', client.phone);
+    const leadSnap = await leadRef.get();
+
+    if (!leadSnap.empty) {
+      leadSnap.forEach(async (doc) => {
+        await doc.ref.update({ sold: true });
+      });
+    }
 
     res.status(201).json({
       id: policyRef.id,
@@ -1300,8 +1444,8 @@ app.get('/ad-spend', async (req, res) => {
     return res.status(400).json({ error: 'Missing startDate or endDate' });
   }
 
-  const startTimestamp = dayjs(startDate, 'YYYY-MM-DD').startOf('day');
-  const endTimestamp = dayjs(endDate, 'YYYY-MM-DD').endOf('day');
+  const since = dayjs(startDate).format('YYYY-MM-DD');
+  const until = dayjs(endDate).format('YYYY-MM-DD');
 
   console.log('Ad spend from', startDate, 'to', endDate);
 
@@ -1311,7 +1455,7 @@ app.get('/ad-spend', async (req, res) => {
       url: process.env.META_MARKETING_URL,
       params: {
         fields: 'spend',
-        time_range: JSON.stringify({ since: startTimestamp, until: endTimestamp }),
+        time_range: JSON.stringify({ since, until }),
         access_token: process.env.META_MARKETING_ACCESS_TOKEN,
       },
     });
@@ -1468,6 +1612,60 @@ app.delete('/expense', async (req, res) => {
   }
 });
 
+// const sendGSQEvent = async (client) => {
+//   try {
+//     const BODY = {
+//       headers: {
+//         Authorization: `Bearer lAem6vk3hs9x6eioFswezl68mk0yt2neo-r7yx96us1ry4nc91pqxql41yc8ornyqi`,
+//       },
+//       method: 'POST',
+//       url: `https://us-central1-life-quoter.cloudfunctions.net/app/sold`,
+//       data: {
+//         email: client.email,
+//         phone: client.phone,
+//       },
+//     };
+//     const response = await axios.request(BODY);
+//     console.log('GSQ response:', response.data);
+//     return response.data;
+//   } catch (error) {
+//     console.error('Error sending mark lead sold:', error);
+//     throw error;
+//   }
+// };
+
+// const sendClient = async (policy) => {
+//   const clientId = policy.clientId;
+
+//   const clientSnap = await new Firestore().collection('clients').doc(clientId).get();
+
+//   if (clientSnap.exists) {
+//     console.log('Client snap exists, sending GSQ event');
+//     const client = clientSnap.data();
+//     return await sendGSQEvent(client);
+//   }
+//   console.log('No client found for policy', policy.policyNumber);
+//   return null;
+// };
+
+// const updateLeads = async () => {
+//   const db = new Firestore();
+
+//   const policiesSnap = await db.collection('policies').get();
+//   const policies = policiesSnap.docs.map((doc) => doc.data());
+//   console.log(`Found ${policies.length} policies to check for lead updates`);
+//   for (const policy of policies) {
+//     if (policy) {
+//       console.log('Policy is active, sending GSQ event', policy.policyNumber);
+//       await sendClient(policy);
+//     } else {
+//       console.log('Policy is not active, skipping', policy.policyNumber, policy.policyStatus);
+//     }
+//   }
+// };
+
+// updateLeads();
+
 // const policyTypes = {
 //   'Mutual of Omaha': ['Accidental Death', `Children's Whole Life`, 'Final Expense', 'IUL'],
 //   'Foresters': ['Planright FEX', 'Strong Foundation', 'Smart UL'],
@@ -1613,6 +1811,21 @@ app.delete('/expense', async (req, res) => {
 //   };
 // }
 
+// function buildLead(seedRunId) {
+//   return {
+//     firstName: faker.person.firstName(),
+//     lastName: faker.person.lastName(),
+//     email: faker.internet.email().toLowerCase(),
+//     phone: randomPhone(),
+//     dob: randDate(new Date(1930, 0, 1), new Date(1975, 11, 31)),
+//     issuedTo: pick(['garrett.lifeinsurance@gmail.com', 'samathertonffl@gmail.com']),
+//     leadSource: pick(leadSources),
+//     sold: pick([true, false]),
+//     createdAt: Timestamp.now(),
+//     seedRunId,
+//   };
+// }
+
 // async function seedOnce({ clients, minPoliciesPerClient, maxPoliciesPerClient, seedRunId }) {
 //   if (!isEmulator) {
 //     return;
@@ -1630,6 +1843,12 @@ app.delete('/expense', async (req, res) => {
 //     //   'failed-precondition',
 //     //   "Need at least two agents in 'agents' collection (created via Auth callback) before seeding.",
 //     // );
+//   }
+
+//   for (let i = 0; i < 50; i++) {
+//     const leadRef = db.collection('leads').doc();
+//     const lead = buildLead(seedRunId);
+//     await leadRef.set(lead);
 //   }
 
 //   const clientDocs = [];

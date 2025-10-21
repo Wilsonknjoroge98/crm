@@ -14,6 +14,7 @@ import InsightsIcon from '@mui/icons-material/Insights';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import BusinessIcon from '@mui/icons-material/Business';
+import StorageIcon from '@mui/icons-material/Storage';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -22,6 +23,7 @@ import useAuth from '../hooks/useAuth';
 const drawerWidth = 240;
 
 const navItems = [
+  { text: 'Leads', icon: <StorageIcon />, path: '/leads' },
   { text: 'Clients', icon: <PeopleIcon />, path: '/clients' },
   {
     text: 'Policies',
@@ -128,7 +130,8 @@ const SidePanel = () => {
                 >
                   <ListItemIcon
                     sx={{
-                      color: isActive ? '#EFBF04' : '#CA9837',
+                      color: isActive ? '#EFBF04' : '#FFFFFF',
+                      // color: isActive ?  : '#F2F2F2',
                       minWidth: 40,
                     }}
                   >

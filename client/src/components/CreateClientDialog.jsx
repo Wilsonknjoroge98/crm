@@ -45,13 +45,33 @@ const initialForm = {
   notes: '',
 };
 
-const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
+const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const [form, setForm] = useState(initialForm);
   const [phoneError, setPhoneError] = useState(false);
   const [zipCodeError, setZipCodeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [disabled, setDisabled] = useState(true);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (lead) {
+      setForm({
+        firstName: lead.firstName || '',
+        lastName: lead.lastName || '',
+        email: lead.email || '',
+        phone: lead.phone || '',
+        dob: lead.dob || '',
+        maritalStatus: '',
+        address: '',
+        city: '',
+        state: '',
+        zip: '',
+        occupation: '',
+        income: '',
+        notes: '',
+      });
+    }
+  }, [lead]);
 
   function getAddressComponent(components, type) {
     const comp = components.find((c) => c.types.includes(type));
@@ -62,7 +82,9 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
   const { mutate: createClient, isPending } = useMutation({
     mutationFn: postClient,
     onSuccess: () => {
-      refetchClients();
+      if (typeof refetchClients === 'function') {
+        refetchClients();
+      }
       setOpen(false);
       enqueueSnackbar('Client created successfully!', {
         variant: 'success',
@@ -165,7 +187,6 @@ const CreateClientDialog = ({ open, setOpen, onClose, refetchClients }) => {
 
   const handleCancel = () => {
     setForm(initialForm);
-    onClose();
   };
 
   useEffect(() => {

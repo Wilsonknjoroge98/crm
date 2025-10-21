@@ -11,6 +11,7 @@ const Insights = lazy(() => import('../views/Insights'));
 const Premiums = lazy(() => import('../views/Premiums'));
 const Commissions = lazy(() => import('../views/Commissions'));
 const CashFlow = lazy(() => import('../views/CashFlow'));
+const Leads = lazy(() => import('../views/Leads'));
 
 const router = createBrowserRouter([
   {
@@ -56,6 +57,27 @@ const router = createBrowserRouter([
             }
           >
             <Insights />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/leads',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Leads />
           </Suspense>
         ),
       },

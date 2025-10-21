@@ -142,31 +142,29 @@ export default function ClientsGrid({
         },
       },
       {
-        field: 'addressBlock',
+        field: 'address',
         headerName: 'Address',
         flex: 1,
-        width: 100,
-        sortable: false,
-        filterable: false,
+        minWidth: 150,
         renderCell: (params) => {
           const c = params.row;
+          const street = c.address || '';
+          const city = c.city || '';
+          const state = c.state || '';
+          const zip = c.zip || '';
           return (
-            <Stack py={1} sx={{ width: '100%' }}>
-              {c.address && <Typography variant='caption'>{c.address}</Typography>}
-              {(c.city || c.state || c.zip) && (
-                <Typography variant='caption'>
-                  {[c.city, c.state].filter(Boolean).join(', ')} {c.zip || ''}
-                </Typography>
-              )}
+            <Stack sx={{ width: '100%', height: '100%', justifyContent: 'center' }}>
+              <Typography variant='caption'>{`${street}, ${city}, ${state} ${zip}`}</Typography>
+              <Typography variant='caption'>{`${state} ${zip}`}</Typography>
             </Stack>
           );
         },
       },
+
       {
         field: 'policies',
         headerName: 'Policies',
-        flex: 1,
-        width: 100,
+        width: 150,
         sortable: true,
         filterable: true,
         valueGetter: (value, row) => policyCount(row),
@@ -208,6 +206,12 @@ export default function ClientsGrid({
             </Stack>
           );
         },
+      },
+      {
+        field: 'source',
+        headerName: 'Ad Source',
+        width: 100,
+        renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {
         field: 'actions',
