@@ -14,9 +14,10 @@ import {
   Avatar,
   Divider,
   Button,
+  ListItemText,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-
+import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -25,10 +26,14 @@ import dayjs from 'dayjs';
 import useAuth from '../hooks/useAuth';
 import { useEffect } from 'react';
 
+import { alpha } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
+
 const Commissions = () => {
   const [startDate, setStartDate] = useState(dayjs().add(-30, 'day').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [totalCommissions, setTotalCommissions] = useState(0);
+  const theme = useTheme();
 
   const { userToken, agent } = useAuth();
   const {
@@ -123,18 +128,19 @@ const Commissions = () => {
         }}
       >
         <CardContent>
-          <Box>
-            {isLoading ? (
-              <Stack spacing={2}>
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Box key={i}>
-                    <Skeleton variant='rectangular' height={40} />
-                  </Box>
-                ))}
-              </Stack>
-            ) : (
-              <List disablePadding>
-                {Object.entries(data).map(([key, value], index) => (
+          {isLoading ? (
+            <Stack spacing={2}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Box key={i}>
+                  <Skeleton variant='rectangular' height={40} />
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <List disablePadding>
+              {Object.entries(data).map(([key, value], index) => {
+                const top = index === 0;
+                return (
                   <Box key={key}>
                     <ListItem
                       sx={{
@@ -142,31 +148,54 @@ const Commissions = () => {
                         justifyContent: 'space-between',
                         px: 0,
                         py: 1,
+                        ...(top && {
+                          py: 1,
+                          px: 1,
+                          backgroundColor: alpha(theme.palette.action.main, 0.3),
+                        }),
                       }}
                     >
-                      <Stack direction='row' spacing={2} alignItems='center'>
-                        <Box>
-                          <Typography variant='subtitle1' fontWeight={500}>
-                            {key}
-                          </Typography>
-                        </Box>
-                      </Stack>
+                      <ListItemText
+                        primary={
+                          <Stack direction='row' alignItems='center'>
+                            <Typography variant='subtitle1' fontWeight={500}>
+                              {key}
+                            </Typography>
+                            {top && (
+                              <MilitaryTechIcon
+                                sx={{
+                                  ml: 1,
+                                  fontSize: '2rem',
+                                  color: alpha(theme.palette.action.main, 0.9),
+                                }}
+                              />
+                            )}
 
-                      <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                        $
-                        {value.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </Typography>
+                            <Typography
+                              variant='subtitle1'
+                              sx={{
+                                fontWeight: 600,
+                                ml: 'auto',
+                              }}
+                            >
+                              $
+                              {value.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </Typography>
+                          </Stack>
+                        }
+                      />
                     </ListItem>
 
                     {index < Object.keys(data).length - 1 && <Divider sx={{ my: 0.5 }} />}
                   </Box>
-                ))}
-              </List>
-            )}
-          </Box>
+                );
+              })}
+            </List>
+          )}
+
           <Stack direction={'row'} justifyContent='space-between' alignItems='center' mt={2}>
             <Typography mt={2} variant='subtitle1' fontWeight={600}>
               Total Commissions

@@ -1,11 +1,9 @@
 // Attribution.jsx
 import {
   Card,
-  CardHeader,
   CardContent,
   Stack,
   Typography,
-  LinearProgress,
   List,
   ListItem,
   ListItemText,
@@ -13,11 +11,8 @@ import {
   Alert,
   Box,
   Divider,
-  Tooltip,
   Container,
-  Grid,
 } from '@mui/material';
-import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getInsights } from '../utils/query';
 import useAuth from '../hooks/useAuth';
@@ -70,13 +65,9 @@ const Insights = () => {
         <CardContent>
           {isLoading && (
             <Stack spacing={2}>
-              {PLACEHOLDER_SOURCES.map((_, i) => (
+              {Array.from({ length: 6 }).map((_, i) => (
                 <Box key={i}>
-                  <Stack direction='row' justifyContent='space-between' mb={0.5}>
-                    <Skeleton width={160} />
-                    <Skeleton width={60} />
-                  </Stack>
-                  <Skeleton variant='rectangular' height={8} />
+                  <Skeleton variant='rectangular' height={40} />
                 </Box>
               ))}
             </Stack>

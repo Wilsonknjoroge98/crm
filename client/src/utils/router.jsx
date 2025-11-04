@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import App from '../App';
-import { PuffLoader } from 'react-spinners';
+import { MoonLoader } from 'react-spinners';
 
 const Clients = lazy(() => import('../views/Clients'));
 const Policies = lazy(() => import('../views/Policies'));
@@ -12,6 +12,7 @@ const Premiums = lazy(() => import('../views/Premiums'));
 const Commissions = lazy(() => import('../views/Commissions'));
 const CashFlow = lazy(() => import('../views/CashFlow'));
 const Leads = lazy(() => import('../views/Leads'));
+const Purchase = lazy(() => import('../views/Purchase'));
 
 const router = createBrowserRouter([
   {
@@ -31,11 +32,55 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
             <Premiums />
+          </Suspense>
+        ),
+      },
+
+      {
+        path: '/insights',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Insights />
+          </Suspense>
+        ),
+      },
+
+      {
+        path: '/purchase-leads',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Purchase />
           </Suspense>
         ),
       },
@@ -52,7 +97,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -73,7 +118,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -94,7 +139,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -115,7 +160,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -137,7 +182,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -158,7 +203,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -179,7 +224,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >
@@ -200,7 +245,7 @@ const router = createBrowserRouter([
                   height: '100vh',
                 }}
               >
-                <PuffLoader color='#1A1A1A' size={150} loading={true} />
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
               </div>
             }
           >

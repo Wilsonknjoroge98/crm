@@ -15,7 +15,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { patchClient } from '../utils/query';
-import { STATES } from '../utils/constants';
+import { SNACKBAR_SUCCESS_OPTIONS, STATES } from '../utils/constants';
 import { NumericFormat } from 'react-number-format';
 
 import { toTitleCase } from '../utils/helpers';
@@ -42,19 +42,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
       refetchClients();
       setForm(null);
       setOpen(false);
-      enqueueSnackbar('Client updated successfully!', {
-        variant: 'success',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
+      enqueueSnackbar('Client updated successfully!', SNACKBAR_SUCCESS_OPTIONS);
     },
     onError: (error) => console.error(error),
   });
@@ -70,9 +58,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
       .map((part) => {
         const idx = part.search(/[a-z]/i);
         if (idx === -1) return part;
-        return (
-          part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1)
-        );
+        return part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1);
       })
       .join(' ');
   };
@@ -311,9 +297,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
+                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
                 },
               }}
             />

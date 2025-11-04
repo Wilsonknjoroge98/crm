@@ -145,3 +145,19 @@ export const CARRIER_PRODUCTS = {
   SBLI: ['FEX Level Death Benefit'],
   Transamerica: ['FE', 'UL'],
 };
+
+export const SNACKBAR_SUCCESS_OPTIONS = {
+  variant: 'success',
+  style: {
+    backgroundColor: '#D5F5E3',
+    color: '#1A1A1A',
+    fontWeight: 'bold',
+    fontFamily: `"Libre Baskerville", serif`,
+    fontSize: '1rem',
+  },
+  autoHideDuration: 5000,
+  anchorOrigin: {
+    vertical: 'bottom',
+    horizontal: 'right',
+  },
+};

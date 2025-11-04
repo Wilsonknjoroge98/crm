@@ -19,7 +19,7 @@ import { enqueueSnackbar } from 'notistack';
 
 import { useEffect, useState, useRef } from 'react';
 
-import { STATES } from '../utils/constants';
+import { SNACKBAR_SUCCESS_OPTIONS, STATES } from '../utils/constants';
 
 import { NumericFormat } from 'react-number-format';
 
@@ -86,19 +86,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         refetchClients();
       }
       setOpen(false);
-      enqueueSnackbar('Client created successfully!', {
-        variant: 'success',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
+      enqueueSnackbar('Client created successfully!', SNACKBAR_SUCCESS_OPTIONS);
     },
   });
 

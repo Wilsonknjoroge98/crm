@@ -22,7 +22,11 @@ import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { patchPolicy } from '../utils/query';
-import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
+import {
+  RELATIONSHIP_OPTIONS,
+  CARRIER_PRODUCTS,
+  SNACKBAR_SUCCESS_OPTIONS,
+} from '../utils/constants';
 import { enqueueSnackbar } from 'notistack';
 
 import useAuth from '../hooks/useAuth';
@@ -51,19 +55,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
       refetchPolicies();
       setForm(null);
       setOpen(false);
-      enqueueSnackbar('Policy updated successfully!', {
-        variant: 'success',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
+      enqueueSnackbar('Policy updated successfully!', SNACKBAR_SUCCESS_OPTIONS);
     },
     onError: (error) => {
       console.error('Error updating policy:', error);

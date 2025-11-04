@@ -1,23 +1,17 @@
 // SalesLeaderboard.jsx
 import {
   Card,
-  CardHeader,
   CardContent,
   List,
   ListItem,
-  ListItemAvatar,
-  Avatar,
   ListItemText,
-  LinearProgress,
   Stack,
   Typography,
   Divider,
-  Tooltip,
   Container,
   Alert,
   Skeleton,
   Box,
-  Chip,
   Button,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -35,7 +29,6 @@ import { useState, useEffect } from 'react';
 import { getPremiums } from '../utils/query';
 
 import RefreshIcon from '@mui/icons-material/Refresh';
-
 import useAuth from '../hooks/useAuth';
 
 const Premiums = () => {

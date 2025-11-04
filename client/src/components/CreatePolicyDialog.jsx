@@ -22,7 +22,11 @@ import { Add as AddIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { postPolicy, getAgents } from '../utils/query';
-import { RELATIONSHIP_OPTIONS, CARRIER_PRODUCTS } from '../utils/constants';
+import {
+  RELATIONSHIP_OPTIONS,
+  CARRIER_PRODUCTS,
+  SNACKBAR_SUCCESS_OPTIONS,
+} from '../utils/constants';
 
 import { NumericFormat } from 'react-number-format';
 
@@ -73,19 +77,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       setDisabled(true);
       setOpen(false);
       setForm(initialForm);
-      enqueueSnackbar('Policy created successfully!', {
-        variant: 'success',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
+      enqueueSnackbar('Policy created successfully!', SNACKBAR_SUCCESS_OPTIONS);
     },
   });
 

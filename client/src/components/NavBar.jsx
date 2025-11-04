@@ -1,25 +1,11 @@
 // NavBar.jsx
 import React from 'react';
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Avatar,
-  Box,
-  Stack,
-  Menu,
-  MenuItem,
-  Button,
-  Divider,
-  Chip,
-} from '@mui/material';
+import { AppBar, Toolbar, Typography, Avatar, Box, Stack, Menu, Button } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountDetails from './AccountDetails';
 import { signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase'; // Ensure this path is correct
-
-import dayjs from 'dayjs';
 
 import { getAgent, getAccount } from '../utils/query';
 import { useQuery } from '@tanstack/react-query';
@@ -140,11 +126,11 @@ export default function NavBar() {
           >
             {accountData && <AccountDetails data={accountData} />}
             <Stack direction='row' spacing={1} maxHeight={30}>
-              <Button
+              {/* <Button
                 variant='contained'
                 onClick={() =>
                   window.open(
-                    `https://buy.stripe.com/7sY3cv09S0VF0KefOR6Ri01?prefilled_email=${user?.email}`,
+                    `https://buy.stripe.com/00w5kDcWE7k38cG9qt6Ri03?prefilled_email=${user?.email}`,
                     '_blank',
                   )
                 }
@@ -155,7 +141,7 @@ export default function NavBar() {
                 }}
               >
                 Purchase Leads
-              </Button>
+              </Button> */}
 
               <Button
                 variant='outlined'

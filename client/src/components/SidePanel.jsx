@@ -15,6 +15,7 @@ import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import BusinessIcon from '@mui/icons-material/Business';
 import StorageIcon from '@mui/icons-material/Storage';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -44,6 +45,7 @@ const navItems = [
     text: 'Insights',
     icon: <InsightsIcon />,
     path: '/insights',
+    role: 'admin',
   },
   {
     text: 'Cash Flow',
@@ -51,11 +53,11 @@ const navItems = [
     path: '/cashflow',
     role: 'admin',
   },
-  // {
-  //   text: 'Documents',
-  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-  //   path: '/documents',
-  // },
+  {
+    text: 'Purchase Leads',
+    icon: <ShoppingCartIcon />,
+    path: '/purchase-leads',
+  },
   // {
   //   text: 'Lead Vendors',
   //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
@@ -122,16 +124,15 @@ const SidePanel = () => {
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
-                    backgroundColor: isActive && index < 6 ? '#2C2C2C' : 'transparent',
+                    backgroundColor: isActive ? '#2C2C2C' : 'transparent',
                     '&:hover': {
-                      backgroundColor: index < 6 ? '#2C2C2C' : 'transparent',
+                      backgroundColor: '#2C2C2C',
                     },
                   }}
                 >
                   <ListItemIcon
                     sx={{
                       color: isActive ? '#EFBF04' : '#FFFFFF',
-                      // color: isActive ?  : '#F2F2F2',
                       minWidth: 40,
                     }}
                   >

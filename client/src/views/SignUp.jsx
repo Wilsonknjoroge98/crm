@@ -18,6 +18,7 @@ import { auth } from '../utils/firebase';
 import { postAgent } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 import { toTitleCase } from '../utils/helpers';
+import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -31,19 +32,7 @@ export default function SignUp() {
   const { mutate: createAgent } = useMutation({
     mutationFn: postAgent,
     onSuccess: () => {
-      enqueueSnackbar('Account created successfully!', {
-        variant: 'success',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
+      enqueueSnackbar('Account created successfully!', SNACKBAR_SUCCESS_OPTIONS);
     },
     onError: (error) => {
       console.error('Error creating agent:', error);

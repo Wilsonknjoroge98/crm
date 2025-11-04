@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const dayjs = require('dayjs');
-const { faker } = require('@faker-js/faker');
+// const { faker } = require('@faker-js/faker');
 const { PRODUCT_RATES } = require('./constants');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
@@ -26,10 +26,10 @@ app.use(
   }),
 );
 
-const isEmulator =
-  !!process.env.FIRESTORE_EMULATOR_HOST ||
-  !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
-  process.env.FUNCTIONS_EMULATOR === 'true';
+// const isEmulator =
+//   !!process.env.FIRESTORE_EMULATOR_HOST ||
+//   !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+//   process.env.FUNCTIONS_EMULATOR === 'true';
 
 app.post('/gsq-lead', async (req, res) => {
   const auth = req.headers['authorization']?.split(' ')[1];
@@ -40,7 +40,16 @@ app.post('/gsq-lead', async (req, res) => {
 
   const { firstName, lastName, email, phone, dob, leadSource, issuedTo, sold } = req.body;
 
-  if (!firstName || !lastName || !email || !phone || !dob || !leadSource || !issuedTo) {
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !phone ||
+    !dob ||
+    !leadSource ||
+    !issuedTo ||
+    sold === undefined
+  ) {
     return res.status(400).send({ message: 'Missing required fields' });
   }
 
@@ -67,7 +76,7 @@ app.post('/gsq-lead', async (req, res) => {
       dob,
       issuedTo,
       leadSource,
-      sold: sold || false,
+      sold,
       createdAt: Timestamp.now(),
     });
 
@@ -506,7 +515,7 @@ app.post('/client', async (req, res) => {
         source = hyrosData?.firstSource?.sourceLinkAd?.name || null;
 
         if (!source) {
-          return 'unknown';
+          source = hyrosData.lastSource?.name || hyrosData.firstSource?.name || 'unknown';
         }
       }
 
@@ -617,13 +626,48 @@ app.post('/policy', async (req, res) => {
     }
   };
 
-  const calculateCommissions = (agentData, agent, policy, premium) => {
+  const getRate = (productRates, level, defaultValue = 1) => {
+    const raw = Number(productRates?.[String(level)]);
+    return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
+  };
+
+  const getLevel = async (agent, policy) => {
+    console.log(
+      'Getting level for agent:',
+      agent.email,
+      'and policy effective date:',
+      policy.effectiveDate,
+    );
+    const levelsRef = db.collection(`agents/${agent.email}/levels`);
+    const q = levelsRef
+      .where('effectiveDate', '<=', dayjs(policy.effectiveDate).toDate())
+      .orderBy('effectiveDate', 'desc')
+      .limit(1);
+    const snapshot = await q.get();
+    if (!snapshot.empty) {
+      console.log('Level found for agent:', agent.email, snapshot.docs[0].data());
+      const data = snapshot.docs[0].data();
+      return data.level;
+    }
+    return null;
+  };
+
+  const calculateCommissions = async (agentData, agent, policy, premium) => {
     let sheaCommission = 0;
 
     const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
     const productRates = carrierRates?.[policy.policyType?.trim()];
 
-    const agentProductRate = productRates?.[String(agent.level)] / 100 || 1;
+    let agentLevel = await getLevel(agent, policy);
+    if (!agentLevel) {
+      agentLevel = agent.level;
+    }
+
+    let agentProductRate = getRate(productRates, agentLevel);
+
+    if (!agentProductRate) {
+      agentProductRate = 1;
+    }
 
     const agentCommission = Math.round(premium * agentProductRate);
 
@@ -647,9 +691,17 @@ app.post('/policy', async (req, res) => {
         return sheaCommission;
       }
 
-      const uplineProductRate = productRates?.[String(upline.level)] / 100 || 1;
-      const uplineCommission = Math.round(premium * (uplineProductRate - agentProductRate));
+      let uplineLevel = await getLevel(upline, policy);
+      if (!uplineLevel) {
+        uplineLevel = upline.level;
+      }
 
+      let uplineProductRate = getRate(productRates, uplineLevel);
+      if (!uplineProductRate) {
+        uplineProductRate = 1;
+      }
+
+      const uplineCommission = Math.round(premium * (uplineProductRate - agentProductRate));
       if (upline.uid === process.env.SHEA_UID) {
         sheaCommission += uplineCommission;
         console.log('Shea commission from upline:', uplineCommission);
@@ -662,7 +714,17 @@ app.post('/policy', async (req, res) => {
           console.error('Second upline not found for agent:', upline.uid, upline.name);
           return sheaCommission;
         }
-        const secondUplineProductRate = productRates?.[String(secondUpline.level)] / 100 || 1;
+
+        let secondUplineLevel = await getLevel(secondUpline, policy);
+        if (!secondUplineLevel) {
+          secondUplineLevel = secondUpline.level;
+        }
+
+        let secondUplineProductRate = productRates?.[String(secondUplineLevel)] / 100;
+        if (!secondUplineProductRate) {
+          secondUplineProductRate = 1;
+        }
+
         const secondUplineCommission = Math.round(
           premium * (secondUplineProductRate - uplineProductRate),
         );
@@ -703,6 +765,7 @@ app.post('/policy', async (req, res) => {
     } else {
       const agent = agentData.find((a) => a.uid === agentIds[0]);
       const premium = Math.round(policy.premiumAmount * 12);
+
       commission = commission + calculateCommissions(agentData, agent, policy, premium);
     }
 
@@ -946,8 +1009,6 @@ app.get('/premiums', async (req, res) => {
       }
     }
 
-    delete leaderboard['Shea Morales'];
-
     // Convert leaderboard object to array
     const leaderboardArray = Object.entries(leaderboard).map(([name, data]) => ({
       name,
@@ -1040,6 +1101,27 @@ app.get('/commissions', async (req, res) => {
   //   return res.status(200).send(sortedCommissions);
   // }
 
+  const getLevel = async (agent, policy) => {
+    console.log(
+      'Getting level for agent:',
+      agent.email,
+      'and policy effective date:',
+      policy.effectiveDate,
+    );
+    const levelsRef = db.collection(`agents/${agent.email}/levels`);
+    const q = levelsRef
+      .where('effectiveDate', '<=', dayjs(policy.effectiveDate).toDate())
+      .orderBy('effectiveDate', 'desc')
+      .limit(1);
+    const snapshot = await q.get();
+    if (!snapshot.empty) {
+      console.log('Level found for agent:', agent.email, snapshot.docs[0].data());
+      const data = snapshot.docs[0].data();
+      return data.level;
+    }
+    return null;
+  };
+
   console.log('Calculating commissions from', startDate, 'to', endDate);
   const db = new Firestore();
 
@@ -1097,8 +1179,16 @@ app.get('/commissions', async (req, res) => {
       const splitPremium = Math.round(annualPremium / 2);
       console.log('Split premium:', splitPremium);
 
-      const agent1Level = agent1.level;
-      const agent2Level = agent2.level;
+      let agent1Level = await getLevel(agent1, policy);
+      let agent2Level = await getLevel(agent2, policy);
+
+      if (!agent1Level) {
+        agent1Level = agent1.level;
+      }
+
+      if (!agent2Level) {
+        agent2Level = agent2.level;
+      }
 
       const carrierRates = PRODUCT_RATES[policyCarrier?.trim()];
       const productRates = carrierRates?.[policyType?.trim()];
@@ -1141,12 +1231,18 @@ app.get('/commissions', async (req, res) => {
       // ---- agent 1 uplines ----
       if (agent1.uplineUid) {
         const upline = agents.find((a) => a.uid === agent1.uplineUid);
-        let uplineProductRate = productRates?.[String(upline?.level)] / 100;
 
         if (!upline) {
           console.error('No upline found for agent 1', agent1.name);
           continue;
         }
+
+        let uplineLevel = await getLevel(upline, policy);
+        if (!uplineLevel) {
+          uplineLevel = upline.level;
+        }
+
+        let uplineProductRate = productRates?.[String(uplineLevel)] / 100;
 
         if (!uplineProductRate) {
           const id = `${policy.carrier}-${policyType}`;
@@ -1179,12 +1275,18 @@ app.get('/commissions', async (req, res) => {
 
           if (upline.uplineUid) {
             const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
-            let secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
 
             if (!secondUpline) {
               console.error('No upline found for upline agent', upline.name);
               continue;
             }
+
+            let secondUplineLevel = await getLevel(secondUpline, policy);
+            if (!secondUplineLevel) {
+              secondUplineLevel = secondUpline.level;
+            }
+
+            let secondUplineProductRate = productRates?.[String(secondUplineLevel)] / 100;
 
             if (!secondUplineProductRate) {
               const id = `${policy.carrier}-${policyType}`;
@@ -1222,7 +1324,13 @@ app.get('/commissions', async (req, res) => {
       // ---- agent 2 uplines ----
       if (agent2.uplineUid) {
         const upline = agents.find((a) => a.uid === agent2.uplineUid);
-        let uplineProductRate = productRates?.[String(upline?.level)] / 100;
+
+        let uplineLevel = await getLevel(upline, policy);
+        if (!uplineLevel) {
+          uplineLevel = upline.level;
+        }
+
+        let uplineProductRate = productRates?.[String(uplineLevel)] / 100;
 
         if (!uplineProductRate) {
           const id = `${policy.carrier}-${policyType}`;
@@ -1235,7 +1343,7 @@ app.get('/commissions', async (req, res) => {
               carrier: policy.carrier,
               policyType: policyType,
               type: 'split',
-              agent2Level: upline.level,
+              agent2Level: uplineLevel,
               createdAt: Timestamp.now(),
             });
           }
@@ -1249,7 +1357,7 @@ app.get('/commissions', async (req, res) => {
         }
 
         if (upline && uplineProductRate) {
-          console.log(`Found upline for agent 2: ${upline?.name} level: ${upline?.level}`);
+          console.log(`Found upline for agent 2: ${upline?.name} level: ${uplineLevel}`);
           const uplineCommission = Math.round(
             splitPremium * (uplineProductRate - agent2ProductRate),
           );
@@ -1259,7 +1367,12 @@ app.get('/commissions', async (req, res) => {
 
           if (upline.uplineUid) {
             const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
-            let secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+            let secondUplineLevel = await getLevel(secondUpline, policy);
+            if (!secondUplineLevel) {
+              secondUplineLevel = secondUpline.level;
+            }
+
+            let secondUplineProductRate = productRates?.[String(secondUplineLevel)] / 100;
 
             if (!secondUpline) {
               console.error('No second upline found for agent', upline.name);
@@ -1277,7 +1390,7 @@ app.get('/commissions', async (req, res) => {
                   carrier: policy.carrier,
                   policyType: policyType,
                   type: 'split',
-                  agent2Level: upline.level,
+                  agent2Level: secondUplineLevel,
                   createdAt: Timestamp.now(),
                 });
               }
@@ -1286,7 +1399,7 @@ app.get('/commissions', async (req, res) => {
 
             if (secondUpline) {
               console.log(
-                `Found upline for upline of agent 2: ${secondUpline?.name} level: ${secondUpline?.level}`,
+                `Found upline for upline of agent 2: ${secondUpline?.name} level: ${secondUplineLevel}`,
               );
               const secondUplineCommission = Math.round(
                 splitPremium * (secondUplineProductRate - uplineProductRate),
@@ -1304,7 +1417,11 @@ app.get('/commissions', async (req, res) => {
     } else {
       console.log('Single agent policy detected');
       const agent = agents.find((a) => a.uid === policy.agentIds[0]);
-      const agentLevel = agent.level;
+      let agentLevel = await getLevel(agent, policy);
+      console.log('Agent level:', agentLevel, 'for agent:', agent.name);
+      if (!agentLevel) {
+        agentLevel = agent.level;
+      }
 
       const carrierRates = PRODUCT_RATES[policyCarrier?.trim()];
       const productRates = carrierRates?.[policyType?.trim()];
@@ -1344,7 +1461,11 @@ app.get('/commissions', async (req, res) => {
 
       if (agent.uplineUid) {
         const upline = agents.find((a) => a.uid === agent.uplineUid);
-        let uplineProductRate = productRates?.[String(upline?.level)] / 100;
+        let uplineLevel = await getLevel(upline, policy);
+        if (!uplineLevel) {
+          uplineLevel = upline.level;
+        }
+        let uplineProductRate = productRates?.[String(uplineLevel)] / 100;
 
         if (!upline) {
           console.error('No upline found for agent', agent.name);
@@ -1362,7 +1483,7 @@ app.get('/commissions', async (req, res) => {
               carrier: policy.carrier,
               policyType: policyType,
               type: 'single',
-              agentLevel: upline.level,
+              agentLevel: uplineLevel,
               createdAt: Timestamp.now(),
             });
           }
@@ -1380,7 +1501,12 @@ app.get('/commissions', async (req, res) => {
 
           if (upline.uplineUid) {
             const secondUpline = agents.find((a) => a.uid === upline.uplineUid);
-            let secondUplineProductRate = productRates?.[String(secondUpline?.level)] / 100;
+            let secondUplineLevel = await getLevel(secondUpline, policy);
+
+            if (!secondUplineLevel) {
+              secondUplineLevel = secondUpline.level;
+            }
+            let secondUplineProductRate = productRates?.[String(secondUplineLevel)] / 100;
 
             if (!secondUpline) {
               console.error('No second upline found for agent', upline.name);
@@ -1398,7 +1524,7 @@ app.get('/commissions', async (req, res) => {
                   carrier: policy.carrier,
                   policyType: policyType,
                   type: 'single',
-                  agentLevel: upline.level,
+                  agentLevel: secondUplineLevel,
                   createdAt: Timestamp.now(),
                 });
               }
@@ -1611,6 +1737,73 @@ app.delete('/expense', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete expense' });
   }
 });
+
+// const updatePolicies = async () => {
+//   const db = new Firestore();
+//   const policiesSnapshot = await db.collection('policies').get();
+//   const policies = policiesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+//   const agentSnapshot = await db.collection('agents').get();
+//   const agents = agentSnapshot.docs.map((doc) => doc.data());
+
+//   const getRate = (productRates, level, defaultValue = 1) => {
+//     const raw = Number(productRates?.[String(level)]);
+//     return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
+//   };
+
+//   for (const policy of policies) {
+//     const agentIds = policy.agentIds || [];
+
+//     if (agentIds.length === 2 && policy.splitPolicy) {
+//       const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
+//       const productRates = carrierRates?.[policy.policyType?.trim()];
+
+//       const agent1 = agents.find((a) => a.uid === agentIds[0]);
+//       const agent2 = agents.find((a) => a.uid === agentIds[1]);
+
+//       let agent1Level = await getLevel(agent1, policy);
+//       if (!agent1Level) {
+//         agent1Level = agent1.level;
+//       }
+
+//       let agent2Level = await getLevel(agent2, policy);
+//       if (!agent2Level) {
+//         agent2Level = agent2.level;
+//       }
+
+//       const agent1Rate = getRate(productRates, agent1Level);
+//       const agent2Rate = getRate(productRates, agent2Level);
+
+//       const productRate = {
+//         agent1: {
+//           uid: agent1.uid,
+//           rate: agent1Rate,
+//         },
+//         agent2: {
+//           uid: agent2.uid,
+//           rate: agent2Rate,
+//         },
+//       };
+
+//       const ref = db.ref(`policies/${policy.id}`);
+//       ref.update({ productRate });
+//     } else if (agentIds.length === 1) {
+//       const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
+//       const productRates = carrierRates?.[policy.policyType?.trim()];
+
+//       const agent = agents.find((a) => a.uid === agentIds[0]);
+//       const agentRate = getRate(productRates, agent.level);
+
+//       const productRate = {
+//         uid: agent.uid,
+//         rate: agentRate,
+//       };
+
+//       const ref = db.ref(`policies/${policy.id}`);
+//       ref.update({ productRate });
+//     }
+//   }
+// };
 
 // const sendGSQEvent = async (client) => {
 //   try {

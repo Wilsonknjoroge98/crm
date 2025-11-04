@@ -18,6 +18,7 @@ import { enqueueSnackbar } from 'notistack';
 import { deleteClient } from '../utils/query';
 
 import useAuth from '../hooks/useAuth';
+import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 
 const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [confirm, setConfirm] = useState(false);
@@ -31,19 +32,7 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const { mutate, isPending, isError, error } = useMutation({
     mutationFn: deleteClient,
     onSuccess: () => {
-      enqueueSnackbar('Client deleted successfully.', {
-        variant: 'success',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
+      enqueueSnackbar('Client deleted successfully.', SNACKBAR_SUCCESS_OPTIONS);
       refetchClients?.();
       setOpen(false);
     },
@@ -69,9 +58,7 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
     mutate({ token: userToken, data: { clientId: client.id } });
   };
 
-  const fullName = client
-    ? `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim()
-    : '';
+  const fullName = client ? `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim() : '';
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='sm' fullWidth>
@@ -79,13 +66,11 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 0.5 }}>
           <Typography variant='body1'>
-            You’re about to permanently delete{' '}
-            <strong>{fullName || 'this client'}</strong>.
+            You’re about to permanently delete <strong>{fullName || 'this client'}</strong>.
           </Typography>
           <Alert severity='warning'>
-            This action cannot be undone.{' '}
-            <strong>All associated policies</strong> will be deleted along with
-            the client.
+            This action cannot be undone. <strong>All associated policies</strong> will be deleted
+            along with the client.
           </Alert>
 
           {isError && (
@@ -95,12 +80,7 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
           )}
 
           <FormControlLabel
-            control={
-              <Checkbox
-                checked={confirm}
-                onChange={(e) => setConfirm(e.target.checked)}
-              />
-            }
+            control={<Checkbox checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />}
             label='I understand this will permanently delete the client and all associated policies.'
           />
         </Stack>
