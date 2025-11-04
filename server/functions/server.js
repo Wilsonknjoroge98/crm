@@ -449,6 +449,35 @@ app.get('/agent-account', async (req, res) => {
   res.status(200).json(account);
 });
 
+app.patch('/agent-account', async (req, res) => {
+  const { account } = req.body;
+
+  console.log('Updating account for', account);
+
+  const patchAgentAccount = async () => {
+    try {
+      const response = await axios.request({
+        headers: {
+          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
+        },
+        data: { email: account.email, deliver: account.deliver },
+        method: 'PATCH',
+        url: `${process.env.GSQ_BASE_URL}/agent-account`,
+      });
+
+      console.log('Account Fetched:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching leads:', error.message);
+      throw error;
+    }
+  };
+
+  await patchAgentAccount();
+  console.log('Account details', account);
+  res.status(200).json({ message: 'Account updated' });
+});
+
 app.post('/client', async (req, res) => {
   console.log('Creating client');
   const db = new Firestore();

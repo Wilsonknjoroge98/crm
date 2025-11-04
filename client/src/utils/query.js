@@ -98,6 +98,27 @@ const getLeads = async ({ token, data }) => {
   }
 };
 
+const patchAccount = async ({ token, data }) => {
+  const isDev = import.meta.env.DEV;
+
+  console.log('Updating client account', data);
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'PATCH',
+    data: { account: data, mode: import.meta.env.MODE },
+    url: isDev ? `${DEV_URL}/agent-account` : `${BASE_URL}/agent-account`,
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating account:', error);
+    throw error;
+  }
+};
+
 const getAccount = async ({ token, email }) => {
   const isDev = import.meta.env.DEV;
 
@@ -753,4 +774,5 @@ export {
   getAdSpend,
   getCommissions,
   getLeads,
+  patchAccount,
 };
