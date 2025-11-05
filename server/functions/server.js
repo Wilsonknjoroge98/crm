@@ -3,8 +3,9 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const dayjs = require('dayjs');
+const crypto = require('crypto');
 // const { faker } = require('@faker-js/faker');
-const { PRODUCT_RATES } = require('./constants');
+const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
@@ -602,7 +603,7 @@ app.post('/policy', async (req, res) => {
   }
 
   // send mark lead sold to GSQ DB
-  const sendGSQEvent = async (client) => {
+  const sendToGSQ = async (client) => {
     try {
       const BODY = {
         url: `${process.env.GSQ_BASE_URL}/sold`,
@@ -624,8 +625,131 @@ app.post('/policy', async (req, res) => {
     }
   };
 
+  const getGSQLeads = async (client) => {
+    try {
+      const response = await axios.request({
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
+        },
+        params: {
+          phone: client.phone,
+          name: `${client.firstName} ${client.lastName}`,
+          email: client.email,
+        },
+        url: `${process.env.GSQ_BASE_URL}/find-leads`,
+      });
+
+      console.log('Leads fetched:', response.data.length);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+      throw error;
+    }
+  };
+
+  // TODO: does crypto need to be imported?
+  const hash = (data) => {
+    return `${crypto.createHash('sha256').update(data).digest('hex')}`;
+  };
+
+  const sendSaleToPixel = async (commission, lead, policy) => {
+    if (!lead || !lead.email || !lead.name || !lead.phone || !lead.state) {
+      console.error('Missing lead information');
+      return;
+    }
+
+    if (!policy || !policy.id) {
+      console.error('Missing policy information');
+      return;
+    }
+
+    if (!commission || commission <= 0) {
+      console.error('Invalid commission amount');
+      return;
+    }
+
+    const eventTime = Math.floor(Date.now() / 1000);
+
+    const META_PURCHASE_PAYLOAD = {
+      data: [
+        {
+          event_name: 'Purchase',
+          event_time: eventTime,
+          action_source: 'website',
+          event_source_url: 'https://getseniorquotes.com/policy',
+          event_id: `purchase-${policy.id}`,
+          user_data: {
+            client_ip_address: lead.ip,
+            client_user_agent: lead.userAgent,
+            em: hash(lead.email),
+            fn: hash(lead.name.split(' ')[0]),
+            ln: hash(lead.name.split(' ')[1]),
+            ph: hash(lead.phone),
+            db: hash(`${lead.birthYear}${lead.birthMonth}${lead.birthDay}`),
+            country: hash('US'),
+            ge: lead.sex === 'Male' ? hash('m') : hash('f'),
+            st: hash(STATE_ABBREV_MAP[lead.state]),
+          },
+          custom_data: {
+            currency: 'USD',
+            value: commission,
+            content_type: 'product',
+            content_name: `${policy.carrier} - ${policy.policyType}`,
+            contents: [
+              {
+                id: policy.policyNumber || 'unknown',
+                quantity: 1,
+                item_price: commission,
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    // Attach click identifiers if available
+    if (lead.fbc) META_PURCHASE_PAYLOAD.data[0].user_data.fbc = lead.fbc;
+    if (lead.fbp) META_PURCHASE_PAYLOAD.data[0].user_data.fbp = lead.fbp;
+
+    // Optional: add test_event_code for sandbox testing
+    if (process.env.NODE_ENV === 'development') {
+      META_PURCHASE_PAYLOAD.test_event_code = 'TEST12345';
+    }
+
+    try {
+      const res = await axios.post(process.env.META_CONVERSIONS_URL, META_PURCHASE_PAYLOAD, {
+        params: {
+          access_token: process.env.META_CONVERSIONS_TOKEN,
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Meta Purchase event sent:', res.data);
+    } catch (err) {
+      console.error('Meta Purchase event error:', err.response?.data || err.message);
+    }
+  };
+
   // send sale to Hyros
-  const sendHyrosEvent = async (commission, client, policy) => {
+  const sendSaleToHyros = async (commission, client, policy) => {
+    if (!client || !client.email || !client.phone) {
+      console.error('Missing client information for Hyros');
+      return;
+    }
+
+    if (!policy) {
+      console.error('Missing policy information for Hyros');
+      return;
+    }
+
+    if (!commission || commission <= 0) {
+      console.error('Invalid commission amount for Hyros');
+      return;
+    }
+
     const HYROS_BODY = {
       method: 'POST',
       url: 'https://api.hyros.com/v1/api/v1.0/orders',
@@ -774,7 +898,11 @@ app.post('/policy', async (req, res) => {
     const clientSnap = await clientRef.get();
     const client = clientSnap.data();
 
-    await sendGSQEvent(client);
+    try {
+      await sendToGSQ(client);
+    } catch (error) {
+      console.error('Error marking lead as sold in GSQ:', error);
+    }
 
     const source = client?.source ?? 'unknown';
 
@@ -789,16 +917,24 @@ app.post('/policy', async (req, res) => {
       const agent1 = agentData.find((a) => a.uid === agentIds[0]);
       const agent2 = agentData.find((a) => a.uid === agentIds[1]);
 
-      commission = commission + calculateCommissions(agentData, agent1, policy, splitPremium);
-      commission = commission + calculateCommissions(agentData, agent2, policy, splitPremium);
+      const agent1Commission = await calculateCommissions(agentData, agent1, policy, splitPremium);
+      const agent2Commission = await calculateCommissions(agentData, agent2, policy, splitPremium);
+
+      commission = commission + agent1Commission;
+      commission = commission + agent2Commission;
     } else {
       const agent = agentData.find((a) => a.uid === agentIds[0]);
       const premium = Math.round(policy.premiumAmount * 12);
 
-      commission = commission + calculateCommissions(agentData, agent, policy, premium);
+      const agentCommission = await calculateCommissions(agentData, agent, policy, premium);
+
+      commission = commission + agentCommission;
     }
 
-    await sendHyrosEvent(commission, client, policy);
+    const clientLeads = await getGSQLeads(client);
+
+    await sendSaleToPixel(commission, clientLeads[0], policy);
+    await sendSaleToHyros(commission, client, policy);
 
     const policyRef = await db.collection('policies').add({
       ...policy,

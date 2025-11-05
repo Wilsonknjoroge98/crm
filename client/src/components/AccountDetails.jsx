@@ -76,7 +76,7 @@ const AccountDetails = ({ data }) => {
 
         <Stack direction='row' justifyContent='space-between' alignItems='center'>
           <Typography variant='body2' color='text.secondary'>
-            Deliver:
+            Lead Flow:
           </Typography>
 
           <Switch
