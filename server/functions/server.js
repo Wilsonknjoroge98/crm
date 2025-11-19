@@ -419,12 +419,12 @@ app.get('/agents', async (req, res) => {
   }
 });
 
-app.get('/agent-account', async (req, res) => {
+app.get('/customer-account', async (req, res) => {
   const { email } = req.query;
 
   console.log('Getting account for', email);
 
-  const getAgentAccount = async () => {
+  const getCustomerAccount = async () => {
     try {
       const response = await axios.request({
         headers: {
@@ -434,7 +434,7 @@ app.get('/agent-account', async (req, res) => {
           email: email,
         },
         method: 'GET',
-        url: `${process.env.GSQ_BASE_URL}/agent-account`,
+        url: `${process.env.GSQ_BASE_URL}/customer-account`,
       });
 
       console.log('Account Fetched:', response.data);
@@ -445,12 +445,12 @@ app.get('/agent-account', async (req, res) => {
     }
   };
 
-  const account = await getAgentAccount();
+  const account = await getCustomerAccount();
   console.log('Account details', account);
   res.status(200).json(account);
 });
 
-app.patch('/agent-account', async (req, res) => {
+app.patch('/customer-account', async (req, res) => {
   const { account } = req.body;
 
   console.log('Updating account for', account);
@@ -463,7 +463,7 @@ app.patch('/agent-account', async (req, res) => {
         },
         data: { email: account.email, deliver: account.deliver },
         method: 'PATCH',
-        url: `${process.env.GSQ_BASE_URL}/agent-account`,
+        url: `${process.env.GSQ_BASE_URL}/customer-account`,
       });
 
       console.log('Account Fetched:', response.data);
@@ -659,7 +659,7 @@ app.post('/policy', async (req, res) => {
       return;
     }
 
-    if (!policy || !policy.id) {
+    if (!policy) {
       console.error('Missing policy information');
       return;
     }
@@ -678,7 +678,7 @@ app.post('/policy', async (req, res) => {
           event_time: eventTime,
           action_source: 'website',
           event_source_url: 'https://getseniorquotes.com/policy',
-          event_id: `purchase-${policy.id}`,
+          event_id: `purchase-${lead.email}-${eventTime}`,
           user_data: {
             client_ip_address: lead.ip,
             client_user_agent: lead.userAgent,
@@ -698,7 +698,7 @@ app.post('/policy', async (req, res) => {
             content_name: `${policy.carrier} - ${policy.policyType}`,
             contents: [
               {
-                id: policy.policyNumber || 'unknown',
+                id: `purchase-${lead.email}-${eventTime}`,
                 quantity: 1,
                 item_price: commission,
               },
@@ -1299,6 +1299,12 @@ app.get('/commissions', async (req, res) => {
   let annualPremiumTotal = 0;
 
   for (const policy of policies) {
+    const status = policy.policyStatus || 'active';
+    if (status.toLowerCase() === 'cancelled' || status.toLowerCase() === 'lapsed') {
+      console.log('Skipping canceled/lapsed policy:', policy.policyNumber, status);
+      continue;
+    }
+
     const effectiveDate = policy.effectiveDate;
 
     if (dayjs(effectiveDate).isBefore(startTimestamp)) {

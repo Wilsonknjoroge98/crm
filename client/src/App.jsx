@@ -59,7 +59,7 @@ const App = () => {
         {/* Footer */}
         <Stack
           sx={{
-            p: 2,
+            pb: 3,
             mt: 'auto',
             ml: '240px',
           }}
@@ -68,10 +68,10 @@ const App = () => {
           justifyContent='center'
           spacing={1}
         >
-          <Typography variant='body2' color='text.secondary'>
-            Powered by <strong>Final Expense Digital</strong>
+          <Typography variant='caption' color='text.secondary'>
+            Powered by
           </Typography>
-          <Box component='img' src='fedigital.png' sx={{ maxHeight: '35px' }} />
+          <Box component='img' src='fexdigital.png' sx={{ maxHeight: '30px', p: 1 }} />
         </Stack>
       </Stack>
     </>

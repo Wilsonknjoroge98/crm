@@ -15,6 +15,7 @@ import {
   Divider,
   Button,
   ListItemText,
+  Alert,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
@@ -76,6 +77,9 @@ const Commissions = () => {
     <Container sx={{ mt: 4 }}>
       <Stack justifyContent='space-between' spacing={2} mb={2}>
         <Typography variant='h4'>Commissions</Typography>
+        <Alert severity='info' variant='outlined'>
+          Commissions are calculated based on 12 month commission structure.
+        </Alert>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <Box display='flex' justifyContent='space-between' alignItems='center'>
             <Stack direction={'row'} spacing={2} alignItems='center'>

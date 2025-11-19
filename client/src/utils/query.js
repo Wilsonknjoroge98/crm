@@ -108,7 +108,7 @@ const patchAccount = async ({ token, data }) => {
     },
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
-    url: isDev ? `${DEV_URL}/agent-account` : `${BASE_URL}/agent-account`,
+    url: isDev ? `${DEV_URL}/customer-account` : `${BASE_URL}/customer-account`,
   };
   try {
     const response = await axios.request(options);
@@ -130,7 +130,7 @@ const getAccount = async ({ token, email }) => {
     },
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/agent-account` : `${BASE_URL}/agent-account`,
+    url: isDev ? `${DEV_URL}/customer-account` : `${BASE_URL}/customer-account`,
     params: {
       email: email,
       mode: import.meta.env.MODE,
