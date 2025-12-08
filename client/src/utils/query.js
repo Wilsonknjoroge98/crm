@@ -578,7 +578,7 @@ const getExpenses = async ({ token, startDate, endDate }) => {
   }
 };
 
-const getInsights = async ({ token }) => {
+const getInsights = async ({ token, startDate, endDate }) => {
   const isDev = import.meta.env.DEV;
 
   if (!token) {
@@ -592,7 +592,7 @@ const getInsights = async ({ token }) => {
     },
     method: 'GET',
     url: isDev ? `${DEV_URL}/insights` : `${BASE_URL}/insights`,
-    params: { mode: import.meta.env.MODE },
+    params: { mode: import.meta.env.MODE, startDate, endDate },
   };
 
   try {

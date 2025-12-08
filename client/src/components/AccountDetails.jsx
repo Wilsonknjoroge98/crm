@@ -1,4 +1,14 @@
-import { Stack, Box, Divider, Chip, Typography, Button, Checkbox, Switch } from '@mui/material';
+import {
+  Stack,
+  Box,
+  Divider,
+  Chip,
+  Typography,
+  Button,
+  Checkbox,
+  Switch,
+  IconButton,
+} from '@mui/material';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -9,7 +19,12 @@ import { enqueueSnackbar } from 'notistack';
 import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 import { useQueryClient } from '@tanstack/react-query';
 
+import UpdateStatesDialog from './UpdateStatesDialog';
+import EditIcon from '@mui/icons-material/Edit';
+
 const AccountDetails = ({ data }) => {
+  const [openStatesDlg, setOpenStatesDlg] = useState(false);
+
   const formattedDate = data?.lastIssuedDate?._seconds
     ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY')
     : 'N/A';
@@ -18,11 +33,13 @@ const AccountDetails = ({ data }) => {
   const queryClient = useQueryClient();
 
   const [deliver, setDeliver] = useState(data?.deliver);
+  const [states, setStates] = useState(data?.states || []);
 
   const { mutate, isPending } = useMutation({
     mutationFn: patchAccount,
     onSuccess: () => {
-      enqueueSnackbar('Account delivery updated!', SNACKBAR_SUCCESS_OPTIONS);
+      enqueueSnackbar('Account updated!', SNACKBAR_SUCCESS_OPTIONS);
+      if (openStatesDlg) setOpenStatesDlg(false);
       queryClient.invalidateQueries({ queryKey: ['account'] });
     },
     onError: (error) => {
@@ -34,7 +51,6 @@ const AccountDetails = ({ data }) => {
     mutate({
       token: userToken,
       data: {
-        ...data,
         deliver: deliver,
         email: agent?.email,
       },
@@ -43,6 +59,12 @@ const AccountDetails = ({ data }) => {
 
   return (
     <>
+      <UpdateStatesDialog
+        open={openStatesDlg}
+        onClose={() => setOpenStatesDlg(false)}
+        states={states}
+        mutate={mutate}
+      />
       <Stack spacing={1}>
         <Stack direction='row' justifyContent='space-between'>
           <Typography variant='body2' color='text.secondary'>
@@ -55,17 +77,17 @@ const AccountDetails = ({ data }) => {
 
         <Divider flexItem />
 
-        <Stack spacing={1}>
-          <Typography variant='body2' color='text.secondary'>
-            States:
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 0.5,
-            }}
-          >
+        <Stack spacing={1} py={1}>
+          <Box display='flex' alignItems='center' justifyContent='space-between'>
+            <Typography variant='body2' color='text.secondary'>
+              States:
+            </Typography>
+            <IconButton size='small' color='action' onClick={() => setOpenStatesDlg(true)}>
+              <EditIcon sx={{ fontSize: '1.5rem' }} />
+            </IconButton>
+          </Box>
+
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
             {data?.states?.map((state) => (
               <Chip key={state} size='small' label={state} />
             ))}

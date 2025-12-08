@@ -48,8 +48,7 @@ export default function PoliciesGrid({
         width: 100,
         sortable: true,
         filterable: true,
-        valueGetter: (value) =>
-          value.map((id) => agentNameById[id] || '').find((a) => a !== 'Shea Morales') || '',
+        valueGetter: (value) => value.map((id) => agentNameById[id] || '').join(', '),
         renderCell: (params) => {
           const value = params.value;
 

@@ -89,7 +89,6 @@ export default function ClientsGrid({
         filterable: true,
         sortable: true,
         width: 170,
-
         renderCell: (params) => {
           return params.value ? new Date(params.value).toLocaleString() : 'unknown';
         },
@@ -114,8 +113,12 @@ export default function ClientsGrid({
         headerName: 'Contact',
         flex: 1,
         width: 200,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
+        valueGetter: (value, row) => {
+          const { email, phone } = row;
+          return [email, phone].filter(Boolean).join(' ');
+        },
         renderCell: (params) => {
           const c = params.row;
           return (
@@ -210,7 +213,7 @@ export default function ClientsGrid({
       {
         field: 'source',
         headerName: 'Ad Source',
-        width: 100,
+        width: 150,
         renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {

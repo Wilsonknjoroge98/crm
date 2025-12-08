@@ -11,7 +11,6 @@ import {
   List,
   ListItem,
   Stack,
-  Avatar,
   Divider,
   Button,
   ListItemText,
