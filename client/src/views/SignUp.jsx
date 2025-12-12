@@ -9,6 +9,8 @@ import {
   Alert,
   Paper,
   Link,
+  MenuItem,
+  Stack,
 } from '@mui/material';
 import { useState } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -25,6 +27,7 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [agency, setAgency] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -44,6 +47,11 @@ export default function SignUp() {
     e.preventDefault();
     setErrorMsg('');
 
+    if (!agency) {
+      setErrorMsg('Please select an agency.');
+      return;
+    }
+
     if (password !== confirmPass) {
       setErrorMsg('Passwords do not match.');
       return;
@@ -62,6 +70,7 @@ export default function SignUp() {
           uid: user.uid,
           role: 'agent',
           level: 105,
+          agency: agency,
         },
       });
       navigate('/clients');
@@ -81,12 +90,17 @@ export default function SignUp() {
   return (
     <Box
       component={Paper}
-      elevation={4}
+      elevation={0}
       sx={{
         maxWidth: 400,
         mx: 'auto',
+        my: 4,
         p: 4,
-        borderRadius: 2,
+        boxShadow: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        alignItems: 'center',
       }}
     >
       <Typography variant='h5' gutterBottom fontWeight={600}>
@@ -97,8 +111,8 @@ export default function SignUp() {
         <TextField
           label='Name'
           type='text'
-          fullWidth
           margin='normal'
+          fullWidth
           value={name}
           onChange={(e) => setName(toTitleCase(e.target.value))}
         />
@@ -106,8 +120,8 @@ export default function SignUp() {
         <TextField
           label='Email'
           type='email'
-          fullWidth
           margin='normal'
+          fullWidth
           value={email}
           onChange={(e) => setEmail(e.target.value.toLowerCase())}
           required
@@ -116,8 +130,8 @@ export default function SignUp() {
         <TextField
           label='Password'
           type='password'
-          fullWidth
           margin='normal'
+          fullWidth
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -126,12 +140,24 @@ export default function SignUp() {
         <TextField
           label='Confirm Password'
           type='password'
-          fullWidth
           margin='normal'
+          fullWidth
           value={confirmPass}
           onChange={(e) => setConfirmPass(e.target.value)}
           required
         />
+
+        <TextField
+          select
+          fullWidth
+          margin='normal'
+          value={agency || ''}
+          onChange={(e) => setAgency(e.target.value)}
+          label='Select Agency'
+        >
+          <MenuItem value='ag_tY71LfQm'>Hourglass Life Group</MenuItem>
+          <MenuItem value='ag_Hq92aLsK'>Fearless Shepherds Financial</MenuItem>
+        </TextField>
 
         {errorMsg && (
           <Alert severity='error' sx={{ mt: 2 }}>

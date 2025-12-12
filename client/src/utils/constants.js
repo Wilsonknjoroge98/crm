@@ -143,7 +143,7 @@ export const CARRIER_PRODUCTS = {
     'JET YOUTH WHOLE LIFE',
   ],
   SBLI: ['FEX Level Death Benefit'],
-  Transamerica: ['FE', 'UL'],
+  Transamerica: ['FE', 'UL', 'Term'],
 };
 
 export const SNACKBAR_SUCCESS_OPTIONS = {

@@ -17,6 +17,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
+      'https://fearless-ins.com',
       'https://hourglasslifegroup.com',
       'https://hourglass-ef3ca.web.app',
       'http://localhost:5173',
@@ -111,6 +112,26 @@ const authMiddleware = async (req, res, next) => {
 
 app.use(authMiddleware);
 
+// function getDownline(agentId, agents) {
+//   const result = new Set([agentId]); // Include self
+//   const queue = [agentId];
+
+//   while (queue.length > 0) {
+//     const current = queue.shift();
+
+//     const children = agents.filter((a) => a.uplineUid === current);
+
+//     for (const child of children) {
+//       if (!result.has(child.id)) {
+//         result.add(child.id);
+//         queue.push(child.id);
+//       }
+//     }
+//   }
+
+//   return Array.from(result);
+// }
+
 app.get('/clients', async (req, res) => {
   const { agentId, agentRole } = req.query;
 
@@ -121,12 +142,21 @@ app.get('/clients', async (req, res) => {
   console.log('Getting clients');
   const db = new Firestore();
 
+  // const agentsSnap = await db.collection('agents').get();
+  // const agents = agentsSnap.docs.map((doc) => ({
+  //   id: doc.id,
+  //   ...doc.data(),
+  // }));
+
+  // const downlineIds = getDownline(agentId, agents);
+
   try {
     if (agentRole !== 'admin') {
       const clientQuerySnapshot = await db
         .collection('clients')
         .where('agentIds', 'array-contains', agentId)
         .get();
+
       const clients = clientQuerySnapshot.docs.map((doc) => {
         const data = doc.data();
         let createdAtMs = null;
@@ -396,6 +426,7 @@ app.get('/agent', async (req, res) => {
       return res.status(404).json({ error: 'Agent not found' });
     }
     const agentData = doc.docs[0].data();
+
     res.json(agentData);
   } catch (error) {
     console.error('Error fetching agent:', error);
@@ -2191,23 +2222,29 @@ app.delete('/expense', async (req, res) => {
 //   return null;
 // };
 
-// const updateLeads = async () => {
+// const updateAgency = async () => {
 //   const db = new Firestore();
 
-//   const policiesSnap = await db.collection('policies').get();
-//   const policies = policiesSnap.docs.map((doc) => doc.data());
-//   console.log(`Found ${policies.length} policies to check for lead updates`);
-//   for (const policy of policies) {
-//     if (policy) {
-//       console.log('Policy is active, sending GSQ event', policy.policyNumber);
-//       await sendClient(policy);
+//   const agentsSnap = await db.collection('agents').get();
+//   const agents = agentsSnap.docs.map((doc) => doc.data());
+
+//   agents.forEach(async (agent) => {
+//     console.log('Agent:', agent.name, 'Email:', agent.email, 'Role:', agent.role);
+//     const agentRef = db.collection('agents').doc(agent.email);
+//     const newAgency = [
+//       'cnmckenna@yahoo.com',
+//       'troycassidy11@gmail.com',
+//       'kyle.vassau.insurance@gmail.com',
+//     ];
+//     if (newAgency.includes(agent.email)) {
+//       await agentRef.update({ agency: 'ag_Hq92aLsK' });
 //     } else {
-//       console.log('Policy is not active, skipping', policy.policyNumber, policy.policyStatus);
+//       await agentRef.update({ agency: 'ag_tY71LfQm' });
 //     }
-//   }
+//   });
 // };
 
-// updateLeads();
+// updateAgency();
 
 // const policyTypes = {
 //   'Mutual of Omaha': ['Accidental Death', `Children's Whole Life`, 'Final Expense', 'IUL'],

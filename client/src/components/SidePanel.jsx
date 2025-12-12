@@ -24,38 +24,38 @@ import useAuth from '../hooks/useAuth';
 const drawerWidth = 240;
 
 const navItems = [
-  { text: 'Leads', icon: <StorageIcon />, path: '/leads' },
-  { text: 'Clients', icon: <PeopleIcon />, path: '/clients' },
+  { text: 'Leads', icon: <StorageIcon sx={{ color: '#f9d077' }} />, path: '/leads' },
+  { text: 'Clients', icon: <PeopleIcon sx={{ color: '#f9d077' }} />, path: '/clients' },
   {
     text: 'Policies',
-    icon: <DescriptionIcon />,
+    icon: <DescriptionIcon sx={{ color: '#f9d077' }} />,
     path: '/policies',
   },
   {
     text: 'Premiums',
-    icon: <LeaderboardIcon />,
+    icon: <LeaderboardIcon sx={{ color: '#f9d077' }} />,
     path: '/premiums',
   },
   {
     text: 'Commissions',
-    icon: <AttachMoneyIcon />,
+    icon: <AttachMoneyIcon sx={{ color: '#f9d077' }} />,
     path: '/commissions',
   },
   {
     text: 'Insights',
-    icon: <InsightsIcon />,
+    icon: <InsightsIcon sx={{ color: '#f9d077' }} />,
     path: '/insights',
     role: 'admin',
   },
   {
     text: 'Cash Flow',
-    icon: <BusinessIcon />,
+    icon: <BusinessIcon sx={{ color: '#f9d077' }} />,
     path: '/cashflow',
     role: 'admin',
   },
   {
     text: 'Purchase Leads',
-    icon: <ShoppingCartIcon />,
+    icon: <ShoppingCartIcon sx={{ color: '#f9d077' }} />,
     path: '/purchase-leads',
   },
   // {
@@ -90,6 +90,10 @@ const SidePanel = () => {
   const location = useLocation();
   const { isAuthenticated, agent } = useAuth();
 
+  // ag_tY71LfQm
+  const agency = agent?.agency;
+
+  console.log('Agency in SidePanel:', agent);
   const handleItemClick = (path) => {
     navigate(path);
   };
@@ -103,7 +107,7 @@ const SidePanel = () => {
         [`& .MuiDrawer-paper`]: {
           width: drawerWidth,
           boxSizing: 'border-box',
-          backgroundColor: '#1A1A1A',
+          backgroundColor: agency === 'ag_tY71LfQm' ? '#1A1A1A' : '#160501',
           color: '#F2F2F2',
         },
       }}
@@ -124,6 +128,7 @@ const SidePanel = () => {
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
+                    fontFamily: '"Libre Baskerville", serif',
                     backgroundColor: isActive ? '#2C2C2C' : 'transparent',
                     '&:hover': {
                       backgroundColor: '#2C2C2C',
@@ -133,7 +138,7 @@ const SidePanel = () => {
                   <ListItemIcon
                     sx={{
                       color: isActive ? '#EFBF04' : '#FFFFFF',
-                      minWidth: 40,
+                      minWidth: 30,
                     }}
                   >
                     {icon}
@@ -158,7 +163,9 @@ const SidePanel = () => {
         )}
       </Box>
       <Stack direction='row' justifyContent='center' alignContent='center' m={1}>
-        <Box component='img' src='logo.png' alt='Logo' sx={{ maxWidth: '235px' }} />
+        {agency && (
+          <Box component='img' src={`${agency}_logo.png`} alt='Logo' sx={{ maxWidth: '235px' }} />
+        )}
       </Stack>
     </Drawer>
   );

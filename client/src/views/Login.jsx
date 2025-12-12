@@ -8,7 +8,7 @@ import {
   Paper,
   Link,
 } from '@mui/material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../utils/firebase';
@@ -18,7 +18,22 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [agency, setAgency] = useState('');
   const navigate = useNavigate();
+
+  // const agency = agent?.agency || 'ag_tY71LfQm';
+  // const agency = agent?.agency || 'ag_Hq92aLsK';
+
+  // get domain name from url
+  const url = window.location.href;
+
+  useEffect(() => {
+    if (url.includes('fearless')) {
+      setAgency('ag_Hq92aLsK');
+    } else {
+      setAgency('ag_tY71LfQm');
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -33,8 +48,7 @@ const Login = () => {
       let message = 'Login failed. Please try again.';
       if (error.code === 'auth/user-not-found') message = 'User not found.';
       if (error.code === 'auth/wrong-password') message = 'Incorrect password.';
-      if (error.code === 'auth/invalid-email')
-        message = 'Invalid email address.';
+      if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
       setErrorMsg(message);
     } finally {
       setLoading(false);
@@ -44,15 +58,24 @@ const Login = () => {
   return (
     <Box
       component={Paper}
-      elevation={4}
+      elevation={0}
       sx={{
         maxWidth: 400,
         mx: 'auto',
-        my: 8,
+        my: 4,
         p: 4,
-        borderRadius: 2,
+        boxShadow: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        alignItems: 'center',
       }}
     >
+      <Box
+        component='img'
+        src={`${agency}_logo.png`}
+        sx={{ maxHeight: '200px', alignSelf: 'center', justifySelf: 'center' }}
+      />
       <Typography variant='h5' gutterBottom fontWeight={600}>
         Login
       </Typography>
