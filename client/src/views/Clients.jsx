@@ -24,6 +24,8 @@ const Clients = () => {
 
   const { user, agent, userToken } = useAuth();
 
+  console.log('agent', agent);
+
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
     queryFn: () => getAgents({ token: userToken }),

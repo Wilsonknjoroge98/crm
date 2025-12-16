@@ -148,7 +148,7 @@ const getAccount = async ({ token, email }) => {
   }
 };
 
-const getPremiums = async ({ token, startDate, endDate }) => {
+const getPremiums = async ({ token, startDate, endDate, agency }) => {
   const isDev = import.meta.env.DEV;
 
   // request config for compulife server
@@ -163,6 +163,7 @@ const getPremiums = async ({ token, startDate, endDate }) => {
       mode: import.meta.env.MODE,
       startDate,
       endDate,
+      agency,
     },
   };
 

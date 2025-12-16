@@ -76,6 +76,7 @@ export const RELATIONSHIP_OPTIONS = [
 
 export const CARRIER_PRODUCTS = {
   Aetna: ['Whole Life'],
+  Aflac: ['Final Expense'],
   'American Amicable': [
     'Family Protector',
     'Home Protector',

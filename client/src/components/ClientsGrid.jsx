@@ -8,6 +8,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useEffect, useState } from 'react';
 
 export default function ClientsGrid({
   agent,
@@ -28,7 +29,14 @@ export default function ClientsGrid({
     return map;
   }, [agents]);
 
-  const isAdmin = agent && agent['role'] === 'admin';
+  const [isAdmin, setIsAdmin] = React.useState(false);
+
+  useEffect(() => {
+    console.log('agent in ClientsGrid', agent);
+    if (agent && (agent['role'] === 'admin' || agent['role'] === 'owner')) {
+      setIsAdmin(true);
+    }
+  }, [agent]);
 
   const policyCount = (row) => row?.policyData?.length ?? 0;
 

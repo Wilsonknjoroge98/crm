@@ -151,7 +151,7 @@ app.get('/clients', async (req, res) => {
   // const downlineIds = getDownline(agentId, agents);
 
   try {
-    if (agentRole !== 'admin') {
+    if (agentRole === 'admin') {
       const clientQuerySnapshot = await db
         .collection('clients')
         .where('agentIds', 'array-contains', agentId)
@@ -186,6 +186,50 @@ app.get('/clients', async (req, res) => {
 
       const unknownClients = clients.filter((c) => c.source == 'unknown').length;
       console.log({ unknownClients });
+      res.status(200).json(clients || []);
+    } else if (agentRole === 'owner') {
+      const agentsSnap = await db.collection('agents').get();
+      const agents = agentsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const ownerSnap = await db.collection('agents').where('uid', '==', agentId).get();
+      const owner = ownerSnap.docs[0].data();
+
+      const agencyAgentIds = agents.filter((a) => a.agency === owner.agency).map((a) => a.uid);
+      console.log('agencyAgentIds', agencyAgentIds);
+
+      const clientData = await db
+        .collection('clients')
+        .where('agentIds', 'array-contains-any', agencyAgentIds)
+        .get();
+      const clients = clientData.docs.map((doc) => {
+        const data = doc.data();
+        let createdAtMs = null;
+
+        if (data.createdAt) {
+          if (typeof data.createdAt.toMillis === 'function') {
+            // Firestore Timestamp
+            createdAtMs = data.createdAt.toMillis();
+          } else if (data.createdAt instanceof Date) {
+            // Plain JS Date
+            createdAtMs = data.createdAt.getTime();
+          } else if (typeof data.createdAt === 'number') {
+            // Already a timestamp (ms)
+            createdAtMs = data.createdAt;
+          } else if (typeof data.createdAt === 'string') {
+            // Parseable string
+            createdAtMs = Date.parse(data.createdAt);
+          }
+        }
+
+        return {
+          id: doc.id,
+          createdAtMs,
+          ...data,
+        };
+      });
       res.status(200).json(clients || []);
     } else {
       const clientData = await db.collection('clients').get();
@@ -350,6 +394,51 @@ app.get('/policies', async (req, res) => {
         };
       });
 
+      res.json(policies || []);
+    } else if (agentRole === 'owner') {
+      const agentsSnap = await db.collection('agents').get();
+      const agents = agentsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const ownerSnap = await db.collection('agents').where('uid', '==', agentId).get();
+      const owner = ownerSnap.docs[0].data();
+
+      const agencyAgentIds = agents.filter((a) => a.agency === owner.agency).map((a) => a.uid);
+      console.log('agencyAgentIds', agencyAgentIds);
+
+      const policyData = await db
+        .collection('policies')
+        .where('agentIds', 'array-contains-any', agencyAgentIds)
+        .get();
+
+      const policies = policyData.docs.map((doc) => {
+        const data = doc.data();
+        let createdAtMs = null;
+
+        if (data.createdAt) {
+          if (typeof data.createdAt.toMillis === 'function') {
+            // Firestore Timestamp
+            createdAtMs = data.createdAt.toMillis();
+          } else if (data.createdAt instanceof Date) {
+            // Plain JS Date
+            createdAtMs = data.createdAt.getTime();
+          } else if (typeof data.createdAt === 'number') {
+            // Already a timestamp (ms)
+            createdAtMs = data.createdAt;
+          } else if (typeof data.createdAt === 'string') {
+            // Parseable string
+            createdAtMs = Date.parse(data.createdAt);
+          }
+        }
+
+        return {
+          id: doc.id,
+          createdAtMs,
+          ...data,
+        };
+      });
       res.json(policies || []);
     } else {
       const policyData = await db.collection('policies').get();
@@ -1148,20 +1237,20 @@ app.delete('/policy', async (req, res) => {
 });
 
 app.get('/premiums', async (req, res) => {
-  const { mode, startDate, endDate } = req.query;
+  const { mode, startDate, endDate, agency } = req.query;
 
-  if (mode === 'development') {
-    return res.status(200).json([
-      { name: 'Alice Johnson', count: 15, premiumAmount: 18000 },
-      { name: 'Bob Smith', count: 12, premiumAmount: 15000 },
-      { name: 'Charlie Brown', count: 10, premiumAmount: 12000 },
-      { name: 'Diana Prince', count: 8, premiumAmount: 10000 },
-      { name: 'Ethan Hunt', count: 7, premiumAmount: 9000 },
-      { name: 'Fiona Glenanne', count: 6, premiumAmount: 8000 },
-      { name: 'George Bailey', count: 5, premiumAmount: 7000 },
-      { name: 'Hannah Montana', count: 4, premiumAmount: 6000 },
-    ]);
-  }
+  // if (mode === 'development') {
+  //   return res.status(200).json([
+  //     { name: 'Alice Johnson', count: 15, premiumAmount: 18000 },
+  //     { name: 'Bob Smith', count: 12, premiumAmount: 15000 },
+  //     { name: 'Charlie Brown', count: 10, premiumAmount: 12000 },
+  //     { name: 'Diana Prince', count: 8, premiumAmount: 10000 },
+  //     { name: 'Ethan Hunt', count: 7, premiumAmount: 9000 },
+  //     { name: 'Fiona Glenanne', count: 6, premiumAmount: 8000 },
+  //     { name: 'George Bailey', count: 5, premiumAmount: 7000 },
+  //     { name: 'Hannah Montana', count: 4, premiumAmount: 6000 },
+  //   ]);
+  // }
 
   console.log('Getting leaderboard');
   const db = new Firestore();
@@ -1169,14 +1258,21 @@ app.get('/premiums', async (req, res) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    const policiesSnapshot = await db.collection('policies').get();
-    const policies = policiesSnapshot.docs.map((doc) => ({
+    const agentsSnapshot = await db.collection('agents').get();
+    const agents = agentsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
 
-    const agentsSnapshot = await db.collection('agents').get();
-    const agents = agentsSnapshot.docs.map((doc) => ({
+    const agencyAgents = agents.filter((a) => (agency ? a.agency === agency : true));
+    const agencyAgentIds = agencyAgents.map((a) => a.uid);
+
+    const policiesSnapshot = await db
+      .collection('policies')
+      .where('agentIds', 'array-contains-any', agencyAgentIds)
+      .get();
+
+    const policies = policiesSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));

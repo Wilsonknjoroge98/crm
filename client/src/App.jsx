@@ -61,8 +61,7 @@ const App = () => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'flex-start',
-
-            // ml: '240px',
+            ml: pathname !== '/login' && pathname !== '/signup' ? '240px' : 0,
             // mt: user ? 0 : isMediumScreen ? 3 : 20,
           }}
         >

@@ -35,7 +35,7 @@ const Premiums = () => {
   const [startDate, setStartDate] = useState(dayjs().add(-30, 'day').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [totalPremium, setTotalPremium] = useState(0);
-  const { userToken } = useAuth();
+  const { userToken, agent } = useAuth();
   const theme = useTheme();
 
   const {
@@ -51,6 +51,7 @@ const Premiums = () => {
         token: userToken,
         startDate,
         endDate,
+        agency: agent?.agency || '',
       }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

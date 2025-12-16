@@ -4,6 +4,7 @@ import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import { Stack, Typography, Chip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useEffect, useState } from 'react';
 
 export default function PoliciesGrid({
   agent,
@@ -15,6 +16,7 @@ export default function PoliciesGrid({
   setPolicy,
   setDeletePolicyOpen,
 }) {
+  const [isAdmin, setIsAdmin] = useState(false);
   const agentNameById = React.useMemo(() => {
     const map = {};
     (agents || []).forEach((a) => {
@@ -31,11 +33,12 @@ export default function PoliciesGrid({
     Cancelled: { label: 'Cancelled', bgcolor: 'error.main' },
   };
 
-  const isAdmin = agent && agent['role'] === 'admin';
-
-  for (const p of policies) {
-    console.log('createdAt', p.createdAtMs);
-  }
+  useEffect(() => {
+    console.log('agent in ClientsGrid', agent);
+    if (agent && (agent['role'] === 'admin' || agent['role'] === 'owner')) {
+      setIsAdmin(true);
+    }
+  }, [agent]);
 
   const columns = React.useMemo(() => {
     const cols = [];
