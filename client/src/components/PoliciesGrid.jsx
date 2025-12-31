@@ -4,6 +4,12 @@ import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import { Stack, Typography, Chip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import WarningIcon from '@mui/icons-material/Warning';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import CancelIcon from '@mui/icons-material/Cancel';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
+
 import { useEffect, useState } from 'react';
 
 export default function PoliciesGrid({
@@ -26,11 +32,15 @@ export default function PoliciesGrid({
   }, [agents]);
 
   const statusConfig = {
-    Active: { label: 'Active', bgcolor: 'success.main' },
-    Pending: { label: 'Pending', bgcolor: 'info.main' },
-    Lapsed: { label: 'Lapsed', bgcolor: 'warning.main' },
-    'Insufficient Funds': { label: 'Insufficient Funds', bgcolor: 'warning.main' },
-    Cancelled: { label: 'Cancelled', bgcolor: 'error.main' },
+    Active: { label: 'Active', icon: <CheckCircleIcon color='success' />, color: 'success.main' },
+    Pending: { label: 'Pending', icon: <AutorenewIcon color='success' />, color: 'info.main' },
+    Lapsed: { label: 'Lapsed', icon: <WarningIcon color='error' />, color: 'warning.main' },
+    'Insufficient Funds': {
+      label: 'Insufficient Funds',
+      icon: <AccountBalanceIcon color='error' />,
+      color: 'warning.main',
+    },
+    Cancelled: { label: 'Cancelled', icon: <CancelIcon color='error' />, color: 'error.main' },
   };
 
   useEffect(() => {
@@ -151,21 +161,16 @@ export default function PoliciesGrid({
           const cfg = statusConfig?.[status] || {};
           return (
             <Stack
-              sx={{
-                py: 2,
-                width: '100%',
-                overflowX: 'auto',
-                justifyContent: 'center',
-              }}
+              direction='row'
+              spacing={1}
+              py={2}
+              alignItems='center'
+              sx={{ color: 'text.primary' }}
             >
-              <Chip
-                label={status}
-                sx={{
-                  color: cfg.color || 'inherit',
-                  backgroundColor: cfg.bgcolor || 'transparent',
-                }}
-                size='small'
-              />
+              {cfg.icon && cfg.icon}
+              <Typography variant='caption' sx={{ mb: 0.5 }}>
+                {status}
+              </Typography>
             </Stack>
           );
         },
@@ -175,6 +180,7 @@ export default function PoliciesGrid({
         headerName: 'Ad Source',
         flex: 1,
         minWidth: 80,
+        hidden: true,
         renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {

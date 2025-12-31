@@ -7,52 +7,46 @@ export const createAppTheme = ({ agency }) => {
   return createTheme({
     palette: {
       primary: {
-        main: agency === 'ag_Hq92aLsK' ? '#160501' : '#1A1A1A', // Black or alternative color
+        main: agency === 'ag_Hq92aLsK' ? '#0C0B0A' : '#0C0B0A', // Black or alternative color
         contrastText: '#F2F2F2',
       },
       secondary: {
-        main: agency === 'ag_Hq92aLsK' ? '#7a5f37' : '#4A4A4A', // Charcoal or alternative color
+        main: agency === 'ag_Hq92aLsK' ? '#7a5f37' : '#8F6A2A', // Charcoal or alternative color
         contrastText: '#F2F2F2',
       },
       action: {
-        main: agency === 'ag_Hq92aLsK' ? '#442b0f' : '#CA9837', // Gold
+        main: agency === 'ag_Hq92aLsK' ? '#442b0f' : '#B8923C', // Gold
         contrastText: agency === 'ag_Hq92aLsK' ? '#F2F2F2' : '#1A1A1A',
       },
       accent: {
-        main: '#5DA9E9', // Light Blue
+        main: agency === 'ag_Hq92aLsK' ? '#2F5D8A' : '#2F4E6F', // Light Blue
       },
       info: {
-        main: '#D6EAF8',
+        main: agency === 'ag_Hq92aLsK' ? '#DCE6EF' : '#D6EAF8',
         alertBackground: '#e5f6fd',
         alertTextColor: '#2E3A59',
         alertIconColor: '#1C7EBB',
         contrastText: '#1A1A1A',
       },
       warning: {
-        main: '#FCF3CF',
-        contrastText: '#1A1A1A',
-        alertBackground: '#fff4e6',
-        alertTextColor: '#7A4A00',
-        alertIconColor: '#D48806',
+        main: agency === 'ag_Hq92aLsK' ? '#C9A24D' : '#C9A24D',
       },
       success: {
-        main: '#D5F5E3',
-        contrastText: '#1A1A1A',
+        main: '#3F6F5B',
+        light: '#E6F1EC',
+        contrastText: '#1E3D32',
       },
       error: {
-        main: '#FADBD8',
-        alertBackground: '#fff1f0',
-        alertTextColor: '#611A15',
-        alertIconColor: '#D32F2F',
-        contrastText: '#1A1A1A',
+        main: agency === 'ag_Hq92aLsK' ? '#8B2E2E' : '#8B2E2E',
       },
       background: {
-        default: '#F2F2F2',
+        default: agency === 'ag_Hq92aLsK' ? '#F7F5F2' : '#F7F5F2',
         paper: '#FFFFFF',
       },
       text: {
-        primary: '#1A1A1A',
-        secondary: '#4A4A4A',
+        primary: '#1C1A17',
+        secondary: '#5F5A52',
+        disabled: '#9C958A',
       },
     },
 
@@ -114,34 +108,34 @@ export const createAppTheme = ({ agency }) => {
           },
         },
       },
-      MuiAlert: {
-        styleOverrides: {
-          standardInfo: ({ theme }) => ({
-            marginBottom: theme.spacing(2),
-            color: alpha(theme.palette.info.alertTextColor, 0.9),
-            backgroundColor: alpha(theme.palette.info.alertBackground, 0.9),
-            '& .MuiAlert-icon': {
-              color: alpha(theme.palette.info.alertIconColor, 0.9),
-            },
-          }),
-          standardWarning: ({ theme }) => ({
-            marginBottom: theme.spacing(2),
-            color: alpha(theme.palette.warning.alertTextColor, 0.9),
-            backgroundColor: alpha(theme.palette.warning.alertBackground, 0.9),
-            '& .MuiAlert-icon': {
-              color: alpha(theme.palette.warning.alertIconColor, 0.9),
-            },
-          }),
-          standardError: ({ theme }) => ({
-            marginBottom: theme.spacing(2),
-            color: alpha(theme.palette.error.alertTextColor, 0.9),
-            backgroundColor: alpha(theme.palette.error.alertBackground, 0.9),
-            '& .MuiAlert-icon': {
-              color: alpha(theme.palette.error.alertIconColor, 0.9),
-            },
-          }),
-        },
-      },
+      // MuiAlert: {
+      //   styleOverrides: {
+      //     standardInfo: ({ theme }) => ({
+      //       marginBottom: theme.spacing(2),
+      //       color: alpha(theme.palette.info.alertTextColor, 0.9),
+      //       backgroundColor: alpha(theme.palette.info.alertBackground, 0.9),
+      //       '& .MuiAlert-icon': {
+      //         color: alpha(theme.palette.info.alertIconColor, 0.9),
+      //       },
+      //     }),
+      //     standardWarning: ({ theme }) => ({
+      //       marginBottom: theme.spacing(2),
+      //       color: alpha(theme.palette.warning.alertTextColor, 0.9),
+      //       backgroundColor: alpha(theme.palette.warning.alertBackground, 0.9),
+      //       '& .MuiAlert-icon': {
+      //         color: alpha(theme.palette.warning.alertIconColor, 0.9),
+      //       },
+      //     }),
+      //     standardError: ({ theme }) => ({
+      //       marginBottom: theme.spacing(2),
+      //       color: alpha(theme.palette.error.alertTextColor, 0.9),
+      //       backgroundColor: alpha(theme.palette.error.alertBackground, 0.9),
+      //       '& .MuiAlert-icon': {
+      //         color: alpha(theme.palette.error.alertIconColor, 0.9),
+      //       },
+      //     }),
+      //   },
+      // },
       MuiInputBase: {
         styleOverrides: {
           root: {

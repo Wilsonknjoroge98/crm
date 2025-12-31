@@ -10,10 +10,9 @@ import {
   Divider,
   InputAdornment,
   LinearProgress,
+  Stack,
   CircularProgress,
 } from '@mui/material';
-
-const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 import { enqueueSnackbar } from 'notistack';
 
@@ -53,6 +52,25 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
   const inputRef = useRef(null);
 
+  const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
+  const leadSourceOptions = [
+    'GetSeniorQuotes.com',
+    'Ethos',
+    'Life Jacket',
+    'Legacy Term',
+    'Freedom Life',
+    'Veteran Exclusive',
+    'LeadConex',
+    'Arise',
+    'CRM Center',
+    'ILC',
+    'Closer Tech',
+    'StrongPoint',
+    'NeverBroke',
+    'Referral',
+    'Self Generated',
+  ];
+
   useEffect(() => {
     if (lead) {
       setForm({
@@ -61,6 +79,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         email: lead.email || '',
         phone: lead.phone || '',
         dob: lead.dob || '',
+        leadSource: 'GetSeniorQuotes.com',
         maritalStatus: '',
         address: '',
         city: '',
@@ -193,6 +212,25 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
       <DialogTitle sx={{ fontWeight: 700 }}>New Client</DialogTitle>
       <DialogContent sx={{ mt: 1 }}>
         <Grid container spacing={2} p={2}>
+          <Grid item size={12}>
+            <TextField
+              sx={{ width: '100%' }}
+              select
+              disabled={!!lead}
+              name='leadSource'
+              label='Lead Source'
+              value={form.leadSource}
+              onChange={handleChange}
+              fullWidth
+              required
+            >
+              {leadSourceOptions.map((source) => (
+                <MenuItem key={source} value={source}>
+                  {source}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
           <Grid item size={6}>
             <TextField
               name='firstName'

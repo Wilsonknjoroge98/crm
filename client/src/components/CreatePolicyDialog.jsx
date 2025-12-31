@@ -52,7 +52,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     policyStatus: 'Active',
     coverageAmount: '',
     premiumAmount: '',
-    leadSource: 'GetSeniorQuotes.com',
+    leadSource: client?.leadSource || 'GetSeniorQuotes.com',
     policyType: '',
     premiumFrequency: '',
     dateSold: '',

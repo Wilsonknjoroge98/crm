@@ -6,9 +6,9 @@ const DEV_URL = import.meta.env.VITE_DEV_URL;
 const getClients = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
-  const { agentId, agentRole } = data || {};
+  const { agentId, agentRole, agency } = data || {};
 
-  if (!agentId || !agentRole) {
+  if (!agentId || !agentRole || !agency) {
     return [];
   }
   // request config for compulife server
@@ -23,13 +23,9 @@ const getClients = async ({ token, data }) => {
       agentId: agentId,
       agentRole: agentRole,
       mode: import.meta.env.MODE,
+      agency: agency,
     },
   };
-
-  // abort request when notified by react-query
-  // signal?.addEventListener('abort', () => {
-  //   controller.abort();
-  // });
 
   try {
     const response = await axios.request(options);
@@ -54,9 +50,8 @@ const getLeads = async ({ token, data }) => {
   console.log('Fetching leads with data:', data);
   const isDev = import.meta.env.DEV;
 
-  const { agentId, agentRole } = data || {};
-
-  if (!agentId || !agentRole) {
+  const { agentId, agentRole, agency } = data || {};
+  if (!agentId || !agentRole || !agency) {
     return [];
   }
   // request config for compulife server
@@ -71,6 +66,7 @@ const getLeads = async ({ token, data }) => {
       agentId: agentId,
       agentRole: agentRole,
       mode: import.meta.env.MODE,
+      agency: agency,
     },
   };
 
@@ -148,7 +144,7 @@ const getAccount = async ({ token, email }) => {
   }
 };
 
-const getPremiums = async ({ token, startDate, endDate, agency }) => {
+const getPremiumLeaderboard = async ({ token, startDate, endDate, agency }) => {
   const isDev = import.meta.env.DEV;
 
   // request config for compulife server
@@ -157,7 +153,6 @@ const getPremiums = async ({ token, startDate, endDate, agency }) => {
       Authorization: `Bearer ${token}`,
     },
     method: 'GET',
-    // signal: signal,
     url: isDev ? `${DEV_URL}/premiums` : `${BASE_URL}/premiums`,
     params: {
       mode: import.meta.env.MODE,
@@ -167,10 +162,184 @@ const getPremiums = async ({ token, startDate, endDate, agency }) => {
     },
   };
 
-  // abort request when notified by react-query
-  // signal?.addEventListener('abort', () => {
-  //   controller.abort();
-  // });
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting policies:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
+const getPremiumPerLead = async ({ token, agency }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/premiums/per-lead` : `${BASE_URL}/premiums/per-lead`,
+    params: {
+      mode: import.meta.env.MODE,
+
+      agency,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting policies:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
+const getMonthlyPremiums = async ({ token, agency }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/premiums/monthly` : `${BASE_URL}/premiums/monthly`,
+    params: {
+      mode: import.meta.env.MODE,
+      agency,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting policies:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
+const getPersistencyRates = async ({ token, agency }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/persistency-rates` : `${BASE_URL}/persistency-rates`,
+    params: {
+      mode: import.meta.env.MODE,
+
+      agency,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting policies:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
+const getCloseRates = async ({ token, agency }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/close-rates` : `${BASE_URL}/close-rates`,
+    params: {
+      mode: import.meta.env.MODE,
+
+      agency,
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting policies:', error);
+    // Rethrow for React Query to recognize it
+    if (axios.isAxiosError(error)) {
+      // Optional: normalize structure
+      const status = error.response?.status ?? 500;
+      const message = error.response?.data?.message || error.message;
+      const err = new Error(message);
+      err.status = status;
+      throw err;
+    }
+    throw error;
+  }
+};
+
+const getPolicyStatuses = async ({ token, agency }) => {
+  const isDev = import.meta.env.DEV;
+
+  // request config for compulife server
+  const options = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: 'GET',
+    url: isDev ? `${DEV_URL}/policies/statuses` : `${BASE_URL}/policies/statuses`,
+    params: {
+      mode: import.meta.env.MODE,
+
+      agency,
+    },
+  };
 
   try {
     const response = await axios.request(options);
@@ -283,9 +452,9 @@ const getCommissions = async ({ token, startDate, endDate, agent }) => {
 const getPolicies = async ({ token, data }) => {
   const isDev = import.meta.env.DEV;
 
-  const { agentId, agentRole } = data || {};
+  const { agentId, agentRole, agency } = data || {};
 
-  if (!agentId || !agentRole) {
+  if (!agentId || !agentRole || !agency) {
     return [];
   }
 
@@ -301,6 +470,7 @@ const getPolicies = async ({ token, data }) => {
       agentId: agentId,
       agentRole: agentRole,
       mode: import.meta.env.MODE,
+      agency: agency,
     },
   };
 
@@ -753,6 +923,25 @@ const deletePolicy = async ({ token, data }) => {
   return response.data;
 };
 
+const postError = async (data) => {
+  if (!data?.message || !data?.stack || !data?.route || !data?.uid) {
+    throw new Error('Missing data');
+  }
+
+  const controller = new AbortController();
+
+  const options = {
+    method: 'POST',
+    data: data,
+    signal: controller.signal,
+    url: isDev ? `${DEV_URL}/error` : `${BASE_URL}/error`,
+  };
+
+  const response = await axios.request(options);
+
+  return response.data;
+};
+
 export {
   getClients,
   getPolicies,
@@ -767,8 +956,13 @@ export {
   deletePolicy,
   getAgents,
   getInsights,
-  getPremiums,
+  getPremiumLeaderboard,
+  getMonthlyPremiums,
+  getPremiumPerLead,
   getStripeCharges,
+  getPolicyStatuses,
+  getPersistencyRates,
+  getCloseRates,
   postExpense,
   deleteExpense,
   getExpenses,
@@ -776,4 +970,5 @@ export {
   getCommissions,
   getLeads,
   patchAccount,
+  postError,
 };

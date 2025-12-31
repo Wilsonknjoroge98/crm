@@ -15,6 +15,7 @@
     "@googlemaps/js-api-loader": "^1.16.10",
     "@mui/icons-material": "^7.2.0",
     "@mui/material": "^7.2.0",
+    "@mui/x-charts": "^8.23.0",
     "@mui/x-data-grid": "^8.10.1",
     "@mui/x-date-pickers": "^8.9.2",
     "@reduxjs/toolkit": "^2.8.2",

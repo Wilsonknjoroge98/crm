@@ -1,7 +1,6 @@
 import { Card, Container, Typography, CardContent, Paper, Button, Stack, Box } from '@mui/material';
 import { useEffect } from 'react';
 
-import theme from '../utils/theme';
 import Divider from '@mui/material/Divider';
 
 const Purchase = () => {
@@ -70,6 +69,18 @@ const Purchase = () => {
 
         <Typography variant='caption' color='text.secondary' textAlign='center'>
           Secure payment powered by Stripe.
+        </Typography>
+
+        <Typography>
+          Manage your subscription{' '}
+          <a
+            href='https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00'
+            target='_blank'
+            rel='noopener noreferrer'
+          >
+            here
+          </a>
+          .
         </Typography>
       </Stack>
     </Container>

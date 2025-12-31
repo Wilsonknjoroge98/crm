@@ -22,19 +22,16 @@ const App = () => {
   const { user, agent } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  // const agency = agent?.agency || 'ag_tY71LfQm';
 
   const agency = agent?.agency || 'ag_Hq92aLsK';
 
   const theme = useMemo(() => createAppTheme({ agency }), [agency]);
 
-  // const isMediumScreen = useMediaQuery((themex) => themex.breakpoints.down('xl'));
-
   useEffect(() => {
     if (pathname === '/signup') return;
 
     if (user) {
-      navigate('/clients');
+      navigate('/dashboard');
     } else {
       navigate('/login');
     }
@@ -73,17 +70,16 @@ const App = () => {
           sx={{
             pb: 3,
             mt: 'auto',
-            // ml: '240px',
           }}
           direction='row'
           alignItems='center'
           justifyContent='center'
           spacing={1}
         >
-          <Typography variant='caption' color='text.secondary'>
+          <Typography variant='caption' fontWeight={500} color='text.primary'>
             Powered by
           </Typography>
-          <Box component='img' src='fexdigital.png' sx={{ maxHeight: '30px', p: 1 }} />
+          <Box component='img' src='fexdigital.png' sx={{ maxHeight: '30px', py: 1 }} />
         </Stack>
       </Stack>
     </ThemeProvider>

@@ -30,7 +30,7 @@ const Policies = () => {
     queryFn: () =>
       getPolicies({
         token: userToken,
-        data: { agentId: user.uid, agentRole: agent.role },
+        data: { agentId: user.uid, agentRole: agent.role, agency: agent?.agency },
       }),
     enabled: !!agent,
     refetchOnWindowFocus: false,

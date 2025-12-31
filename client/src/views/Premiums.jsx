@@ -26,7 +26,7 @@ import dayjs from 'dayjs';
 
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
-import { getPremiums } from '../utils/query';
+import { getPremiumLeaderboard } from '../utils/query';
 
 import RefreshIcon from '@mui/icons-material/Refresh';
 import useAuth from '../hooks/useAuth';
@@ -47,7 +47,7 @@ const Premiums = () => {
   } = useQuery({
     queryKey: ['data'],
     queryFn: () =>
-      getPremiums({
+      getPremiumLeaderboard({
         token: userToken,
         startDate,
         endDate,

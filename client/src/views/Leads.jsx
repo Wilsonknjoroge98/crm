@@ -31,7 +31,7 @@ const Leads = () => {
     queryFn: () =>
       getLeads({
         token: userToken,
-        data: { agentId: user.uid, agentRole: agent.role },
+        data: { agentId: user.uid, agentRole: agent.role, agency: agent?.agency },
       }),
     enabled: !!agent && !!userToken,
     refetchOnWindowFocus: false,

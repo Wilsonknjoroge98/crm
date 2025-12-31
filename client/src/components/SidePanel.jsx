@@ -12,10 +12,10 @@ import PeopleIcon from '@mui/icons-material/People';
 import DescriptionIcon from '@mui/icons-material/Description';
 import InsightsIcon from '@mui/icons-material/Insights';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import BusinessIcon from '@mui/icons-material/Business';
 import StorageIcon from '@mui/icons-material/Storage';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import { useTheme } from '@mui/material/styles';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -23,80 +23,58 @@ import useAuth from '../hooks/useAuth';
 
 const drawerWidth = 240;
 
-const navItems = [
-  { text: 'Leads', icon: <StorageIcon sx={{ color: '#f9d077' }} />, path: '/leads' },
-  { text: 'Clients', icon: <PeopleIcon sx={{ color: '#f9d077' }} />, path: '/clients' },
-  {
-    text: 'Policies',
-    icon: <DescriptionIcon sx={{ color: '#f9d077' }} />,
-    path: '/policies',
-  },
-  {
-    text: 'Premiums',
-    icon: <LeaderboardIcon sx={{ color: '#f9d077' }} />,
-    path: '/premiums',
-  },
-  {
-    text: 'Commissions',
-    icon: <AttachMoneyIcon sx={{ color: '#f9d077' }} />,
-    path: '/commissions',
-  },
-  {
-    text: 'Insights',
-    icon: <InsightsIcon sx={{ color: '#f9d077' }} />,
-    path: '/insights',
-    role: 'admin',
-  },
-  {
-    text: 'Cash Flow',
-    icon: <BusinessIcon sx={{ color: '#f9d077' }} />,
-    path: '/cashflow',
-    role: 'admin',
-  },
-  {
-    text: 'Purchase Leads',
-    icon: <ShoppingCartIcon sx={{ color: '#f9d077' }} />,
-    path: '/purchase-leads',
-  },
-  // {
-  //   text: 'Lead Vendors',
-  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-  //   path: '/lead-vendors',
-  // },
-  // {
-  //   text: 'Expenses',
-  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-  //   path: '/expenses',
-  // },
-  // {
-  //   text: 'Agent Hierarchy',
-  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-  //   path: '/agent-hierarchy',
-  // },
-  // {
-  //   text: 'Printing Services',
-  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-  //   path: '/printing',
-  // },
-  // {
-  //   text: 'Reports',
-  //   icon: <BuildIcon sx={{ color: '#4A4A4A' }} />,
-  //   path: '/reports',
-  // },
-];
-
 const SidePanel = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, agent } = useAuth();
+  const theme = useTheme();
 
-  // ag_tY71LfQm
   const agency = agent?.agency;
 
-  console.log('Agency in SidePanel:', agent);
   const handleItemClick = (path) => {
     navigate(path);
   };
+
+  const navItems = [
+    {
+      text: 'Dashboard',
+      icon: <LeaderboardIcon sx={{ color: '#f9d076' }} />,
+      path: '/dashboard',
+    },
+    {
+      text: 'Leads',
+      icon: <StorageIcon sx={{ color: '#f9d076' }} />,
+      path: '/leads',
+    },
+    {
+      text: 'Clients',
+      icon: <PeopleIcon sx={{ color: '#f9d076' }} />,
+      path: '/clients',
+    },
+    {
+      text: 'Policies',
+      icon: <DescriptionIcon sx={{ color: '#f9d076' }} />,
+      path: '/policies',
+    },
+
+    {
+      text: 'Insights',
+      icon: <InsightsIcon sx={{ color: '#f9d076' }} />,
+      path: '/insights',
+      role: 'admin',
+    },
+    {
+      text: 'Cash Flow',
+      icon: <BusinessIcon sx={{ color: '#f9d076' }} />,
+      path: '/cashflow',
+      role: 'admin',
+    },
+    {
+      text: 'Purchase Leads',
+      icon: <ShoppingCartIcon sx={{ color: '#f9d076' }} />,
+      path: '/purchase-leads',
+    },
+  ];
 
   return (
     <Drawer
@@ -104,52 +82,71 @@ const SidePanel = () => {
       sx={{
         width: drawerWidth,
         flexShrink: 0,
-        [`& .MuiDrawer-paper`]: {
+        '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
-          backgroundColor: agency === 'ag_tY71LfQm' ? '#1A1A1A' : '#160501',
-          color: '#F2F2F2',
+          backgroundColor: theme.palette.primary.main,
+          color: theme.palette.text.primary,
+          borderRight: '1px solid rgba(255,255,255,0.06)',
         },
       }}
     >
       <Box height={64} />
-      <Box sx={{ height: '100%' }}>
-        {isAuthenticated && (
-          <List>
-            {navItems.map(({ text, icon, path, role }, index) => {
-              const isActive = location.pathname === path;
 
-              if (role === 'admin' && agent?.role !== 'admin') {
-                return null;
-              }
+      <Box sx={{ px: 1.5 }}>
+        {isAuthenticated && (
+          <List disablePadding>
+            {navItems.map(({ text, icon, path, role }) => {
+              if (role === 'admin' && agent?.role !== 'admin') return null;
+
+              const isActive = location.pathname === path;
 
               return (
                 <ListItem
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
-                    fontFamily: '"Libre Baskerville", serif',
-                    backgroundColor: isActive ? '#2C2C2C' : 'transparent',
+                    mb: 0.5,
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: 1.5,
+                    cursor: 'pointer',
+                    position: 'relative',
+                    backgroundColor: isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
                     '&:hover': {
-                      backgroundColor: '#2C2C2C',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
                     },
+                    '&::before': isActive
+                      ? {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: '20%',
+                          height: '60%',
+                          width: '3px',
+                          borderRadius: '2px',
+                          backgroundColor: '#EFBF04',
+                        }
+                      : {},
                   }}
                 >
                   <ListItemIcon
                     sx={{
-                      color: isActive ? '#EFBF04' : '#FFFFFF',
-                      minWidth: 30,
+                      minWidth: 32,
+                      color: isActive ? '#EFBF04' : 'rgba(255,255,255,0.65)',
                     }}
                   >
                     {icon}
                   </ListItemIcon>
+
                   <ListItemText
                     primary={
                       <Typography
-                        variant='caption'
                         sx={{
-                          fontWeight: 500,
-                          color: '#F2F2F2',
+                          fontSize: '0.9rem',
+                          fontWeight: isActive ? 600 : 500,
+                          letterSpacing: '0.2px',
+                          color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
                         }}
                       >
                         {text}
@@ -162,9 +159,28 @@ const SidePanel = () => {
           </List>
         )}
       </Box>
-      <Stack direction='row' justifyContent='center' alignContent='center' m={1}>
+
+      {/* Footer / Branding */}
+      <Stack
+        direction='row'
+        justifyContent='center'
+        alignItems='center'
+        sx={{
+          mt: 'auto',
+          py: 2,
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+        }}
+      >
         {agency && (
-          <Box component='img' src={`${agency}_logo.png`} alt='Logo' sx={{ maxWidth: '235px' }} />
+          <Box
+            component='img'
+            src={`${agency}_logo.png`}
+            alt='Logo'
+            sx={{
+              maxWidth: 180,
+              opacity: 0.85,
+            }}
+          />
         )}
       </Stack>
     </Drawer>

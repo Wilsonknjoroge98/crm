@@ -9,6 +9,7 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useEffect, useState } from 'react';
+import WarningIcon from '@mui/icons-material/Warning';
 
 export default function ClientsGrid({
   agent,
@@ -184,15 +185,19 @@ export default function ClientsGrid({
           const policies = (c && c.policyData) || [];
           if (!policies.length) {
             return (
-              <Stack
-                sx={{
-                  py: 2,
-                  width: '100%',
-                  overflowX: 'auto',
-                  justifyContent: 'center',
-                }}
-              >
-                <Chip sx={{ color: '#000' }} color='error' label='Missing Policies' size='small' />
+              <Stack direction='row' spacing={0} alignItems='center' justifyContent='center' py={2}>
+                {/* <Chip
+                  icon={<WarningIcon color='warning' />}
+                  sx={{ color: '#000' }}
+                  color='transparent'
+                  label='Missing Policies'
+                  size='small'
+                /> */}
+
+                <WarningIcon color='error' sx={{ mr: 1 }} />
+                <Typography variant='caption' sx={{ color: 'text.primary' }}>
+                  Missing Policies
+                </Typography>
               </Stack>
             );
           }
@@ -206,13 +211,23 @@ export default function ClientsGrid({
               }}
             >
               {policies.map((p) => (
-                <Chip
-                  key={p.id}
-                  size='small'
-                  label={`${(carrierMap && carrierMap[p.carrier]) || p.carrier} | #${
-                    p.policyNumber
-                  }`}
-                />
+                // <Chip
+                //   key={p.id}
+                //   size='small'
+                //   label={`${(carrierMap && carrierMap[p.carrier]) || p.carrier} | #${
+                //     p.policyNumber
+                //   }`}
+                // />
+                <>
+                  <Typography key={p.id} variant='caption' sx={{ color: 'text.primary' }}>{`${
+                    (carrierMap && carrierMap[p.carrier]) || p.carrier
+                  }`}</Typography>
+                  <Typography
+                    key={p.id}
+                    variant='caption'
+                    sx={{ color: 'text.primary' }}
+                  >{`#${p.policyNumber}`}</Typography>
+                </>
               ))}
             </Stack>
           );

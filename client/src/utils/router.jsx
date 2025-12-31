@@ -13,11 +13,14 @@ const Commissions = lazy(() => import('../views/Commissions'));
 const CashFlow = lazy(() => import('../views/CashFlow'));
 const Leads = lazy(() => import('../views/Leads'));
 const Purchase = lazy(() => import('../views/Purchase'));
+const Dashboard = lazy(() => import('../views/Dashboard'));
+import ErrorBoundary from '../views/ErrorBoundary';
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         path: '/premiums',
@@ -123,6 +126,27 @@ const router = createBrowserRouter([
             }
           >
             <Leads />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/dashboard',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Dashboard />
           </Suspense>
         ),
       },
