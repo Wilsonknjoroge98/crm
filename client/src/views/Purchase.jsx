@@ -25,63 +25,104 @@ const Purchase = () => {
   ];
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Stack alignItems='center' spacing={3}>
-        <Typography variant='h5' fontWeight={700}>
-          Weekly Lead Package
-        </Typography>
+    <Container sx={{ mt: 6 }}>
+      <Stack alignItems='center' spacing={4}>
+        {/* Page Title */}
+        <Stack spacing={0.5} alignItems='center'>
+          <Typography variant='h4' fontWeight={700}>
+            Weekly Lead Package
+          </Typography>
+        </Stack>
 
+        {/* Pricing Card */}
         <Card
           variant='outlined'
           sx={{
-            borderRadius: 3,
-            width: 350,
+            borderRadius: 4,
+            width: 380,
             textAlign: 'center',
-            transition: 'all 0.2s ease',
-            p: 1,
+            p: 2,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
           }}
         >
           <CardContent>
-            <Stack></Stack>
-            <Typography variant='body2' fontWeight={700}>
-              10 - 14 Leads / Week @ $36 per lead
-            </Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography variant='body2' fontWeight={700}>
-              15 - 29 Leads / Week @ $35 per lead
-            </Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography variant='body2' fontWeight={700}>
-              30 - 44 Leads / Week @ $34 per lead
-            </Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography variant='body2' fontWeight={700}>
-              45+ Leads / Week @ $33 per lead
-            </Typography>
-            <Box display='flex' justifyContent='center' sx={{ mt: 2 }}>
+            {/* Card Header */}
+            <Stack spacing={1.5} mb={3}>
+              <Typography variant='h6' fontWeight={600}>
+                Lead Volume Pricing
+              </Typography>
+              <Typography variant='caption' color='text.secondary'>
+                Volume discounts applied automatically
+              </Typography>
+            </Stack>
+
+            {/* Pricing Tiers */}
+            <Stack spacing={1.5} mb={3}>
+              <Stack direction='row' justifyContent='space-between'>
+                <Typography variant='body2'>10–14 leads / week</Typography>
+                <Typography variant='body2' fontWeight={600}>
+                  $36 / lead
+                </Typography>
+              </Stack>
+
+              <Stack direction='row' justifyContent='space-between'>
+                <Typography variant='body2'>15–29 leads / week</Typography>
+                <Typography variant='body2' fontWeight={600}>
+                  $35 / lead
+                </Typography>
+              </Stack>
+
+              <Stack direction='row' justifyContent='space-between'>
+                <Typography variant='body2'>30–44 leads / week</Typography>
+                <Typography variant='body2' fontWeight={600}>
+                  $34 / lead
+                </Typography>
+              </Stack>
+
+              <Stack direction='row' justifyContent='space-between'>
+                <Typography variant='body2'>45+ leads / week</Typography>
+                <Typography variant='body2' fontWeight={600}>
+                  $33 / lead
+                </Typography>
+              </Stack>
+            </Stack>
+
+            {/* CTA */}
+            <Box display='flex' justifyContent='center' mt={2}>
               <stripe-buy-button
                 buy-button-id='buy_btn_1SPOupDVQvSJ0t4H61Od5kSK'
                 publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
-              ></stripe-buy-button>
+              />
             </Box>
           </CardContent>
         </Card>
 
-        <Typography variant='caption' color='text.secondary' textAlign='center'>
-          Secure payment powered by Stripe.
-        </Typography>
+        {/* Trust + Secondary Actions */}
+        <Stack spacing={1} alignItems='center'>
+          <Typography variant='body2'>
+            Get <strong>2 free leads</strong> when your clients leave a review{' '}
+            <a
+              href='https://g.page/r/Cae_g-5KWKUtEAI/review'
+              target='_blank'
+              rel='noopener noreferrer'
+            >
+              here
+            </a>
+            .
+          </Typography>
 
-        <Typography>
-          Manage your subscription{' '}
-          <a
-            href='https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            here
-          </a>
-          .
-        </Typography>
+          <Typography variant='body2'>
+            Manage your subscription{' '}
+            <a
+              href='https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00'
+              target='_blank'
+              rel='noopener noreferrer'
+            >
+              here
+            </a>
+            .
+          </Typography>
+        </Stack>
       </Stack>
     </Container>
   );

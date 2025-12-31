@@ -31,7 +31,7 @@ const App = () => {
     if (pathname === '/signup') return;
 
     if (user) {
-      navigate('/dashboard');
+      navigate('/clients');
     } else {
       navigate('/login');
     }
