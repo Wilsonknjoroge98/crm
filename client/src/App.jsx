@@ -70,6 +70,7 @@ const App = () => {
           sx={{
             pb: 3,
             mt: 'auto',
+            width: '100%',
           }}
           direction='row'
           alignItems='center'

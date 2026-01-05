@@ -1790,9 +1790,6 @@ app.get('/insights', async (req, res) => {
   const totalSales = Object.values(maps.known).reduce((s, n) => s + n, 0) || 1;
   const unknownClients = maps.all['unknown'] || 0;
 
-  // ---------------------------------------------------------------------
-  // META MARKETING API — VIA AXIOS
-  // ---------------------------------------------------------------------
   const accessToken = process.env.META_MARKETING_ACCESS_TOKEN;
 
   // 1. GET ALL ADS (name + id)

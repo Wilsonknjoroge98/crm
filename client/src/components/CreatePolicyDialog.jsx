@@ -29,10 +29,8 @@ import {
 } from '../utils/constants';
 
 import { NumericFormat } from 'react-number-format';
-
 import DeleteIcon from '@mui/icons-material/Delete';
 import { enqueueSnackbar } from 'notistack';
-
 import useAuth from '../hooks/useAuth';
 import { toTitleCase } from '../utils/helpers';
 

@@ -166,7 +166,7 @@ export default function ClientsGrid({
           const zip = c.zip || '';
           return (
             <Stack sx={{ width: '100%', height: '100%', justifyContent: 'center' }}>
-              <Typography variant='caption'>{`${street}, ${city}, ${state} ${zip}`}</Typography>
+              <Typography variant='caption'>{`${street}, ${city}`}</Typography>
               <Typography variant='caption'>{`${state} ${zip}`}</Typography>
             </Stack>
           );

@@ -11,6 +11,7 @@ import {
   InputAdornment,
   LinearProgress,
   Stack,
+  Alert,
   CircularProgress,
 } from '@mui/material';
 
@@ -98,7 +99,11 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   }
   const { user, userToken } = useAuth();
 
-  const { mutate: createClient, isPending } = useMutation({
+  const {
+    mutate: createClient,
+    isPending,
+    error,
+  } = useMutation({
     mutationFn: postClient,
     onSuccess: () => {
       if (typeof refetchClients === 'function') {
@@ -411,6 +416,11 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               rows={3}
             />
           </Grid>
+          {error && (
+            <Alert severity='error' sx={{ mb: 2, width: '100%', p: 2 }}>
+              {error.message}
+            </Alert>
+          )}
         </Grid>
       </DialogContent>
 

@@ -516,11 +516,23 @@ const postClient = async ({ token, data }) => {
     url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
   };
 
-  // response from server
-  const response = await axios.request(options);
+  try {
+    const response = await axios.request(options);
 
-  // return to component
-  return response.data;
+    // return to component
+    return response.data;
+  } catch (error) {
+    console.error('Error posting policy:', error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 500;
+
+      if (status === 409) throw new Error('Client already exists');
+      throw new Error('Internal Server Error');
+    }
+
+    throw error;
+  }
 };
 
 const patchClient = async ({ token, data }) => {

@@ -1,7 +1,5 @@
-import { Card, Container, Typography, CardContent, Paper, Button, Stack, Box } from '@mui/material';
+import { Card, Container, Typography, CardContent, Stack, Box } from '@mui/material';
 import { useEffect } from 'react';
-
-import Divider from '@mui/material/Divider';
 
 const Purchase = () => {
   useEffect(() => {
@@ -30,7 +28,7 @@ const Purchase = () => {
         {/* Page Title */}
         <Stack spacing={0.5} alignItems='center'>
           <Typography variant='h4' fontWeight={700}>
-            Weekly Lead Package
+            Purchase Leads
           </Typography>
         </Stack>
 
@@ -49,7 +47,7 @@ const Purchase = () => {
             {/* Card Header */}
             <Stack spacing={1.5} mb={3}>
               <Typography variant='h6' fontWeight={600}>
-                Lead Volume Pricing
+                Weekly Lead Package
               </Typography>
               <Typography variant='caption' color='text.secondary'>
                 Volume discounts applied automatically
@@ -97,6 +95,47 @@ const Purchase = () => {
           </CardContent>
         </Card>
 
+        <Card
+          variant='outlined'
+          sx={{
+            borderRadius: 4,
+            width: 380,
+            textAlign: 'center',
+            p: 2,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+          }}
+        >
+          <CardContent>
+            {/* Card Header */}
+            <Stack spacing={1.5} mb={3}>
+              <Typography variant='h6' fontWeight={600}>
+                Live Transfer Leads
+              </Typography>
+              <Typography variant='caption' color='text.secondary'>
+                Charged <strong>only if call lasts 60+ seconds</strong>
+              </Typography>
+            </Stack>
+
+            {/* Price */}
+            <Stack spacing={0.5} mb={3}>
+              <Typography variant='h3' fontWeight={700}>
+                $50
+              </Typography>
+              <Typography variant='body2' color='text.secondary'>
+                per qualified transfer
+              </Typography>
+            </Stack>
+
+            {/* CTA */}
+            <Box display='flex' justifyContent='center' mt={2}>
+              <stripe-buy-button
+                buy-button-id='buy_btn_1SmE05DVQvSJ0t4HljYOJPKa'
+                publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
+              ></stripe-buy-button>
+            </Box>
+          </CardContent>
+        </Card>
+
         {/* Trust + Secondary Actions */}
         <Stack spacing={1} alignItems='center'>
           <Typography variant='body2'>
@@ -112,7 +151,7 @@ const Purchase = () => {
           </Typography>
 
           <Typography variant='body2'>
-            Manage your subscription{' '}
+            Manage your weekly subscription{' '}
             <a
               href='https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00'
               target='_blank'
