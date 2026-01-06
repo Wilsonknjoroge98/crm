@@ -2628,7 +2628,7 @@ const testSlackBot = async () => {
       annualPremium: '1800',
       carrier: 'Mutual of Omaha',
     });
-    const client = new WebClient('xoxb-10207408573399-10224158481447-Bes3qxxcoixnBakZI8eWhQ2m');
+    const client = new WebClient('');
     const response = await client.chat.postMessage({
       channel: '#sales-posts',
       text: 'New policy sold',
