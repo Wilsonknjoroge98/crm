@@ -40,12 +40,13 @@ const AgentPerformanceTabs = () => {
           }}
         >
           <Tab
-            label='Premium / Lead*'
+            label='Premium Total'
             sx={{
               fontWeight: 600,
               minHeight: 36,
             }}
           />
+
           <Tab
             label='Close Rate*'
             sx={{
@@ -53,6 +54,7 @@ const AgentPerformanceTabs = () => {
               minHeight: 36,
             }}
           />
+
           <Tab
             label='Persistency Rate'
             sx={{
@@ -61,7 +63,7 @@ const AgentPerformanceTabs = () => {
             }}
           />
           <Tab
-            label='Premium Total'
+            label='Premium / Lead*'
             sx={{
               fontWeight: 600,
               minHeight: 36,
@@ -72,7 +74,7 @@ const AgentPerformanceTabs = () => {
         {/* Content */}
 
         <TabPanel value={tab} index={0}>
-          <PremiumPerLeadTab />
+          <PremiumLeaderboardTab />
         </TabPanel>
 
         <TabPanel value={tab} index={1}>
@@ -84,7 +86,7 @@ const AgentPerformanceTabs = () => {
         </TabPanel>
 
         <TabPanel value={tab} index={3}>
-          <PremiumLeaderboardTab />
+          <PremiumPerLeadTab />
         </TabPanel>
       </Stack>
     </Stack>

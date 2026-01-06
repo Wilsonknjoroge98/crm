@@ -68,7 +68,7 @@ const Insights = () => {
   }
 
   const columns = [
-    { field: 'creative', headerName: 'Creative', flex: 1, minWidth: 150 },
+    { field: 'creative', headerName: 'Creative', flex: 1, minWidth: 300 },
     { field: 'sales', headerName: 'Sales', flex: 1, width: 100 },
     {
       field: 'spend',

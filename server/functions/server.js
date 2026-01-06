@@ -4,6 +4,7 @@ const axios = require('axios');
 const app = express();
 const dayjs = require('dayjs');
 const crypto = require('crypto');
+const { WebClient } = require('@slack/web-api');
 // const { faker } = require('@faker-js/faker');
 const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
 
@@ -838,7 +839,7 @@ app.post('/policy', async (req, res) => {
           event_name: 'Purchase',
           event_time: eventTime,
           action_source: 'website',
-          event_source_url: 'https://getseniorquotes.com/policy',
+          event_source_url: 'https://getseniorquotes.com',
           event_id: `purchase-${lead.email}-${eventTime}`,
           user_data: {
             client_ip_address: lead.ip,
@@ -1386,15 +1387,17 @@ app.get('/premiums/monthly', async (req, res) => {
     }
 
     // 3. Fetch policies
-    const policiesSnapshot = await db
-      .collection('policies')
-      .where('agentIds', 'array-contains-any', agencyAgentIds)
-      .get();
+    const policiesSnapshot = await db.collection('policies').get();
 
     const policies = policiesSnapshot.docs.map((doc) => doc.data());
 
+    const agencyPolicies = policies.filter((policy) => {
+      const policyAgentIds = policy.agentIds || [];
+      return policyAgentIds.some((id) => agencyAgentIds.includes(id));
+    });
+
     // 4. Bucket policies into months
-    for (const policy of policies) {
+    for (const policy of agencyPolicies) {
       if (!policy.effectiveDate || !policy.premiumAmount) continue;
 
       const effectiveDate = new Date(policy.effectiveDate);
@@ -1457,19 +1460,21 @@ app.get('/premiums', async (req, res) => {
     const agencyAgents = agents.filter((a) => (agency ? a.agency === agency : true));
     const agencyAgentIds = agencyAgents.map((a) => a.uid);
 
-    const policiesSnapshot = await db
-      .collection('policies')
-      .where('agentIds', 'array-contains-any', agencyAgentIds)
-      .get();
+    const policiesSnapshot = await db.collection('policies').get();
 
     const policies = policiesSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
 
+    const agencyPolicies = policies.filter((policy) => {
+      const policyAgentIds = policy.agentIds || [];
+      return policyAgentIds.some((id) => agencyAgentIds.includes(id));
+    });
+
     const leaderboard = {};
 
-    for (const policy of policies) {
+    for (const policy of agencyPolicies) {
       // const effectiveDate = new Date(policy.effectiveDate);
 
       // if (new Date(effectiveDate) < start) {
@@ -1643,16 +1648,18 @@ app.get('/policies/statuses', async (req, res) => {
       .map((a) => a.uid);
 
     // 3. Fetch policies
-    const policiesSnapshot = await db
-      .collection('policies')
-      .where('agentIds', 'array-contains-any', agencyAgentIds)
-      .get();
+    const policiesSnapshot = await db.collection('policies').get();
 
     const policies = policiesSnapshot.docs.map((doc) => doc.data());
 
-    const activePolicies = policies.filter((p) => p.policyStatus === 'Active').length;
-    const pendingPolicies = policies.filter((p) => p.policyStatus === 'Pending').length;
-    const lapsedPolicies = policies.filter(
+    const agencyPolicies = policies.filter((policy) => {
+      const policyAgentIds = policy.agentIds || [];
+      return policyAgentIds.some((id) => agencyAgentIds.includes(id));
+    });
+
+    const activePolicies = agencyPolicies.filter((p) => p.policyStatus === 'Active').length;
+    const pendingPolicies = agencyPolicies.filter((p) => p.policyStatus === 'Pending').length;
+    const lapsedPolicies = agencyPolicies.filter(
       (p) =>
         p.policyStatus === 'Lapsed' ||
         p.policyStatus === 'Cancelled' ||
@@ -2601,6 +2608,39 @@ app.post('/error', async (req, res) => {
 
   res.status(200).send({ message: 'Error saved successfully' });
 });
+
+function buildPolicySlackPayload({ agentName, product, annualPremium, carrier, effectiveDate }) {
+  return `*New Policy Sold!*
+*Effective Date:* ${effectiveDate || dayjs().format('MM/DD/YYYY')}
+*Agent:* John Smith
+*Product:* Final Expense
+*Monthly Premium / AP:* $87.50 / $1,050
+*Carrier:* Mutual of Omaha
+*State:* TX
+`;
+}
+
+const testSlackBot = async () => {
+  try {
+    const blocks = buildPolicySlackPayload({
+      agentName: 'Shea Morales',
+      product: 'IUL',
+      annualPremium: '1800',
+      carrier: 'Mutual of Omaha',
+    });
+    const client = new WebClient('xoxb-10207408573399-10224158481447-Bes3qxxcoixnBakZI8eWhQ2m');
+    const response = await client.chat.postMessage({
+      channel: '#sales-posts',
+      text: 'New policy sold',
+      blocks,
+    });
+    console.log('Slack bot test message sent:', response.ts);
+  } catch (error) {
+    console.error('Error testing Slack bot:', error.response?.data || error.message);
+  }
+};
+
+// testSlackBot();
 
 // const updatePolicies = async () => {
 //   const db = new Firestore();
