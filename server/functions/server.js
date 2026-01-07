@@ -1054,6 +1054,50 @@ app.post('/policy', async (req, res) => {
     return sheaCommission;
   };
 
+  function buildPolicySlackPayload({ agentName, product, annualPremium, carrier, effectiveDate }) {
+    return {
+      text: 'New GSQ Sale!',
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `
+*🚨 POLICY SOLD 🚨*
+Agent: ${agentName}
+Product: ${product}
+Carrier: ${carrier}
+AP: $${Number(annualPremium).toLocaleString()}
+EFT: ${effectiveDate || dayjs().format('MM/DD')}
+          `.trim(),
+          },
+        },
+        {
+          type: 'divider',
+        },
+      ],
+    };
+  }
+
+  try {
+    const payload = buildPolicySlackPayload({
+      agentName: agentSnapshot.docs[0].data().name,
+      product: policy.policyType,
+      effectiveDate: dayjs(policy.effectiveDate).format('MM/DD'),
+      annualPremium: Math.round(policy.premiumAmount * 12),
+      carrier: policy.carrier,
+    });
+    const client = new WebClient(process.env.SLACK_BOT_TOKEN);
+    const response = await client.chat.postMessage({
+      channel: '#sales',
+      text: payload.text,
+      blocks: payload.blocks,
+    });
+    console.log('Slack bot test message sent:', response.ts);
+  } catch (error) {
+    console.error('Error testing Slack bot:', error.response?.data || error.message);
+  }
+
   try {
     const clientRef = db.collection('clients').doc(clientId);
 
@@ -2609,38 +2653,6 @@ app.post('/error', async (req, res) => {
   res.status(200).send({ message: 'Error saved successfully' });
 });
 
-function buildPolicySlackPayload({ agentName, product, annualPremium, carrier, effectiveDate }) {
-  return `*New Policy Sold!*
-*Effective Date:* ${effectiveDate || dayjs().format('MM/DD/YYYY')}
-*Agent:* John Smith
-*Product:* Final Expense
-*Monthly Premium / AP:* $87.50 / $1,050
-*Carrier:* Mutual of Omaha
-*State:* TX
-`;
-}
-
-const testSlackBot = async () => {
-  try {
-    const blocks = buildPolicySlackPayload({
-      agentName: 'Shea Morales',
-      product: 'IUL',
-      annualPremium: '1800',
-      carrier: 'Mutual of Omaha',
-    });
-    const client = new WebClient('');
-    const response = await client.chat.postMessage({
-      channel: '#sales-posts',
-      text: 'New policy sold',
-      blocks,
-    });
-    console.log('Slack bot test message sent:', response.ts);
-  } catch (error) {
-    console.error('Error testing Slack bot:', error.response?.data || error.message);
-  }
-};
-
-// testSlackBot();
 
 // const updatePolicies = async () => {
 //   const db = new Firestore();
