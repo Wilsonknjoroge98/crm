@@ -70,6 +70,7 @@ const Insights = () => {
   const columns = [
     { field: 'creative', headerName: 'Creative', flex: 1, minWidth: 300 },
     { field: 'sales', headerName: 'Sales', flex: 1, width: 100 },
+    { field: 'leads', headerName: 'Leads', flex: 1, width: 100 },
     {
       field: 'spend',
       headerName: 'Spend',
@@ -77,6 +78,38 @@ const Insights = () => {
       minWidth: 100,
       sortable: true,
       align: 'left',
+      renderCell: (params) => {
+        const row = params.row;
+        if (row.creative === 'google' || row.creative === 'facebook-organic') {
+          return '—';
+        }
+
+        const value = params.value;
+        return `$${Number(value).toLocaleString()}`;
+      },
+    },
+    {
+      field: 'averagePremium',
+      headerName: 'Avg. Premium',
+      align: 'left',
+      flex: 1,
+      minWidth: 120,
+      sortable: true,
+      renderCell: (params) => {
+        const value = params.value;
+        if (isNaN(value) || value === '0' || value === 0) {
+          return '—';
+        }
+        return `$${Number(value).toLocaleString()}`;
+      },
+    },
+    {
+      field: 'cpl',
+      headerName: 'Cost Per Lead',
+      align: 'left',
+      flex: 1,
+      minWidth: 100,
+      sortable: true,
       renderCell: (params) => {
         const row = params.row;
         if (row.creative === 'google' || row.creative === 'facebook-organic') {
@@ -101,21 +134,6 @@ const Insights = () => {
         }
 
         const value = params.value;
-        return `$${Number(value).toLocaleString()}`;
-      },
-    },
-    {
-      field: 'averagePremium',
-      headerName: 'Avg. Premium',
-      align: 'left',
-      flex: 1,
-      minWidth: 120,
-      sortable: true,
-      renderCell: (params) => {
-        const value = params.value;
-        if (isNaN(value) || value === '0' || value === 0) {
-          return '—';
-        }
         return `$${Number(value).toLocaleString()}`;
       },
     },

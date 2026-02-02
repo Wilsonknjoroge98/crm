@@ -29,23 +29,24 @@ import useAuth from '../hooks/useAuth';
 
 import { toTitleCase } from '../utils/helpers';
 
-const initialForm = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  dob: '',
-  maritalStatus: '',
-  address: '',
-  city: '',
-  state: '',
-  zip: '',
-  occupation: '',
-  income: '',
-  notes: '',
-};
-
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
+  const initialForm = {
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    dob: '',
+    maritalStatus: '',
+    leadSource: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+    occupation: '',
+    income: '',
+    notes: '',
+  };
+
   const [form, setForm] = useState(initialForm);
   const [phoneError, setPhoneError] = useState(false);
   const [zipCodeError, setZipCodeError] = useState(false);
@@ -191,6 +192,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   };
 
   const handleSubmit = () => {
+    console.log('Submitting form:', form);
     createClient({
       token: userToken,
       data: { ...form, agentIds: [user.uid] },
@@ -426,28 +428,14 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
-        {isPending ? (
-          <CircularProgress
-            variant='indeterminate'
-            sx={{
-              ml: 1,
-              color: 'action.main',
-              width: '100%',
-              height: '100%',
-              borderRadius: 'inherit',
-            }}
-          />
-        ) : (
-          <Button
-            onClick={handleSubmit}
-            disabled={disabled || isPending}
-            sx={{ ml: 1 }}
-            variant='contained'
-            color='action'
-          >
-            Save Client
-          </Button>
-        )}
+        <Button
+          onClick={handleSubmit}
+          variant='contained'
+          color='action'
+          disabled={disabled || isPending}
+        >
+          {isPending ? 'Saving...' : 'Save Client'}
+        </Button>
       </DialogActions>
     </Dialog>
   );

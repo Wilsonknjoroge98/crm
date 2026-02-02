@@ -15,12 +15,67 @@ const Purchase = () => {
     };
   }, []);
 
-  const priceMap = [
-    { count: '10 Leads / Week', price: '$36 per lead' },
-    { count: '11 - 29 Leads / Week', price: '$35 per lead' },
-    { count: '30 - 44 Leads / Week', price: '$34 per lead' },
-    { count: '45+ Leads / Week', price: '$33 per lead' },
-  ];
+  const accountDetail = {
+    ringySid: 'iSjqib3bgrzvjbtf1bw8psqmzm7ct7za',
+    ringyToken: 'gdlxpcd9ksrur96ja8rbrmeqysd7q6ms',
+    states: [
+      'AK',
+      'AL',
+      'AZ',
+      'CA',
+      'CO',
+      'IA',
+      'IN',
+      'KY',
+      'LA',
+      'MD',
+      'MI',
+      'MO',
+      'MS',
+      'NC',
+      'ND',
+      'NM',
+      'NV',
+      'OH',
+      'OK',
+      'TN',
+      'TX',
+      'VA',
+      'WA',
+      'WI',
+      'WV',
+      'NJ',
+      'IL',
+      'VT',
+      'SD',
+      'HI',
+      'MN',
+      'NE',
+      'MA',
+      'OR',
+      'ME',
+      'PA',
+      'UT',
+      'KS',
+      'ID',
+      'RI',
+      'AR',
+      'CT',
+      'DE',
+      'MT',
+      'NH',
+      'SC',
+      'WY',
+    ],
+    verified: true,
+    unverified: false,
+    name: 'Sam Atherton',
+    deliver: true,
+    leadCredits: 0,
+    weight: 1,
+    lastIssuedDate: { _seconds: 1769131512, _nanoseconds: 607000000 },
+    outstandingLeads: 0,
+  };
 
   return (
     <Container sx={{ mt: 6 }}>
@@ -49,48 +104,24 @@ const Purchase = () => {
               <Typography variant='h6' fontWeight={600}>
                 Weekly Lead Package
               </Typography>
-              <Typography variant='caption' color='text.secondary'>
-                Volume discounts applied automatically
-              </Typography>
             </Stack>
 
             {/* Pricing Tiers */}
-            <Stack spacing={1.5} mb={3}>
-              <Stack direction='row' justifyContent='space-between'>
-                <Typography variant='body2'>10–14 leads / week</Typography>
-                <Typography variant='body2' fontWeight={600}>
-                  $36 / lead
-                </Typography>
-              </Stack>
-
-              <Stack direction='row' justifyContent='space-between'>
-                <Typography variant='body2'>15–29 leads / week</Typography>
-                <Typography variant='body2' fontWeight={600}>
-                  $35 / lead
-                </Typography>
-              </Stack>
-
-              <Stack direction='row' justifyContent='space-between'>
-                <Typography variant='body2'>30–44 leads / week</Typography>
-                <Typography variant='body2' fontWeight={600}>
-                  $34 / lead
-                </Typography>
-              </Stack>
-
-              <Stack direction='row' justifyContent='space-between'>
-                <Typography variant='body2'>45+ leads / week</Typography>
-                <Typography variant='body2' fontWeight={600}>
-                  $33 / lead
-                </Typography>
-              </Stack>
+            <Stack spacing={0.5} mb={3}>
+              <Typography variant='h3' fontWeight={700}>
+                $39
+              </Typography>
+              <Typography variant='body2' color='text.secondary'>
+                per qualified lead
+              </Typography>
             </Stack>
 
             {/* CTA */}
             <Box display='flex' justifyContent='center' mt={2}>
               <stripe-buy-button
-                buy-button-id='buy_btn_1SPOupDVQvSJ0t4H61Od5kSK'
+                buy-button-id='buy_btn_1Stg0ZDVQvSJ0t4H3fOuyl2W'
                 publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
-              />
+              ></stripe-buy-button>
             </Box>
           </CardContent>
         </Card>
@@ -119,7 +150,7 @@ const Purchase = () => {
             {/* Price */}
             <Stack spacing={0.5} mb={3}>
               <Typography variant='h3' fontWeight={700}>
-                $50
+                $60
               </Typography>
               <Typography variant='body2' color='text.secondary'>
                 per qualified transfer
@@ -129,7 +160,7 @@ const Purchase = () => {
             {/* CTA */}
             <Box display='flex' justifyContent='center' mt={2}>
               <stripe-buy-button
-                buy-button-id='buy_btn_1SmE05DVQvSJ0t4HljYOJPKa'
+                buy-button-id='buy_btn_1Stg5mDVQvSJ0t4HJzlmDNPd'
                 publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
               ></stripe-buy-button>
             </Box>
@@ -139,7 +170,7 @@ const Purchase = () => {
         {/* Trust + Secondary Actions */}
         <Stack spacing={1} alignItems='center'>
           <Typography variant='body2'>
-            Get <strong>2 free leads</strong> when your clients leave a review{' '}
+            Get <strong>1 free lead</strong> when your clients leave a review{' '}
             <a
               href='https://g.page/r/Cae_g-5KWKUtEAI/review'
               target='_blank'

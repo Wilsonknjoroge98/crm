@@ -1,14 +1,4 @@
-import {
-  Stack,
-  Box,
-  Divider,
-  Chip,
-  Typography,
-  Button,
-  Checkbox,
-  Switch,
-  IconButton,
-} from '@mui/material';
+import { Stack, Box, Divider, Chip, Typography, Switch, IconButton } from '@mui/material';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -56,7 +46,7 @@ const AccountDetails = ({ data }) => {
       },
     });
   }, [deliver]);
-
+  // TODO: data.verified + data.unverified lead type counts
   return (
     <>
       <UpdateStatesDialog
@@ -72,6 +62,22 @@ const AccountDetails = ({ data }) => {
           </Typography>
           <Typography variant='body2' fontWeight='bold'>
             {data?.outstandingLeads}
+          </Typography>
+        </Stack>
+        <Stack direction='row' justifyContent='space-between'>
+          <Typography variant='body2' color='text.secondary'>
+            Verified Leads:
+          </Typography>
+          <Typography variant='body2' fontWeight='bold'>
+            {data?.verified}
+          </Typography>
+        </Stack>
+        <Stack direction='row' justifyContent='space-between'>
+          <Typography variant='body2' color='text.secondary'>
+            Unverified Leads:
+          </Typography>
+          <Typography variant='body2' fontWeight='bold'>
+            {data?.unverified}
           </Typography>
         </Stack>
 

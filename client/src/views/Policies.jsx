@@ -76,8 +76,8 @@ const Policies = () => {
       : getAgentEmail(agents, policy?.agentIds[0]),
   }));
 
-  const handleUpdatePolicy = (policyData) => {
-    setPolicy(policyData);
+  const handleUpdatePolicy = (data) => {
+    setPolicy(data);
     setUpdatePolicyOpen(true);
   };
 

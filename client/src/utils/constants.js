@@ -75,8 +75,8 @@ export const RELATIONSHIP_OPTIONS = [
 ];
 
 export const CARRIER_PRODUCTS = {
-  Aetna: ['Whole Life'],
-  Aflac: ['Final Expense'],
+  'Aetna': ['Whole Life'],
+  'Aflac': ['Final Expense'],
   'American Amicable': [
     'Family Protector',
     'Home Protector',
@@ -87,16 +87,16 @@ export const CARRIER_PRODUCTS = {
     'XUL',
   ],
   'American Home Life': ['FE'],
-  Americo: ['Eagle Select', 'HMS 125', 'IUL', 'Term 100'],
-  Ameritas: ['CLEAR EDGE TERM', 'IUL'],
+  'Americo': ['Eagle Select', 'HMS 125', 'IUL', 'Term 100'],
+  'Ameritas': ['CLEAR EDGE TERM', 'IUL'],
   'Baltimore Life': ['iProvide', 'aPriority'],
   'Combined by Chubb': [
     'Preferred Final Expense',
     'Standard Final Expense',
     'Graded Final Expense',
   ],
-  Corebridge: ['GIWL', 'SIWL'],
-  Ethos: [
+  'Corebridge': ['GIWL', 'SIWL'],
+  'Ethos': [
     'Ameritas IUL',
     'Ameritas SI Term',
     'JH ROP',
@@ -105,7 +105,7 @@ export const CARRIER_PRODUCTS = {
     'TruStage SITL',
     'TruStage TAWL',
   ],
-  Foresters: [
+  'Foresters': [
     'Advantage Plus II',
     'Bright Future Childrens WL',
     'Planright FEX',
@@ -116,7 +116,7 @@ export const CARRIER_PRODUCTS = {
   ],
   'Illinois Mutual': ['Final Expense'],
   'Kansas City Life': ['SIGNATURE TERM', 'SIGNATURE TERM ROP'],
-  Ladder: ['TERM'],
+  'Ladder': ['TERM'],
   'Liberty Bankers Insurance Group': [
     'FLEX 4 LIFE WL PAID AT AGE 100',
     'FLEX 4 LIFE WL PAID IN 10 YEARS',
@@ -132,7 +132,7 @@ export const CARRIER_PRODUCTS = {
     'Term Life Answers',
     'Term Life Express',
   ],
-  NLG: ['Term', 'Universal Life'],
+  'NLG': ['Term', 'Universal Life'],
   'North American': ['BUILDER PLUS 3', 'PROTECTION BUILDER IUL', 'SMART BUILDER 2 IUL'],
   'Pekin Life': ['Transitional Term'],
   'Royal Neighbors of America': [
@@ -143,8 +143,9 @@ export const CARRIER_PRODUCTS = {
     'JET WHOLE LIFE',
     'JET YOUTH WHOLE LIFE',
   ],
-  SBLI: ['FEX Level Death Benefit'],
-  Transamerica: ['FE', 'UL', 'Term'],
+  'SBLI': ['FEX Level Death Benefit'],
+  'Transamerica': ['FE', 'UL', 'Term'],
+  'United Home Life': ['Final Expense', 'Provider Whole Life', 'Term', 'Protector AD'],
 };
 
 export const SNACKBAR_SUCCESS_OPTIONS = {

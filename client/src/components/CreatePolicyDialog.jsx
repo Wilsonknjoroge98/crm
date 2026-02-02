@@ -39,7 +39,6 @@ const statuses = ['Active', 'Pending', 'Lapsed', 'Insufficient Funds', 'Cancelle
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
-
   const { user, userToken } = useAuth();
 
   const initialForm = {
@@ -204,12 +203,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     if (modifiedForm.beneficiaries.length !== 0) {
       const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
-        keys.some((key) => b[key] === ''),
+        keys.some((key) => b[key] === '')
       );
 
       const shareValue = modifiedForm.beneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0,
+        0
       );
 
       if (hasEmptyFields || shareValue !== 100) {
@@ -222,12 +221,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     if (modifiedForm.contingentBeneficiaries.length !== 0) {
       const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
-        keys.some((key) => b[key] === ''),
+        keys.some((key) => b[key] === '')
       );
 
       const shareValue = modifiedForm.contingentBeneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0,
+        0
       );
 
       if (hasEmptyFields || shareValue !== 100) {
@@ -301,7 +300,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 >
                   {agents.length !== 0 &&
                     agents.map((agent) => {
-                      if (agent.uid === user.uid) return null; // Skip current user
+                      if (agent.uid === user.uid) return null;
                       return (
                         <MenuItem key={agent.uid} value={agent.uid}>
                           {agent.name}
