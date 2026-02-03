@@ -4,6 +4,7 @@ const axios = require('axios');
 const app = express();
 const dayjs = require('dayjs');
 const crypto = require('crypto');
+const logger = require('firebase-functions/logger');
 const { WebClient } = require('@slack/web-api');
 const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
 
@@ -560,8 +561,8 @@ app.get('/expenses', async (req, res) => {
 app.get('/premiums', async (req, res) => {
   const { agency, startDate, endDate } = req.query;
 
-  console.log('Getting leaderboard');
-  console.log({ startDate, endDate });
+  logger.log('Getting leaderboard');
+  logger.log({ startDate, endDate });
 
   // if (mode === 'development') {
   //   return res.status(200).json([
@@ -617,14 +618,6 @@ app.get('/premiums', async (req, res) => {
         continue;
       }
 
-      console.log({
-        policy: policy.policyNumber,
-        soldDate,
-        soldParsed: new Date(soldDate).toISOString(),
-        start: start.toISOString(),
-        end: end.toISOString(),
-      });
-
       policy.agentIds = policy.agentIds || [];
       policy.premiumAmount = Number(policy.premiumAmount) || 0;
 
@@ -657,7 +650,7 @@ app.get('/premiums', async (req, res) => {
 
     const topLeaderboardArray = leaderboardArray.slice(0, 10);
 
-    console.log('Leaderboard data:', topLeaderboardArray);
+    logger.log('Leaderboard data:', topLeaderboardArray);
 
     res.status(200).json(topLeaderboardArray);
   } catch (error) {
