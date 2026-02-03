@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "hourglass-ef3ca"
+    "default": "hourglass-ef3ca",
+    "staging": "crm-dev-dde35"
   }
 }

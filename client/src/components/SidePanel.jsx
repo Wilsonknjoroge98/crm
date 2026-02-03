@@ -37,7 +37,7 @@ const SidePanel = () => {
 
   const navItems = [
     {
-      text: 'Dashboard',
+      text: 'Leaderboard',
       icon: <LeaderboardIcon sx={{ color: '#f9d076' }} />,
       path: '/dashboard',
     },
@@ -80,8 +80,8 @@ const SidePanel = () => {
     <Drawer
       variant='permanent'
       sx={{
-        width: drawerWidth,
-        flexShrink: 0,
+        'width': drawerWidth,
+        'flexShrink': 0,
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
@@ -106,13 +106,13 @@ const SidePanel = () => {
                   key={text}
                   onClick={() => handleItemClick(path)}
                   sx={{
-                    mb: 0.5,
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 1.5,
-                    cursor: 'pointer',
-                    position: 'relative',
-                    backgroundColor: isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    'mb': 0.5,
+                    'px': 1.5,
+                    'py': 1,
+                    'borderRadius': 1.5,
+                    'cursor': 'pointer',
+                    'position': 'relative',
+                    'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
                     '&:hover': {
                       backgroundColor: 'rgba(255,255,255,0.08)',
                     },

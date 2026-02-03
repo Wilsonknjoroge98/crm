@@ -5,7 +5,6 @@ const app = express();
 const dayjs = require('dayjs');
 const crypto = require('crypto');
 const { WebClient } = require('@slack/web-api');
-
 const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
@@ -529,6 +528,7 @@ app.get('/customer-account', async (req, res) => {
   console.log('Account details', account);
   res.status(200).json(account);
 });
+
 app.get('/expenses', async (req, res) => {
   const db = new Firestore();
   const { startDate, endDate } = req.query;
@@ -558,28 +558,28 @@ app.get('/expenses', async (req, res) => {
 });
 
 app.get('/premiums', async (req, res) => {
-  // const { startDate, endDate, agency } = req.query;
-
-  const { agency, mode } = req.query;
-
-  if (mode === 'development') {
-    return res.status(200).json([
-      { name: 'Alice Johnson', count: 15, premiumAmount: 18000 },
-      { name: 'Bob Smith', count: 12, premiumAmount: 15000 },
-      { name: 'Charlie Brown', count: 10, premiumAmount: 12000 },
-      { name: 'Diana Prince', count: 8, premiumAmount: 10000 },
-      { name: 'Ethan Hunt', count: 7, premiumAmount: 9000 },
-      { name: 'Fiona Glenanne', count: 6, premiumAmount: 8000 },
-      { name: 'George Bailey', count: 5, premiumAmount: 7000 },
-      { name: 'Hannah Montana', count: 4, premiumAmount: 6000 },
-    ]);
-  }
+  const { agency, startDate, endDate } = req.query;
 
   console.log('Getting leaderboard');
+  console.log({ startDate, endDate });
+
+  // if (mode === 'development') {
+  //   return res.status(200).json([
+  //     { name: 'Alice Johnson', count: 15, premiumAmount: 18000 },
+  //     { name: 'Bob Smith', count: 12, premiumAmount: 15000 },
+  //     { name: 'Charlie Brown', count: 10, premiumAmount: 12000 },
+  //     { name: 'Diana Prince', count: 8, premiumAmount: 10000 },
+  //     { name: 'Ethan Hunt', count: 7, premiumAmount: 9000 },
+  //     { name: 'Fiona Glenanne', count: 6, premiumAmount: 8000 },
+  //     { name: 'George Bailey', count: 5, premiumAmount: 7000 },
+  //     { name: 'Hannah Montana', count: 4, premiumAmount: 6000 },
+  //   ]);
+  // }
+
   const db = new Firestore();
   try {
-    // const start = new Date(startDate);
-    // const end = new Date(endDate);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
     const agentsSnapshot = await db.collection('agents').get();
     const agents = agentsSnapshot.docs.map((doc) => ({
@@ -607,17 +607,23 @@ app.get('/premiums', async (req, res) => {
     const leaderboard = {};
 
     for (const policy of agencyPolicies) {
-      // const effectiveDate = new Date(policy.effectiveDate);
+      const soldDate = new Date(policy.dateSold);
 
-      // if (new Date(effectiveDate) < start) {
-      //   console.log('Skipping policy before start date:', policy.policyNumber, effectiveDate);
-      //   continue;
-      // }
+      if (new Date(soldDate) < start) {
+        continue;
+      }
 
-      // if (new Date(effectiveDate) > end) {
-      //   console.log('Skipping policy after end date:', policy.policyNumber, effectiveDate);
-      //   continue;
-      // }
+      if (new Date(soldDate) > end) {
+        continue;
+      }
+
+      console.log({
+        policy: policy.policyNumber,
+        soldDate,
+        soldParsed: new Date(soldDate).toISOString(),
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
 
       policy.agentIds = policy.agentIds || [];
       policy.premiumAmount = Number(policy.premiumAmount) || 0;
@@ -649,9 +655,11 @@ app.get('/premiums', async (req, res) => {
     // Sort leaderboard by points
     leaderboardArray.sort((a, b) => b.premiumAmount - a.premiumAmount);
 
-    console.log('Leaderboard data:', leaderboardArray);
+    const topLeaderboardArray = leaderboardArray.slice(0, 10);
 
-    res.status(200).json(leaderboardArray);
+    console.log('Leaderboard data:', topLeaderboardArray);
+
+    res.status(200).json(topLeaderboardArray);
   } catch (error) {
     console.error('Error fetching leaderboard data:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard data' });
