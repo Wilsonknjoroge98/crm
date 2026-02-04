@@ -561,6 +561,10 @@ app.get('/expenses', async (req, res) => {
 app.get('/premiums', async (req, res) => {
   const { agency, startDate, endDate } = req.query;
 
+  if (!agency || !startDate || !endDate) {
+    return res.status(400).json({ error: 'Missing required query parameters' });
+  }
+
   logger.log('Getting leaderboard');
   logger.log({ startDate, endDate });
 
@@ -579,9 +583,6 @@ app.get('/premiums', async (req, res) => {
 
   const db = new Firestore();
   try {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
     const agentsSnapshot = await db.collection('agents').get();
     const agents = agentsSnapshot.docs.map((doc) => ({
       id: doc.id,
@@ -593,7 +594,11 @@ app.get('/premiums', async (req, res) => {
     );
     const agencyAgentIds = agencyAgents.map((a) => a.uid);
 
-    const policiesSnapshot = await db.collection('policies').get();
+    const policiesSnapshot = await db
+      .collection('policies')
+      .where('dateSold', '>=', startDate)
+      .where('dateSold', '<=', endDate)
+      .get();
 
     const policies = policiesSnapshot.docs.map((doc) => ({
       id: doc.id,
@@ -608,16 +613,6 @@ app.get('/premiums', async (req, res) => {
     const leaderboard = {};
 
     for (const policy of agencyPolicies) {
-      const soldDate = new Date(policy.dateSold);
-
-      if (new Date(soldDate) < start) {
-        continue;
-      }
-
-      if (new Date(soldDate) > end) {
-        continue;
-      }
-
       policy.agentIds = policy.agentIds || [];
       policy.premiumAmount = Number(policy.premiumAmount) || 0;
 
