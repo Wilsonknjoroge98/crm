@@ -5,6 +5,7 @@ const app = express();
 const dayjs = require('dayjs');
 const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
+// eslint-disable-next-line no-unused-vars
 const { WebClient } = require('@slack/web-api');
 const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
 
@@ -2360,6 +2361,7 @@ EFT: ${effectiveDate || dayjs().format('MM/DD')}
   }
 
   try {
+    // eslint-disable-next-line no-unused-vars
     const payload = buildPolicySlackPayload({
       agentName: agentSnapshot.docs[0].data().name,
       product: policy.policyType,
@@ -2367,13 +2369,13 @@ EFT: ${effectiveDate || dayjs().format('MM/DD')}
       annualPremium: Math.round(policy.premiumAmount * 12),
       carrier: policy.carrier,
     });
-    const client = new WebClient(process.env.SLACK_BOT_TOKEN);
-    const response = await client.chat.postMessage({
-      channel: '#sales',
-      text: payload.text,
-      blocks: payload.blocks,
-    });
-    console.log('Slack bot test message sent:', response.ts);
+    // const client = new WebClient(process.env.SLACK_BOT_TOKEN);
+    // const response = await client.chat.postMessage({
+    //   channel: '#sales',
+    //   text: payload.text,
+    //   blocks: payload.blocks,
+    // });
+    // console.log('Slack bot test message sent:', response.ts);
   } catch (error) {
     console.error(
       'Error testing Slack bot:',
