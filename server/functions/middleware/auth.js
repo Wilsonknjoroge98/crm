@@ -24,7 +24,7 @@ async function authMiddleware(req, res, next) {
         const { data: roles, error: rolesError } = await supabase
             .from('roles')
             .select('role')
-            .eq('user_id', user.id)
+            .eq('id', user.id)
             .single();
 
         if (rolesError) {
