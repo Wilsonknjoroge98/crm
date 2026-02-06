@@ -8,7 +8,7 @@ const logger = require('firebase-functions/logger');
 // eslint-disable-next-line no-unused-vars
 const { WebClient } = require('@slack/web-api');
 const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
-
+const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 
@@ -56,7 +56,7 @@ app.use(
 //   }
 // };
 
-// app.use(authMiddleware);
+app.use(authMiddleware);
 
 // function getDownline(agentId, agents) {
 //   const result = new Set([agentId]); // Include self
@@ -77,6 +77,7 @@ app.use(
 
 //   return Array.from(result);
 // }
+
 
 app.get('/clients', async (req, res) => {
   const { agentId, agentRole, agency } = req.query;
