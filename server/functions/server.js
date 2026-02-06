@@ -78,7 +78,6 @@ app.use(authMiddleware);
 //   return Array.from(result);
 // }
 
-
 app.get('/clients', async (req, res) => {
   const { agentId, agentRole, agency } = req.query;
 
