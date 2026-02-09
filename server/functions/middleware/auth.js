@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
 async function authMiddleware(req, res, next) {
@@ -31,8 +31,19 @@ async function authMiddleware(req, res, next) {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
+        const { data: agents, error: agentsError } = await supabase
+            .from('agents')
+            .select('*')
+            .eq('auth_user_id', user.id)
+            .single();
+
+        if (agentsError) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         req.user = {
             role: roles.role,
+            agent: agents ? agents : null,
         };
 
         next();
@@ -41,4 +52,4 @@ async function authMiddleware(req, res, next) {
     }
 }
 
-module.exports = authMiddleware;
+module.exports = { authMiddleware };
