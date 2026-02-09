@@ -15,7 +15,9 @@ import { createAppTheme } from './utils/theme';
 
 import useAuth from './hooks/useAuth';
 import { useEffect, useMemo } from 'react';
+import { initAuth } from './utils/initAuth';
 
+initAuth();
 // import Maintenance from './views/Maintenance';
 const App = () => {
   // return <Maintenance />;
