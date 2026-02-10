@@ -1,11 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
+const logger = require('firebase-functions/logger');
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
-async function authMiddleware(req, res, next) {
+const authMiddleware = async (req, res, next) =>{
     try {
         const authHeader = req.headers['authorization'];
 
@@ -21,35 +22,42 @@ async function authMiddleware(req, res, next) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const { data: roles, error: rolesError } = await supabase
-            .from('roles')
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
             .select('role')
             .eq('id', user.id)
             .single();
 
-        if (rolesError) {
+        logger.log('Auth profile', profile);
+        if (profileError) {
+            logger.error(profileError);
             return res.status(403).json({ error: 'Forbidden' });
         }
 
-        const { data: agents, error: agentsError } = await supabase
+        const { data: agent, error: agentError } = await supabase
             .from('agents')
             .select('*')
             .eq('auth_user_id', user.id)
-            .single();
+            .maybeSingle();
 
-        if (agentsError) {
+        logger.log('Agent', agent);
+        if (agentError) {
+            logger.error('Agent error', agentError);
             return res.status(403).json({ error: 'Forbidden' });
         }
 
         req.user = {
-            role: roles.role,
-            agent: agents ? agents : null,
+            id: user.id,
+            role: profile.role,
         };
+
+        req.agent = agent;
 
         next();
     } catch (err) {
+        logger.error('Auth middleware error', err);
         return res.status(500).json({ error: 'Internal server error' });
     }
-}
+};
 
 module.exports = { authMiddleware };
