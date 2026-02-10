@@ -27,6 +27,8 @@ export const initAuth = () => {
         }
     });
 
+    // IMPORTANT: do not await any supabase functions inside this listener as it will deadlock.
+    // https://supabase.com/docs/reference/javascript/auth-onauthstatechange
     supabase.auth.onAuthStateChange((_event, session) => {
         if (session) {
             store.dispatch(

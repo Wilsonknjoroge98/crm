@@ -6,10 +6,14 @@ export const userSlice = createSlice({
     reducers: {
         setUserAction: (state, action) => {
             const data = action.payload;
-            state.agent = { ...data };
+            state.isAuthenticated = data.isAuthenticated;
+            state.user = data.user;
+            state.accessToken = data.accessToken;
         },
         clearAuth: (state) => {
-            state.agent = {};
+            state.isAuthenticated = false;
+            state.user = null;
+            state.accessToken = null;
         }
     },
 });
