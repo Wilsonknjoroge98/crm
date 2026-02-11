@@ -15,11 +15,13 @@ const authMiddleware = async (req, res, next) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const token = authHeader.replace('Bearer ', '')
+        const token = authHeader.replace('Bearer ', '');
 
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
         if (error || !user) {
+            if (error) logger.error('Auth error in auth.js', error);
+            else logger.warn('Auth user missing in auth.js');
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
