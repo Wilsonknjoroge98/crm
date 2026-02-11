@@ -1,29 +1,51 @@
 import axios from 'axios';
+import store from './redux/store'
+import {supabase} from "./supabase.js";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
-const DEV_URL = import.meta.env.VITE_DEV_URL;
+
+
+
+// this can be one line that could be shoved into the create axios client function, but it would probably sacrifice on
+// readability in exchange for cleaner looking code
+
+const isDev = import.meta.env.MODE === 'development';
+
+// CHECK IF STAGING HOSTING SUBSTRING IN URL
+const isStaging = window.location.hostname.includes('crm-dev-dde35');
+
+const BASE_URL = isDev
+    ? import.meta.env.VITE_DEV_URL
+    : isStaging
+        ? import.meta.env.VITE_STAGING_URL
+        : import.meta.env.VITE_API_URL;
+
+export const apiClient = axios.create({
+  baseURL: BASE_URL,
+});
+apiClient.interceptors.request.use(
+    async (config) => {
+
+       // can't use a selector for redux state since we aren't in a react component
+       const token = await supabase.auth.getSession()?.access_token;
+       // if the token exists, add it to the request headers
+       if (token) {
+         config.headers.Authorization = `Bearer ${token}`;
+       }
+       return config;
+
+    }
+)
+
+
 
 const getClients = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
-
-  const { agentId, agentRole, agency } = data || {};
-
-  if (!agentId || !agentRole || !agency) {
-    return [];
-  }
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
+    url: '/clients',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/clients` : `${BASE_URL}/clients`,
     params: {
-      agentId: agentId,
-      agentRole: agentRole,
       mode: import.meta.env.MODE,
-      agency: agency,
     },
   };
 
@@ -48,25 +70,16 @@ const getClients = async ({ token, data }) => {
 
 const getLeads = async ({ token, data }) => {
   console.log('Fetching leads with data:', data);
-  const isDev = import.meta.env.DEV;
 
-  const { agentId, agentRole, agency } = data || {};
-  if (!agentId || !agentRole || !agency) {
-    return [];
-  }
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/leads` : `${BASE_URL}/leads`,
+    url: '/leads',
     params: {
-      agentId: agentId,
-      agentRole: agentRole,
+
       mode: import.meta.env.MODE,
-      agency: agency,
     },
   };
 
@@ -95,16 +108,14 @@ const getLeads = async ({ token, data }) => {
 };
 
 const patchAccount = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+
 
   console.log('Updating client account', data);
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
-    url: isDev ? `${DEV_URL}/customer-account` : `${BASE_URL}/customer-account`,
+    url: '/customer_account'
   };
   try {
     const response = await axios.request(options);
@@ -116,17 +127,14 @@ const patchAccount = async ({ token, data }) => {
 };
 
 const getAccount = async ({ token, email }) => {
-  const isDev = import.meta.env.DEV;
+
 
   console.log('Getting client account', email);
 
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/customer-account` : `${BASE_URL}/customer-account`,
+    url:'customer_account',
     params: {
       email: email,
       mode: import.meta.env.MODE,
@@ -145,15 +153,11 @@ const getAccount = async ({ token, email }) => {
 };
 
 const getPremiumLeaderboard = async ({ token, startDate, endDate, agency }) => {
-  const isDev = import.meta.env.DEV;
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/premiums` : `${BASE_URL}/premiums`,
+    url: 'premiums',
     params: {
       mode: import.meta.env.MODE,
       startDate,
@@ -182,15 +186,12 @@ const getPremiumLeaderboard = async ({ token, startDate, endDate, agency }) => {
 };
 
 const getPremiumPerLead = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'GET',
-    url: isDev ? `${DEV_URL}/premiums/per-lead` : `${BASE_URL}/premiums/per-lead`,
+    url: 'premiums/per-lead',
     params: {
       mode: import.meta.env.MODE,
 
@@ -218,15 +219,12 @@ const getPremiumPerLead = async ({ token, agency }) => {
 };
 
 const getMonthlyPremiums = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
+
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/premiums/monthly` : `${BASE_URL}/premiums/monthly`,
+    url: `premiums/monthly`,
     params: {
       mode: import.meta.env.MODE,
       agency,
@@ -253,15 +251,11 @@ const getMonthlyPremiums = async ({ token, agency }) => {
 };
 
 const getPersistencyRates = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/persistency-rates` : `${BASE_URL}/persistency-rates`,
+    url: '/persistency-rates',
     params: {
       mode: import.meta.env.MODE,
 
@@ -293,11 +287,8 @@ const getCloseRates = async ({ token, agency }) => {
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/close-rates` : `${BASE_URL}/close-rates`,
+    url: '/close-rates',
     params: {
       mode: import.meta.env.MODE,
 
@@ -361,16 +352,12 @@ const getPolicyStatuses = async ({ token, agency }) => {
 };
 
 const getStripeCharges = async ({ token, startDate, endDate }) => {
-  const isDev = import.meta.env.DEV;
   console.log('Fetching revenue for dates:', startDate, endDate);
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/stripe-charges` : `${BASE_URL}/stripe-charges`,
+    url: '/stripe-charges',
     params: {
       startDate,
       endDate,
@@ -388,15 +375,11 @@ const getStripeCharges = async ({ token, startDate, endDate }) => {
 };
 
 const getAdSpend = async ({ token, startDate, endDate }) => {
-  const isDev = import.meta.env.DEV;
   console.log('Fetching ad spend for dates:', startDate, endDate);
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/ad-spend` : `${BASE_URL}/ad-spend`,
+    url: '/ad-spend',
     params: {
       startDate,
       endDate,
@@ -413,16 +396,11 @@ const getAdSpend = async ({ token, startDate, endDate }) => {
 };
 
 const getCommissions = async ({ token, startDate, endDate, agent }) => {
-  const isDev = import.meta.env.DEV;
-
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/commissions` : `${BASE_URL}/commissions`,
+    url: '/commissions',
     params: {
       mode: import.meta.env.MODE,
       startDate,
@@ -450,22 +428,13 @@ const getCommissions = async ({ token, startDate, endDate, agent }) => {
 };
 
 const getPolicies = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
-
-  const { agentId, agentRole, agency } = data || {};
-
-  if (!agentId || !agentRole || !agency) {
-    return [];
-  }
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/policies` : `${BASE_URL}/policies`,
+    url: '/policies',
     params: {
       agentId: agentId,
       agentRole: agentRole,
@@ -495,7 +464,6 @@ const getPolicies = async ({ token, data }) => {
 };
 
 const postClient = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
 
   console.log('Posting client:', data);
 
@@ -507,13 +475,10 @@ const postClient = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'POST',
     data: { client: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
+    url: '/client',
   };
 
   try {
@@ -536,7 +501,6 @@ const postClient = async ({ token, data }) => {
 };
 
 const patchClient = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
 
   console.log('Patching client:', data);
 
@@ -550,13 +514,10 @@ const patchClient = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'PATCH',
     data: { clientId: clientId, client: client, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
+    url: 'client',
   };
 
   // response from server

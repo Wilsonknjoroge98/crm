@@ -26,5 +26,5 @@ export const db = getFirestore(app);
 
 if (import.meta.env.MODE === 'development') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099');
-  connectFirestoreEmulator(db, 'http://127.0.0.1:8080');
+  connectFirestoreEmulator(db, 'http://127.0.0.1','8080');
 }

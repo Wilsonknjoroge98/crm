@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../utils/firebase';
+import { supabase } from '../utils/supabase';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -52,6 +53,17 @@ const Login = () => {
       setErrorMsg(message);
     } finally {
       setLoading(false);
+    }
+    try {
+      const {data, error} = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      console.log(data, error)
+      navigate('/clients');
+    }
+  catch {
+
     }
   };
 
