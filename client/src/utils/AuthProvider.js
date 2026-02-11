@@ -4,11 +4,11 @@ import { useDispatch } from 'react-redux'
 import {useEffect, useRef} from "react";
 
 const AuthProvider = ({ children }) => {
-
+    const initialized = useRef(false);
+    const dispatch = useDispatch();
+    
     // prevent multiple calls which would result in multiple listeners being added
     useEffect(() => {
-        const initialized = useRef(false);
-        const dispatch = useDispatch();
 
         if (initialized.current) return;
         initialized.current = true;
@@ -16,7 +16,6 @@ const AuthProvider = ({ children }) => {
         // get the current session if there is one
         supabase.auth.getSession().then(({ data }) => {
             const session = data.session;
-
             if (session) {
                 dispatch(
                     setUserAction({
