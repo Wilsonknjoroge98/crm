@@ -6,15 +6,16 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
-const authMiddleware = async (req, res, next) =>{
+const authMiddleware = async (req, res, next) => {
     try {
         const authHeader = req.headers['authorization'];
 
         if (!authHeader) {
+            logger.warn('Authorization header missing');
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const token = authHeader.split(' ')[1];
+        const token = authHeader.replace('Bearer ', '')
 
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
@@ -30,7 +31,7 @@ const authMiddleware = async (req, res, next) =>{
 
         logger.log('Auth profile', profile);
         if (profileError) {
-            logger.error(profileError);
+            logger.error('Auth profile error in auth.js', profileError);
             return res.status(403).json({ error: 'Forbidden' });
         }
 
@@ -42,7 +43,7 @@ const authMiddleware = async (req, res, next) =>{
 
         logger.log('Agent', agent);
         if (agentError) {
-            logger.error('Agent error', agentError);
+            logger.error('Agent error in auth.js', agentError);
             return res.status(403).json({ error: 'Forbidden' });
         }
 
@@ -55,7 +56,7 @@ const authMiddleware = async (req, res, next) =>{
 
         next();
     } catch (err) {
-        logger.error('Auth middleware error', err);
+        logger.error('Auth middleware error in auth.js', err);
         return res.status(500).json({ error: 'Internal server error' });
     }
 };
