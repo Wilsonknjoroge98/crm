@@ -5,7 +5,7 @@ import { RouterProvider } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from 'notistack';
 import { Provider } from 'react-redux';
-
+import { AuthProvider } from './utils/AuthProvider.js';
 import router from './utils/router.jsx';
 import store from './utils/redux/store.js';
 import client from './utils/client.js';
@@ -18,7 +18,9 @@ createRoot(root).render(
     <Provider store={store}>
       <SnackbarProvider>
         <QueryClientProvider client={client}>
-          <RouterProvider router={router} />
+            <AuthProvider>
+                <RouterProvider router={router} />
+            </AuthProvider>
         </QueryClientProvider>
       </SnackbarProvider>
     </Provider>

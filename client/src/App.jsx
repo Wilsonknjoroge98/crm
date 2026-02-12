@@ -16,6 +16,7 @@ import { createAppTheme } from './utils/theme';
 import useAuth from './hooks/useAuth';
 import { useEffect, useMemo } from 'react';
 
+
 // import Maintenance from './views/Maintenance';
 const App = () => {
   // return <Maintenance />;
