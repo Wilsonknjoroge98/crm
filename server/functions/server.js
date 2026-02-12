@@ -8,13 +8,14 @@ const logger = require('firebase-functions/logger');
 // eslint-disable-next-line no-unused-vars
 const { WebClient } = require('@slack/web-api');
 const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
-
+const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 
 admin.initializeApp();
 
 app.use(express.json());
+app.use(authMiddleware);
 
 app.use(
   cors({
@@ -56,8 +57,6 @@ app.use(
 //   }
 // };
 
-// app.use(authMiddleware);
-
 // function getDownline(agentId, agents) {
 //   const result = new Set([agentId]); // Include self
 //   const queue = [agentId];
@@ -80,7 +79,6 @@ app.use(
 
 app.get('/clients', async (req, res) => {
   const { agentId, agentRole, agency } = req.query;
-
   if (!agentId || !agentRole || !agency) {
     return res.status(400).json({ error: 'Missing required query parameters' });
   }
