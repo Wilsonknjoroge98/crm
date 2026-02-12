@@ -4,10 +4,6 @@ import {supabase} from "./supabase.js";
 
 
 
-
-// this can be one line that could be shoved into the create axios client function, but it would probably sacrifice on
-// readability in exchange for cleaner looking code
-
 const isDev = import.meta.env.MODE === 'development';
 
 // CHECK IF STAGING HOSTING SUBSTRING IN URL
@@ -26,7 +22,8 @@ apiClient.interceptors.request.use(
     async (config) => {
 
        // can't use a selector for redux state since we aren't in a react component
-       const token = await supabase.auth.getSession()?.access_token;
+       const token = (await supabase.auth.getSession())?.data?.session?.access_token;
+       console.log('Attaching token to request:', token);
        // if the token exists, add it to the request headers
        if (token) {
          config.headers.Authorization = `Bearer ${token}`;
