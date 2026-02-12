@@ -22,13 +22,12 @@ const Clients = () => {
   const [deleteClientOpen, setDeleteClientOpen] = useState(false);
   const [client, setClient] = useState(null);
 
-  const { user, agent, userToken } = useAuth();
 
-  console.log('agent', agent);
+
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
-    queryFn: () => getAgents({ token: userToken }),
+    queryFn: () => getAgents({  }),
   });
 
   const {
@@ -40,8 +39,7 @@ const Clients = () => {
     queryKey: ['clients', user?.uid, agent?.role],
     queryFn: () =>
       getClients({
-        token: userToken,
-        data: { agentId: user.uid, agentRole: agent.role, agency: agent?.agency },
+
       }),
     enabled: !!agent && !!userToken,
     refetchOnWindowFocus: false,
