@@ -432,8 +432,8 @@ const CashFlowSummary = () => {
                   textAlign='right'
                   width={'fit-content'}
                   sx={{
-                    backgroundColor: netCashFlow >= 0 ? 'success.main' : 'error.main',
-                    color: netCashFlow >= 0 ? 'success.contrastText' : 'error.contrastText',
+                    backgroundColor: netCashFlow >= 0 ? '#E6F4EA' : '#F8D7DA',
+                    color: netCashFlow >= 0 ? '#1E7E34' : '#B02A37',
                   }}
                   fontWeight={600}
                 >
