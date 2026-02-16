@@ -31,12 +31,12 @@ import { toTitleCase } from '../utils/helpers';
 
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const initialForm = {
-    firstName: '',
-    lastName: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
-    dob: '',
-    maritalStatus: '',
+    date_of_birth: '',
+    marital_status: '',
     leadSource: '',
     address: '',
     city: '',
@@ -54,7 +54,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
   const inputRef = useRef(null);
 
-  const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
+  const maritalOptions = ['single', 'married', 'divorced', 'widowed'];
   const leadSourceOptions = [
     'GetSeniorQuotes.com',
     'Ethos',
@@ -80,7 +80,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         lastName: lead.lastName || '',
         email: lead.email || '',
         phone: lead.phone || '',
-        dob: lead.dob || '',
+        date_of_birth: lead.dob || '',
         leadSource: 'GetSeniorQuotes.com',
         maritalStatus: '',
         address: '',
@@ -165,7 +165,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     const name = e.target.name;
     let value = e.target.value;
 
-    const titleCaseFields = ['firstName', 'lastName', 'city', 'occupation'];
+    const titleCaseFields = ['first_name', 'last_name', 'city', 'occupation'];
 
     if (titleCaseFields.includes(name)) {
       value = toTitleCase(value);
@@ -194,8 +194,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const handleSubmit = () => {
     console.log('Submitting form:', form);
     createClient({
-      token: userToken,
-      data: { ...form, agentIds: [user.uid] },
+      data: { ...form },
     });
   };
 
@@ -240,9 +239,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           </Grid>
           <Grid item size={6}>
             <TextField
-              name='firstName'
+              name='first_name'
               label='First Name'
-              value={form.firstName}
+              value={form.first_name}
               onChange={handleChange}
               fullWidth
               required
@@ -250,9 +249,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           </Grid>
           <Grid item size={6}>
             <TextField
-              name='lastName'
+              name='last_name'
               label='Last Name'
-              value={form.lastName}
+              value={form.last_name}
               onChange={handleChange}
               fullWidth
               required
@@ -287,10 +286,10 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
           <Grid item size={6}>
             <TextField
-              name='dob'
+              name='date_of_birth'
               label='Date of Birth'
               type='date'
-              value={form.dob}
+              value={form.date_of_birth}
               onChange={handleChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
@@ -300,9 +299,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           <Grid item size={6}>
             <TextField
               select
-              name='maritalStatus'
+              name='marital_status'
               label='Marital Status'
-              value={form.maritalStatus}
+              value={form.marital_status}
               onChange={handleChange}
               fullWidth
               required

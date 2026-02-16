@@ -1771,7 +1771,33 @@ app.post('/agent', async (req, res) => {
     res.status(500).json({ error: 'Failed to create agent' });
   }
 });
-
+app.post('/clients_temp', async (req, res) => {
+  console.log('Creating clients');
+  const { client } = req.body;
+  delete client.leadSource;
+  delete client.notes;
+  try {
+    const { data: clientData, error: clientError } = await supabaseService.from('clients').insert(client).select('*');
+    if (clientError) {
+      console.error('Error creating clients:', clientError);
+      res.status(500).send({ error: 'Failed to create clients' });
+    } else {
+      // insert to agent-clients m:m table
+      const { error: relationError } = await supabaseService.from('agent_clients').insert([{
+        agent_id: req.user.id,
+        client_id: clientData[0].id,
+      }]);
+      if (relationError) {
+        console.error('Error creating agent-clients relation:', relationError);
+        res.status(500).send({ error: 'Failed to create agent-clients relation' });
+      }
+      res.status(200).json(clientData);
+    }
+  } catch (error) {
+    console.error('Error creating clients:', error);
+    res.status(500).json({ error: 'Failed to create clients' });
+  }
+})
 app.post('/client', async (req, res) => {
   console.log('Creating client');
   const db = new Firestore();
