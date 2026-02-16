@@ -6,7 +6,9 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
+
 const authMiddleware = async (req, res, next) => {
+    // get the url and method of the request
     try {
         const authHeader = req.headers['authorization'];
 
@@ -25,7 +27,7 @@ const authMiddleware = async (req, res, next) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const { data: profile, error: profileError } = await supabase
+        let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
@@ -33,8 +35,18 @@ const authMiddleware = async (req, res, next) => {
 
         logger.log('Auth profile', profile);
         if (profileError) {
-            logger.error('Auth profile error in auth.js', profileError);
-            return res.status(403).json({ error: 'Forbidden' });
+           await supabase.from ('profiles').insert({ id: user.id, role: 'agent' });
+            const { data: newProfile, error: newProfileError} = (await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single());
+            if (newProfileError) {
+                logger.error('Auth profile error in auth.js', newProfileError);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            profile = newProfile;
+            logger.log('Auth profile after insert', profile);
         }
 
         const { data: agent, error: agentError } = await supabase

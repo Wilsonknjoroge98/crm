@@ -21,13 +21,15 @@ import { postAgent } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 import { toTitleCase } from '../utils/helpers';
 import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
-
+import { supabase } from '../utils/supabase';
 export default function SignUp() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [npn, setNpn] = useState('');
   const [name, setName] = useState('');
   const [agency, setAgency] = useState('');
+  const [uplineEmail, setUplineEmail] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -59,18 +61,25 @@ export default function SignUp() {
 
     setLoading(true);
     try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
+      // create supabase account after email verification is disabled
+      const { user } = await supabase.auth.signUp({
+            email,
+            password,
+        }
+      )
+      console.log(user)
 
-      const token = await user.getIdToken();
+
       createAgent({
-        token,
         data: {
           name,
           email,
-          uid: user.uid,
+          agency,
+          npn,
+          uplineEmail,
           role: 'agent',
           level: 105,
-          agency: agency,
         },
       });
       navigate('/clients');
@@ -126,6 +135,15 @@ export default function SignUp() {
           onChange={(e) => setEmail(e.target.value.toLowerCase())}
           required
         />
+        <TextField
+          label='NPN'
+          type='text'
+          margin='normal'
+          fullWidth
+          value={npn}
+          onChange={(e) => setNpn(e.target.value)}
+          required
+          />
 
         <TextField
           label='Password'
@@ -155,8 +173,20 @@ export default function SignUp() {
           onChange={(e) => setAgency(e.target.value)}
           label='Select Agency'
         >
-          <MenuItem value='ag_tY71LfQm'>Hourglass Life Group</MenuItem>
+          <MenuItem value='Hourglass Life Group'>Hourglass Life Group</MenuItem>
           <MenuItem value='ag_Hq92aLsK'>Fearless Shepherds Financial</MenuItem>
+        </TextField>
+
+        <TextField
+            select
+            fullWidth
+            margin='normal'
+            value={uplineEmail   || ''}
+            onChange={(e) => setUplineEmail(e.target.value)}
+            label='Select upline email'
+        >
+          <MenuItem value='user1@example.com'>user1@example.com</MenuItem>
+          <MenuItem value='user3@example.com'>user1@example.com</MenuItem>
         </TextField>
 
         {errorMsg && (

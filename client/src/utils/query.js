@@ -521,7 +521,7 @@ const patchClient = async ({ data }) => {
 };
 
 const postAgent = async ({ data }) => {
-  const isDev = import.meta.env.DEV;
+
 
   // client side validation
 
@@ -532,13 +532,10 @@ const postAgent = async ({ data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'POST',
     data: { agent: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/agent` : `${BASE_URL}/agent`,
+    url: 'agent',
   };
   // response from server
   const response = await apiClient.request(options);
@@ -548,9 +545,9 @@ const postAgent = async ({ data }) => {
 
 const getAgent = async ({ data }) => {
 
-  const { uid } = data || {};
+  const { id } = data || {};
 
-  if (!uid) {
+  if (!id) {
     throw new Error('Missing UID');
   }
 
@@ -558,7 +555,7 @@ const getAgent = async ({ data }) => {
   const options = {
     method: 'GET',
     url: '/agent',
-    params: { uid: uid, mode: import.meta.env.MODE },
+    params: { uid: id, mode: import.meta.env.MODE },
   };
 
   try {

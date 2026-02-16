@@ -7,6 +7,7 @@ import UpdateClientDialog from '../components/UpdateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import DeleteClientDialog from '../components/DeleteClientDialog';
 
+import {useSelector} from 'react-redux';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getClients, getAgents } from '../utils/query';
@@ -14,6 +15,7 @@ import { CSVLink } from 'react-csv';
 import ClientsGrid from '../components/ClientsGrid';
 
 import useAuth from '../hooks/useAuth';
+import {useAgent} from "../hooks/useAgent.jsx";
 
 const Clients = () => {
   const [createClientOpen, setCreateClientOpen] = useState(false);
@@ -21,9 +23,10 @@ const Clients = () => {
   const [createPoliciesOpen, setCreatePoliciesOpen] = useState(false);
   const [deleteClientOpen, setDeleteClientOpen] = useState(false);
   const [client, setClient] = useState(null);
-
-
-
+  // get user info from redux store
+  const { user, isAuthenticated, userToken } = useSelector((state) => state.user);
+  const agent = useAgent();
+  console.log(agent)
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
@@ -36,12 +39,12 @@ const Clients = () => {
     isLoading: clientsLoading,
     isError,
   } = useQuery({
-    queryKey: ['clients', user?.uid, agent?.role],
+    queryKey: ['clients', user?.id, agent?.role],
     queryFn: () =>
       getClients({
 
       }),
-    enabled: !!agent && !!userToken,
+    enabled: isAuthenticated,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     staleTime: 1000 * 60 * 5, // 5 minutes

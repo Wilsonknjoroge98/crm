@@ -6,7 +6,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AccountDetails from './AccountDetails';
 import { signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase'; // Ensure this path is correct
-
+import { supabase } from '../utils/supabase';
 import { getAgent, getAccount } from '../utils/query';
 import { useQuery } from '@tanstack/react-query';
 
@@ -14,19 +14,17 @@ import useAuth from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 import { stringToColor } from '../utils/helpers';
+import {useSelector} from "react-redux";
+import {useAgent} from "../hooks/useAgent.jsx";
 
 const drawerWidth = 240;
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const navigate = useNavigate();
-  const { user, userToken, isAuthenticated } = useAuth();
+  const { user, userToken, isAuthenticated } = useSelector((state) => state.user)
 
-  const { data: agentData } = useQuery({
-    queryKey: ['agent', user?.uid, isAuthenticated],
-    queryFn: () => getAgent({ token: userToken, data: { uid: user?.uid } }),
-  });
-
+  const agentData = useAgent();
   const { data: accountData } = useQuery({
     queryKey: ['account', user?.email, isAuthenticated],
     queryFn: () => getAccount({ email: user?.email, token: userToken }),
@@ -49,7 +47,10 @@ export default function NavBar() {
 
   const handleSignOut = async () => {
     try {
+      await supabase.auth.signOut();
       await signOut(auth);
+      // sign out of supabase
+
       navigate('/login');
       console.log('User signed out successfully');
     } catch (error) {
