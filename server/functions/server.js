@@ -2215,7 +2215,7 @@ app.post('/policy', async (req, res) => {
       policy.effectiveDate,
     );
     const levelsRef = db.collection(`agents/${agent.email}/levels`);
-    const q = levelsRef\
+    const q = levelsRef
       .where('effectiveDate', '<=', dayjs(policy.effectiveDate).toDate())
       .orderBy('effectiveDate', 'desc')
       .limit(1);
