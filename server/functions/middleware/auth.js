@@ -31,22 +31,31 @@ const authMiddleware = async (req, res, next) => {
             .from('profiles')
             .select('role')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
+        // TODO: consider trigger inside supabase on insert to auth.users to automatically create profile
         logger.log('Auth profile', profile);
-        if (profileError) {
-           await supabase.from ('profiles').insert({ id: user.id, role: 'agent' });
-            const { data: newProfile, error: newProfileError} = (await supabase
+        if (profile == null ) {
+            logger.log('Creating profile for user: ', user.id);
+
+            await supabase.from('profiles').insert({ id: user.id, role: 'agent' });
+            const { data: newProfile, error: newProfileError } = (await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
                 .single());
+
             if (newProfileError) {
                 logger.error('Auth profile error in auth.js', newProfileError);
                 return res.status(500).json({ error: 'Internal server error' });
             }
+
             profile = newProfile;
             logger.log('Auth profile after insert', profile);
+        }
+        if (profileError) {
+            logger.error('Auth profile error in auth.js', profileError);
+            return res.status(500).json({ error: 'Internal server error' });
         }
 
         const { data: agent, error: agentError } = await supabase

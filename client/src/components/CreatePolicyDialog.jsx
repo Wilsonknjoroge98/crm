@@ -80,7 +80,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
 
   const { data: agents } = useQuery({
     queryKey: ['agents'],
-    queryFn: () => getAgents({ token: userToken }),
+    queryFn: () => getAgents(),
   });
 
   const [form, setForm] = useState(initialForm);

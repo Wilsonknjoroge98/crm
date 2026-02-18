@@ -35,7 +35,7 @@ apiClient.interceptors.request.use(
 
 
 
-const getClients = async ({ data }) => {
+const getClients = async () => {
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -576,7 +576,7 @@ const getAgent = async ({ data }) => {
   }
 };
 
-const getAgents = async ({ token }) => {
+const getAgents = async () => {
 
   // request config for compulife server
   const options = {

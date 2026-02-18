@@ -1740,10 +1740,19 @@ app.post('/agent', async (req, res) => {
   // eslint-disable-next-line camelcase
   const org_id = (await supabaseService.from('organizations').select('id').eq('name', agent.agency).single()).data.id;
   // eslint-disable-next-line camelcase
-  const upline_agent_id = (await supabaseService.from('agents')
+  const { data: uplineAgent, error: uplineAgenetError } = await supabaseService.from('agents')
       .select('id')
       .eq('email', agent.uplineEmail)
-      .single()).data.id;
+      .maybeSingle();
+  if (uplineAgenetError) {
+    console.error('Error fetching upline agent:', uplineAgenetError);
+    return res.status(500).json({ error: 'Failed to fetch upline agent' });
+  }
+  if (!uplineAgent) {
+    console.error('No upline agent found for email:', agent.uplineEmail);
+    return res.status(400).json({ error: 'No upline agent found' });
+  }
+
   const payload = {
     first_name: agent.name.split(' ')[0],
     last_name: agent.name.split(' ')[1],
@@ -1751,11 +1760,10 @@ app.post('/agent', async (req, res) => {
     // eslint-disable-next-line camelcase
     org_id,
     // eslint-disable-next-line camelcase
-    upline_agent_id,
+    upline_agent_id: uplineAgent.id,
     email: agent.email,
     level: agent.level,
     id: req.user.id,
-    auth_user_id: req.user.id,
   };
   try {
     const { data, agentError } = await supabaseService.from('agents').insert([payload]);
@@ -1797,7 +1805,7 @@ app.post('/clients_temp', async (req, res) => {
     console.error('Error creating clients:', error);
     res.status(500).json({ error: 'Failed to create clients' });
   }
-})
+});
 app.post('/client', async (req, res) => {
   console.log('Creating client');
   const db = new Firestore();

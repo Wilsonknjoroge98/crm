@@ -30,7 +30,7 @@ const Clients = () => {
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
-    queryFn: () => getAgents({  }),
+    queryFn: () => getAgents(),
   });
 
   const {
@@ -41,9 +41,7 @@ const Clients = () => {
   } = useQuery({
     queryKey: ['clients', user?.id, agent?.role],
     queryFn: () =>
-      getClients({
-
-      }),
+      getClients(),
     enabled: isAuthenticated,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
