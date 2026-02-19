@@ -32,6 +32,7 @@ const AuthProvider = ({ children }) => {
         // IMPORTANT: do not await any supabase functions inside this listener as it will deadlock.
         // https://supabase.com/docs/reference/javascript/auth-onauthstatechange
         const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+            console.log('auth state changed', _event)
             if (session) {
                 dispatch(
                     setUserAction({
@@ -41,11 +42,13 @@ const AuthProvider = ({ children }) => {
                     })
                 );
             } else {
+
                 dispatch(clearAuth());
             }
         });
         return () =>{
-            listener.subscription.unsubscribe();
+            // was being called right away
+            // listener.subscription.unsubscribe();
         }
     })
     return children;

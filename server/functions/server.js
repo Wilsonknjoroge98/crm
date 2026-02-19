@@ -11,6 +11,12 @@ const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
 const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseService = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
 
 admin.initializeApp();
 
@@ -78,129 +84,25 @@ app.use(
 // }
 
 app.get('/clients', async (req, res) => {
-  const { agentId, agentRole, agency } = req.query;
-  if (!agentId || !agentRole || !agency) {
-    return res.status(400).json({ error: 'Missing required query parameters' });
-  }
-
-  console.log('Getting clients');
-  const db = new Firestore();
-
-  try {
-    if (agentRole === 'agent') {
-      const clientQuerySnapshot = await db
-        .collection('clients')
-        .where('agentIds', 'array-contains', agentId)
-        .get();
-
-      const clients = clientQuerySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-
-      const unknownClients = clients.filter(
-        (c) => c.source == 'unknown',
-      ).length;
-      console.log({ unknownClients });
-      res.status(200).json(clients || []);
-    } else if (agentRole === 'owner') {
-      const agentsSnap = await db.collection('agents').get();
-      const agents = agentsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      const agencyAgentIds = agents
-        .filter((a) => a.agency === agency)
-        .map((a) => a.uid);
-
-      const clientData = await db
-        .collection('clients')
-        .where('agentIds', 'array-contains-any', agencyAgentIds)
-        .get();
-
-      const clients = clientData.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-      res.status(200).json(clients || []);
-    } else {
-      const clientData = await db.collection('clients').get();
-      const clients = clientData.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-      res.status(200).json(clients || []);
-    }
-  } catch (error) {
-    console.error('Error fetching clients:', error);
+  // create supabase client based on JWT from request
+  // TODO: move to auth middleware
+  const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: req.headers.authorization,
+          },
+        },
+      },
+  );
+  const { data: clients, error } = await supabase.from('clients').select('*');
+  if (error) {
+    console.log('error', error);
     res.status(500).json({ error: 'Failed to fetch clients' });
+  } else {
+    res.status(200).json(clients);
   }
 });
 
@@ -459,27 +361,7 @@ app.get('/policies', async (req, res) => {
 
 app.get('/agent', async (req, res) => {
   console.log('Getting agent');
-  const db = new Firestore();
-
-  const { uid } = req.query;
-
-  console.log('Fetching agent', uid);
-  if (!uid) {
-    return res.status(400).json({ error: 'Missing agent UID' });
-  }
-
-  try {
-    const doc = await db.collection('agents').where('uid', '==', uid).get();
-    if (doc.empty) {
-      return res.status(404).json({ error: 'Agent not found' });
-    }
-    const agentData = doc.docs[0].data();
-
-    res.json(agentData);
-  } catch (error) {
-    console.error('Error fetching agent:', error);
-    res.status(500).json({ error: 'Failed to fetch agent' });
-  }
+  res.json(req.agent);
 });
 
 app.get('/agents', async (req, res) => {
@@ -1852,26 +1734,78 @@ app.get('/premiums/monthly', async (req, res) => {
 
 app.post('/agent', async (req, res) => {
   console.log('Creating agent');
-  const db = new Firestore();
+
   const { agent } = req.body;
-
-  console.log('Creating agent:', agent);
-
-  if (!agent || !agent.email) {
-    return res.status(400).json({ error: 'Missing agent data or email' });
+  // get org id until find good way to have public routes
+  // eslint-disable-next-line camelcase
+  const org_id = (await supabaseService.from('organizations').select('id').eq('name', agent.agency).single()).data.id;
+  // eslint-disable-next-line camelcase
+  const { data: uplineAgent, error: uplineAgenetError } = await supabaseService.from('agents')
+      .select('id')
+      .eq('email', agent.uplineEmail)
+      .maybeSingle();
+  if (uplineAgenetError) {
+    console.error('Error fetching upline agent:', uplineAgenetError);
+    return res.status(500).json({ error: 'Failed to fetch upline agent' });
+  }
+  if (!uplineAgent) {
+    console.error('No upline agent found for email:', agent.uplineEmail);
+    return res.status(400).json({ error: 'No upline agent found' });
   }
 
-  const emailId = agent.email.toLowerCase(); // optional: normalize
-
+  const payload = {
+    first_name: agent.name.split(' ')[0],
+    last_name: agent.name.split(' ')[1],
+    npn: agent.npn,
+    // eslint-disable-next-line camelcase
+    org_id,
+    // eslint-disable-next-line camelcase
+    upline_agent_id: uplineAgent.id,
+    email: agent.email,
+    level: agent.level,
+    id: req.user.id,
+  };
   try {
-    await db.collection('agents').doc(emailId).set(agent);
-    res.status(201).json({ agent: { id: emailId, role: 'agent', ...agent } });
+    const { data, agentError } = await supabaseService.from('agents').insert([payload]);
+
+    if ( agentError ) {
+      console.error('Error creating agent:', agentError);
+      res.status(500).send({ error: 'Failed to create agent' });
+    } else {
+      res.status(200).json(data);
+    }
   } catch (error) {
     console.error('Error creating agent:', error);
     res.status(500).json({ error: 'Failed to create agent' });
   }
 });
-
+app.post('/clients_temp', async (req, res) => {
+  console.log('Creating clients');
+  const { client } = req.body;
+  delete client.leadSource;
+  delete client.notes;
+  try {
+    const { data: clientData, error: clientError } = await supabaseService.from('clients').insert(client).select('*');
+    if (clientError) {
+      console.error('Error creating clients:', clientError);
+      res.status(500).send({ error: 'Failed to create clients' });
+    } else {
+      // insert to agent-clients m:m table
+      const { error: relationError } = await supabaseService.from('agent_clients').insert([{
+        agent_id: req.user.id,
+        client_id: clientData[0].id,
+      }]);
+      if (relationError) {
+        console.error('Error creating agent-clients relation:', relationError);
+        res.status(500).send({ error: 'Failed to create agent-clients relation' });
+      }
+      res.status(200).json(clientData);
+    }
+  } catch (error) {
+    console.error('Error creating clients:', error);
+    res.status(500).json({ error: 'Failed to create clients' });
+  }
+});
 app.post('/client', async (req, res) => {
   console.log('Creating client');
   const db = new Firestore();

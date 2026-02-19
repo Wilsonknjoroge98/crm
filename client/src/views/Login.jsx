@@ -9,9 +9,8 @@ import {
   Link,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../utils/firebase';
+import { supabase } from '../utils/supabase';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -41,16 +40,17 @@ const Login = () => {
     setErrorMsg('');
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const {data, error} = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      console.log(data, error)
       navigate('/clients');
-    } catch (error) {
-      console.error(error);
-      let message = 'Login failed. Please try again.';
-      if (error.code === 'auth/user-not-found') message = 'User not found.';
-      if (error.code === 'auth/wrong-password') message = 'Incorrect password.';
-      if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
-      setErrorMsg(message);
-    } finally {
+    }
+    catch {
+      setErrorMsg('We’re unable to verify your credentials. Please try again.')
+    }
+    finally {
       setLoading(false);
     }
   };

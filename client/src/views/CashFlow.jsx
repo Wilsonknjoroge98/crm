@@ -53,7 +53,7 @@ const CashFlowSummary = () => {
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [expenseDate, setExpenseDate] = useState(dayjs().format('YYYY-MM-DD'));
 
-  const { userToken, agent } = useAuth();
+
 
   const handleStartChange = (newValue) => {
     const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
@@ -88,10 +88,8 @@ const CashFlowSummary = () => {
     queryKey: ['commissions'],
     queryFn: () =>
       getCommissions({
-        token: userToken,
         startDate,
         endDate,
-        agent,
       }),
 
     onError: (error) => {
@@ -108,7 +106,6 @@ const CashFlowSummary = () => {
     queryKey: ['expenses'],
     queryFn: () =>
       getExpenses({
-        token: userToken,
         startDate,
         endDate,
       }),
@@ -123,7 +120,6 @@ const CashFlowSummary = () => {
     queryKey: ['stripe'],
     queryFn: () =>
       getStripeCharges({
-        token: userToken,
         startDate,
         endDate,
       }),
@@ -138,7 +134,6 @@ const CashFlowSummary = () => {
     queryKey: ['adSpend'],
     queryFn: () =>
       getAdSpend({
-        token: userToken,
         startDate,
         endDate,
       }),
@@ -188,7 +183,6 @@ const CashFlowSummary = () => {
   const handleAddExpense = () => {
     if (expenseName && expenseAmount && expenseDate) {
       addExpense({
-        token: userToken,
         name: expenseName,
         amount: Number(expenseAmount),
         date: expenseDate,
@@ -201,7 +195,6 @@ const CashFlowSummary = () => {
 
   const handleDeleteExpense = (expenseId) => {
     destroyExpense({
-      token: userToken,
       expenseId,
     });
   };

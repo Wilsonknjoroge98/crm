@@ -1,34 +1,53 @@
 import axios from 'axios';
+import store from './redux/store'
+import {supabase} from "./supabase.js";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
-const DEV_URL = import.meta.env.VITE_DEV_URL;
 
-const getClients = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
 
-  const { agentId, agentRole, agency } = data || {};
+const isDev = import.meta.env.MODE === 'development';
 
-  if (!agentId || !agentRole || !agency) {
-    return [];
-  }
+// CHECK IF STAGING HOSTING SUBSTRING IN URL
+const isStaging = window.location.hostname.includes('crm-dev-dde35');
+
+const BASE_URL = isDev
+    ? import.meta.env.VITE_DEV_URL
+    : isStaging
+        ? import.meta.env.VITE_STAGING_URL
+        : import.meta.env.VITE_API_URL;
+
+export const apiClient = axios.create({
+  baseURL: BASE_URL,
+});
+apiClient.interceptors.request.use(
+    async (config) => {
+
+       // can't use a selector for redux state since we aren't in a react component
+       const token = (await supabase.auth.getSession())?.data?.session?.access_token;
+       console.log('Attaching token to request:', token);
+       // if the token exists, add it to the request headers
+       if (token) {
+         config.headers.Authorization = `Bearer ${token}`;
+       }
+       return config;
+
+    }
+)
+
+
+
+const getClients = async () => {
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
+    url: '/clients',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/clients` : `${BASE_URL}/clients`,
     params: {
-      agentId: agentId,
-      agentRole: agentRole,
       mode: import.meta.env.MODE,
-      agency: agency,
     },
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient(options);
 
     return response.data;
   } catch (error) {
@@ -46,27 +65,18 @@ const getClients = async ({ token, data }) => {
   }
 };
 
-const getLeads = async ({ token, data }) => {
+const getLeads = async ({ data }) => {
   console.log('Fetching leads with data:', data);
-  const isDev = import.meta.env.DEV;
 
-  const { agentId, agentRole, agency } = data || {};
-  if (!agentId || !agentRole || !agency) {
-    return [];
-  }
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/leads` : `${BASE_URL}/leads`,
+    url: '/leads',
     params: {
-      agentId: agentId,
-      agentRole: agentRole,
+
       mode: import.meta.env.MODE,
-      agency: agency,
     },
   };
 
@@ -76,7 +86,7 @@ const getLeads = async ({ token, data }) => {
   // });
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -94,20 +104,18 @@ const getLeads = async ({ token, data }) => {
   }
 };
 
-const patchAccount = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const patchAccount = async ({ data }) => {
+
 
   console.log('Updating client account', data);
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
-    url: isDev ? `${DEV_URL}/customer-account` : `${BASE_URL}/customer-account`,
+    url: '/customer-account'
   };
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
     return response.data;
   } catch (error) {
     console.error('Error updating account:', error);
@@ -115,18 +123,15 @@ const patchAccount = async ({ token, data }) => {
   }
 };
 
-const getAccount = async ({ token, email }) => {
-  const isDev = import.meta.env.DEV;
+const getAccount = async ({ email }) => {
+
 
   console.log('Getting client account', email);
 
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/customer-account` : `${BASE_URL}/customer-account`,
+    url:'customer_account',
     params: {
       email: email,
       mode: import.meta.env.MODE,
@@ -134,7 +139,7 @@ const getAccount = async ({ token, email }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -144,16 +149,12 @@ const getAccount = async ({ token, email }) => {
   }
 };
 
-const getPremiumLeaderboard = async ({ token, startDate, endDate, agency }) => {
-  const isDev = import.meta.env.DEV;
+const getPremiumLeaderboard = async ({ startDate, endDate, agency }) => {
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/premiums` : `${BASE_URL}/premiums`,
+    url: 'premiums',
     params: {
       mode: import.meta.env.MODE,
       startDate,
@@ -163,7 +164,7 @@ const getPremiumLeaderboard = async ({ token, startDate, endDate, agency }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -181,16 +182,13 @@ const getPremiumLeaderboard = async ({ token, startDate, endDate, agency }) => {
   }
 };
 
-const getPremiumPerLead = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
+const getPremiumPerLead = async ({agency }) => {
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'GET',
-    url: isDev ? `${DEV_URL}/premiums/per-lead` : `${BASE_URL}/premiums/per-lead`,
+    url: 'premiums/per-lead',
     params: {
       mode: import.meta.env.MODE,
 
@@ -199,7 +197,7 @@ const getPremiumPerLead = async ({ token, agency }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -217,16 +215,13 @@ const getPremiumPerLead = async ({ token, agency }) => {
   }
 };
 
-const getMonthlyPremiums = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
+const getMonthlyPremiums = async ({agency }) => {
+
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/premiums/monthly` : `${BASE_URL}/premiums/monthly`,
+    url: `premiums/monthly`,
     params: {
       mode: import.meta.env.MODE,
       agency,
@@ -234,7 +229,7 @@ const getMonthlyPremiums = async ({ token, agency }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -252,25 +247,20 @@ const getMonthlyPremiums = async ({ token, agency }) => {
   }
 };
 
-const getPersistencyRates = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
+const getPersistencyRates = async ({ agency }) => {
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/persistency-rates` : `${BASE_URL}/persistency-rates`,
+    url: '/persistency-rates',
     params: {
       mode: import.meta.env.MODE,
-
       agency,
     },
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -288,16 +278,12 @@ const getPersistencyRates = async ({ token, agency }) => {
   }
 };
 
-const getCloseRates = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
+const getCloseRates = async ({ agency }) => {
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/close-rates` : `${BASE_URL}/close-rates`,
+    url: '/close-rates',
     params: {
       mode: import.meta.env.MODE,
 
@@ -306,7 +292,7 @@ const getCloseRates = async ({ token, agency }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -324,16 +310,14 @@ const getCloseRates = async ({ token, agency }) => {
   }
 };
 
-const getPolicyStatuses = async ({ token, agency }) => {
-  const isDev = import.meta.env.DEV;
+const getPolicyStatuses = async ({ agency }) => {
+
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'GET',
-    url: isDev ? `${DEV_URL}/policies/statuses` : `${BASE_URL}/policies/statuses`,
+    url: '/policies/statuses',
     params: {
       mode: import.meta.env.MODE,
 
@@ -342,7 +326,7 @@ const getPolicyStatuses = async ({ token, agency }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -360,17 +344,13 @@ const getPolicyStatuses = async ({ token, agency }) => {
   }
 };
 
-const getStripeCharges = async ({ token, startDate, endDate }) => {
-  const isDev = import.meta.env.DEV;
+const getStripeCharges = async ({  startDate, endDate }) => {
   console.log('Fetching revenue for dates:', startDate, endDate);
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/stripe-charges` : `${BASE_URL}/stripe-charges`,
+    url: '/stripe-charges',
     params: {
       startDate,
       endDate,
@@ -379,7 +359,7 @@ const getStripeCharges = async ({ token, startDate, endDate }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
     return response.data;
   } catch (error) {
     console.error('Error getting revenue:', error);
@@ -387,16 +367,12 @@ const getStripeCharges = async ({ token, startDate, endDate }) => {
   }
 };
 
-const getAdSpend = async ({ token, startDate, endDate }) => {
-  const isDev = import.meta.env.DEV;
+const getAdSpend = async ({ startDate, endDate }) => {
   console.log('Fetching ad spend for dates:', startDate, endDate);
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/ad-spend` : `${BASE_URL}/ad-spend`,
+    url: '/ad-spend',
     params: {
       startDate,
       endDate,
@@ -404,7 +380,7 @@ const getAdSpend = async ({ token, startDate, endDate }) => {
     },
   };
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
     return response.data;
   } catch (error) {
     console.error('Error getting ad spend:', error);
@@ -412,17 +388,12 @@ const getAdSpend = async ({ token, startDate, endDate }) => {
   }
 };
 
-const getCommissions = async ({ token, startDate, endDate, agent }) => {
-  const isDev = import.meta.env.DEV;
-
+const getCommissions = async ({  startDate, endDate, agent }) => {
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/commissions` : `${BASE_URL}/commissions`,
+    url: '/commissions',
     params: {
       mode: import.meta.env.MODE,
       startDate,
@@ -437,7 +408,7 @@ const getCommissions = async ({ token, startDate, endDate, agent }) => {
   // });
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     console.log('Commissions fetched:', response.data);
 
@@ -449,23 +420,14 @@ const getCommissions = async ({ token, startDate, endDate, agent }) => {
   }
 };
 
-const getPolicies = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
-
-  const { agentId, agentRole, agency } = data || {};
-
-  if (!agentId || !agentRole || !agency) {
-    return [];
-  }
+const getPolicies = async ({  data }) => {
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'GET',
     // signal: signal,
-    url: isDev ? `${DEV_URL}/policies` : `${BASE_URL}/policies`,
+    url: '/policies',
     params: {
       agentId: agentId,
       agentRole: agentRole,
@@ -475,7 +437,7 @@ const getPolicies = async ({ token, data }) => {
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     console.log('Policies fetched:', response.data);
 
@@ -494,8 +456,7 @@ const getPolicies = async ({ token, data }) => {
   }
 };
 
-const postClient = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const postClient = async ({  data }) => {
 
   console.log('Posting client:', data);
 
@@ -507,17 +468,14 @@ const postClient = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'POST',
     data: { client: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
+    url: '/clients_temp',
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     // return to component
     return response.data;
@@ -535,8 +493,7 @@ const postClient = async ({ token, data }) => {
   }
 };
 
-const patchClient = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const patchClient = async ({ data }) => {
 
   console.log('Patching client:', data);
 
@@ -550,24 +507,21 @@ const patchClient = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'PATCH',
     data: { clientId: clientId, client: client, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
+    url: 'client',
   };
 
   // response from server
-  const response = await axios.request(options);
+  const response = await apiClient.request(options);
 
   // return to component
   return response.data;
 };
 
-const postAgent = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const postAgent = async ({ data }) => {
+
 
   // client side validation
 
@@ -578,41 +532,34 @@ const postAgent = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'POST',
     data: { agent: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/agent` : `${BASE_URL}/agent`,
+    url: 'agent',
   };
   // response from server
-  const response = await axios.request(options);
+  const response = await apiClient.request(options);
   // return to component
   return response.data;
 };
 
-const getAgent = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const getAgent = async ({ data }) => {
 
-  const { uid } = data || {};
+  const { id } = data || {};
 
-  if (!uid) {
+  if (!id) {
     throw new Error('Missing UID');
   }
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/agent` : `${BASE_URL}/agent`,
-    params: { uid: uid, mode: import.meta.env.MODE },
+    url: '/agent',
+    params: { uid: id, mode: import.meta.env.MODE },
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -629,25 +576,17 @@ const getAgent = async ({ token, data }) => {
   }
 };
 
-const getAgents = async ({ token }) => {
-  const isDev = import.meta.env.DEV;
-
-  if (!token) {
-    throw new Error('Missing token');
-  }
+const getAgents = async () => {
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/agents` : `${BASE_URL}/agents`,
+    url:'/agents',
     params: { mode: import.meta.env.MODE },
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -664,8 +603,7 @@ const getAgents = async ({ token }) => {
   }
 };
 
-const deleteExpense = async ({ token, expenseId }) => {
-  const isDev = import.meta.env.DEV;
+const deleteExpense = async ({ expenseId }) => {
 
   if (!expenseId) {
     throw new Error('Missing expense ID');
@@ -674,25 +612,22 @@ const deleteExpense = async ({ token, expenseId }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'DELETE',
     data: { expenseId: expenseId, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/expense` : `${BASE_URL}/expense`,
+    url: '/expense',
   };
 
   // response from server
-  const response = await axios.request(options);
+  const response = await apiClient.request(options);
   console.log('Delete response:', response.data);
 
   // return to component
   return response.data;
 };
 
-const postExpense = async ({ token, name, amount, date }) => {
-  const isDev = import.meta.env.DEV;
+const postExpense = async ({  name, amount, date }) => {
 
   // client side validation
   if (!name || !amount || !date) {
@@ -705,9 +640,6 @@ const postExpense = async ({ token, name, amount, date }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'POST',
     data: {
       name: name,
@@ -716,12 +648,12 @@ const postExpense = async ({ token, name, amount, date }) => {
       mode: import.meta.env.MODE,
     },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/expense` : `${BASE_URL}/expense`,
+    url: '/expense',
   };
 
   try {
     // response from server
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     // return to component
     return response.data;
@@ -736,16 +668,11 @@ const postExpense = async ({ token, name, amount, date }) => {
   }
 };
 
-const getExpenses = async ({ token, startDate, endDate }) => {
-  const isDev = import.meta.env.DEV;
-
+const getExpenses = async ({  startDate, endDate }) => {
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/expenses` : `${BASE_URL}/expenses`,
+    url: '/expenses',
     params: {
       startDate,
       endDate,
@@ -753,7 +680,7 @@ const getExpenses = async ({ token, startDate, endDate }) => {
     },
   };
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
     return response.data;
   } catch (error) {
     console.error('Error getting expenses:', error);
@@ -761,25 +688,18 @@ const getExpenses = async ({ token, startDate, endDate }) => {
   }
 };
 
-const getInsights = async ({ token, startDate, endDate }) => {
-  const isDev = import.meta.env.DEV;
+const getInsights = async ({ startDate, endDate }) => {
 
-  if (!token) {
-    throw new Error('Missing token');
-  }
 
   // request config for compulife server
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'GET',
-    url: isDev ? `${DEV_URL}/insights` : `${BASE_URL}/insights`,
+    url: '/insights',
     params: { mode: import.meta.env.MODE, startDate, endDate },
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     return response.data;
   } catch (error) {
@@ -796,10 +716,10 @@ const getInsights = async ({ token, startDate, endDate }) => {
   }
 };
 
-const patchPolicy = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const patchPolicy = async ({  data }) => {
 
-  console.log({ token, data });
+
+  console.log({  data });
 
   // client side validation
   if (!data) {
@@ -809,24 +729,21 @@ const patchPolicy = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'PATCH',
     data: { policyId: data.id, policy: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/policy` : `${BASE_URL}/policy`,
+    url: '/policy',
   };
 
   // response from server
-  const response = await axios.request(options);
+  const response = await apiClient.request(options);
 
   // return to component
   return response.data;
 };
 
-const postPolicy = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const postPolicy = async ({ data }) => {
 
   const { policy, clientId, agentIds } = data || {};
 
@@ -841,9 +758,6 @@ const postPolicy = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'POST',
     data: {
       policy: policy,
@@ -852,11 +766,11 @@ const postPolicy = async ({ token, data }) => {
       mode: import.meta.env.MODE,
     },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/policy` : `${BASE_URL}/policy`,
+    url: '/policy',
   };
   try {
     // response from server
-    const response = await axios.request(options);
+    const response = await apiClient.request(options);
 
     // return to component
     return response.data;
@@ -874,9 +788,7 @@ const postPolicy = async ({ token, data }) => {
   }
 };
 
-const deleteClient = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
-
+const deleteClient = async ({  data }) => {
   const { clientId } = data || {};
 
   console.log('Deleting client with ID:', clientId);
@@ -888,24 +800,21 @@ const deleteClient = async ({ token, data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     method: 'DELETE',
     data: { clientId: clientId, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/client` : `${BASE_URL}/client`,
+    url: '/client',
   };
 
   // response from server
-  const response = await axios.request(options);
+  const response = await apiClient.request(options);
   console.log('Delete response:', response.data);
   // return to component
   return response.data;
 };
 
-const deletePolicy = async ({ token, data }) => {
-  const isDev = import.meta.env.DEV;
+const deletePolicy = async ({  data }) => {
+
 
   const { policyId } = data || {};
 
@@ -919,16 +828,14 @@ const deletePolicy = async ({ token, data }) => {
   // request config for custom firebase endpoint
 
   const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+
     method: 'DELETE',
     data: { policyId: policyId, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/policy` : `${BASE_URL}/policy`,
+    url:'/policy',
   };
   // response from server
-  const response = await axios.request(options);
+  const response = await apiClient.request(options);
   console.log('Delete response:', response.data);
 
   // return to component
@@ -946,10 +853,10 @@ const postError = async (data) => {
     method: 'POST',
     data: data,
     signal: controller.signal,
-    url: isDev ? `${DEV_URL}/error` : `${BASE_URL}/error`,
+    url: '/error',
   };
 
-  const response = await axios.request(options);
+  const response = await apiClient.request(options);
 
   return response.data;
 };

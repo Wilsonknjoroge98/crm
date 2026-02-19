@@ -44,7 +44,8 @@ export default function ClientsGrid({
   const rows = clients.map((client) => {
     return {
       ...client,
-      fullName: `${client.firstName || ''} ${client.lastName || ''}`.trim(),
+      createdAtMs: client.created_at,
+      fullName: `${client.first_name || ''} ${client.last_name || ''}`.trim(),
     };
   });
 
@@ -93,7 +94,7 @@ export default function ClientsGrid({
 
     cols.push(
       {
-        field: 'createdAtMs',
+        field: 'created_at',
         headerName: 'Created',
         filterable: true,
         sortable: true,
