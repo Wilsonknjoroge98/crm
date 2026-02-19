@@ -7,21 +7,23 @@ import {
   Typography,
   Box,
   Stack,
+  Divider,
 } from '@mui/material';
-import PeopleIcon from '@mui/icons-material/People';
-import DescriptionIcon from '@mui/icons-material/Description';
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import InsightsIcon from '@mui/icons-material/Insights';
-import LeaderboardIcon from '@mui/icons-material/Leaderboard';
-import BusinessIcon from '@mui/icons-material/Business';
-import StorageIcon from '@mui/icons-material/Storage';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
+import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import { useTheme } from '@mui/material/styles';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import useAuth from '../hooks/useAuth';
 
-const drawerWidth = 240;
+const drawerWidth = 250;
 
 const SidePanel = () => {
   const navigate = useNavigate();
@@ -32,47 +34,51 @@ const SidePanel = () => {
   const agency = agent?.agency;
 
   const handleItemClick = (path) => {
+    if (!path) return;
     navigate(path);
   };
 
-  const navItems = [
-    {
-      text: 'Leaderboard',
-      icon: <LeaderboardIcon sx={{ color: '#f9d076' }} />,
-      path: '/dashboard',
-    },
+  const salesItems = [
     {
       text: 'Leads',
-      icon: <StorageIcon sx={{ color: '#f9d076' }} />,
+      icon: <StorageOutlinedIcon />,
       path: '/leads',
     },
     {
       text: 'Clients',
-      icon: <PeopleIcon sx={{ color: '#f9d076' }} />,
+      icon: <PeopleAltOutlinedIcon />,
       path: '/clients',
     },
     {
       text: 'Policies',
-      icon: <DescriptionIcon sx={{ color: '#f9d076' }} />,
+      icon: <ArticleOutlinedIcon />,
       path: '/policies',
     },
+  ];
 
+  const managementItems = [
     {
-      text: 'Insights',
-      icon: <InsightsIcon sx={{ color: '#f9d076' }} />,
-      path: '/insights',
-      role: 'admin',
-    },
-    {
-      text: 'Cash Flow',
-      icon: <BusinessIcon sx={{ color: '#f9d076' }} />,
-      path: '/cashflow',
-      role: 'admin',
+      text: 'Team Production',
+      icon: <QueryStatsOutlinedIcon />,
+      path: null,
     },
     {
       text: 'Purchase Leads',
-      icon: <ShoppingCartIcon sx={{ color: '#f9d076' }} />,
+      icon: <ShoppingCartOutlinedIcon />,
       path: '/purchase-leads',
+    },
+  ];
+
+  const adminItems = [
+    {
+      text: 'Insights',
+      icon: <InsightsIcon />,
+      path: '/insights',
+    },
+    {
+      text: 'Cash Flow',
+      icon: <BusinessOutlinedIcon />,
+      path: '/cashflow',
     },
   ];
 
@@ -95,28 +101,23 @@ const SidePanel = () => {
 
       <Box sx={{ px: 1.5 }}>
         {isAuthenticated && (
-          <List disablePadding>
-            {navItems.map(({ text, icon, path, role }) => {
-              if (role === 'admin' && agent?.role !== 'admin') return null;
-
-              const isActive = location.pathname === path;
-
-              return (
-                <ListItem
-                  key={text}
-                  onClick={() => handleItemClick(path)}
-                  sx={{
-                    'mb': 0.5,
-                    'px': 1.5,
-                    'py': 1,
-                    'borderRadius': 1.5,
-                    'cursor': 'pointer',
-                    'position': 'relative',
-                    'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255,255,255,0.08)',
-                    },
-                    '&::before': isActive
+          <Stack spacing={3}>
+            <List disablePadding>
+              <ListItem
+                onClick={() => handleItemClick('/dashboard')}
+                sx={{
+                  'px': 3,
+                  'py': 0.5,
+                  'borderRadius': 1.5,
+                  'cursor': 'pointer',
+                  'position': 'relative',
+                  'backgroundColor':
+                    location.pathname === '/dashboard' ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255,255,255,0.08)',
+                  },
+                  '&::before':
+                    location.pathname === '/dashboard'
                       ? {
                           content: '""',
                           position: 'absolute',
@@ -128,35 +129,256 @@ const SidePanel = () => {
                           backgroundColor: '#EFBF04',
                         }
                       : {},
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 30,
+                    color:
+                      location.pathname === '/dashboard' ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
                   }}
                 >
-                  <ListItemIcon
+                  <LeaderboardOutlinedIcon />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary={
+                    <Typography
+                      variant='body2'
+                      sx={{
+                        color:
+                          location.pathname === '/dashboard' ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                      }}
+                    >
+                      Leaderboard
+                    </Typography>
+                  }
+                />
+              </ListItem>
+            </List>
+            <List disablePadding>
+              <Stack>
+                <Typography
+                  variant='caption'
+                  fontWeight={600}
+                  letterSpacing={2}
+                  sx={{
+                    mb: 1,
+                    px: 1.5,
+                    color: 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  SALES
+                </Typography>
+              </Stack>
+              {salesItems.map(({ text, icon, path }) => {
+                const isActive = location.pathname === path;
+
+                return (
+                  <ListItem
+                    key={text}
+                    onClick={() => handleItemClick(path)}
                     sx={{
-                      minWidth: 32,
-                      color: isActive ? '#EFBF04' : 'rgba(255,255,255,0.65)',
+                      'px': 3,
+                      'py': 0.5,
+
+                      'borderRadius': 1.5,
+                      'cursor': 'pointer',
+                      'position': 'relative',
+                      'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                      },
+                      '&::before': isActive
+                        ? {
+                            content: '""',
+                            position: 'absolute',
+                            left: 0,
+                            top: '20%',
+                            height: '60%',
+                            width: '3px',
+                            borderRadius: '2px',
+                            backgroundColor: '#EFBF04',
+                          }
+                        : {},
                     }}
                   >
-                    {icon}
-                  </ListItemIcon>
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 30,
+                        color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                      }}
+                    >
+                      {icon}
+                    </ListItemIcon>
 
-                  <ListItemText
-                    primary={
-                      <Typography
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant='body2'
+                          sx={{
+                            color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                          }}
+                        >
+                          {text}
+                        </Typography>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+
+            <List disablePadding>
+              <Stack>
+                <Typography
+                  variant='caption'
+                  fontWeight={600}
+                  letterSpacing={2}
+                  sx={{
+                    mb: 1,
+                    px: 1.5,
+
+                    color: 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  MANAGEMENT
+                </Typography>
+              </Stack>
+              {managementItems.map(({ text, icon, path }) => {
+                const isActive = location.pathname === path;
+
+                return (
+                  <ListItem
+                    key={text}
+                    onClick={() => handleItemClick(path)}
+                    sx={{
+                      'px': 3,
+                      'py': 0.5,
+                      'borderRadius': 1.5,
+                      'position': 'relative',
+                      'cursor': path && 'pointer',
+                      'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                      '&:hover': {
+                        // if no path, the route isn't ready yet
+                        backgroundColor: path && 'rgba(255,255,255,0.08)',
+                      },
+                      '&::before': isActive
+                        ? {
+                            content: '""',
+                            position: 'absolute',
+                            left: 0,
+                            top: '20%',
+                            height: '60%',
+                            width: '3px',
+                            borderRadius: '2px',
+                            backgroundColor: '#EFBF04',
+                          }
+                        : {},
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 30,
+                        color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                      }}
+                    >
+                      {icon}
+                    </ListItemIcon>
+
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant='body2'
+                          sx={{
+                            color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                          }}
+                        >
+                          {text}
+                        </Typography>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+
+            {agent?.role === 'admin' && (
+              <List disablePadding>
+                <Stack>
+                  <Typography
+                    variant='caption'
+                    fontWeight={600}
+                    letterSpacing={2}
+                    sx={{
+                      mb: 1,
+                      px: 1.5,
+
+                      color: 'rgba(255,255,255,0.5)',
+                    }}
+                  >
+                    ADMIN
+                  </Typography>
+                </Stack>
+                {adminItems.map(({ text, icon, path, role }) => {
+                  const isActive = location.pathname === path;
+
+                  return (
+                    <ListItem
+                      key={text}
+                      onClick={() => handleItemClick(path)}
+                      sx={{
+                        'px': 3,
+                        'py': 0.5,
+
+                        'borderRadius': 1.5,
+                        'cursor': 'pointer',
+                        'position': 'relative',
+                        'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255,255,255,0.08)',
+                        },
+                        '&::before': isActive
+                          ? {
+                              content: '""',
+                              position: 'absolute',
+                              left: 0,
+                              top: '20%',
+                              height: '60%',
+                              width: '3px',
+                              borderRadius: '2px',
+                              backgroundColor: '#EFBF04',
+                            }
+                          : {},
+                      }}
+                    >
+                      <ListItemIcon
                         sx={{
-                          fontSize: '0.9rem',
-                          fontWeight: isActive ? 600 : 500,
-                          letterSpacing: '0.2px',
+                          minWidth: 30,
                           color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
                         }}
                       >
-                        {text}
-                      </Typography>
-                    }
-                  />
-                </ListItem>
-              );
-            })}
-          </List>
+                        {icon}
+                      </ListItemIcon>
+
+                      <ListItemText
+                        primary={
+                          <Typography
+                            variant='body2'
+                            sx={{
+                              color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                            }}
+                          >
+                            {text}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  );
+                })}
+              </List>
+            )}
+          </Stack>
         )}
       </Box>
 
@@ -168,20 +390,17 @@ const SidePanel = () => {
         sx={{
           mt: 'auto',
           py: 2,
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          // borderTop: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        {agency && (
-          <Box
-            component='img'
-            src={`${agency}_logo.png`}
-            alt='Logo'
-            sx={{
-              maxWidth: 180,
-              opacity: 0.85,
-            }}
-          />
-        )}
+        <Box
+          component='img'
+          src={`${agency}_logo.png`}
+          alt='Logo'
+          sx={{
+            maxWidth: 240,
+          }}
+        />
       </Stack>
     </Drawer>
   );

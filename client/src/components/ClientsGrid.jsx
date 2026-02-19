@@ -57,8 +57,8 @@ export default function ClientsGrid({
         headerName: 'Agent',
         flex: 1,
         width: 100,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => {
           const ids = params.value;
           const agents = ids.map((id) => agentNameById[id]);
