@@ -59,9 +59,9 @@ export default function ClientsGrid({
         width: 100,
         sortable: true,
         filterable: true,
+        valueGetter: (value) => value.map((id) => agentNameById[id] || '').join(', '),
         renderCell: (params) => {
-          const ids = params.value;
-          const agents = ids.map((id) => agentNameById[id]);
+          const value = params.value;
 
           return (
             <Stack
@@ -71,20 +71,19 @@ export default function ClientsGrid({
                 justifyContent: 'flex-end',
               }}
             >
-              {agents.sort().map((agent) => (
-                <Stack
-                  sx={{
-                    height: '100%',
-                    width: '100%',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Typography variant='caption' key={agent}>
-                    {agent}
-                  </Typography>
-                </Stack>
-              ))}
+              <Stack
+                direction={'row'}
+                sx={{
+                  height: '100%',
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                }}
+              >
+                <Typography variant='caption' key={value}>
+                  {value}
+                </Typography>
+              </Stack>
             </Stack>
           );
         },

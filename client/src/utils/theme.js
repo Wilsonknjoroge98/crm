@@ -7,19 +7,19 @@ export const createAppTheme = ({ agency }) => {
   return createTheme({
     palette: {
       primary: {
-        main: agency === 'ag_Hq92aLsK' ? '#0C0B0A' : '#0C0B0A', // Black or alternative color
+        main: '#051118',
         contrastText: '#F2F2F2',
       },
       secondary: {
-        main: agency === 'ag_Hq92aLsK' ? '#7a5f37' : '#8F6A2A', // Charcoal or alternative color
+        main: '#2F4E6F',
         contrastText: '#F2F2F2',
       },
       action: {
-        main: agency === 'ag_Hq92aLsK' ? '#442b0f' : '#B8923C', // Gold
-        contrastText: agency === 'ag_Hq92aLsK' ? '#F2F2F2' : '#1A1A1A',
+        main: '#D4AF37', // Gold
+        contrastText: '#000000',
       },
       accent: {
-        main: agency === 'ag_Hq92aLsK' ? '#2F5D8A' : '#2F4E6F', // Light Blue
+        main: '#2F4E6F', // Light Blue
       },
       info: {
         main: agency === 'ag_Hq92aLsK' ? '#DCE6EF' : '#D6EAF8',
@@ -37,10 +37,10 @@ export const createAppTheme = ({ agency }) => {
         contrastText: '#1E3D32',
       },
       error: {
-        main: agency === 'ag_Hq92aLsK' ? '#8B2E2E' : '#8B2E2E',
+        main: '#8B2E2E',
       },
       background: {
-        default: agency === 'ag_Hq92aLsK' ? '#F7F5F2' : '#F7F5F2',
+        default: '#F7F5F2',
         paper: '#FFFFFF',
       },
       text: {
@@ -83,7 +83,7 @@ export const createAppTheme = ({ agency }) => {
       MuiTableHead: {
         styleOverrides: {
           root: {
-            backgroundColor: '#F9F9F9',
+            'backgroundColor': '#F9F9F9',
             '& .MuiTableCell-head': {
               fontWeight: 700,
               fontSize: '0.875rem',

@@ -57,11 +57,11 @@ const SidePanel = () => {
   ];
 
   const managementItems = [
-    {
-      text: 'Team Production',
-      icon: <QueryStatsOutlinedIcon />,
-      path: null,
-    },
+    // {
+    //   text: 'Team Production',
+    //   icon: <QueryStatsOutlinedIcon />,
+    //   path: null,
+    // },
     {
       text: 'Purchase Leads',
       icon: <ShoppingCartOutlinedIcon />,
@@ -126,7 +126,7 @@ const SidePanel = () => {
                           height: '60%',
                           width: '3px',
                           borderRadius: '2px',
-                          backgroundColor: '#EFBF04',
+                          backgroundColor: theme.palette.action.main,
                         }
                       : {},
                 }}
@@ -156,6 +156,8 @@ const SidePanel = () => {
                 />
               </ListItem>
             </List>
+
+            {/* SALES SECTION */}
             <List disablePadding>
               <Stack>
                 <Typography
@@ -181,7 +183,6 @@ const SidePanel = () => {
                     sx={{
                       'px': 3,
                       'py': 0.5,
-
                       'borderRadius': 1.5,
                       'cursor': 'pointer',
                       'position': 'relative',
@@ -198,7 +199,7 @@ const SidePanel = () => {
                             height: '60%',
                             width: '3px',
                             borderRadius: '2px',
-                            backgroundColor: '#EFBF04',
+                            backgroundColor: theme.palette.action.main,
                           }
                         : {},
                     }}
@@ -229,6 +230,7 @@ const SidePanel = () => {
               })}
             </List>
 
+            {/* MANAGEMENT SECTION */}
             <List disablePadding>
               <Stack>
                 <Typography
@@ -272,7 +274,7 @@ const SidePanel = () => {
                             height: '60%',
                             width: '3px',
                             borderRadius: '2px',
-                            backgroundColor: '#EFBF04',
+                            backgroundColor: theme.palette.action.main,
                           }
                         : {},
                     }}
@@ -303,6 +305,7 @@ const SidePanel = () => {
               })}
             </List>
 
+            {/* ADMIN SECTION */}
             {agent?.role === 'admin' && (
               <List disablePadding>
                 <Stack>
@@ -313,7 +316,6 @@ const SidePanel = () => {
                     sx={{
                       mb: 1,
                       px: 1.5,
-
                       color: 'rgba(255,255,255,0.5)',
                     }}
                   >
@@ -347,7 +349,7 @@ const SidePanel = () => {
                               height: '60%',
                               width: '3px',
                               borderRadius: '2px',
-                              backgroundColor: '#EFBF04',
+                              backgroundColor: theme.palette.action.main,
                             }
                           : {},
                       }}

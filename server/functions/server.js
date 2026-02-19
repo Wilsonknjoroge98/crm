@@ -24,7 +24,6 @@ app.use(
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:4173',
-      'https://hourglass-ef3ca--sidepanel-upgrade-rugcxhm2.web.app',
     ],
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   }),
