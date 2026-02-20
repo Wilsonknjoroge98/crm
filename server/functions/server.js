@@ -2009,7 +2009,6 @@ app.post('/policy', async (req, res) => {
     return res.status(404).json({ error: 'Agent not found' });
   }
 
-  // send mark lead sold to GSQ DB
   const sendToGSQ = async (client) => {
     try {
       const BODY = {
@@ -2055,7 +2054,6 @@ app.post('/policy', async (req, res) => {
     }
   };
 
-  // TODO: does crypto need to be imported?
   const hash = (data) => {
     return `${crypto.createHash('sha256').update(data).digest('hex')}`;
   };

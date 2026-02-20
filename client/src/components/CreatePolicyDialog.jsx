@@ -203,12 +203,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     if (modifiedForm.beneficiaries.length !== 0) {
       const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
-        keys.some((key) => b[key] === '')
+        keys.some((key) => b[key] === ''),
       );
 
       const shareValue = modifiedForm.beneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0
+        0,
       );
 
       if (hasEmptyFields || shareValue !== 100) {
@@ -221,12 +221,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     if (modifiedForm.contingentBeneficiaries.length !== 0) {
       const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
-        keys.some((key) => b[key] === '')
+        keys.some((key) => b[key] === ''),
       );
 
       const shareValue = modifiedForm.contingentBeneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0
+        0,
       );
 
       if (hasEmptyFields || shareValue !== 100) {
@@ -246,7 +246,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='md' fullWidth>
-      <DialogTitle>New Policy</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} p={2}>
           <Grid size={12}>

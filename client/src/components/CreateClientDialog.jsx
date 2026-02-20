@@ -13,6 +13,11 @@ import {
   Stack,
   Alert,
   CircularProgress,
+  FormControl,
+  FormControlLabel,
+  Checkbox,
+  Box,
+  Typography,
 } from '@mui/material';
 
 import { enqueueSnackbar } from 'notistack';
@@ -46,6 +51,19 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     income: '',
     notes: '',
   };
+
+  const SectionHeader = ({ title }) => (
+    <Box sx={{ mt: 3, mb: 1, display: 'flex', alignItems: 'center' }}>
+      <Typography
+        variant='subtitle2'
+        color='primary'
+        sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}
+      >
+        {title}
+      </Typography>
+      <Divider sx={{ flexGrow: 1, ml: 2, bgcolor: 'primary.light', opacity: 0.2 }} />
+    </Box>
+  );
 
   const [form, setForm] = useState(initialForm);
   const [phoneError, setPhoneError] = useState(false);
@@ -216,10 +234,21 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>New Client</DialogTitle>
+      <DialogTitle
+        sx={{
+          fontWeight: 700,
+          fontSize: '1.5rem',
+          pb: 1,
+        }}
+      >
+        New Client Profile
+      </DialogTitle>
       <DialogContent sx={{ mt: 1 }}>
         <Grid container spacing={2} p={2}>
           <Grid item size={12}>
+            <SectionHeader title='Lead information' />
+          </Grid>
+          <Grid item size={6}>
             <TextField
               sx={{ width: '100%' }}
               select
@@ -237,6 +266,47 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
                 </MenuItem>
               ))}
             </TextField>
+          </Grid>
+          <Grid>
+            <FormControl error={true} fullWidth>
+              <Alert sx={{ width: 'fit-content' }} severity='warning'>
+                Is this a live transfer lead
+              </Alert>
+
+              <Stack direction='row' spacing={2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.splitPolicy === true}
+                      onChange={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          splitPolicy: true,
+                        }))
+                      }
+                    />
+                  }
+                  label='Yes'
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.splitPolicy === false}
+                      onChange={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          splitPolicy: false,
+                        }))
+                      }
+                    />
+                  }
+                  label='No'
+                />
+              </Stack>
+            </FormControl>
+          </Grid>
+          <Grid item size={12}>
+            <SectionHeader title='Personal Information' />
           </Grid>
           <Grid item size={6}>
             <TextField
@@ -315,10 +385,12 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             </TextField>
           </Grid>
 
+          {/* Section 2: Address */}
           <Grid item size={12}>
-            <Divider sx={{ my: 2 }} />
+            <SectionHeader title='Location' />
           </Grid>
-          <Grid size={6}>
+
+          <Grid size={12}>
             <TextField
               name='address'
               label='Street Address'
@@ -330,7 +402,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             />
           </Grid>
 
-          <Grid item size={6}>
+          <Grid item size={4}>
             <TextField
               name='city'
               label='City'
@@ -340,7 +412,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               required
             />
           </Grid>
-          <Grid item size={6}>
+          <Grid item size={4}>
             <TextField
               name='state'
               id='outlined-select-currency'
@@ -359,7 +431,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               ))}
             </TextField>
           </Grid>
-          <Grid item size={6}>
+          <Grid item size={4}>
             <TextField
               name='zip'
               label='Zip Code'
@@ -370,6 +442,10 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               fullWidth
               required
             />
+          </Grid>
+
+          <Grid item size={12}>
+            <SectionHeader title='Employment & Financials' />
           </Grid>
 
           <Grid item size={6}>
@@ -404,7 +480,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           </Grid>
 
           <Grid item size={12}>
-            <Divider sx={{ my: 2 }} />
+            <SectionHeader title='Additional Notes' />
           </Grid>
 
           <Grid item size={12}>
@@ -418,6 +494,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               rows={3}
             />
           </Grid>
+
           {error && (
             <Alert severity='error' sx={{ mb: 2, width: '100%', p: 2 }}>
               {error.message}

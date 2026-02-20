@@ -64,6 +64,11 @@ export const createAppTheme = ({ agency }) => {
       },
     },
     components: {
+      MuiTextField: {
+        defaultProps: {
+          size: 'small',
+        },
+      },
       MuiButton: {
         styleOverrides: {
           root: {
@@ -136,6 +141,7 @@ export const createAppTheme = ({ agency }) => {
       //     }),
       //   },
       // },
+
       MuiInputBase: {
         styleOverrides: {
           root: {
