@@ -66,7 +66,7 @@ export const createAppTheme = ({ agency }) => {
     components: {
       MuiTextField: {
         defaultProps: {
-          size: 'small',
+          slotProps: { inputLabel: { shrink: true } },
         },
       },
       MuiButton: {

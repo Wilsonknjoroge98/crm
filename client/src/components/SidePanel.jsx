@@ -17,6 +17,7 @@ import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import { useTheme } from '@mui/material/styles';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -35,6 +36,10 @@ const SidePanel = () => {
 
   const handleItemClick = (path) => {
     if (!path) return;
+    if (path.includes('https')) {
+      window.open(path, '_blank');
+      return;
+    }
     navigate(path);
   };
 
@@ -66,6 +71,11 @@ const SidePanel = () => {
       text: 'Purchase Leads',
       icon: <ShoppingCartOutlinedIcon />,
       path: '/purchase-leads',
+    },
+    {
+      text: 'Mange Subscription',
+      icon: <SettingsOutlinedIcon />,
+      path: 'https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00',
     },
   ];
 

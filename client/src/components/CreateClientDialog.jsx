@@ -32,9 +32,13 @@ import { useMutation } from '@tanstack/react-query';
 import { postClient } from '../utils/query';
 import useAuth from '../hooks/useAuth';
 
+import { useLocation } from 'react-router-dom';
+
 import { toTitleCase } from '../utils/helpers';
+import SectionHeader from './SectionHeader';
 
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
+  const { pathname } = useLocation();
   const initialForm = {
     firstName: '',
     lastName: '',
@@ -51,19 +55,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     income: '',
     notes: '',
   };
-
-  const SectionHeader = ({ title }) => (
-    <Box sx={{ mt: 3, mb: 1, display: 'flex', alignItems: 'center' }}>
-      <Typography
-        variant='subtitle2'
-        color='primary'
-        sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}
-      >
-        {title}
-      </Typography>
-      <Divider sx={{ flexGrow: 1, ml: 2, bgcolor: 'primary.light', opacity: 0.2 }} />
-    </Box>
-  );
 
   const [form, setForm] = useState(initialForm);
   const [phoneError, setPhoneError] = useState(false);
@@ -108,6 +99,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         occupation: '',
         income: '',
         notes: '',
+        liveTransfer: false,
       });
     }
   }, [lead]);
@@ -241,7 +233,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           pb: 1,
         }}
       >
-        New Client Profile
+        New Client
       </DialogTitle>
       <DialogContent sx={{ mt: 1 }}>
         <Grid container spacing={2} p={2}>
@@ -267,44 +259,45 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               ))}
             </TextField>
           </Grid>
-          <Grid>
-            <FormControl error={true} fullWidth>
-              <Alert sx={{ width: 'fit-content' }} severity='warning'>
-                Is this a live transfer lead
-              </Alert>
+          {form.leadSource === 'GetSeniorQuotes.com' && pathname.includes('client') && (
+            <Grid size={6}>
+              <FormControl error={true} fullWidth>
+                <Alert severity='warning'>Is this a live transfer lead?</Alert>
 
-              <Stack direction='row' spacing={2}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={form.splitPolicy === true}
-                      onChange={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          splitPolicy: true,
-                        }))
-                      }
-                    />
-                  }
-                  label='Yes'
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={form.splitPolicy === false}
-                      onChange={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          splitPolicy: false,
-                        }))
-                      }
-                    />
-                  }
-                  label='No'
-                />
-              </Stack>
-            </FormControl>
-          </Grid>
+                <Stack direction='row' spacing={2}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={form.liveTransfer === true}
+                        onChange={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            liveTransfer: true,
+                          }))
+                        }
+                      />
+                    }
+                    label='Yes'
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={form.liveTransfer === false}
+                        onChange={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            liveTransfer: false,
+                          }))
+                        }
+                      />
+                    }
+                    label='No'
+                  />
+                </Stack>
+              </FormControl>
+            </Grid>
+          )}
+
           <Grid item size={12}>
             <SectionHeader title='Personal Information' />
           </Grid>
@@ -363,7 +356,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               value={form.dob}
               onChange={handleChange}
               fullWidth
-              InputLabelProps={{ shrink: true }}
               required
             />
           </Grid>
@@ -390,7 +382,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             <SectionHeader title='Location' />
           </Grid>
 
-          <Grid size={12}>
+          <Grid size={6}>
             <TextField
               name='address'
               label='Street Address'
@@ -402,7 +394,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             />
           </Grid>
 
-          <Grid item size={4}>
+          <Grid item size={6}>
             <TextField
               name='city'
               label='City'
@@ -412,7 +404,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               required
             />
           </Grid>
-          <Grid item size={4}>
+          <Grid item size={6}>
             <TextField
               name='state'
               id='outlined-select-currency'
@@ -431,7 +423,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               ))}
             </TextField>
           </Grid>
-          <Grid item size={4}>
+          <Grid item size={6}>
             <TextField
               name='zip'
               label='Zip Code'

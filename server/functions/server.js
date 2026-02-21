@@ -1879,7 +1879,7 @@ app.post('/client', async (req, res) => {
   const { client } = req.body;
   const isGSQ = client.leadSource === 'GetSeniorQuotes.com';
 
-  console.log('Posting client:', client);
+  logger.log('Posting client:', client);
 
   if (!client) {
     return res.status(400).json({ error: 'Missing client data' });

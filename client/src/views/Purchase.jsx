@@ -1,11 +1,4 @@
-import {
-  Card,
-  Container,
-  Typography,
-  CardContent,
-  Stack,
-  Box,
-} from '@mui/material';
+import { Card, Container, Typography, CardContent, Stack, Box } from '@mui/material';
 import { useEffect } from 'react';
 
 const Purchase = () => {
@@ -22,68 +15,6 @@ const Purchase = () => {
     };
   }, []);
 
-  const accountDetail = {
-    ringySid: 'iSjqib3bgrzvjbtf1bw8psqmzm7ct7za',
-    ringyToken: 'gdlxpcd9ksrur96ja8rbrmeqysd7q6ms',
-    states: [
-      'AK',
-      'AL',
-      'AZ',
-      'CA',
-      'CO',
-      'IA',
-      'IN',
-      'KY',
-      'LA',
-      'MD',
-      'MI',
-      'MO',
-      'MS',
-      'NC',
-      'ND',
-      'NM',
-      'NV',
-      'OH',
-      'OK',
-      'TN',
-      'TX',
-      'VA',
-      'WA',
-      'WI',
-      'WV',
-      'NJ',
-      'IL',
-      'VT',
-      'SD',
-      'HI',
-      'MN',
-      'NE',
-      'MA',
-      'OR',
-      'ME',
-      'PA',
-      'UT',
-      'KS',
-      'ID',
-      'RI',
-      'AR',
-      'CT',
-      'DE',
-      'MT',
-      'NH',
-      'SC',
-      'WY',
-    ],
-    verified: true,
-    unverified: false,
-    name: 'Sam Atherton',
-    deliver: true,
-    leadCredits: 0,
-    weight: 1,
-    lastIssuedDate: { _seconds: 1769131512, _nanoseconds: 607000000 },
-    outstandingLeads: 0,
-  };
-
   return (
     <Container sx={{ mt: 6 }}>
       <Stack alignItems='center' spacing={4}>
@@ -93,12 +24,7 @@ const Purchase = () => {
             Purchase Leads
           </Typography>
         </Stack>
-        <Stack
-          direction='row'
-          spacing={4}
-          justifyContent='center'
-          flexWrap='wrap'
-        >
+        <Stack direction='row' spacing={4} justifyContent='center' flexWrap='wrap'>
           {/* Pricing Card */}
           <Card
             variant='outlined'
