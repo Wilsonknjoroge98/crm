@@ -216,7 +216,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   useEffect(() => {
     const modifiedForm = { ...form };
     delete modifiedForm.notes;
-    const hasEmptyFields = Object.keys(modifiedForm).some((key) => !form[key]);
+    delete modifiedForm.liveTransfer;
+    const hasEmptyFields = Object.keys(modifiedForm).some((key) => !modifiedForm[key]);
     if (hasEmptyFields) {
       setDisabled(true);
     } else {
