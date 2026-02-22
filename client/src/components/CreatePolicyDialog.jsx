@@ -37,6 +37,9 @@ import { toTitleCase } from '../utils/helpers';
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = ['Active', 'Pending', 'Lapsed', 'Insufficient Funds', 'Cancelled'];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
+
+import SectionHeader from '../components/SectionHeader';
+
 const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
   const { user, userToken } = useAuth();
@@ -51,7 +54,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     premiumAmount: '',
     leadSource: client?.leadSource || 'GetSeniorQuotes.com',
     policyType: '',
-    premiumFrequency: '',
+    premiumFrequency: 'Monthly',
     dateSold: '',
     effectiveDate: '',
     draftDay: '',
@@ -203,12 +206,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     if (modifiedForm.beneficiaries.length !== 0) {
       const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
-        keys.some((key) => b[key] === '')
+        keys.some((key) => b[key] === ''),
       );
 
       const shareValue = modifiedForm.beneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0
+        0,
       );
 
       if (hasEmptyFields || shareValue !== 100) {
@@ -221,12 +224,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     if (modifiedForm.contingentBeneficiaries.length !== 0) {
       const keys = ['firstName', 'lastName', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
-        keys.some((key) => b[key] === '')
+        keys.some((key) => b[key] === ''),
       );
 
       const shareValue = modifiedForm.contingentBeneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
-        0
+        0,
       );
 
       if (hasEmptyFields || shareValue !== 100) {
@@ -246,16 +249,27 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='md' fullWidth>
-      <DialogTitle>New Policy</DialogTitle>
+      <DialogTitle
+        sx={{
+          fontWeight: 700,
+          fontSize: '1.5rem',
+          pb: 1,
+        }}
+      >
+        New Policy
+      </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} p={2}>
           <Grid size={12}>
+            <SectionHeader title='Policy Ownership' />
+          </Grid>
+
+          <Grid size={12}>
             <FormControl error={true} fullWidth>
-              {typeof form?.splitPolicy !== 'boolean' && (
-                <Alert sx={{ width: 'fit-content' }} severity='warning'>
-                  Is this a split policy?
-                </Alert>
-              )}
+              <Typography variant='subtitle2' gutterBottom>
+                Is this a split policy?
+              </Typography>
+
               <Stack direction='row' spacing={2}>
                 <FormControlLabel
                   control={
@@ -334,9 +348,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 />
               </Stack>
             )}
-            <Divider sx={{ my: 2 }} />
           </Grid>
-
+          <Grid size={12}>
+            <SectionHeader title='Core Information' />
+          </Grid>
           <Grid size={6}>
             <TextField
               label='Client Name'
@@ -345,18 +360,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               disabled
             />
           </Grid>
-
-          <Grid size={6}>
-            <TextField
-              name='leadSource'
-              disabled={true}
-              label='Lead Source'
-              value={form.leadSource}
-              onChange={handleChange}
-              fullWidth
-            />
-          </Grid>
-
           <Grid size={6}>
             <TextField
               select
@@ -379,7 +382,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             <TextField
               select
               name='policyType'
-              label='Policy Type'
+              label='Product'
               value={form.policyType}
               onChange={handleChange}
               fullWidth
@@ -404,22 +407,8 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             />
           </Grid>
 
-          <Grid size={6}>
-            <TextField
-              select
-              name='policyStatus'
-              label='Policy Status'
-              value={form.policyStatus}
-              onChange={handleChange}
-              fullWidth
-              required
-            >
-              {statuses.map((s) => (
-                <MenuItem key={s} value={s}>
-                  {s}
-                </MenuItem>
-              ))}
-            </TextField>
+          <Grid size={12}>
+            <SectionHeader title='Financials & Dates' />
           </Grid>
 
           <Grid size={6}>
@@ -469,6 +458,24 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid size={6}>
             <TextField
               select
+              name='draftDay'
+              label='Recurring Draft Day'
+              value={form.draftDay}
+              onChange={handleChange}
+              fullWidth
+              required
+            >
+              {draftDays.map((d) => (
+                <MenuItem key={d} value={d}>
+                  {d}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          <Grid size={6}>
+            <TextField
+              select
               name='premiumFrequency'
               label='Premium Frequency'
               value={form.premiumFrequency}
@@ -489,7 +496,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               name='dateSold'
               label='Date Sold'
               type='date'
-              InputLabelProps={{ shrink: true }}
               value={form.dateSold}
               onChange={handleChange}
               fullWidth
@@ -501,7 +507,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               name='effectiveDate'
               label='Effective Date'
               type='date'
-              InputLabelProps={{ shrink: true }}
               value={form.effectiveDate}
               onChange={handleChange}
               fullWidth
@@ -509,30 +514,8 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             />
           </Grid>
 
-          <Grid size={6}>
-            <TextField
-              select
-              name='draftDay'
-              label='Recurring Draft Day'
-              value={form.draftDay}
-              onChange={handleChange}
-              fullWidth
-              required
-            >
-              {draftDays.map((d) => (
-                <MenuItem key={d} value={d}>
-                  {d}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
           <Grid size={12}>
-            <Divider />
-          </Grid>
-
-          <Grid size={12}>
-            <Typography fontWeight='bold'>Primary Beneficiaries</Typography>
+            <SectionHeader title='Primary Beneficiaries' />
           </Grid>
           {form.beneficiaries.map((b, i) => (
             <>
@@ -614,12 +597,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
 
           <Grid size={12}>
-            <Divider sx={{ mt: 2 }} />
+            <SectionHeader title='Contingent Beneficiareis' />
           </Grid>
 
-          <Grid size={12}>
-            <Typography fontWeight='bold'>Contingent Beneficiaries</Typography>
-          </Grid>
           {form.contingentBeneficiaries.map((b, i) => (
             <Fragment key={i}>
               <Grid container spacing={2} key={i} sx={{ mb: 1 }}>

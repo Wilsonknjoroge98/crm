@@ -15,68 +15,6 @@ const Purchase = () => {
     };
   }, []);
 
-  const accountDetail = {
-    ringySid: 'iSjqib3bgrzvjbtf1bw8psqmzm7ct7za',
-    ringyToken: 'gdlxpcd9ksrur96ja8rbrmeqysd7q6ms',
-    states: [
-      'AK',
-      'AL',
-      'AZ',
-      'CA',
-      'CO',
-      'IA',
-      'IN',
-      'KY',
-      'LA',
-      'MD',
-      'MI',
-      'MO',
-      'MS',
-      'NC',
-      'ND',
-      'NM',
-      'NV',
-      'OH',
-      'OK',
-      'TN',
-      'TX',
-      'VA',
-      'WA',
-      'WI',
-      'WV',
-      'NJ',
-      'IL',
-      'VT',
-      'SD',
-      'HI',
-      'MN',
-      'NE',
-      'MA',
-      'OR',
-      'ME',
-      'PA',
-      'UT',
-      'KS',
-      'ID',
-      'RI',
-      'AR',
-      'CT',
-      'DE',
-      'MT',
-      'NH',
-      'SC',
-      'WY',
-    ],
-    verified: true,
-    unverified: false,
-    name: 'Sam Atherton',
-    deliver: true,
-    leadCredits: 0,
-    weight: 1,
-    lastIssuedDate: { _seconds: 1769131512, _nanoseconds: 607000000 },
-    outstandingLeads: 0,
-  };
-
   return (
     <Container sx={{ mt: 6 }}>
       <Stack alignItems='center' spacing={4}>
@@ -86,87 +24,88 @@ const Purchase = () => {
             Purchase Leads
           </Typography>
         </Stack>
+        <Stack direction='row' spacing={4} justifyContent='center' flexWrap='wrap'>
+          {/* Pricing Card */}
+          <Card
+            variant='outlined'
+            sx={{
+              borderRadius: 4,
+              width: 300,
+              textAlign: 'center',
+              p: 2,
+            }}
+          >
+            <CardContent>
+              {/* Card Header */}
+              <Stack spacing={1.5} mb={3}>
+                <Typography variant='h6' fontWeight={600}>
+                  Weekly Lead Pack
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  FEX web leads delivered daily
+                </Typography>
+              </Stack>
 
-        {/* Pricing Card */}
-        <Card
-          variant='outlined'
-          sx={{
-            borderRadius: 4,
-            width: 380,
-            textAlign: 'center',
-            p: 2,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
-          }}
-        >
-          <CardContent>
-            {/* Card Header */}
-            <Stack spacing={1.5} mb={3}>
-              <Typography variant='h6' fontWeight={600}>
-                Weekly Lead Package
-              </Typography>
-            </Stack>
+              {/* Pricing Tiers */}
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='h3' fontWeight={700}>
+                  $39
+                </Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  per qualified lead
+                </Typography>
+              </Stack>
 
-            {/* Pricing Tiers */}
-            <Stack spacing={0.5} mb={3}>
-              <Typography variant='h3' fontWeight={700}>
-                $39
-              </Typography>
-              <Typography variant='body2' color='text.secondary'>
-                per qualified lead
-              </Typography>
-            </Stack>
+              {/* CTA */}
+              <Box display='flex' justifyContent='center' mt={2}>
+                <stripe-buy-button
+                  buy-button-id='buy_btn_1Stg0ZDVQvSJ0t4H3fOuyl2W'
+                  publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
+                ></stripe-buy-button>
+              </Box>
+            </CardContent>
+          </Card>
 
-            {/* CTA */}
-            <Box display='flex' justifyContent='center' mt={2}>
-              <stripe-buy-button
-                buy-button-id='buy_btn_1Stg0ZDVQvSJ0t4H3fOuyl2W'
-                publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
-              ></stripe-buy-button>
-            </Box>
-          </CardContent>
-        </Card>
+          <Card
+            variant='outlined'
+            sx={{
+              borderRadius: 4,
+              width: 300,
+              textAlign: 'center',
+              p: 2,
+            }}
+          >
+            <CardContent>
+              {/* Card Header */}
+              <Stack spacing={1.5} mb={3}>
+                <Typography variant='h6' fontWeight={600}>
+                  Live Transfer Leads
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  Charged only if call lasts 90+ seconds
+                </Typography>
+              </Stack>
 
-        <Card
-          variant='outlined'
-          sx={{
-            borderRadius: 4,
-            width: 380,
-            textAlign: 'center',
-            p: 2,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
-          }}
-        >
-          <CardContent>
-            {/* Card Header */}
-            <Stack spacing={1.5} mb={3}>
-              <Typography variant='h6' fontWeight={600}>
-                Live Transfer Leads
-              </Typography>
-              <Typography variant='caption' color='text.secondary'>
-                Charged <strong>only if call lasts 60+ seconds</strong>
-              </Typography>
-            </Stack>
+              {/* Price */}
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='h3' fontWeight={700}>
+                  $60
+                </Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  per qualified transfer
+                </Typography>
+              </Stack>
 
-            {/* Price */}
-            <Stack spacing={0.5} mb={3}>
-              <Typography variant='h3' fontWeight={700}>
-                $60
-              </Typography>
-              <Typography variant='body2' color='text.secondary'>
-                per qualified transfer
-              </Typography>
-            </Stack>
-
-            {/* CTA */}
-            <Box display='flex' justifyContent='center' mt={2}>
-              <stripe-buy-button
-                buy-button-id='buy_btn_1Stg5mDVQvSJ0t4HJzlmDNPd'
-                publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
-              ></stripe-buy-button>
-            </Box>
-          </CardContent>
-        </Card>
-
+              {/* CTA */}
+              <Box display='flex' justifyContent='center' mt={2}>
+                <stripe-buy-button
+                  buy-button-id='buy_btn_1Stg5mDVQvSJ0t4HJzlmDNPd'
+                  publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
+                ></stripe-buy-button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Stack>
         {/* Trust + Secondary Actions */}
         <Stack spacing={1} alignItems='center'>
           <Typography variant='body2'>

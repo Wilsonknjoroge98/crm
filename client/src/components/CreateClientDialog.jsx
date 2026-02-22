@@ -13,6 +13,11 @@ import {
   Stack,
   Alert,
   CircularProgress,
+  FormControl,
+  FormControlLabel,
+  Checkbox,
+  Box,
+  Typography,
 } from '@mui/material';
 
 import { enqueueSnackbar } from 'notistack';
@@ -27,9 +32,13 @@ import { useMutation } from '@tanstack/react-query';
 import { postClient } from '../utils/query';
 import useAuth from '../hooks/useAuth';
 
+import { useLocation } from 'react-router-dom';
+
 import { toTitleCase } from '../utils/helpers';
+import SectionHeader from './SectionHeader';
 
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
+  const { pathname } = useLocation();
   const initialForm = {
     first_name: '',
     last_name: '',
@@ -90,6 +99,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         occupation: '',
         income: '',
         notes: '',
+        liveTransfer: false,
       });
     }
   }, [lead]);
@@ -205,7 +215,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   useEffect(() => {
     const modifiedForm = { ...form };
     delete modifiedForm.notes;
-    const hasEmptyFields = Object.keys(modifiedForm).some((key) => !form[key]);
+    delete modifiedForm.liveTransfer;
+    const hasEmptyFields = Object.keys(modifiedForm).some((key) => !modifiedForm[key]);
     if (hasEmptyFields) {
       setDisabled(true);
     } else {
@@ -215,10 +226,21 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>New Client</DialogTitle>
+      <DialogTitle
+        sx={{
+          fontWeight: 700,
+          fontSize: '1.5rem',
+          pb: 1,
+        }}
+      >
+        New Client
+      </DialogTitle>
       <DialogContent sx={{ mt: 1 }}>
         <Grid container spacing={2} p={2}>
           <Grid item size={12}>
+            <SectionHeader title='Lead information' />
+          </Grid>
+          <Grid item size={6}>
             <TextField
               sx={{ width: '100%' }}
               select
@@ -236,6 +258,48 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
                 </MenuItem>
               ))}
             </TextField>
+          </Grid>
+          {form.leadSource === 'GetSeniorQuotes.com' && pathname.includes('client') && (
+            <Grid size={6}>
+              <FormControl error={true} fullWidth>
+                <Alert severity='warning'>Is this a live transfer lead?</Alert>
+
+                <Stack direction='row' spacing={2}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={form.liveTransfer === true}
+                        onChange={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            liveTransfer: true,
+                          }))
+                        }
+                      />
+                    }
+                    label='Yes'
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={form.liveTransfer === false}
+                        onChange={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            liveTransfer: false,
+                          }))
+                        }
+                      />
+                    }
+                    label='No'
+                  />
+                </Stack>
+              </FormControl>
+            </Grid>
+          )}
+
+          <Grid item size={12}>
+            <SectionHeader title='Personal Information' />
           </Grid>
           <Grid item size={6}>
             <TextField
@@ -292,7 +356,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               value={form.date_of_birth}
               onChange={handleChange}
               fullWidth
-              InputLabelProps={{ shrink: true }}
               required
             />
           </Grid>
@@ -314,9 +377,11 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             </TextField>
           </Grid>
 
+          {/* Section 2: Address */}
           <Grid item size={12}>
-            <Divider sx={{ my: 2 }} />
+            <SectionHeader title='Location' />
           </Grid>
+
           <Grid size={6}>
             <TextField
               name='address'
@@ -371,6 +436,10 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             />
           </Grid>
 
+          <Grid item size={12}>
+            <SectionHeader title='Employment & Financials' />
+          </Grid>
+
           <Grid item size={6}>
             <TextField
               name='occupation'
@@ -403,7 +472,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           </Grid>
 
           <Grid item size={12}>
-            <Divider sx={{ my: 2 }} />
+            <SectionHeader title='Additional Notes' />
           </Grid>
 
           <Grid item size={12}>
@@ -417,6 +486,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               rows={3}
             />
           </Grid>
+
           {error && (
             <Alert severity='error' sx={{ mb: 2, width: '100%', p: 2 }}>
               {error.message}

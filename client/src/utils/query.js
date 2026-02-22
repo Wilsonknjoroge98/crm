@@ -1,8 +1,6 @@
 import axios from 'axios';
-import store from './redux/store'
-import {supabase} from "./supabase.js";
-
-
+import store from './redux/store';
+import { supabase } from './supabase.js';
 
 const isDev = import.meta.env.MODE === 'development';
 
@@ -10,30 +8,24 @@ const isDev = import.meta.env.MODE === 'development';
 const isStaging = window.location.hostname.includes('crm-dev-dde35');
 
 const BASE_URL = isDev
-    ? import.meta.env.VITE_DEV_URL
-    : isStaging
-        ? import.meta.env.VITE_STAGING_URL
-        : import.meta.env.VITE_API_URL;
+  ? import.meta.env.VITE_DEV_URL
+  : isStaging
+    ? import.meta.env.VITE_STAGING_URL
+    : import.meta.env.VITE_API_URL;
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
 });
-apiClient.interceptors.request.use(
-    async (config) => {
-
-       // can't use a selector for redux state since we aren't in a react component
-       const token = (await supabase.auth.getSession())?.data?.session?.access_token;
-       console.log('Attaching token to request:', token);
-       // if the token exists, add it to the request headers
-       if (token) {
-         config.headers.Authorization = `Bearer ${token}`;
-       }
-       return config;
-
-    }
-)
-
-
+apiClient.interceptors.request.use(async (config) => {
+  // can't use a selector for redux state since we aren't in a react component
+  const token = (await supabase.auth.getSession())?.data?.session?.access_token;
+  console.log('Attaching token to request:', token);
+  // if the token exists, add it to the request headers
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 const getClients = async () => {
   // request config for compulife server
@@ -70,12 +62,10 @@ const getLeads = async ({ data }) => {
 
   // request config for compulife server
   const options = {
-
     method: 'GET',
     // signal: signal,
     url: '/leads',
     params: {
-
       mode: import.meta.env.MODE,
     },
   };
@@ -105,14 +95,11 @@ const getLeads = async ({ data }) => {
 };
 
 const patchAccount = async ({ data }) => {
-
-
   console.log('Updating client account', data);
   const options = {
-
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
-    url: '/customer-account'
+    url: '/customer-account',
   };
   try {
     const response = await apiClient.request(options);
@@ -124,14 +111,12 @@ const patchAccount = async ({ data }) => {
 };
 
 const getAccount = async ({ email }) => {
-
-
   console.log('Getting client account', email);
 
   const options = {
     method: 'GET',
     // signal: signal,
-    url:'customer_account',
+    url: 'customer_account',
     params: {
       email: email,
       mode: import.meta.env.MODE,
@@ -150,7 +135,6 @@ const getAccount = async ({ email }) => {
 };
 
 const getPremiumLeaderboard = async ({ startDate, endDate, agency }) => {
-
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -182,11 +166,9 @@ const getPremiumLeaderboard = async ({ startDate, endDate, agency }) => {
   }
 };
 
-const getPremiumPerLead = async ({agency }) => {
-
+const getPremiumPerLead = async ({ agency }) => {
   // request config for compulife server
   const options = {
-
     method: 'GET',
     url: 'premiums/per-lead',
     params: {
@@ -215,9 +197,7 @@ const getPremiumPerLead = async ({agency }) => {
   }
 };
 
-const getMonthlyPremiums = async ({agency }) => {
-
-
+const getMonthlyPremiums = async ({ agency }) => {
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -248,7 +228,6 @@ const getMonthlyPremiums = async ({agency }) => {
 };
 
 const getPersistencyRates = async ({ agency }) => {
-
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -279,7 +258,6 @@ const getPersistencyRates = async ({ agency }) => {
 };
 
 const getCloseRates = async ({ agency }) => {
-
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -311,11 +289,8 @@ const getCloseRates = async ({ agency }) => {
 };
 
 const getPolicyStatuses = async ({ agency }) => {
-
-
   // request config for compulife server
   const options = {
-
     method: 'GET',
     url: '/policies/statuses',
     params: {
@@ -344,7 +319,7 @@ const getPolicyStatuses = async ({ agency }) => {
   }
 };
 
-const getStripeCharges = async ({  startDate, endDate }) => {
+const getStripeCharges = async ({ startDate, endDate }) => {
   console.log('Fetching revenue for dates:', startDate, endDate);
 
   // request config for compulife server
@@ -388,7 +363,7 @@ const getAdSpend = async ({ startDate, endDate }) => {
   }
 };
 
-const getCommissions = async ({  startDate, endDate, agent }) => {
+const getCommissions = async ({ startDate, endDate, agent }) => {
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -420,11 +395,9 @@ const getCommissions = async ({  startDate, endDate, agent }) => {
   }
 };
 
-const getPolicies = async ({  data }) => {
-
+const getPolicies = async ({ data }) => {
   // request config for compulife server
   const options = {
-
     method: 'GET',
     // signal: signal,
     url: '/policies',
@@ -456,8 +429,7 @@ const getPolicies = async ({  data }) => {
   }
 };
 
-const postClient = async ({  data }) => {
-
+const postClient = async ({ data }) => {
   console.log('Posting client:', data);
 
   // client side validation
@@ -494,7 +466,6 @@ const postClient = async ({  data }) => {
 };
 
 const patchClient = async ({ data }) => {
-
   console.log('Patching client:', data);
 
   const { clientId, client } = data || {};
@@ -521,8 +492,6 @@ const patchClient = async ({ data }) => {
 };
 
 const postAgent = async ({ data }) => {
-
-
   // client side validation
 
   if (!data) {
@@ -544,7 +513,6 @@ const postAgent = async ({ data }) => {
 };
 
 const getAgent = async ({ data }) => {
-
   const { id } = data || {};
 
   if (!id) {
@@ -577,11 +545,10 @@ const getAgent = async ({ data }) => {
 };
 
 const getAgents = async () => {
-
   // request config for compulife server
   const options = {
     method: 'GET',
-    url:'/agents',
+    url: '/agents',
     params: { mode: import.meta.env.MODE },
   };
 
@@ -604,7 +571,6 @@ const getAgents = async () => {
 };
 
 const deleteExpense = async ({ expenseId }) => {
-
   if (!expenseId) {
     throw new Error('Missing expense ID');
   }
@@ -612,7 +578,6 @@ const deleteExpense = async ({ expenseId }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-
     method: 'DELETE',
     data: { expenseId: expenseId, mode: import.meta.env.MODE },
     signal: controller.signal,
@@ -627,8 +592,7 @@ const deleteExpense = async ({ expenseId }) => {
   return response.data;
 };
 
-const postExpense = async ({  name, amount, date }) => {
-
+const postExpense = async ({ name, amount, date }) => {
   // client side validation
   if (!name || !amount || !date) {
     console.log('missing data');
@@ -668,7 +632,7 @@ const postExpense = async ({  name, amount, date }) => {
   }
 };
 
-const getExpenses = async ({  startDate, endDate }) => {
+const getExpenses = async ({ startDate, endDate }) => {
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -689,8 +653,6 @@ const getExpenses = async ({  startDate, endDate }) => {
 };
 
 const getInsights = async ({ startDate, endDate }) => {
-
-
   // request config for compulife server
   const options = {
     method: 'GET',
@@ -716,10 +678,8 @@ const getInsights = async ({ startDate, endDate }) => {
   }
 };
 
-const patchPolicy = async ({  data }) => {
-
-
-  console.log({  data });
+const patchPolicy = async ({ data }) => {
+  console.log({ data });
 
   // client side validation
   if (!data) {
@@ -729,7 +689,6 @@ const patchPolicy = async ({  data }) => {
   const controller = new AbortController();
   // request config for custom firebase endpoint
   const options = {
-
     method: 'PATCH',
     data: { policyId: data.id, policy: data, mode: import.meta.env.MODE },
     signal: controller.signal,
@@ -744,7 +703,6 @@ const patchPolicy = async ({  data }) => {
 };
 
 const postPolicy = async ({ data }) => {
-
   const { policy, clientId, agentIds } = data || {};
 
   // client side validation
@@ -788,7 +746,7 @@ const postPolicy = async ({ data }) => {
   }
 };
 
-const deleteClient = async ({  data }) => {
+const deleteClient = async ({ data }) => {
   const { clientId } = data || {};
 
   console.log('Deleting client with ID:', clientId);
@@ -813,9 +771,7 @@ const deleteClient = async ({  data }) => {
   return response.data;
 };
 
-const deletePolicy = async ({  data }) => {
-
-
+const deletePolicy = async ({ data }) => {
   const { policyId } = data || {};
 
   console.log('Deleting policy with ID:', policyId);
@@ -828,11 +784,10 @@ const deletePolicy = async ({  data }) => {
   // request config for custom firebase endpoint
 
   const options = {
-
     method: 'DELETE',
     data: { policyId: policyId, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url:'/policy',
+    url: '/policy',
   };
   // response from server
   const response = await apiClient.request(options);
