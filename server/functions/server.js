@@ -6,7 +6,7 @@ const dayjs = require('dayjs');
 const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
 const { WebClient } = require('@slack/web-api');
-const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
+const { PRODUCT_RATES } = require('./constants');
 
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
@@ -643,11 +643,11 @@ app.get('/premiums', async (req, res) => {
     // Sort leaderboard by points
     leaderboardArray.sort((a, b) => b.premiumAmount - a.premiumAmount);
 
-    const topLeaderboardArray = leaderboardArray.slice(0, 10);
+    // const topLeaderboardArray = leaderboardArray.slice(0, 30);
 
-    logger.log('Leaderboard data:', topLeaderboardArray);
+    logger.log('Leaderboard data:', leaderboardArray);
 
-    res.status(200).json(topLeaderboardArray);
+    res.status(200).json(leaderboardArray);
   } catch (error) {
     console.error('Error fetching leaderboard data:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard data' });
@@ -2031,300 +2031,300 @@ app.post('/policy', async (req, res) => {
     }
   };
 
-  const getGSQLeads = async (client) => {
-    try {
-      const response = await axios.request({
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
-        },
-        params: {
-          phone: client.phone,
-          name: `${client.firstName} ${client.lastName}`,
-          email: client.email,
-        },
-        url: `${process.env.GSQ_BASE_URL}/find-leads`,
-      });
+  // const getGSQLeads = async (client) => {
+  //   try {
+  //     const response = await axios.request({
+  //       method: 'GET',
+  //       headers: {
+  //         Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
+  //       },
+  //       params: {
+  //         phone: client.phone,
+  //         name: `${client.firstName} ${client.lastName}`,
+  //         email: client.email,
+  //       },
+  //       url: `${process.env.GSQ_BASE_URL}/find-leads`,
+  //     });
 
-      console.log('Leads fetched:', response.data.length);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching leads:', error);
-      throw error;
-    }
-  };
+  //     console.log('Leads fetched:', response.data.length);
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error('Error fetching leads:', error);
+  //     throw error;
+  //   }
+  // };
 
-  const hash = (data) => {
-    return `${crypto.createHash('sha256').update(data).digest('hex')}`;
-  };
+  // const hash = (data) => {
+  //   return `${crypto.createHash('sha256').update(data).digest('hex')}`;
+  // };
 
-  const sendSaleToPixel = async (commission, lead, policy) => {
-    if (!lead || !lead.email || !lead.name || !lead.phone || !lead.state) {
-      console.error('Missing lead information');
-      return;
-    }
+  // const sendSaleToPixel = async (commission, lead, policy) => {
+  //   if (!lead || !lead.email || !lead.name || !lead.phone || !lead.state) {
+  //     console.error('Missing lead information');
+  //     return;
+  //   }
 
-    if (!policy) {
-      console.error('Missing policy information');
-      return;
-    }
+  //   if (!policy) {
+  //     console.error('Missing policy information');
+  //     return;
+  //   }
 
-    if (!policy.premiumAmount) {
-      console.error('Missing policy premium amount');
-      return;
-    }
+  //   if (!policy.premiumAmount) {
+  //     console.error('Missing policy premium amount');
+  //     return;
+  //   }
 
-    if (!commission || commission <= 0) {
-      console.error('Invalid commission amount');
-      return;
-    }
+  //   if (!commission || commission <= 0) {
+  //     console.error('Invalid commission amount');
+  //     return;
+  //   }
 
-    const eventTime = Math.floor(Date.now() / 1000);
+  //   const eventTime = Math.floor(Date.now() / 1000);
 
-    const META_PURCHASE_PAYLOAD = {
-      data: [
-        {
-          event_name: 'Purchase',
-          event_time: eventTime,
-          action_source: 'website',
-          event_source_url: 'https://getseniorquotes.com',
-          event_id: `purchase-${lead.email}-${eventTime}`,
-          user_data: {
-            client_ip_address: lead.ip,
-            client_user_agent: lead.userAgent,
-            em: hash(lead.email),
-            fn: hash(lead.name.split(' ')[0]),
-            ln: hash(lead.name.split(' ')[1]),
-            ph: hash(lead.phone),
-            db: hash(`${lead.birthYear}${lead.birthMonth}${lead.birthDay}`),
-            country: hash('US'),
-            ge: lead.sex === 'Male' ? hash('m') : hash('f'),
-            st: hash(STATE_ABBREV_MAP[lead.state]),
-          },
-          custom_data: {
-            currency: 'USD',
-            value: commission,
-            content_type: 'product',
-            content_name: `${policy.carrier} - ${policy.policyType}`,
-            contents: [
-              {
-                id: `purchase-${lead.email}-${eventTime}`,
-                quantity: 1,
-                item_price: policy.premiumAmount * 12,
-              },
-            ],
-          },
-        },
-      ],
-    };
+  //   const META_PURCHASE_PAYLOAD = {
+  //     data: [
+  //       {
+  //         event_name: 'Purchase',
+  //         event_time: eventTime,
+  //         action_source: 'website',
+  //         event_source_url: 'https://getseniorquotes.com',
+  //         event_id: `purchase-${lead.email}-${eventTime}`,
+  //         user_data: {
+  //           client_ip_address: lead.ip,
+  //           client_user_agent: lead.userAgent,
+  //           em: hash(lead.email),
+  //           fn: hash(lead.name.split(' ')[0]),
+  //           ln: hash(lead.name.split(' ')[1]),
+  //           ph: hash(lead.phone),
+  //           db: hash(`${lead.birthYear}${lead.birthMonth}${lead.birthDay}`),
+  //           country: hash('US'),
+  //           ge: lead.sex === 'Male' ? hash('m') : hash('f'),
+  //           st: hash(STATE_ABBREV_MAP[lead.state]),
+  //         },
+  //         custom_data: {
+  //           currency: 'USD',
+  //           value: commission,
+  //           content_type: 'product',
+  //           content_name: `${policy.carrier} - ${policy.policyType}`,
+  //           contents: [
+  //             {
+  //               id: `purchase-${lead.email}-${eventTime}`,
+  //               quantity: 1,
+  //               item_price: policy.premiumAmount * 12,
+  //             },
+  //           ],
+  //         },
+  //       },
+  //     ],
+  //   };
 
-    // Attach click identifiers if available
-    if (lead.fbc) META_PURCHASE_PAYLOAD.data[0].user_data.fbc = lead.fbc;
-    if (lead.fbp) META_PURCHASE_PAYLOAD.data[0].user_data.fbp = lead.fbp;
+  //   // Attach click identifiers if available
+  //   if (lead.fbc) META_PURCHASE_PAYLOAD.data[0].user_data.fbc = lead.fbc;
+  //   if (lead.fbp) META_PURCHASE_PAYLOAD.data[0].user_data.fbp = lead.fbp;
 
-    // Optional: add test_event_code for sandbox testing
-    if (process.env.NODE_ENV === 'development') {
-      META_PURCHASE_PAYLOAD.test_event_code = 'TEST12345';
-    }
+  //   // Optional: add test_event_code for sandbox testing
+  //   if (process.env.NODE_ENV === 'development') {
+  //     META_PURCHASE_PAYLOAD.test_event_code = 'TEST12345';
+  //   }
 
-    try {
-      const res = await axios.post(
-        process.env.META_CONVERSIONS_URL,
-        META_PURCHASE_PAYLOAD,
-        {
-          params: {
-            access_token: process.env.META_CONVERSIONS_TOKEN,
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+  //   try {
+  //     const res = await axios.post(
+  //       process.env.META_CONVERSIONS_URL,
+  //       META_PURCHASE_PAYLOAD,
+  //       {
+  //         params: {
+  //           access_token: process.env.META_CONVERSIONS_TOKEN,
+  //         },
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         },
+  //       },
+  //     );
 
-      console.log('Meta Purchase event sent:', res.data);
-    } catch (err) {
-      console.error(
-        'Meta Purchase event error:',
-        err.response?.data || err.message,
-      );
-    }
-  };
+  //     console.log('Meta Purchase event sent:', res.data);
+  //   } catch (err) {
+  //     console.error(
+  //       'Meta Purchase event error:',
+  //       err.response?.data || err.message,
+  //     );
+  //   }
+  // };
 
   // send sale to Hyros
-  const sendSaleToHyros = async (commission, client, policy) => {
-    if (!client || !client.email || !client.phone) {
-      console.error('Missing client information for Hyros');
-      return;
-    }
+  // const sendSaleToHyros = async (commission, client, policy) => {
+  //   if (!client || !client.email || !client.phone) {
+  //     console.error('Missing client information for Hyros');
+  //     return;
+  //   }
 
-    if (!policy) {
-      console.error('Missing policy information for Hyros');
-      return;
-    }
+  //   if (!policy) {
+  //     console.error('Missing policy information for Hyros');
+  //     return;
+  //   }
 
-    if (!commission || commission <= 0) {
-      console.error('Invalid commission amount for Hyros');
-      return;
-    }
+  //   if (!commission || commission <= 0) {
+  //     console.error('Invalid commission amount for Hyros');
+  //     return;
+  //   }
 
-    const HYROS_BODY = {
-      method: 'POST',
-      url: 'https://api.hyros.com/v1/api/v1.0/orders',
-      headers: {
-        'Content-Type': 'application/json',
-        'API-Key': process.env.HYROS_SECRET_KEY,
-      },
-      data: {
-        stage: 'Sale',
-        phoneNumbers: [client.phone],
-        email: client.email,
-        items: [
-          {
-            name: `${policy.carrier} - ${policy.policyType}`,
-            price: commission,
-            quantity: 1,
-          },
-        ],
-      },
-    };
+  //   const HYROS_BODY = {
+  //     method: 'POST',
+  //     url: 'https://api.hyros.com/v1/api/v1.0/orders',
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       'API-Key': process.env.HYROS_SECRET_KEY,
+  //     },
+  //     data: {
+  //       stage: 'Sale',
+  //       phoneNumbers: [client.phone],
+  //       email: client.email,
+  //       items: [
+  //         {
+  //           name: `${policy.carrier} - ${policy.policyType}`,
+  //           price: commission,
+  //           quantity: 1,
+  //         },
+  //       ],
+  //     },
+  //   };
 
-    try {
-      const hyrosResponse = await axios.request(HYROS_BODY);
-      console.log('Hyros order created:', hyrosResponse.data);
-    } catch (error) {
-      console.error(
-        'Error creating Hyros order:',
-        error.response?.data || error.message,
-      );
-    }
-  };
+  //   try {
+  //     const hyrosResponse = await axios.request(HYROS_BODY);
+  //     console.log('Hyros order created:', hyrosResponse.data);
+  //   } catch (error) {
+  //     console.error(
+  //       'Error creating Hyros order:',
+  //       error.response?.data || error.message,
+  //     );
+  //   }
+  // };
 
-  const getRate = (productRates, level, defaultValue = 1) => {
-    const raw = Number(productRates?.[String(level)]);
-    return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
-  };
+  // const getRate = (productRates, level, defaultValue = 1) => {
+  //   const raw = Number(productRates?.[String(level)]);
+  //   return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
+  // };
 
-  const getLevel = async (agent, policy) => {
-    console.log(
-      'Getting level for agent:',
-      agent.email,
-      'and policy effective date:',
-      policy.effectiveDate,
-    );
-    const levelsRef = db.collection(`agents/${agent.email}/levels`);
-    const q = levelsRef
-      .where('effectiveDate', '<=', dayjs(policy.effectiveDate).toDate())
-      .orderBy('effectiveDate', 'desc')
-      .limit(1);
-    const snapshot = await q.get();
-    if (!snapshot.empty) {
-      console.log(
-        'Level found for agent:',
-        agent.email,
-        snapshot.docs[0].data(),
-      );
-      const data = snapshot.docs[0].data();
-      return data.level;
-    }
-    return null;
-  };
+  // const getLevel = async (agent, policy) => {
+  //   console.log(
+  //     'Getting level for agent:',
+  //     agent.email,
+  //     'and policy effective date:',
+  //     policy.effectiveDate,
+  //   );
+  //   const levelsRef = db.collection(`agents/${agent.email}/levels`);
+  //   const q = levelsRef
+  //     .where('effectiveDate', '<=', dayjs(policy.effectiveDate).toDate())
+  //     .orderBy('effectiveDate', 'desc')
+  //     .limit(1);
+  //   const snapshot = await q.get();
+  //   if (!snapshot.empty) {
+  //     console.log(
+  //       'Level found for agent:',
+  //       agent.email,
+  //       snapshot.docs[0].data(),
+  //     );
+  //     const data = snapshot.docs[0].data();
+  //     return data.level;
+  //   }
+  //   return null;
+  // };
 
-  const calculateCommissions = async (agentData, agent, policy, premium) => {
-    let sheaCommission = 0;
+  // const calculateCommissions = async (agentData, agent, policy, premium) => {
+  //   let sheaCommission = 0;
 
-    const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
-    const productRates = carrierRates?.[policy.policyType?.trim()];
+  //   const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
+  //   const productRates = carrierRates?.[policy.policyType?.trim()];
 
-    let agentLevel = await getLevel(agent, policy);
-    if (!agentLevel) {
-      agentLevel = agent.level;
-    }
+  //   let agentLevel = await getLevel(agent, policy);
+  //   if (!agentLevel) {
+  //     agentLevel = agent.level;
+  //   }
 
-    let agentProductRate = getRate(productRates, agentLevel);
+  //   let agentProductRate = getRate(productRates, agentLevel);
 
-    if (!agentProductRate) {
-      agentProductRate = 1;
-    }
+  //   if (!agentProductRate) {
+  //     agentProductRate = 1;
+  //   }
 
-    const agentCommission = Math.round(premium * agentProductRate);
+  //   const agentCommission = Math.round(premium * agentProductRate);
 
-    console.log('agent commission:', {
-      agent: agent.name,
-      agentCommission,
-      premium,
-      agentProductRate,
-    });
+  //   console.log('agent commission:', {
+  //     agent: agent.name,
+  //     agentCommission,
+  //     premium,
+  //     agentProductRate,
+  //   });
 
-    if (agent.uid === process.env.SHEA_UID) {
-      sheaCommission += agentCommission;
-      console.log('Shea commission from sale:', agentCommission);
-    }
+  //   if (agent.uid === process.env.SHEA_UID) {
+  //     sheaCommission += agentCommission;
+  //     console.log('Shea commission from sale:', agentCommission);
+  //   }
 
-    if (agent.uplineUid) {
-      const upline = agentData.find((a) => a.uid === agent.uplineUid);
+  //   if (agent.uplineUid) {
+  //     const upline = agentData.find((a) => a.uid === agent.uplineUid);
 
-      if (!upline) {
-        console.error('Upline not found for agent:', agent.uid, agent.name);
-        return sheaCommission;
-      }
+  //     if (!upline) {
+  //       console.error('Upline not found for agent:', agent.uid, agent.name);
+  //       return sheaCommission;
+  //     }
 
-      let uplineLevel = await getLevel(upline, policy);
-      if (!uplineLevel) {
-        uplineLevel = upline.level;
-      }
+  //     let uplineLevel = await getLevel(upline, policy);
+  //     if (!uplineLevel) {
+  //       uplineLevel = upline.level;
+  //     }
 
-      let uplineProductRate = getRate(productRates, uplineLevel);
-      if (!uplineProductRate) {
-        uplineProductRate = 1;
-      }
+  //     let uplineProductRate = getRate(productRates, uplineLevel);
+  //     if (!uplineProductRate) {
+  //       uplineProductRate = 1;
+  //     }
 
-      const uplineCommission = Math.round(
-        premium * (uplineProductRate - agentProductRate),
-      );
-      if (upline.uid === process.env.SHEA_UID) {
-        sheaCommission += uplineCommission;
-        console.log('Shea commission from upline:', uplineCommission);
-      }
+  //     const uplineCommission = Math.round(
+  //       premium * (uplineProductRate - agentProductRate),
+  //     );
+  //     if (upline.uid === process.env.SHEA_UID) {
+  //       sheaCommission += uplineCommission;
+  //       console.log('Shea commission from upline:', uplineCommission);
+  //     }
 
-      if (upline.uplineUid) {
-        const secondUpline = agentData.find((a) => a.uid === upline.uplineUid);
+  //     if (upline.uplineUid) {
+  //       const secondUpline = agentData.find((a) => a.uid === upline.uplineUid);
 
-        if (!secondUpline) {
-          console.error(
-            'Second upline not found for agent:',
-            upline.uid,
-            upline.name,
-          );
-          return sheaCommission;
-        }
+  //       if (!secondUpline) {
+  //         console.error(
+  //           'Second upline not found for agent:',
+  //           upline.uid,
+  //           upline.name,
+  //         );
+  //         return sheaCommission;
+  //       }
 
-        let secondUplineLevel = await getLevel(secondUpline, policy);
-        if (!secondUplineLevel) {
-          secondUplineLevel = secondUpline.level;
-        }
+  //       let secondUplineLevel = await getLevel(secondUpline, policy);
+  //       if (!secondUplineLevel) {
+  //         secondUplineLevel = secondUpline.level;
+  //       }
 
-        let secondUplineProductRate =
-          productRates?.[String(secondUplineLevel)] / 100;
-        if (!secondUplineProductRate) {
-          secondUplineProductRate = 1;
-        }
+  //       let secondUplineProductRate =
+  //         productRates?.[String(secondUplineLevel)] / 100;
+  //       if (!secondUplineProductRate) {
+  //         secondUplineProductRate = 1;
+  //       }
 
-        const secondUplineCommission = Math.round(
-          premium * (secondUplineProductRate - uplineProductRate),
-        );
+  //       const secondUplineCommission = Math.round(
+  //         premium * (secondUplineProductRate - uplineProductRate),
+  //       );
 
-        if (secondUpline.uid === process.env.SHEA_UID) {
-          sheaCommission += secondUplineCommission;
-          console.log(
-            'Shea commission from second upline:',
-            secondUplineCommission,
-          );
-        }
-      }
-    }
+  //       if (secondUpline.uid === process.env.SHEA_UID) {
+  //         sheaCommission += secondUplineCommission;
+  //         console.log(
+  //           'Shea commission from second upline:',
+  //           secondUplineCommission,
+  //         );
+  //       }
+  //     }
+  //   }
 
-    return sheaCommission;
-  };
+  //   return sheaCommission;
+  // };
 
   function buildPolicySlackPayload({
     agentName,
@@ -2355,8 +2355,8 @@ EFT: ${effectiveDate || dayjs().format('MM/DD')}
         },
       ],
     };
-  }
-
+  };
+  
   try {
     const payload = buildPolicySlackPayload({
       agentName: agentSnapshot.docs[0].data().name,
@@ -2393,51 +2393,50 @@ EFT: ${effectiveDate || dayjs().format('MM/DD')}
 
     const source = client?.source ?? 'unknown';
 
-    const agents = await db.collection('agents').get();
-    const agentData = agents.docs.map((doc) => doc.data());
+    // const agents = await db.collection('agents').get();
+    // const agentData = agents.docs.map((doc) => doc.data());
+    // let commission = 0;
 
-    let commission = 0;
+    // if (agentIds.length === 2 && policy.splitPolicy) {
+    //   const splitPremium = Math.round((policy.premiumAmount * 12) / 2);
 
-    if (agentIds.length === 2 && policy.splitPolicy) {
-      const splitPremium = Math.round((policy.premiumAmount * 12) / 2);
+    //   const agent1 = agentData.find((a) => a.uid === agentIds[0]);
+    //   const agent2 = agentData.find((a) => a.uid === agentIds[1]);
 
-      const agent1 = agentData.find((a) => a.uid === agentIds[0]);
-      const agent2 = agentData.find((a) => a.uid === agentIds[1]);
+    //   const agent1Commission = await calculateCommissions(
+    //     agentData,
+    //     agent1,
+    //     policy,
+    //     splitPremium,
+    //   );
+    //   const agent2Commission = await calculateCommissions(
+    //     agentData,
+    //     agent2,
+    //     policy,
+    //     splitPremium,
+    //   );
 
-      const agent1Commission = await calculateCommissions(
-        agentData,
-        agent1,
-        policy,
-        splitPremium,
-      );
-      const agent2Commission = await calculateCommissions(
-        agentData,
-        agent2,
-        policy,
-        splitPremium,
-      );
+    //   commission = commission + agent1Commission;
+    //   commission = commission + agent2Commission;
+    // } else {
+    //   const agent = agentData.find((a) => a.uid === agentIds[0]);
+    //   const premium = Math.round(policy.premiumAmount * 12);
 
-      commission = commission + agent1Commission;
-      commission = commission + agent2Commission;
-    } else {
-      const agent = agentData.find((a) => a.uid === agentIds[0]);
-      const premium = Math.round(policy.premiumAmount * 12);
+    //   const agentCommission = await calculateCommissions(
+    //     agentData,
+    //     agent,
+    //     policy,
+    //     premium,
+    //   );
 
-      const agentCommission = await calculateCommissions(
-        agentData,
-        agent,
-        policy,
-        premium,
-      );
+    //   commission = commission + agentCommission;
+    // }
 
-      commission = commission + agentCommission;
-    }
-
-    if (isGSQ) {
-      const clientLeads = await getGSQLeads(client);
-      await sendSaleToPixel(commission, clientLeads[0], policy);
-      await sendSaleToHyros(commission, client, policy);
-    }
+    // if (isGSQ) {
+    //   const clientLeads = await getGSQLeads(client);
+    //   await sendSaleToPixel(commission, clientLeads[0], policy);
+    //   await sendSaleToHyros(commission, client, policy);
+    // }
 
     const policyRef = await db.collection('policies').add({
       ...policy,
