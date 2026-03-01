@@ -56,7 +56,7 @@ const AccountDetails = ({ data }) => {
         mutate={mutate}
       />
       <Stack spacing={1}>
-        <Stack direction='row' justifyContent='space-between'>
+        <Stack direction='row' spacing={1} justifyContent='space-between'>
           <Typography variant='body2' color='text.secondary'>
             Outstanding Leads:
           </Typography>
@@ -64,7 +64,7 @@ const AccountDetails = ({ data }) => {
             {data?.outstandingLeads}
           </Typography>
         </Stack>
-        <Stack direction='row' justifyContent='space-between'>
+        <Stack direction='row' spacing={1} justifyContent='space-between'>
           <Typography variant='body2' color='text.secondary'>
             Verified Leads:
           </Typography>
@@ -72,7 +72,7 @@ const AccountDetails = ({ data }) => {
             {data?.verified}
           </Typography>
         </Stack>
-        <Stack direction='row' justifyContent='space-between'>
+        <Stack direction='row' spacing={1} justifyContent='space-between'>
           <Typography variant='body2' color='text.secondary'>
             Unverified Leads:
           </Typography>
@@ -102,7 +102,7 @@ const AccountDetails = ({ data }) => {
 
         <Divider flexItem />
 
-        <Stack direction='row' justifyContent='space-between' alignItems='center'>
+        <Stack direction='row' spacing={1} justifyContent='space-between' alignItems='center'>
           <Typography variant='body2' color='text.secondary'>
             Lead Flow:
           </Typography>

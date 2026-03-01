@@ -117,6 +117,7 @@ export const CARRIER_PRODUCTS = {
   'Illinois Mutual': ['Final Expense'],
   'Kansas City Life': ['SIGNATURE TERM', 'SIGNATURE TERM ROP'],
   'Ladder': ['TERM'],
+  'LGA': ['Quility Term'],
   'Liberty Bankers Insurance Group': [
     'FLEX 4 LIFE WL PAID AT AGE 100',
     'FLEX 4 LIFE WL PAID IN 10 YEARS',

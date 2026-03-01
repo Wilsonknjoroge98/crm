@@ -13,10 +13,8 @@ import {
   Stack,
 } from '@mui/material';
 import { useState } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../utils/firebase';
 import { postAgent } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 import { toTitleCase } from '../utils/helpers';
@@ -61,7 +59,6 @@ export default function SignUp() {
 
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
       // create supabase account after email verification is disabled
       const { user } = await supabase.auth.signUp({
             email,
@@ -178,16 +175,12 @@ export default function SignUp() {
         </TextField>
 
         <TextField
-            select
             fullWidth
             margin='normal'
             value={uplineEmail   || ''}
             onChange={(e) => setUplineEmail(e.target.value)}
             label='Select upline email'
-        >
-          <MenuItem value='user1@example.com'>user1@example.com</MenuItem>
-          <MenuItem value='user3@example.com'>user1@example.com</MenuItem>
-        </TextField>
+        />
 
         {errorMsg && (
           <Alert severity='error' sx={{ mt: 2 }}>

@@ -18,7 +18,7 @@ const Leads = () => {
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
-    queryFn: () => getAgents({ token: userToken }),
+    queryFn: () => getAgents(),
   });
 
   const {

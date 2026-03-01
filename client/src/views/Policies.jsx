@@ -42,7 +42,7 @@ const Policies = () => {
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery({
     queryKey: ['agents'],
-    queryFn: () => getAgents({ token: userToken }),
+    queryFn: () => getAgents(),
   });
 
   const headers = [
