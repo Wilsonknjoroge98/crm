@@ -12,6 +12,7 @@ const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 const { createClient } = require('@supabase/supabase-js');
+const { buildPolicySlackPayload, sendToGSQ } = require('./helpers');
 
 const supabaseService = createClient(
     process.env.SUPABASE_URL,
@@ -86,18 +87,8 @@ app.use(
 app.get('/clients', async (req, res) => {
   // create supabase client based on JWT from request
   // TODO: move to auth middleware
-  const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: req.headers.authorization,
-          },
-        },
-      },
-  );
-  const { data: clients, error } = await supabase.from('clients').select('*');
+
+  const { data: clients, error } = await req.supabase.from('clients').select('*').in('agentIds', [req.agent.id]);
   if (error) {
     console.log('error', error);
     res.status(500).json({ error: 'Failed to fetch clients' });
@@ -107,254 +98,31 @@ app.get('/clients', async (req, res) => {
 });
 
 app.get('/leads', async (req, res) => {
-  const { agentId, agentRole, agency } = req.query;
-
-  if (!agentId || !agentRole || !agency) {
-    return res.status(400).json({ error: 'Missing required query parameters' });
-  }
-
-  const db = new Firestore();
-
-  const agentSnapshot = await db
-    .collection('agents')
-    .where('uid', '==', agentId)
-    .get();
-  const agentData = agentSnapshot.docs.map((doc) => doc.data());
-  const agentEmail = agentData[0].email;
-
   try {
-    if (agentRole === 'agent') {
-      const leadsQuerySnapshot = await db
-        .collection('leads')
-        .where('issuedTo', '==', agentEmail)
-        .get();
-
-      const leads = leadsQuerySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-
-      res.status(200).json(leads || []);
-    } else if (agentRole === 'owner') {
-      const agentsSnap = await db.collection('agents').get();
-      const agents = agentsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      const agencyAgents = agents
-        .filter((a) => a.agency === agency)
-        .map((a) => a.email);
-
-      const leadData = await db.collection('leads').get();
-      const agencyLeads = leadData.docs.filter(
-        (doc) => doc.data() && agencyAgents.includes(doc.data().issuedTo),
-      );
-      const leads = agencyLeads.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-      res.status(200).json(leads || []);
+    const { data: leads, error } = await req.supabase.from('leads').select('*');
+    if (error) {
+      console.log('error', error);
+      res.status(500).json({ error: 'Failed to fetch leads' });
     } else {
-      const leadData = await db.collection('leads').get();
-      const leads = leadData.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-      res.status(200).json(leads || []);
+      res.status(200).json(leads);
     }
-  } catch (error) {
-    console.error('Error fetching leads:', error);
+    } catch (error) {
+    console.log('error', error);
     res.status(500).json({ error: 'Failed to fetch leads' });
-  }
+    }
 });
 
 app.get('/policies', async (req, res) => {
-  console.log('Getting policies');
-  const { agentId, agentRole, agency } = req.query;
-
-  const db = new Firestore();
-
-  if (!agentId || !agentRole || !agency) {
-    return res.status(400).json({ error: 'Missing required query parameters' });
-  }
-
   try {
-    if (agentRole === 'agent') {
-      const policyData = await db
-        .collection('policies')
-        .where('agentIds', 'array-contains', agentId)
-        .get();
-      const policies = policyData.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-
-      res.json(policies || []);
-    } else if (agentRole === 'owner') {
-      const agentsSnap = await db.collection('agents').get();
-      const agents = agentsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      const agencyAgentIds = agents
-        .filter((a) => a.agency === agency)
-        .map((a) => a.uid);
-      console.log('agencyAgentIds', agencyAgentIds);
-
-      const policyData = await db
-        .collection('policies')
-        .where('agentIds', 'array-contains-any', agencyAgentIds)
-        .get();
-
-      const policies = policyData.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-      res.json(policies || []);
+    const { data: policies, error } = await req.supabase.from('policies').select('*');
+    if (error) {
+      console.log('error', error);
+      res.status(500).json({ error: 'Failed to fetch policies' });
     } else {
-      const policyData = await db.collection('policies').get();
-      const policies = policyData.docs.map((doc) => {
-        const data = doc.data();
-        let createdAtMs = null;
-
-        if (data.createdAt) {
-          if (typeof data.createdAt.toMillis === 'function') {
-            // Firestore Timestamp
-            createdAtMs = data.createdAt.toMillis();
-          } else if (data.createdAt instanceof Date) {
-            // Plain JS Date
-            createdAtMs = data.createdAt.getTime();
-          } else if (typeof data.createdAt === 'number') {
-            // Already a timestamp (ms)
-            createdAtMs = data.createdAt;
-          } else if (typeof data.createdAt === 'string') {
-            // Parseable string
-            createdAtMs = Date.parse(data.createdAt);
-          }
-        }
-
-        return {
-          id: doc.id,
-          createdAtMs,
-          ...data,
-        };
-      });
-      res.json(policies || []);
+      res.status(200).json(policies);
     }
   } catch (error) {
-    console.error('Error fetching policies:', error);
+    console.log('error', error);
     res.status(500).json({ error: 'Failed to fetch policies' });
   }
 });
@@ -1740,10 +1508,19 @@ app.post('/agent', async (req, res) => {
   // eslint-disable-next-line camelcase
   const org_id = (await supabaseService.from('organizations').select('id').eq('name', agent.agency).single()).data.id;
   // eslint-disable-next-line camelcase
-  const upline_agent_id = (await supabaseService.from('agents')
+  const { data: uplineAgent, error: uplineAgenetError } = await supabaseService.from('agents')
       .select('id')
       .eq('email', agent.uplineEmail)
-      .single()).data.id;
+      .maybeSingle();
+  if (uplineAgenetError) {
+    console.error('Error fetching upline agent:', uplineAgenetError);
+    return res.status(500).json({ error: 'Failed to fetch upline agent' });
+  }
+  if (!uplineAgent) {
+    console.error('No upline agent found for email:', agent.uplineEmail);
+    return res.status(400).json({ error: 'No upline agent found' });
+  }
+
   const payload = {
     first_name: agent.name.split(' ')[0],
     last_name: agent.name.split(' ')[1],
@@ -1751,11 +1528,10 @@ app.post('/agent', async (req, res) => {
     // eslint-disable-next-line camelcase
     org_id,
     // eslint-disable-next-line camelcase
-    upline_agent_id,
+    upline_agent_id: uplineAgent.id,
     email: agent.email,
     level: agent.level,
     id: req.user.id,
-    auth_user_id: req.user.id,
   };
   try {
     const { data, agentError } = await supabaseService.from('agents').insert([payload]);
@@ -1797,7 +1573,7 @@ app.post('/clients_temp', async (req, res) => {
     console.error('Error creating clients:', error);
     res.status(500).json({ error: 'Failed to create clients' });
   }
-})
+});
 app.post('/client', async (req, res) => {
   console.log('Creating client');
   const db = new Firestore();
@@ -1899,7 +1675,6 @@ app.post('/client', async (req, res) => {
 
 app.post('/policy', async (req, res) => {
   console.log('Creating policy');
-  const db = new Firestore();
   const { policy, clientId, agentIds } = req.body;
 
   const isGSQ = policy.leadSource === 'GetSeniorQuotes.com';
@@ -1914,380 +1689,22 @@ app.post('/policy', async (req, res) => {
   const policyNumber = policy.policyNumber.trim();
 
   console.log('Creating policy', policyNumber);
-
-  const policySnapshot = await db
-    .collection('policies')
-    .where('policyNumber', '==', policyNumber)
-    .get();
-
-  if (policySnapshot.size > 0) {
-    return res.status(409).json({ error: 'Policy number already exists' });
+  const { data: policyData, error: policyError } = await req.supabase.from('policies').insert(policy).select('*');
+  // check for uniques constraint violation
+  if (policyError) {
+    if (policyError.code === '23505') {
+      console.error('Policy number already exists:', policyNumber);
+      return res.status(400).json({ error: 'Policy number already exists' });
+    }
+    console.error('Error creating policy:', policyError);
+    return res.status(500).json({ error: 'Failed to create policy' });
   }
 
-  const agentSnapshot = await db
-    .collection('agents')
-    .where('uid', 'in', agentIds)
-    .get();
-
-  if (agentSnapshot.empty) {
-    console.error('Agent not found for ID:', agentIds);
-    return res.status(404).json({ error: 'Agent not found' });
-  }
-
-  // send mark lead sold to GSQ DB
-  const sendToGSQ = async (client) => {
-    try {
-      const BODY = {
-        url: `${process.env.GSQ_BASE_URL}/sold`,
-        headers: {
-          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
-        },
-        method: 'POST',
-        data: {
-          email: client.email,
-          phone: client.phone,
-        },
-      };
-      const response = await axios.request(BODY);
-      console.log('GSQ response:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error sending mark lead sold:', error);
-      throw error;
-    }
-  };
-
-  const getGSQLeads = async (client) => {
-    try {
-      const response = await axios.request({
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
-        },
-        params: {
-          phone: client.phone,
-          name: `${client.firstName} ${client.lastName}`,
-          email: client.email,
-        },
-        url: `${process.env.GSQ_BASE_URL}/find-leads`,
-      });
-
-      console.log('Leads fetched:', response.data.length);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching leads:', error);
-      throw error;
-    }
-  };
-
-  // TODO: does crypto need to be imported?
-  const hash = (data) => {
-    return `${crypto.createHash('sha256').update(data).digest('hex')}`;
-  };
-
-  const sendSaleToPixel = async (commission, lead, policy) => {
-    if (!lead || !lead.email || !lead.name || !lead.phone || !lead.state) {
-      console.error('Missing lead information');
-      return;
-    }
-
-    if (!policy) {
-      console.error('Missing policy information');
-      return;
-    }
-
-    if (!policy.premiumAmount) {
-      console.error('Missing policy premium amount');
-      return;
-    }
-
-    if (!commission || commission <= 0) {
-      console.error('Invalid commission amount');
-      return;
-    }
-
-    const eventTime = Math.floor(Date.now() / 1000);
-
-    const META_PURCHASE_PAYLOAD = {
-      data: [
-        {
-          event_name: 'Purchase',
-          event_time: eventTime,
-          action_source: 'website',
-          event_source_url: 'https://getseniorquotes.com',
-          event_id: `purchase-${lead.email}-${eventTime}`,
-          user_data: {
-            client_ip_address: lead.ip,
-            client_user_agent: lead.userAgent,
-            em: hash(lead.email),
-            fn: hash(lead.name.split(' ')[0]),
-            ln: hash(lead.name.split(' ')[1]),
-            ph: hash(lead.phone),
-            db: hash(`${lead.birthYear}${lead.birthMonth}${lead.birthDay}`),
-            country: hash('US'),
-            ge: lead.sex === 'Male' ? hash('m') : hash('f'),
-            st: hash(STATE_ABBREV_MAP[lead.state]),
-          },
-          custom_data: {
-            currency: 'USD',
-            value: commission,
-            content_type: 'product',
-            content_name: `${policy.carrier} - ${policy.policyType}`,
-            contents: [
-              {
-                id: `purchase-${lead.email}-${eventTime}`,
-                quantity: 1,
-                item_price: policy.premiumAmount * 12,
-              },
-            ],
-          },
-        },
-      ],
-    };
-
-    // Attach click identifiers if available
-    if (lead.fbc) META_PURCHASE_PAYLOAD.data[0].user_data.fbc = lead.fbc;
-    if (lead.fbp) META_PURCHASE_PAYLOAD.data[0].user_data.fbp = lead.fbp;
-
-    // Optional: add test_event_code for sandbox testing
-    if (process.env.NODE_ENV === 'development') {
-      META_PURCHASE_PAYLOAD.test_event_code = 'TEST12345';
-    }
-
-    try {
-      const res = await axios.post(
-        process.env.META_CONVERSIONS_URL,
-        META_PURCHASE_PAYLOAD,
-        {
-          params: {
-            access_token: process.env.META_CONVERSIONS_TOKEN,
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      console.log('Meta Purchase event sent:', res.data);
-    } catch (err) {
-      console.error(
-        'Meta Purchase event error:',
-        err.response?.data || err.message,
-      );
-    }
-  };
-
-  // send sale to Hyros
-  const sendSaleToHyros = async (commission, client, policy) => {
-    if (!client || !client.email || !client.phone) {
-      console.error('Missing client information for Hyros');
-      return;
-    }
-
-    if (!policy) {
-      console.error('Missing policy information for Hyros');
-      return;
-    }
-
-    if (!commission || commission <= 0) {
-      console.error('Invalid commission amount for Hyros');
-      return;
-    }
-
-    const HYROS_BODY = {
-      method: 'POST',
-      url: 'https://api.hyros.com/v1/api/v1.0/orders',
-      headers: {
-        'Content-Type': 'application/json',
-        'API-Key': process.env.HYROS_SECRET_KEY,
-      },
-      data: {
-        stage: 'Sale',
-        phoneNumbers: [client.phone],
-        email: client.email,
-        items: [
-          {
-            name: `${policy.carrier} - ${policy.policyType}`,
-            price: commission,
-            quantity: 1,
-          },
-        ],
-      },
-    };
-
-    try {
-      const hyrosResponse = await axios.request(HYROS_BODY);
-      console.log('Hyros order created:', hyrosResponse.data);
-    } catch (error) {
-      console.error(
-        'Error creating Hyros order:',
-        error.response?.data || error.message,
-      );
-    }
-  };
-
-  const getRate = (productRates, level, defaultValue = 1) => {
-    const raw = Number(productRates?.[String(level)]);
-    return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
-  };
-
-  const getLevel = async (agent, policy) => {
-    console.log(
-      'Getting level for agent:',
-      agent.email,
-      'and policy effective date:',
-      policy.effectiveDate,
-    );
-    const levelsRef = db.collection(`agents/${agent.email}/levels`);
-    const q = levelsRef
-      .where('effectiveDate', '<=', dayjs(policy.effectiveDate).toDate())
-      .orderBy('effectiveDate', 'desc')
-      .limit(1);
-    const snapshot = await q.get();
-    if (!snapshot.empty) {
-      console.log(
-        'Level found for agent:',
-        agent.email,
-        snapshot.docs[0].data(),
-      );
-      const data = snapshot.docs[0].data();
-      return data.level;
-    }
-    return null;
-  };
-
-  const calculateCommissions = async (agentData, agent, policy, premium) => {
-    let sheaCommission = 0;
-
-    const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
-    const productRates = carrierRates?.[policy.policyType?.trim()];
-
-    let agentLevel = await getLevel(agent, policy);
-    if (!agentLevel) {
-      agentLevel = agent.level;
-    }
-
-    let agentProductRate = getRate(productRates, agentLevel);
-
-    if (!agentProductRate) {
-      agentProductRate = 1;
-    }
-
-    const agentCommission = Math.round(premium * agentProductRate);
-
-    console.log('agent commission:', {
-      agent: agent.name,
-      agentCommission,
-      premium,
-      agentProductRate,
-    });
-
-    if (agent.uid === process.env.SHEA_UID) {
-      sheaCommission += agentCommission;
-      console.log('Shea commission from sale:', agentCommission);
-    }
-
-    if (agent.uplineUid) {
-      const upline = agentData.find((a) => a.uid === agent.uplineUid);
-
-      if (!upline) {
-        console.error('Upline not found for agent:', agent.uid, agent.name);
-        return sheaCommission;
-      }
-
-      let uplineLevel = await getLevel(upline, policy);
-      if (!uplineLevel) {
-        uplineLevel = upline.level;
-      }
-
-      let uplineProductRate = getRate(productRates, uplineLevel);
-      if (!uplineProductRate) {
-        uplineProductRate = 1;
-      }
-
-      const uplineCommission = Math.round(
-        premium * (uplineProductRate - agentProductRate),
-      );
-      if (upline.uid === process.env.SHEA_UID) {
-        sheaCommission += uplineCommission;
-        console.log('Shea commission from upline:', uplineCommission);
-      }
-
-      if (upline.uplineUid) {
-        const secondUpline = agentData.find((a) => a.uid === upline.uplineUid);
-
-        if (!secondUpline) {
-          console.error(
-            'Second upline not found for agent:',
-            upline.uid,
-            upline.name,
-          );
-          return sheaCommission;
-        }
-
-        let secondUplineLevel = await getLevel(secondUpline, policy);
-        if (!secondUplineLevel) {
-          secondUplineLevel = secondUpline.level;
-        }
-
-        let secondUplineProductRate =
-          productRates?.[String(secondUplineLevel)] / 100;
-        if (!secondUplineProductRate) {
-          secondUplineProductRate = 1;
-        }
-
-        const secondUplineCommission = Math.round(
-          premium * (secondUplineProductRate - uplineProductRate),
-        );
-
-        if (secondUpline.uid === process.env.SHEA_UID) {
-          sheaCommission += secondUplineCommission;
-          console.log(
-            'Shea commission from second upline:',
-            secondUplineCommission,
-          );
-        }
-      }
-    }
-
-    return sheaCommission;
-  };
-
-  function buildPolicySlackPayload({
-    agentName,
-    product,
-    annualPremium,
-    carrier,
-    effectiveDate,
-  }) {
-    return {
-      text: 'New GSQ Sale!',
-      blocks: [
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `
-*🚨 POLICY SOLD 🚨*
-Agent: ${agentName}
-Product: ${product}
-Carrier: ${carrier}
-AP: $${Number(annualPremium).toLocaleString()}
-EFT: ${effectiveDate || dayjs().format('MM/DD')}
-          `.trim(),
-          },
-        },
-        {
-          type: 'divider',
-        },
-      ],
-    };
-  }
 
   try {
     // eslint-disable-next-line no-unused-vars
     const payload = buildPolicySlackPayload({
-      agentName: agentSnapshot.docs[0].data().name,
+      agentName: `${req.agent.first_name} ${req.agent.last_name}`,
       product: policy.policyType,
       effectiveDate: dayjs(policy.effectiveDate).format('MM/DD'),
       annualPremium: Math.round(policy.premiumAmount * 12),
@@ -2308,96 +1725,26 @@ EFT: ${effectiveDate || dayjs().format('MM/DD')}
   }
 
   try {
-    const clientRef = db.collection('clients').doc(clientId);
+    const { data: clientData, error: clientError } = await req.supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .single();
 
-    const clientSnap = await clientRef.get();
-    const client = clientSnap.data();
-
-    try {
-      if (isGSQ) await sendToGSQ(client);
-    } catch (error) {
-      console.error('Error marking lead as sold in GSQ:', error);
+    if (clientError) {
+      console.error('Error fetching client:', clientError);
+      return res.status(500).json({ error: 'Failed to fetch client' });
     }
 
-    const source = client?.source ?? 'unknown';
-
-    const agents = await db.collection('agents').get();
-    const agentData = agents.docs.map((doc) => doc.data());
-
-    let commission = 0;
-
-    if (agentIds.length === 2 && policy.splitPolicy) {
-      const splitPremium = Math.round((policy.premiumAmount * 12) / 2);
-
-      const agent1 = agentData.find((a) => a.uid === agentIds[0]);
-      const agent2 = agentData.find((a) => a.uid === agentIds[1]);
-
-      const agent1Commission = await calculateCommissions(
-        agentData,
-        agent1,
-        policy,
-        splitPremium,
-      );
-      const agent2Commission = await calculateCommissions(
-        agentData,
-        agent2,
-        policy,
-        splitPremium,
-      );
-
-      commission = commission + agent1Commission;
-      commission = commission + agent2Commission;
-    } else {
-      const agent = agentData.find((a) => a.uid === agentIds[0]);
-      const premium = Math.round(policy.premiumAmount * 12);
-
-      const agentCommission = await calculateCommissions(
-        agentData,
-        agent,
-        policy,
-        premium,
-      );
-
-      commission = commission + agentCommission;
-    }
-
-    if (isGSQ) {
-      const clientLeads = await getGSQLeads(client);
-      await sendSaleToPixel(commission, clientLeads[0], policy);
-      await sendSaleToHyros(commission, client, policy);
-    }
-
-    const policyRef = await db.collection('policies').add({
-      ...policy,
-      policyNumber,
-      clientId,
-      agentIds,
-      source,
-      createdAt: Timestamp.now(),
-    });
-
-    await clientRef.update({
-      agentIds: agentIds,
-      policyIds: Firestore.FieldValue.arrayUnion(policyRef.id),
-      policyData: Firestore.FieldValue.arrayUnion({
-        id: policyRef.id,
-        carrier: policy.carrier,
-        policyNumber: policy.policyNumber,
-      }),
-    });
-
+    // mark as sold in GSQ
+    if (isGSQ) await sendToGSQ(clientData);
     // mark lead as sold in CRM DB
-    const leadRef = db.collection('leads').where('phone', '==', client.phone);
-    const leadSnap = await leadRef.get();
-
-    if (!leadSnap.empty) {
-      leadSnap.forEach(async (doc) => {
-        await doc.ref.update({ sold: true });
-      });
-    }
+    await req.supabase.from('leads').update({
+      sold: true,
+    }).eq('phone', clientData.phone);
 
     res.status(201).json({
-      id: policyRef.id,
+      id: policyData.id,
       ...policy,
       agentIds: agentIds,
       client: clientId,
@@ -2409,113 +1756,6 @@ EFT: ${effectiveDate || dayjs().format('MM/DD')}
 });
 
 // webhook to receive leads from GetSeniorQuotes.com
-app.post('/gsq-lead', async (req, res) => {
-  const auth = req.headers['authorization']?.split(' ')[1];
-
-  if (auth !== process.env.GSQ_TOKEN) {
-    return res.status(401).send({ message: 'Unauthorized' });
-  }
-
-  const { firstName, lastName, email, phone, dob, leadSource, issuedTo, sold } =
-    req.body;
-
-  if (
-    !firstName ||
-    !lastName ||
-    !email ||
-    !phone ||
-    !dob ||
-    !leadSource ||
-    !issuedTo ||
-    sold === undefined
-  ) {
-    return res.status(400).send({ message: 'Missing required fields' });
-  }
-
-  const getHyrosSource = async (email) => {
-    const HYROS_BODY = {
-      method: 'GET',
-      url: 'https://api.hyros.com/v1/api/v1.0/leads',
-      headers: {
-        'Content-Type': 'application/json',
-        'API-Key': process.env.HYROS_SECRET_KEY,
-      },
-      params: {
-        emails: email,
-      },
-    };
-
-    try {
-      const response = await axios.request(HYROS_BODY);
-      const hyrosData = response.data.result[0] || [];
-
-      let source = hyrosData?.lastSource?.sourceLinkAd?.name || null;
-
-      if (!source) {
-        source = hyrosData?.firstSource?.sourceLinkAd?.name || null;
-
-        if (!source) {
-          source =
-            hyrosData.lastSource?.name ||
-            hyrosData.firstSource?.name ||
-            'unknown';
-        }
-      }
-
-      return source;
-    } catch (error) {
-      console.error('Error fetching Hyros data:', error);
-    }
-  };
-
-  try {
-    const db = new Firestore();
-    const leadsRef = db.collection('leads');
-
-    const leadPhoneSnap = await db
-      .collection('leads')
-      .where('phone', '==', phone)
-      .get();
-
-    if (!leadPhoneSnap.empty) {
-      await leadPhoneSnap.docs[0].ref.update({ issuedTo });
-      return res
-        .status(409)
-        .send({ message: 'Lead with this phone number already exists' });
-    }
-
-    const leadEmailSnap = await db
-      .collection('leads')
-      .where('email', '==', email)
-      .get();
-    if (!leadEmailSnap.empty) {
-      await leadEmailSnap.docs[0].ref.update({ issuedTo });
-      return res
-        .status(409)
-        .send({ message: 'Lead with this email already exists' });
-    }
-
-    const hyrosSource = await getHyrosSource(email);
-
-    await leadsRef.add({
-      firstName,
-      lastName,
-      email,
-      phone,
-      dob,
-      issuedTo,
-      leadSource,
-      source: hyrosSource,
-      sold,
-      createdAt: Timestamp.now(),
-    });
-
-    res.status(201).send({ message: 'Lead saved successfully' });
-  } catch (error) {
-    console.error('Error saving lead:', error);
-    res.status(500).send({ message: 'Failed to save lead' });
-  }
-});
 
 // app.get('/insights', async (req, res) => {
 //   const { mode } = req.query;
@@ -2672,15 +1912,19 @@ app.patch('/customer-account', async (req, res) => {
 
 app.patch('/client', async (req, res) => {
   console.log('Updating client');
-  const db = new Firestore();
-  const { clientId, client } = req.body;
+  // temp delete
+  delete client.leadSource;
+  delete client.notes;
 
+  const { clientId, client } = req.body;
+  delete client.source;
+  delete client.policyIds;
   if (!clientId || !client) {
     return res.status(400).json({ error: 'Missing client ID or data' });
   }
 
   try {
-    await db.collection('clients').doc(clientId).update(client);
+    const { error } = await req.supabase.from('clients').update([client]).eq('id', clientId);
     res.status(200).json({ id: clientId, ...client });
   } catch (error) {
     console.error('Error updating client:', error);
@@ -2689,82 +1933,27 @@ app.patch('/client', async (req, res) => {
 });
 
 app.patch('/policy', async (req, res) => {
-  const db = new Firestore();
   const { policyId, policy } = req.body;
-
-  if (!policyId || !policy || !policy.clientId) {
-    return res
-      .status(400)
-      .json({ error: 'Missing policy ID, data, or client ID' });
-  }
-
-  try {
-    const clientRef = db.collection('clients').doc(policy.clientId);
-    const clientSnapshot = await clientRef.get();
-
-    if (!clientSnapshot.exists) {
-      return res.status(404).json({ error: 'Client not found' });
-    }
-
-    const clientData = clientSnapshot.data();
-    const policyData = [...clientData.policyData] || [];
-
-    // Replace the matching object
-    const index = policyData.findIndex((p) => p.id === policyId);
-    if (index !== -1) {
-      policyData[index] = {
-        ...policyData[index],
-        carrier: policy.carrier,
-        policyNumber: policy.policyNumber,
-      };
-    }
-
-    console.log('Updated client data:', clientData);
-
-    // Update the client with the new array
-    await clientRef.update({ policyData, agentIds: policy.agentIds });
-
-    // Also update the policies collection
-    await db.collection('policies').doc(policyId).update(policy);
-
-    res.status(200).json({ id: policyId, ...policy });
-  } catch (error) {
-    console.error('Error updating policy:', error);
+  const { error: policyError } = await req.supabase.from('policies').update([policy]).eq('id', policyId);
+  if (policyError) {
+    console.error('Error updating policy:', policyError);
     res.status(500).json({ error: 'Failed to update policy' });
   }
+  res.status(200).json({ id: policyId, ...policy });
 });
 
 app.delete('/client', async (req, res) => {
-  console.log('Deleting client');
-  const db = new Firestore();
-  const { clientId } = req.body;
-
+  const { clientId } = req.query;
   if (!clientId) {
     return res.status(400).json({ error: 'Missing client ID' });
   }
+    const { error } = req.supabase.from('clients').delete().eq('id', clientId).single();
 
-  try {
-    // Delete associated policies
-    const policiesSnapshot = await db
-      .collection('policies')
-      .where('clientId', '==', clientId)
-      .get();
-
-    const batch = db.batch();
-    policiesSnapshot.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-
-    // Delete the client
-    batch.delete(db.collection('clients').doc(clientId));
-
-    await batch.commit();
-
-    res.status(200).json({ message: 'Client and associated policies deleted' });
-  } catch (error) {
-    console.error('Error deleting client:', error);
-    res.status(500).json({ error: 'Failed to delete client' });
-  }
+    if ( error ) {
+      console.error('Error deleting client:', error);
+      return res.status(500).json({ error: 'Failed to delete client' });
+    }
+  res.status(200).json({ message: 'Client and associated policies deleted' });
 });
 
 app.delete('/policy', async (req, res) => {

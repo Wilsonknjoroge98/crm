@@ -1,15 +1,13 @@
 const { createClient } = require('@supabase/supabase-js');
 const logger = require('firebase-functions/logger');
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
 
 
 const authMiddleware = async (req, res, next) => {
     // get the url and method of the request
     try {
+
+
         const authHeader = req.headers['authorization'];
 
         if (!authHeader) {
@@ -18,6 +16,17 @@ const authMiddleware = async (req, res, next) => {
         }
 
         const token = authHeader.replace('Bearer ', '');
+        const supabase = createClient(
+            'https://wtudzhfcxsorxqimarjb.supabase.co',
+            'sb_publishable_yTHqyCuGdHs6m64SY7EVUg_Lfq-bhwI',
+            {
+                global: {
+                    headers: {
+                        Authorization: req.headers.authorization,
+                    },
+                },
+            },
+        );
 
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
@@ -27,32 +36,42 @@ const authMiddleware = async (req, res, next) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
+
         let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
+        // TODO: consider trigger inside supabase on insert to auth.users to automatically create profile
         logger.log('Auth profile', profile);
-        if (profileError) {
-           await supabase.from ('profiles').insert({ id: user.id, role: 'agent' });
-            const { data: newProfile, error: newProfileError} = (await supabase
+        if (profile == null ) {
+            logger.log('Creating profile for user: ', user.id);
+
+            await supabase.from('profiles').insert({ id: user.id, role: 'agent' });
+            const { data: newProfile, error: newProfileError } = (await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
                 .single());
+
             if (newProfileError) {
                 logger.error('Auth profile error in auth.js', newProfileError);
                 return res.status(500).json({ error: 'Internal server error' });
             }
+
             profile = newProfile;
             logger.log('Auth profile after insert', profile);
+        }
+        if (profileError) {
+            logger.error('Auth profile error in auth.js', profileError);
+            return res.status(500).json({ error: 'Internal server error' });
         }
 
         const { data: agent, error: agentError } = await supabase
             .from('agents')
             .select('*')
-            .eq('auth_user_id', user.id)
+            .eq('id', user.id)
             .maybeSingle();
 
         logger.log('Agent', agent);
@@ -66,6 +85,7 @@ const authMiddleware = async (req, res, next) => {
             role: profile.role,
         };
 
+        req.supabase = supabase;
         req.agent = agent;
 
         next();
