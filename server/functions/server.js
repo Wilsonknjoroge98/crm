@@ -96,7 +96,128 @@ app.get('/clients', async (req, res) => {
     res.status(200).json(clients);
   }
 });
+app.get('/team-summary', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  const { data: clientData, error: clientError } = await req.supabase
+      .from('clients')
+      .select('*')
+      .gte('clients.date_created', startDate)
+      .lte('clients.date_created', endDate);
+  if (clientError) {
+    console.log('error', clientError);
+    return res.status(500).json({ error: 'Failed to fetch clients' });
 
+  }
+  const { data: policiesData, error: policiesError } = req.supabase
+      .from('policies')
+      .select('*')
+      .gte('sold_date', startDate)
+      .lte('sold_date', endDate);
+  if (policiesError) {
+    console.log('error', clientError);
+    return res.status(500).json({ error: 'Failed to fetch clients' });
+  }
+  const totalPolicies = policiesData.length;
+  const totalPremium = policiesData.reduce((acc, policy) => acc+policy.premium_amount, 0);
+  const avgPremium = totalPremium/totalPolicies;
+  return res.status(200).json({
+    totalClients: clientData.length,
+    totalPolicies,
+    totalPremium,
+    avgPremium,
+
+  })
+})
+app.get('/personal-summary', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  const { data: clientData, error: clientError } = await req.supabase
+      .from('clients')
+      .select('*, agent_clients!inner (agent_id)')
+      .eq('agent_clients.agent_id',req.agent.id)
+      .gte('clients.date_created', startDate)
+      .lte('clients.date_created', endDate);
+  if (clientError) {
+    console.log('error fetching clients in personal summary', clientError);
+    return res.status(500).json({ error: 'Failed to fetch clients' });
+
+  }
+  const { data: policiesData, error: policiesError } = req.supabase
+      .from('policies')
+      .select('*')
+      .eq('writing_agent_id',req.agent.id)
+      .gte('sold_date', startDate)
+      .lte('sold_date', endDate);
+  if (policiesError) {
+    console.log('error fetching policies in personal summary', clientError);
+    return res.status(500).json({ error: 'Failed to fetch policies' });
+  }
+  const totalPolicies = policiesData.length;
+  const totalPremium = policiesData.reduce((acc, policy) => acc+policy.premium_amount, 0);
+  const avgPremium = totalPremium/totalPolicies;
+  return res.status(200).json({
+    totalClients: clientData.length,
+    totalPolicies,
+    totalPremium,
+    avgPremium,
+  })
+});
+app.get('/downline-production', async (req, res) => {
+  try {
+    // 1. Fetch all agents from Supabase
+    const { data: allAgents, error: agentsError } = await req.supabase
+        .from('agents')
+        .select('id, first_name, last_name'); // Assuming your agents table has 'id' and 'name' columns
+
+    if (agentsError) {
+      console.error('Error fetching agents:', agentsError);
+      return res.status(500).json({ error: 'Failed to fetch agents for downline production' });
+    }
+
+    const downlineProduction = [];
+
+    // 2. Iterate through each agent to gather their production data from Supabase
+    for (const agent of allAgents) {
+      // Get total clients for the current agent
+      const { count: clientsCount, error: clientsError } = await req.supabase
+          .from('agent_clients')
+          .select('client_id', { count: 'exact' })
+          .eq('agent_id', agent.id); // Match by the agent's ID from the 'agents' table
+
+      if (clientsError) {
+        console.error(`Error fetching clients for agent ${agent.name}:`, clientsError);
+        // Log error and treat count as 0 for this agent.
+        return res.status(500).json()
+      }
+
+      // Get policies and total premium for the current agent
+      const { data: agentPolicies, error: policiesError } = await req.supabase
+          .from('policies')
+          .select('premiumAmount') // Only fetch premiumAmount for calculation
+          .eq('writing_agent_id', agent.id); // Assuming policies are linked by writing_agent_id to agent.id
+
+      if (policiesError) {
+        console.error(`Error fetching policies for agent ${agent.id}:`, policiesError);
+        // Log error and treat as 0 policies/premium
+        return res.status(500).json({ error: 'Failed to fetch policies' });
+      }
+
+      const totalPolicies = agentPolicies.length;
+      const totalPremium = agentPolicies.reduce((sum, policy) => sum + (Number(policy.premiumAmount) || 0), 0);
+
+      downlineProduction.push({
+        name: agent.first_name + ' ' + agent.last_name,
+        clients: clientsCount,
+        premium: totalPremium,
+        policies: totalPolicies,
+      });
+    }
+
+    res.status(200).json(downlineProduction);
+  } catch (error) {
+    console.error('Error in /downline-production route:', error);
+    res.status(500).json({ error: 'Failed to generate downline production summary' });
+  }
+});
 app.get('/leads', async (req, res) => {
   try {
     const { data: leads, error } = await req.supabase.from('leads').select('*');
