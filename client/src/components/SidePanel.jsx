@@ -18,6 +18,8 @@ import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+
 import { useTheme } from '@mui/material/styles';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -62,18 +64,23 @@ const SidePanel = () => {
   ];
 
   const managementItems = [
-    // {
-    //   text: 'Team Production',
-    //   icon: <QueryStatsOutlinedIcon />,
-    //   path: null,
-    // },
     {
-      text: 'Purchase Leads',
+      text: 'Production',
+      icon: <QueryStatsOutlinedIcon />,
+      path: '/team-production',
+    },
+    {
+      text: 'Agents',
+      icon: <BadgeOutlinedIcon />,
+      path: '/agents',
+    },
+    {
+      text: 'Marketplace',
       icon: <ShoppingCartOutlinedIcon />,
       path: '/purchase-leads',
     },
     {
-      text: 'Mange Subscription',
+      text: 'Billing',
       icon: <SettingsOutlinedIcon />,
       path: 'https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00',
     },

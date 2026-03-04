@@ -36,6 +36,7 @@ import { useLocation } from 'react-router-dom';
 
 import { toTitleCase } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
+import StyledSnackBar from './StyledSnackBar';
 
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const { pathname } = useLocation();
@@ -61,6 +62,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const [zipCodeError, setZipCodeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [disabled, setDisabled] = useState(true);
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
   const inputRef = useRef(null);
 
   const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
@@ -121,7 +123,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         refetchClients();
       }
       setOpen(false);
-      enqueueSnackbar('Client created successfully!', SNACKBAR_SUCCESS_OPTIONS);
+      setToast({ open: true, message: 'Client created successfully!', severity: 'success' });
     },
   });
 
@@ -226,288 +228,296 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   }, [form]);
 
   return (
-    <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
-      <DialogTitle
-        sx={{
-          fontWeight: 700,
-          fontSize: '1.5rem',
-          pb: 1,
-        }}
-      >
-        New Client
-      </DialogTitle>
-      <DialogContent sx={{ mt: 1 }}>
-        <Grid container spacing={2} p={2}>
-          <Grid item size={12}>
-            <SectionHeader title='Lead information' />
-          </Grid>
-          <Grid item size={6}>
-            <TextField
-              sx={{ width: '100%' }}
-              select
-              disabled={!!lead}
-              name='leadSource'
-              label='Lead Source'
-              value={form.leadSource}
-              onChange={handleChange}
-              fullWidth
-              required
-            >
-              {leadSourceOptions.map((source) => (
-                <MenuItem key={source} value={source}>
-                  {source}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          {form.leadSource === 'GetSeniorQuotes.com' && pathname.includes('client') && (
-            <Grid size={6}>
-              <FormControl error={true} fullWidth>
-                <Alert severity='warning'>Is this a live transfer lead?</Alert>
-
-                <Stack direction='row' spacing={2}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={form.liveTransfer === true}
-                        onChange={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            liveTransfer: true,
-                          }))
-                        }
-                      />
-                    }
-                    label='Yes'
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={form.liveTransfer === false}
-                        onChange={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            liveTransfer: false,
-                          }))
-                        }
-                      />
-                    }
-                    label='No'
-                  />
-                </Stack>
-              </FormControl>
-            </Grid>
-          )}
-
-          <Grid item size={12}>
-            <SectionHeader title='Personal Information' />
-          </Grid>
-          <Grid item size={6}>
-            <TextField
-              name='firstName'
-              label='First Name'
-              value={form.firstName}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </Grid>
-          <Grid item size={6}>
-            <TextField
-              name='lastName'
-              label='Last Name'
-              value={form.lastName}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </Grid>
-
-          <Grid item size={6}>
-            <TextField
-              name='email'
-              label='Email'
-              value={form.email}
-              onChange={handleChange}
-              error={emailError}
-              helperText={emailError ? 'Invalid email address' : ''}
-              type='email'
-              fullWidth
-              required
-            />
-          </Grid>
-          <Grid item size={6}>
-            <TextField
-              name='phone'
-              label='Phone'
-              value={form.phone}
-              onChange={handleChange}
-              error={phoneError}
-              helperText={phoneError ? 'Invalid phone number' : ''}
-              fullWidth
-              required
-            />
-          </Grid>
-
-          <Grid item size={6}>
-            <TextField
-              name='dob'
-              label='Date of Birth'
-              type='date'
-              value={form.dob}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </Grid>
-          <Grid item size={6}>
-            <TextField
-              select
-              name='maritalStatus'
-              label='Marital Status'
-              value={form.maritalStatus}
-              onChange={handleChange}
-              fullWidth
-              required
-            >
-              {maritalOptions.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          {/* Section 2: Address */}
-          <Grid item size={12}>
-            <SectionHeader title='Location' />
-          </Grid>
-
-          <Grid size={6}>
-            <TextField
-              name='address'
-              label='Street Address'
-              value={form.address}
-              onChange={handleChange}
-              fullWidth
-              required
-              inputRef={inputRef}
-            />
-          </Grid>
-
-          <Grid item size={6}>
-            <TextField
-              name='city'
-              label='City'
-              value={form.city}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </Grid>
-          <Grid item size={6}>
-            <TextField
-              name='state'
-              id='outlined-select-currency'
-              select
-              label='State'
-              sx={{ width: '100%' }}
-              value={form.state}
-              onChange={handleChange}
-              fullWidth
-              required
-            >
-              {STATES.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item size={6}>
-            <TextField
-              name='zip'
-              label='Zip Code'
-              value={form.zip}
-              onChange={handleChange}
-              error={zipCodeError}
-              helperText={zipCodeError ? 'Invalid zip code' : ''}
-              fullWidth
-              required
-            />
-          </Grid>
-
-          <Grid item size={12}>
-            <SectionHeader title='Employment & Financials' />
-          </Grid>
-
-          <Grid item size={6}>
-            <TextField
-              name='occupation'
-              label='Occupation'
-              value={form.occupation}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </Grid>
-          <Grid item size={6}>
-            <NumericFormat
-              style={{ width: '100%' }}
-              name='income'
-              label='Annual Income'
-              value={form.income}
-              thousandSeparator=','
-              customInput={TextField}
-              required
-              onValueChange={(values) => {
-                const { value } = values; // raw value without formatting
-                setForm((prev) => ({ ...prev, income: value }));
-              }}
-              slotProps={{
-                input: {
-                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
-                },
-              }}
-            />
-          </Grid>
-
-          <Grid item size={12}>
-            <SectionHeader title='Additional Notes' />
-          </Grid>
-
-          <Grid item size={12}>
-            <TextField
-              name='notes'
-              label='Notes'
-              value={form.notes}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-            />
-          </Grid>
-
-          {error && (
-            <Alert severity='error' sx={{ mb: 2, width: '100%', p: 2 }}>
-              {error.message}
-            </Alert>
-          )}
-        </Grid>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={() => setOpen(false)}>Cancel</Button>
-        <Button
-          onClick={handleSubmit}
-          variant='contained'
-          color='action'
-          disabled={disabled || isPending}
+    <>
+      <StyledSnackBar
+        open={toast.open}
+        message={toast.message}
+        severity={toast.severity}
+        onClose={() => setToast({ open: false, message: '', severity: 'success' })}
+      />
+      <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+            fontSize: '1.5rem',
+            pb: 1,
+          }}
         >
-          {isPending ? 'Saving...' : 'Save Client'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          New Client
+        </DialogTitle>
+        <DialogContent sx={{ mt: 1 }}>
+          <Grid container spacing={2} p={2}>
+            <Grid item size={12}>
+              <SectionHeader title='Lead information' />
+            </Grid>
+            <Grid item size={6}>
+              <TextField
+                sx={{ width: '100%' }}
+                select
+                disabled={!!lead}
+                name='leadSource'
+                label='Lead Source'
+                value={form.leadSource}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                {leadSourceOptions.map((source) => (
+                  <MenuItem key={source} value={source}>
+                    {source}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            {form.leadSource === 'GetSeniorQuotes.com' && pathname.includes('client') && (
+              <Grid size={6}>
+                <FormControl error={true} fullWidth>
+                  <Alert severity='warning'>Is this a live transfer lead?</Alert>
+
+                  <Stack direction='row' spacing={2}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={form.liveTransfer === true}
+                          onChange={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              liveTransfer: true,
+                            }))
+                          }
+                        />
+                      }
+                      label='Yes'
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={form.liveTransfer === false}
+                          onChange={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              liveTransfer: false,
+                            }))
+                          }
+                        />
+                      }
+                      label='No'
+                    />
+                  </Stack>
+                </FormControl>
+              </Grid>
+            )}
+
+            <Grid item size={12}>
+              <SectionHeader title='Personal Information' />
+            </Grid>
+            <Grid item size={6}>
+              <TextField
+                name='firstName'
+                label='First Name'
+                value={form.firstName}
+                onChange={handleChange}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid item size={6}>
+              <TextField
+                name='lastName'
+                label='Last Name'
+                value={form.lastName}
+                onChange={handleChange}
+                fullWidth
+                required
+              />
+            </Grid>
+
+            <Grid item size={6}>
+              <TextField
+                name='email'
+                label='Email'
+                value={form.email}
+                onChange={handleChange}
+                error={emailError}
+                helperText={emailError ? 'Invalid email address' : ''}
+                type='email'
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid item size={6}>
+              <TextField
+                name='phone'
+                label='Phone'
+                value={form.phone}
+                onChange={handleChange}
+                error={phoneError}
+                helperText={phoneError ? 'Invalid phone number' : ''}
+                fullWidth
+                required
+              />
+            </Grid>
+
+            <Grid item size={6}>
+              <TextField
+                name='dob'
+                label='Date of Birth'
+                type='date'
+                value={form.dob}
+                onChange={handleChange}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid item size={6}>
+              <TextField
+                select
+                name='maritalStatus'
+                label='Marital Status'
+                value={form.maritalStatus}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                {maritalOptions.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {/* Section 2: Address */}
+            <Grid item size={12}>
+              <SectionHeader title='Location' />
+            </Grid>
+
+            <Grid size={6}>
+              <TextField
+                name='address'
+                label='Street Address'
+                value={form.address}
+                onChange={handleChange}
+                fullWidth
+                required
+                inputRef={inputRef}
+              />
+            </Grid>
+
+            <Grid item size={6}>
+              <TextField
+                name='city'
+                label='City'
+                value={form.city}
+                onChange={handleChange}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid item size={6}>
+              <TextField
+                name='state'
+                id='outlined-select-currency'
+                select
+                label='State'
+                sx={{ width: '100%' }}
+                value={form.state}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                {STATES.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item size={6}>
+              <TextField
+                name='zip'
+                label='Zip Code'
+                value={form.zip}
+                onChange={handleChange}
+                error={zipCodeError}
+                helperText={zipCodeError ? 'Invalid zip code' : ''}
+                fullWidth
+                required
+              />
+            </Grid>
+
+            <Grid item size={12}>
+              <SectionHeader title='Employment & Financials' />
+            </Grid>
+
+            <Grid item size={6}>
+              <TextField
+                name='occupation'
+                label='Occupation'
+                value={form.occupation}
+                onChange={handleChange}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid item size={6}>
+              <NumericFormat
+                style={{ width: '100%' }}
+                name='income'
+                label='Annual Income'
+                value={form.income}
+                thousandSeparator=','
+                customInput={TextField}
+                required
+                onValueChange={(values) => {
+                  const { value } = values; // raw value without formatting
+                  setForm((prev) => ({ ...prev, income: value }));
+                }}
+                slotProps={{
+                  input: {
+                    startAdornment: <InputAdornment position='start'>$</InputAdornment>,
+                  },
+                }}
+              />
+            </Grid>
+
+            <Grid item size={12}>
+              <SectionHeader title='Additional Notes' />
+            </Grid>
+
+            <Grid item size={12}>
+              <TextField
+                name='notes'
+                label='Notes'
+                value={form.notes}
+                onChange={handleChange}
+                fullWidth
+                multiline
+                rows={3}
+              />
+            </Grid>
+
+            {error && (
+              <Alert severity='error' sx={{ mb: 2, width: '100%', p: 2 }}>
+                {error.message}
+              </Alert>
+            )}
+          </Grid>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            variant='contained'
+            color='action'
+            disabled={disabled || isPending}
+          >
+            {isPending ? 'Saving...' : 'Save Client'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 

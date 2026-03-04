@@ -44,46 +44,6 @@ const Dashboard = () => {
       <Container sx={{ mt: 4 }}>
         <Stack direction={'column'} justifyContent='space-between' spacing={2} mb={2}>
           <Typography variant='h4'>Leaderboard</Typography>
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <Box display='flex' justifyContent='space-between' alignItems='center'>
-              <Stack direction={'row'} spacing={2} alignItems='center'>
-                <DatePicker
-                  label='Start Date'
-                  value={startDate ? dayjs(startDate) : null}
-                  onChange={handleStartChange}
-                  slotProps={{
-                    textField: {
-                      size: 'small',
-                      variant: 'outlined',
-                      sx: { minWidth: 150 },
-                    },
-                  }}
-                />
-                <DatePicker
-                  label='End Date'
-                  value={endDate ? dayjs(endDate) : null}
-                  onChange={handleEndChange}
-                  slotProps={{
-                    textField: {
-                      size: 'small',
-                      variant: 'outlined',
-                      sx: { minWidth: 150 },
-                    },
-                  }}
-                />
-              </Stack>
-              <Button
-                variant='contained'
-                color='action'
-                startIcon={<RefreshIcon />}
-                onClick={() => refetchLeaderboard()}
-                sx={isLoading ? { opacity: 0.3 } : {}}
-                disabled={isLoading}
-              >
-                Refresh
-              </Button>
-            </Box>
-          </LocalizationProvider>
         </Stack>
         {(isLoading || isPending) && (
           <Stack

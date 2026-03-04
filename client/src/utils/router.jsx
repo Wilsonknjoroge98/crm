@@ -14,6 +14,8 @@ const CashFlow = lazy(() => import('../views/CashFlow'));
 const Leads = lazy(() => import('../views/Leads'));
 const Purchase = lazy(() => import('../views/Purchase'));
 const Dashboard = lazy(() => import('../views/Dashboard'));
+const TeamProduction = lazy(() => import('../views/TeamProduction'));
+const Agents = lazy(() => import('../views/Agents'));
 import ErrorBoundary from '../views/ErrorBoundary';
 
 const router = createBrowserRouter([
@@ -65,7 +67,49 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      {
+        path: '/team-production',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <TeamProduction />
+          </Suspense>
+        ),
+      },
 
+      {
+        path: '/agents',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Agents />
+          </Suspense>
+        ),
+      },
       {
         path: '/purchase-leads',
         element: (

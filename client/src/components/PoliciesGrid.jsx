@@ -9,7 +9,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import CancelIcon from '@mui/icons-material/Cancel';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
-
+import { useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 export default function PoliciesGrid({
@@ -22,6 +22,7 @@ export default function PoliciesGrid({
   setPolicy,
   setDeletePolicyOpen,
 }) {
+  const { pathname } = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
   const agentNameById = React.useMemo(() => {
     const map = {};
@@ -32,15 +33,15 @@ export default function PoliciesGrid({
   }, [agents]);
 
   const statusConfig = {
-    Active: { label: 'Active', icon: <CheckCircleIcon color='success' />, color: 'success.main' },
-    Pending: { label: 'Pending', icon: <AutorenewIcon color='success' />, color: 'info.main' },
-    Lapsed: { label: 'Lapsed', icon: <WarningIcon color='error' />, color: 'warning.main' },
+    'Active': { label: 'Active', icon: <CheckCircleIcon color='success' />, color: 'success.main' },
+    'Pending': { label: 'Pending', icon: <AutorenewIcon color='success' />, color: 'info.main' },
+    'Lapsed': { label: 'Lapsed', icon: <WarningIcon color='error' />, color: 'warning.main' },
     'Insufficient Funds': {
       label: 'Insufficient Funds',
       icon: <AccountBalanceIcon color='error' />,
       color: 'warning.main',
     },
-    Cancelled: { label: 'Cancelled', icon: <CancelIcon color='error' />, color: 'error.main' },
+    'Cancelled': { label: 'Cancelled', icon: <CancelIcon color='error' />, color: 'error.main' },
   };
 
   useEffect(() => {
@@ -54,42 +55,52 @@ export default function PoliciesGrid({
     const cols = [];
 
     if (isAdmin) {
-      cols.push({
-        field: 'agentIds',
-        headerName: 'Agent',
-        flex: 1,
-        width: 100,
-        sortable: true,
-        filterable: true,
-        valueGetter: (value) => value.map((id) => agentNameById[id] || '').join(', '),
-        renderCell: (params) => {
-          const value = params.value;
+      cols.push(
+        {
+          field: 'agentIds',
+          headerName: 'Agent',
+          flex: 1,
+          width: 100,
+          sortable: true,
+          filterable: true,
+          valueGetter: (value) => value.map((id) => agentNameById[id] || '').join(', '),
+          renderCell: (params) => {
+            const value = params.value;
 
-          return (
-            <Stack
-              sx={{
-                width: '100%',
-                height: '100%',
-                justifyContent: 'flex-end',
-              }}
-            >
+            return (
               <Stack
-                direction={'row'}
                 sx={{
-                  height: '100%',
                   width: '100%',
-                  justifyContent: 'flex-start',
-                  alignItems: 'center',
+                  height: '100%',
+                  justifyContent: 'flex-end',
                 }}
               >
-                <Typography variant='caption' key={value}>
-                  {value}
-                </Typography>
+                <Stack
+                  direction={'row'}
+                  sx={{
+                    height: '100%',
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography variant='caption' key={value}>
+                    {value}
+                  </Typography>
+                </Stack>
               </Stack>
-            </Stack>
-          );
+            );
+          },
         },
-      });
+        {
+          field: 'source',
+          headerName: 'Ad Source',
+          flex: 1,
+          minWidth: 80,
+          hidden: true,
+          renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
+        },
+      );
     }
 
     cols.push(
@@ -98,8 +109,7 @@ export default function PoliciesGrid({
         headerName: 'Created',
         filterable: true,
         sortable: true,
-        width: 170,
-
+        width: 150,
         renderCell: (params) => {
           return params.value ? new Date(params.value).toLocaleString() : 'unknown';
         },
@@ -127,14 +137,14 @@ export default function PoliciesGrid({
         field: 'carrier',
         headerName: 'Carrier',
         flex: 1,
-        width: 100,
+        width: 120,
         renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
       },
       {
         field: 'premiumAmount',
         headerName: 'Premium',
         flex: 1,
-        width: 100,
+        width: 80,
         valueGetter: (value, row) => parseFloat(row.premiumAmount),
         renderCell: (params) => {
           const val = parseFloat(params.value);
@@ -175,15 +185,10 @@ export default function PoliciesGrid({
           );
         },
       },
-      {
-        field: 'source',
-        headerName: 'Ad Source',
-        flex: 1,
-        minWidth: 80,
-        hidden: true,
-        renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
-      },
-      {
+    );
+
+    if (!pathname.includes('/team-production')) {
+      cols.push({
         field: 'actions',
         type: 'actions',
         headerName: '',
@@ -211,8 +216,8 @@ export default function PoliciesGrid({
             />,
           ];
         },
-      },
-    );
+      });
+    }
 
     return cols;
   }, [isAdmin, agentNameById, handleUpdatePolicy, setPolicy, setDeletePolicyOpen, statusConfig]);
