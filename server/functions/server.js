@@ -871,10 +871,9 @@ app.get('/insights', async (req, res) => {
   // LOAD FIRESTORE CLIENTS
   // ---------------------------------------------------------------------
   const db = new Firestore();
-  const ref = db
-    .collection('clients')
-    .where('dateSold', '>=', dayjs(since).toDate())
-    .where('createdAt', '<=', dayjs(until).toDate());
+  const ref = db.collection('clients')
+
+
   const snapshot = await ref.get();
 
   const clients = snapshot.docs.map((doc) => ({
@@ -937,7 +936,9 @@ app.get('/insights', async (req, res) => {
 
       const row = data[0];
       const spend = parseFloat(row.spend || 0);
-      const leadAction = (row.actions || []).find((a) => a.action_type === 'lead');
+      const leadAction = (row.actions || []).find(
+        (a) => a.action_type === 'lead',
+      );
       const leads = leadAction ? parseInt(leadAction.value || 0, 10) : 0;
 
       return { spend, leads };
