@@ -871,8 +871,7 @@ app.get('/insights', async (req, res) => {
   // LOAD FIRESTORE CLIENTS
   // ---------------------------------------------------------------------
   const db = new Firestore();
-  const ref = db.collection('clients')
-
+  const ref = db.collection('clients');
 
   const snapshot = await ref.get();
 
