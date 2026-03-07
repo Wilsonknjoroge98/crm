@@ -28,5 +28,6 @@ export const stringToColor = (str) => {
 
 export const toTitleCase = (str) =>
   str.replace(/\w\S*/g, (word) => {
+    if (word === word.toUpperCase()) return word; // Preserve all-uppercase words (e.g., acronyms)
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });

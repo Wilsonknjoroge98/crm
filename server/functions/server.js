@@ -872,6 +872,7 @@ app.get('/insights', async (req, res) => {
   // ---------------------------------------------------------------------
   const db = new Firestore();
   const ref = db.collection('clients');
+
   const snapshot = await ref.get();
 
   const clients = snapshot.docs.map((doc) => ({
@@ -915,14 +916,14 @@ app.get('/insights', async (req, res) => {
     return res.status(500).send({ error: 'Meta ads fetch failed' });
   }
 
-  // Helper: Get spend for a single ad ID
-  async function getSpendForAd(adId) {
+  // Helper: Get spend and leads for a single ad ID from Meta
+  async function getInsightsForAd(adId) {
     try {
       const insightsResp = await axios.get(
         `https://graph.facebook.com/v20.0/${adId}/insights`,
         {
           params: {
-            fields: 'spend',
+            fields: 'spend,actions',
             time_range: JSON.stringify({ since, until }),
             access_token: accessToken,
           },
@@ -930,27 +931,28 @@ app.get('/insights', async (req, res) => {
       );
 
       const data = insightsResp.data.data;
-      if (!data || data.length === 0) return 0;
+      if (!data || data.length === 0) return { spend: 0, leads: 0 };
 
-      return parseFloat(data[0].spend || 0);
+      const row = data[0];
+      const spend = parseFloat(row.spend || 0);
+      const leadAction = (row.actions || []).find(
+        (a) => a.action_type === 'lead',
+      );
+      const leads = leadAction ? parseInt(leadAction.value || 0, 10) : 0;
+
+      return { spend, leads };
     } catch (error) {
       console.error(
-        `Error fetching spend for ad ${adId}:`,
+        `Error fetching insights for ad ${adId}:`,
         error.response?.data || error,
       );
-      return 0;
+      return { spend: 0, leads: 0 };
     }
   }
 
   const policiesRef = db.collection('policies');
   const policiesSnapshot = await policiesRef.get();
   const policies = policiesSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  const leadsSnapshot = await db.collection('leads').get();
-  const leadsData = leadsSnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
   }));
@@ -975,14 +977,11 @@ app.get('/insights', async (req, res) => {
   )) {
     const adId = adsByName[creative];
     let spend = 0;
+    let leads = 0;
 
     if (adId) {
-      spend = await getSpendForAd(adId);
+      ({ spend, leads } = await getInsightsForAd(adId));
     }
-
-    const leads = leadsData.filter((lead) => {
-      return (lead.source || 'unknown').trim() === creative;
-    }).length;
 
     console.log(
       `Source: ${creative}, Sales: ${sales}, Leads: ${leads}, Spend: ${spend}`,
@@ -1009,6 +1008,7 @@ app.get('/insights', async (req, res) => {
       averagePremium: +averagePremium.toFixed(2),
       cpl: spend > 0 && leads > 0 ? +(spend / leads).toFixed(2) : 0,
       cps: spend > 0 && sales > 0 ? +(spend / sales).toFixed(2) : 0,
+      closeRate: leads > 0 ? +((sales / leads) * 100).toFixed(2) : 0,
     });
   }
 
@@ -2355,8 +2355,8 @@ EFT: ${effectiveDate || dayjs().format('MM/DD')}
         },
       ],
     };
-  };
-  
+  }
+
   try {
     const payload = buildPolicySlackPayload({
       agentName: agentSnapshot.docs[0].data().name,
