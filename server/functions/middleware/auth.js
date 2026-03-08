@@ -1,13 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const logger = require('firebase-functions/logger');
-
-
+const { createPublicClient } = require("../services/supabase");
 
 const authMiddleware = async (req, res, next) => {
     // get the url and method of the request
     try {
-
-
         const authHeader = req.headers['authorization'];
 
         if (!authHeader) {
@@ -16,17 +13,7 @@ const authMiddleware = async (req, res, next) => {
         }
 
         const token = authHeader.replace('Bearer ', '');
-        const supabase = createClient(
-            'https://wtudzhfcxsorxqimarjb.supabase.co',
-            'sb_publishable_yTHqyCuGdHs6m64SY7EVUg_Lfq-bhwI',
-            {
-                global: {
-                    headers: {
-                        Authorization: req.headers.authorization,
-                    },
-                },
-            },
-        );
+        const supabase = createPublicClient(req.headers.authorization);
 
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
@@ -87,6 +74,11 @@ const authMiddleware = async (req, res, next) => {
 
         req.supabase = supabase;
         req.agent = agent;
+        req.logData = {
+            route: req.originalUrl,
+            method: req.method,
+            requesterId: user.id,
+        };
 
         next();
     } catch (err) {

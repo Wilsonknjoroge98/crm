@@ -7,36 +7,39 @@ const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
 // eslint-disable-next-line no-unused-vars
 const { WebClient } = require('@slack/web-api');
-const { PRODUCT_RATES, STATE_ABBREV_MAP } = require('./constants');
+const { PRODUCT_RATES,  } = require('./constants');
 const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
-const { createClient } = require('@supabase/supabase-js');
-const { buildPolicySlackPayload, sendToGSQ } = require('./helpers');
-
-const supabaseService = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+const { supabaseService } = require('./services/supabase');
+const {
+  agentRouter,
+  policyRouter,
+  leadRouter,
+  clientRouter,
+  downlineProductionRouter,
+  summaryRouter,
+  hierarchyRouter,
+} = require('./endpoints');
 
 admin.initializeApp();
-
+app.use(
+    cors({
+      origin: [
+        'https://fearless-ins.com',
+        'https://hourglasslifegroup.com',
+        'https://hourglass-ef3ca.web.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:4173',
+      ],
+      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    }),
+);
 app.use(express.json());
 app.use(authMiddleware);
+app.use(agentRouter, policyRouter, leadRouter, clientRouter, downlineProductionRouter, summaryRouter, hierarchyRouter);
 
-app.use(
-  cors({
-    origin: [
-      'https://fearless-ins.com',
-      'https://hourglasslifegroup.com',
-      'https://hourglass-ef3ca.web.app',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:4173',
-    ],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-  }),
-);
 
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
@@ -84,190 +87,6 @@ app.use(
 //   return Array.from(result);
 // }
 
-app.get('/clients', async (req, res) => {
-  // create supabase client based on JWT from request
-  // TODO: move to auth middleware
-
-  const { data: clients, error } = await req.supabase.from('clients').select('*').in('agentIds', [req.agent.id]);
-  if (error) {
-    console.log('error', error);
-    res.status(500).json({ error: 'Failed to fetch clients' });
-  } else {
-    res.status(200).json(clients);
-  }
-});
-app.get('/team-summary', async (req, res) => {
-  const { startDate, endDate } = req.query;
-  const { data: clientData, error: clientError } = await req.supabase
-      .from('clients')
-      .select('*')
-      .gte('clients.date_created', startDate)
-      .lte('clients.date_created', endDate);
-  if (clientError) {
-    console.log('error', clientError);
-    return res.status(500).json({ error: 'Failed to fetch clients' });
-
-  }
-  const { data: policiesData, error: policiesError } = req.supabase
-      .from('policies')
-      .select('*')
-      .gte('sold_date', startDate)
-      .lte('sold_date', endDate);
-  if (policiesError) {
-    console.log('error', clientError);
-    return res.status(500).json({ error: 'Failed to fetch clients' });
-  }
-  const totalPolicies = policiesData.length;
-  const totalPremium = policiesData.reduce((acc, policy) => acc+policy.premium_amount, 0);
-  const avgPremium = totalPremium/totalPolicies;
-  return res.status(200).json({
-    totalClients: clientData.length,
-    totalPolicies,
-    totalPremium,
-    avgPremium,
-
-  })
-})
-app.get('/personal-summary', async (req, res) => {
-  const { startDate, endDate } = req.query;
-  const { data: clientData, error: clientError } = await req.supabase
-      .from('clients')
-      .select('*, agent_clients!inner (agent_id)')
-      .eq('agent_clients.agent_id',req.agent.id)
-      .gte('clients.date_created', startDate)
-      .lte('clients.date_created', endDate);
-  if (clientError) {
-    console.log('error fetching clients in personal summary', clientError);
-    return res.status(500).json({ error: 'Failed to fetch clients' });
-
-  }
-  const { data: policiesData, error: policiesError } = req.supabase
-      .from('policies')
-      .select('*')
-      .eq('writing_agent_id',req.agent.id)
-      .gte('sold_date', startDate)
-      .lte('sold_date', endDate);
-  if (policiesError) {
-    console.log('error fetching policies in personal summary', clientError);
-    return res.status(500).json({ error: 'Failed to fetch policies' });
-  }
-  const totalPolicies = policiesData.length;
-  const totalPremium = policiesData.reduce((acc, policy) => acc+policy.premium_amount, 0);
-  const avgPremium = totalPremium/totalPolicies;
-  return res.status(200).json({
-    totalClients: clientData.length,
-    totalPolicies,
-    totalPremium,
-    avgPremium,
-  })
-});
-app.get('/downline-production', async (req, res) => {
-  try {
-    // 1. Fetch all agents from Supabase
-    const { data: allAgents, error: agentsError } = await req.supabase
-        .from('agents')
-        .select('id, first_name, last_name'); // Assuming your agents table has 'id' and 'name' columns
-
-    if (agentsError) {
-      console.error('Error fetching agents:', agentsError);
-      return res.status(500).json({ error: 'Failed to fetch agents for downline production' });
-    }
-
-    const downlineProduction = [];
-
-    // 2. Iterate through each agent to gather their production data from Supabase
-    for (const agent of allAgents) {
-      // Get total clients for the current agent
-      const { count: clientsCount, error: clientsError } = await req.supabase
-          .from('agent_clients')
-          .select('client_id', { count: 'exact' })
-          .eq('agent_id', agent.id); // Match by the agent's ID from the 'agents' table
-
-      if (clientsError) {
-        console.error(`Error fetching clients for agent ${agent.name}:`, clientsError);
-        // Log error and treat count as 0 for this agent.
-        return res.status(500).json()
-      }
-
-      // Get policies and total premium for the current agent
-      const { data: agentPolicies, error: policiesError } = await req.supabase
-          .from('policies')
-          .select('premiumAmount') // Only fetch premiumAmount for calculation
-          .eq('writing_agent_id', agent.id); // Assuming policies are linked by writing_agent_id to agent.id
-
-      if (policiesError) {
-        console.error(`Error fetching policies for agent ${agent.id}:`, policiesError);
-        // Log error and treat as 0 policies/premium
-        return res.status(500).json({ error: 'Failed to fetch policies' });
-      }
-
-      const totalPolicies = agentPolicies.length;
-      const totalPremium = agentPolicies.reduce((sum, policy) => sum + (Number(policy.premiumAmount) || 0), 0);
-
-      downlineProduction.push({
-        name: agent.first_name + ' ' + agent.last_name,
-        clients: clientsCount,
-        premium: totalPremium,
-        policies: totalPolicies,
-      });
-    }
-
-    res.status(200).json(downlineProduction);
-  } catch (error) {
-    console.error('Error in /downline-production route:', error);
-    res.status(500).json({ error: 'Failed to generate downline production summary' });
-  }
-});
-app.get('/leads', async (req, res) => {
-  try {
-    const { data: leads, error } = await req.supabase.from('leads').select('*');
-    if (error) {
-      console.log('error', error);
-      res.status(500).json({ error: 'Failed to fetch leads' });
-    } else {
-      res.status(200).json(leads);
-    }
-    } catch (error) {
-    console.log('error', error);
-    res.status(500).json({ error: 'Failed to fetch leads' });
-    }
-});
-
-app.get('/policies', async (req, res) => {
-  try {
-    const { data: policies, error } = await req.supabase.from('policies').select('*');
-    if (error) {
-      console.log('error', error);
-      res.status(500).json({ error: 'Failed to fetch policies' });
-    } else {
-      res.status(200).json(policies);
-    }
-  } catch (error) {
-    console.log('error', error);
-    res.status(500).json({ error: 'Failed to fetch policies' });
-  }
-});
-
-app.get('/agent', async (req, res) => {
-  console.log('Getting agent');
-  res.json(req.agent);
-});
-
-app.get('/agents', async (req, res) => {
-  console.log('Getting all agents');
-  const db = new Firestore();
-
-  console.log('Fetching all agents');
-
-  try {
-    const agents = await db.collection('agents').get();
-    const agentData = agents.docs.map((doc) => doc.data());
-    res.json(agentData);
-  } catch (error) {
-    console.error('Error fetching agent:', error);
-    res.status(500).json({ error: 'Failed to fetch agent' });
-  }
-});
 
 app.get('/customer-account', async (req, res) => {
   const { email } = req.query;
@@ -1695,186 +1514,7 @@ app.post('/clients_temp', async (req, res) => {
     res.status(500).json({ error: 'Failed to create clients' });
   }
 });
-app.post('/client', async (req, res) => {
-  console.log('Creating client');
-  const db = new Firestore();
-  const { client } = req.body;
-  const isGSQ = client.leadSource === 'GetSeniorQuotes.com';
 
-  logger.log('Posting client:', client);
-
-  if (!client) {
-    return res.status(400).json({ error: 'Missing client data' });
-  }
-
-  if (isGSQ) {
-    const getGSQLeads = async () => {
-      try {
-        const response = await axios.request({
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
-          },
-          params: {
-            phone: client.phone,
-            name: `${client.firstName} ${client.lastName}`,
-            email: client.email,
-          },
-          url: `${process.env.GSQ_BASE_URL}/find-leads`,
-        });
-
-        console.log('Leads fetched:', response.data.length);
-        return response.data;
-      } catch (error) {
-        console.error('Error fetching leads:', error);
-        throw error;
-      }
-    };
-
-    const leads = await getGSQLeads();
-
-    for (const lead of leads) {
-      if (lead?.id) {
-        client.leadId = lead.id;
-        break;
-      }
-    }
-
-    const getHyrosSource = async () => {
-      const HYROS_BODY = {
-        method: 'GET',
-        url: 'https://api.hyros.com/v1/api/v1.0/leads',
-        headers: {
-          'Content-Type': 'application/json',
-          'API-Key': process.env.HYROS_SECRET_KEY,
-        },
-        params: {
-          emails: client.email,
-        },
-      };
-
-      try {
-        const response = await axios.request(HYROS_BODY);
-        const hyrosData = response.data.result[0] || [];
-
-        let source = hyrosData?.lastSource?.sourceLinkAd?.name || null;
-
-        if (!source) {
-          source = hyrosData?.firstSource?.sourceLinkAd?.name || null;
-
-          if (!source) {
-            source =
-              hyrosData.lastSource?.name ||
-              hyrosData.firstSource?.name ||
-              'unknown';
-          }
-        }
-
-        return source;
-      } catch (error) {
-        console.error('Error fetching Hyros data:', error);
-      }
-    };
-
-    client.source = await getHyrosSource();
-  } else {
-    client.source = 'non_gsq';
-  }
-
-  try {
-    const docRef = await db.collection('clients').add({
-      ...client,
-      createdAt: Timestamp.now(),
-    });
-    console.log('successfully created client');
-    res.status(201).json({ client: { id: docRef.id, ...client } });
-  } catch (error) {
-    console.error('Error creating client:', error);
-    res.status(500).json({ error: 'Failed to create client' });
-  }
-});
-
-app.post('/policy', async (req, res) => {
-  console.log('Creating policy');
-  const { policy, clientId, agentIds } = req.body;
-
-  const isGSQ = policy.leadSource === 'GetSeniorQuotes.com';
-
-  if (!policy || !clientId || !agentIds) {
-    console.log('Missing data');
-    return res
-      .status(400)
-      .json({ error: 'Missing policy, client ID, or agent ID' });
-  }
-
-  const policyNumber = policy.policyNumber.trim();
-
-  console.log('Creating policy', policyNumber);
-  const { data: policyData, error: policyError } = await req.supabase.from('policies').insert(policy).select('*');
-  // check for uniques constraint violation
-  if (policyError) {
-    if (policyError.code === '23505') {
-      console.error('Policy number already exists:', policyNumber);
-      return res.status(400).json({ error: 'Policy number already exists' });
-    }
-    console.error('Error creating policy:', policyError);
-    return res.status(500).json({ error: 'Failed to create policy' });
-  }
-
-
-  try {
-    // eslint-disable-next-line no-unused-vars
-    const payload = buildPolicySlackPayload({
-      agentName: `${req.agent.first_name} ${req.agent.last_name}`,
-      product: policy.policyType,
-      effectiveDate: dayjs(policy.effectiveDate).format('MM/DD'),
-      annualPremium: Math.round(policy.premiumAmount * 12),
-      carrier: policy.carrier,
-    });
-    // const client = new WebClient(process.env.SLACK_BOT_TOKEN);
-    // const response = await client.chat.postMessage({
-    //   channel: '#sales',
-    //   text: payload.text,
-    //   blocks: payload.blocks,
-    // });
-    // console.log('Slack bot test message sent:', response.ts);
-  } catch (error) {
-    console.error(
-      'Error testing Slack bot:',
-      error.response?.data || error.message,
-    );
-  }
-
-  try {
-    const { data: clientData, error: clientError } = await req.supabase
-        .from('clients')
-        .select('*')
-        .eq('id', clientId)
-        .single();
-
-    if (clientError) {
-      console.error('Error fetching client:', clientError);
-      return res.status(500).json({ error: 'Failed to fetch client' });
-    }
-
-    // mark as sold in GSQ
-    if (isGSQ) await sendToGSQ(clientData);
-    // mark lead as sold in CRM DB
-    await req.supabase.from('leads').update({
-      sold: true,
-    }).eq('phone', clientData.phone);
-
-    res.status(201).json({
-      id: policyData.id,
-      ...policy,
-      agentIds: agentIds,
-      client: clientId,
-    });
-  } catch (error) {
-    console.error('Error creating policy:', error);
-    res.status(500).json({ error: 'Failed to create policy' });
-  }
-});
 
 // webhook to receive leads from GetSeniorQuotes.com
 
