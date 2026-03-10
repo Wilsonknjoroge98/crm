@@ -15,7 +15,8 @@ import {
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { postAgent } from '../utils/query';
+import { useQuery } from '@tanstack/react-query';
+import { postAgent, getOrganizations } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 import { toTitleCase } from '../utils/helpers';
 import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
@@ -47,7 +48,10 @@ export default function SignUp() {
       setErrorMsg('Failed to create account. Please try again.');
     },
   });
-
+  const { data: organizations = []} =  useQuery({
+    queryKey: ['organizations'],
+    queryFn: getOrganizations,
+  })
   const handleSignUp = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -77,14 +81,13 @@ export default function SignUp() {
         data: {
           name,
           email,
-          agency,
+          orgId: agency,
           npn,
           uplineEmail,
           role: 'agent',
           level: 105,
         },
       });
-      navigate('/clients');
     } catch (error) {
       console.error(error);
       let message = 'Sign up failed. Please try again.';
@@ -175,8 +178,9 @@ export default function SignUp() {
           onChange={(e) => setAgency(e.target.value)}
           label='Select Agency'
         >
-          <MenuItem value='Hourglass Life Group'>Hourglass Life Group</MenuItem>
-          <MenuItem value='ag_Hq92aLsK'>Fearless Shepherds Financial</MenuItem>
+          {organizations?.map((org) => (
+              <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
+          ))}
         </TextField>
 
         <TextField

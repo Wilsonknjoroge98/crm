@@ -5,7 +5,7 @@ const logger = require('firebase-functions/logger');
 const downlineProductionRouter = express.Router();
 // TODO: AI says this one needs to be optimized due to recurisve queries
 
-downlineProductionRouter.get('/downline-production', async (req, res) => {
+downlineProductionRouter.get('/', async (req, res) => {
     try {
         logger.log('Getting downline production', {
             route: '/downline-production',

@@ -26,12 +26,27 @@ apiClient.interceptors.request.use(async (config) => {
   }
   return config;
 });
-
+const getOrganizations = async () => {
+  const options = {
+    method: 'GET',
+    url: '/organizations',
+    params: {
+      mode: import.meta.env.MODE,
+    },
+  }
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting organizations:', error);
+    throw error;
+  }
+}
 const getClients = async () => {
   // request config for compulife server
   const options = {
     method: 'GET',
-    url: '/clients',
+    url: '/client/all',
     // signal: signal,
     params: {
       mode: import.meta.env.MODE,
@@ -443,7 +458,7 @@ const postClient = async ({ data }) => {
     method: 'POST',
     data: { client: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: '/clients_temp',
+    url: '/client',
   };
 
   try {
@@ -548,7 +563,7 @@ const getAgents = async () => {
   // request config for compulife server
   const options = {
     method: 'GET',
-    url: '/agents',
+    url: '/agent/all',
     params: { mode: import.meta.env.MODE },
   };
 
@@ -825,6 +840,7 @@ export {
   postPolicy,
   patchPolicy,
   postAgent,
+  getOrganizations,
   getAgent,
   deleteClient,
   deletePolicy,

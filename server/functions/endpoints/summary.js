@@ -4,7 +4,7 @@ const logger = require('firebase-functions/logger');
 // eslint-disable-next-line new-cap
 const summaryRouter = express.Router();
 
-summaryRouter.get('/team-summary', async (req, res) => {
+summaryRouter.get('/team', async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
@@ -100,7 +100,7 @@ summaryRouter.get('/team-summary', async (req, res) => {
     }
 });
 
-summaryRouter.get('/personal-summary', async (req, res) => {
+summaryRouter.get('/personal', async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {

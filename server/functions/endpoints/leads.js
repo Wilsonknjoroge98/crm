@@ -4,7 +4,7 @@ const logger = require('firebase-functions/logger');
 // eslint-disable-next-line new-cap
 const leadRouter = express.Router();
 
-leadRouter.get('/leads', async (req, res) => {
+leadRouter.get('/', async (req, res) => {
     try {
         logger.log('Getting leads', {
             route: '/leads',

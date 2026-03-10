@@ -4,7 +4,7 @@ const dayjs = require('dayjs');
 // eslint-disable-next-line new-cap
 const policyRouter = express.Router();
 
-policyRouter.get('/policies', async (req, res) => {
+policyRouter.get('/all', async (req, res) => {
     try {
         const { data: policies, error } = await req.supabase.from('policies').select('*');
         if (error) {
@@ -18,7 +18,7 @@ policyRouter.get('/policies', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch policies' });
     }
 });
-policyRouter.post('/policy', async (req, res) => {
+policyRouter.post('/', async (req, res) => {
     console.log('Creating policy');
     const { policy, clientId, agentIds } = req.body;
 

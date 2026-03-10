@@ -20,6 +20,7 @@ const {
   downlineProductionRouter,
   summaryRouter,
   hierarchyRouter,
+  publicRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -37,16 +38,16 @@ app.use(
   }),
 );
 app.use(express.json());
+app.use(publicRouter);
 app.use(authMiddleware);
-app.use(
-  agentRouter,
-  policyRouter,
-  leadRouter,
-  clientRouter,
-  downlineProductionRouter,
-  summaryRouter,
-  hierarchyRouter,
-);
+app.use('/agent', agentRouter);
+app.use('/policy', policyRouter);
+app.use('/lead', leadRouter);
+app.use('/client', clientRouter);
+app.use('/downline-production', downlineProductionRouter);
+app.use('/summary', summaryRouter);
+app.use('/hierarchy', hierarchyRouter);
+
 
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
@@ -1446,66 +1447,7 @@ app.get('/premiums/monthly', async (req, res) => {
   }
 });
 
-app.post('/agent', async (req, res) => {
-  console.log('Creating agent');
 
-  const { agent } = req.body;
-  // get org id until find good way to have public routes
-  // eslint-disable-next-line camelcase
-  const org_id = (
-    await supabaseService
-      .from('organizations')
-      .select('id')
-      .eq('name', agent.agency)
-      .single()
-  ).data.id;
-  // eslint-disable-next-line camelcase
-  const { data: uplineAgent, error: uplineAgenetError } = await supabaseService
-    .from('agents')
-    .select('id')
-    .eq('email', agent.uplineEmail)
-    .maybeSingle();
-  if (uplineAgenetError) {
-    console.error('Error fetching upline agent:', uplineAgenetError);
-    return res.status(500).json({ error: 'Failed to fetch upline agent' });
-  }
-  if (!uplineAgent) {
-    console.error('No upline agent found for email:', agent.uplineEmail);
-    return res.status(400).json({ error: 'No upline agent found' });
-  }
-
-  const payload = {
-    first_name: agent.name.split(' ')[0],
-    last_name: agent.name.split(' ')[1],
-    npn: agent.npn,
-    // eslint-disable-next-line camelcase
-    org_id,
-    // eslint-disable-next-line camelcase
-    upline_agent_id: uplineAgent.id,
-    email: agent.email,
-    level: agent.level,
-    id: req.user.id,
-  };
-
-  logger.log('Agent creation payload:', payload);
-
-  try {
-    const { data, agentError } = await supabaseService
-      .from('agents')
-      .insert([payload]);
-
-    if (agentError) {
-      logger.error('Error creating agent:', agentError);
-      res.status(500).send({ error: 'Failed to create agent' });
-    } else {
-      logger.log('Agent created successfully:', data);
-      res.status(200).json(data);
-    }
-  } catch (error) {
-    logger.error('Error creating agent:', error);
-    res.status(500).json({ error: 'Failed to create agent' });
-  }
-});
 app.post('/clients_temp', async (req, res) => {
   logger.log('Creating clients');
   const { client } = req.body;

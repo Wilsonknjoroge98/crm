@@ -4,7 +4,7 @@ const logger = require('firebase-functions/logger');
 // eslint-disable-next-line new-cap
 const clientRouter = express.Router();
 
-clientRouter.get('/clients', async (req, res) => {
+clientRouter.get('/all', async (req, res) => {
   try {
     logger.log('Getting clients for current agent', {
       route: '/clients',
@@ -241,7 +241,7 @@ clientRouter.post('/client', async (req, res) => {
   }
 });
 
-clientRouter.patch('/clients', async (req, res) => {
+clientRouter.patch('/client', async (req, res) => {
   const { clientId, client } = req.body;
 
   if (!clientId || !client) {
@@ -312,7 +312,7 @@ clientRouter.patch('/clients', async (req, res) => {
   }
 });
 
-clientRouter.delete('/clients', async (req, res) => {
+clientRouter.delete('/client', async (req, res) => {
   const { clientId } = req.body;
 
   if (!clientId) {

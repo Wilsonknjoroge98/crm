@@ -8,7 +8,7 @@ const formatCurrency = (amount) => {
     return `$${Number(amount || 0).toLocaleString()}`;
 };
 
-hierarchyRouter.get('/hierarchy', async (req, res) => {
+hierarchyRouter.get('/', async (req, res) => {
     try {
         logger.log('Building hierarchy tree', {
             route: '/hierarchy',
