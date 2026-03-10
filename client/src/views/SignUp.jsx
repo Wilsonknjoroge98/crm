@@ -35,7 +35,10 @@ export default function SignUp() {
   const { mutate: createAgent } = useMutation({
     mutationFn: postAgent,
     onSuccess: () => {
-      enqueueSnackbar('Account created successfully!', SNACKBAR_SUCCESS_OPTIONS);
+      enqueueSnackbar(
+        'Account created successfully!',
+        SNACKBAR_SUCCESS_OPTIONS,
+      );
     },
     onError: (error) => {
       console.error('Error creating agent:', error);
@@ -61,12 +64,10 @@ export default function SignUp() {
     try {
       // create supabase account after email verification is disabled
       const { user } = await supabase.auth.signUp({
-            email,
-            password,
-        }
-      )
-      console.log(user)
-
+        email,
+        password,
+      });
+      console.log(user);
 
       createAgent({
         data: {
@@ -77,14 +78,17 @@ export default function SignUp() {
           uplineEmail,
           role: 'agent',
           level: 105,
+          active: true,
         },
       });
       navigate('/clients');
     } catch (error) {
       console.error(error);
       let message = 'Sign up failed. Please try again.';
-      if (error.code === 'auth/email-already-in-use') message = 'Email is already in use.';
-      if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
+      if (error.code === 'auth/email-already-in-use')
+        message = 'Email is already in use.';
+      if (error.code === 'auth/invalid-email')
+        message = 'Invalid email address.';
       if (error.code === 'auth/weak-password')
         message = 'Password should be at least 6 characters.';
       setErrorMsg(message);
@@ -140,7 +144,7 @@ export default function SignUp() {
           value={npn}
           onChange={(e) => setNpn(e.target.value)}
           required
-          />
+        />
 
         <TextField
           label='Password'
@@ -171,15 +175,17 @@ export default function SignUp() {
           label='Select Agency'
         >
           <MenuItem value='Hourglass Life Group'>Hourglass Life Group</MenuItem>
-          <MenuItem value='ag_Hq92aLsK'>Fearless Shepherds Financial</MenuItem>
+          <MenuItem value='Fearless Shepherds Financial'>
+            Fearless Shepherds Financial
+          </MenuItem>
         </TextField>
 
         <TextField
-            fullWidth
-            margin='normal'
-            value={uplineEmail   || ''}
-            onChange={(e) => setUplineEmail(e.target.value)}
-            label='Select upline email'
+          fullWidth
+          margin='normal'
+          value={uplineEmail || ''}
+          onChange={(e) => setUplineEmail(e.target.value)}
+          label='Select upline email'
         />
 
         {errorMsg && (
