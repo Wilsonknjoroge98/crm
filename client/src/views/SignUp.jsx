@@ -35,6 +35,7 @@ export default function SignUp() {
   const { mutate: createAgent } = useMutation({
     mutationFn: postAgent,
     onSuccess: () => {
+      navigate('/clients');
       enqueueSnackbar('Account created successfully!', SNACKBAR_SUCCESS_OPTIONS);
     },
     onError: (error) => {
@@ -79,7 +80,7 @@ export default function SignUp() {
           level: 105,
         },
       });
-      navigate('/clients');
+
     } catch (error) {
       console.error(error);
       let message = 'Sign up failed. Please try again.';
