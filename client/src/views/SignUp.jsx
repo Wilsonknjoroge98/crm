@@ -35,12 +35,12 @@ export default function SignUp() {
   const { mutate: createAgent } = useMutation({
     mutationFn: postAgent,
     onSuccess: () => {
-      navigate('/clients');
-      enqueueSnackbar('Account created successfully!', SNACKBAR_SUCCESS_OPTIONS);
+
       enqueueSnackbar(
         'Account created successfully!',
         SNACKBAR_SUCCESS_OPTIONS,
       );
+      navigate('/clients');
     },
     onError: (error) => {
       console.error('Error creating agent:', error);
