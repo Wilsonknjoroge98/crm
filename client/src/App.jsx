@@ -15,12 +15,14 @@ import { createAppTheme } from './utils/theme';
 
 import useAuth from './hooks/useAuth';
 import { useEffect, useMemo } from 'react';
+import { useSelector } from "react-redux";
 
 
 // import Maintenance from './views/Maintenance';
 const App = () => {
   // return <Maintenance />;
-  const { user, agent } = useAuth();
+  const {  agent } = useAuth();
+    const { user, isAuthenticated, userToken } = useSelector((state) => state.user);
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -31,7 +33,7 @@ const App = () => {
   useEffect(() => {
     if (pathname === '/signup') return;
 
-    if (user) {
+    if (isAuthenticated) {
       navigate('/clients');
     } else {
       navigate('/login');

@@ -46,7 +46,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     phone: '',
     date_of_birth: '',
     marital_status: '',
-    leadSource: '',
+    lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
     address: '',
     city: '',
     state: '',
@@ -90,7 +90,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.dob || '',
-        leadSource: 'GetSeniorQuotes.com',
+        lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
         maritalStatus: '',
         address: '',
         city: '',
@@ -174,6 +174,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const handleChange = (e) => {
     const name = e.target.name;
     let value = e.target.value;
+    console.log('Name:', name);
+    console.log('Value:', value);
 
     const titleCaseFields = ['first_name', 'last_name', 'city', 'occupation'];
 
@@ -214,6 +216,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
   useEffect(() => {
     const modifiedForm = { ...form };
+    console.log('Modified Form:', modifiedForm);
     delete modifiedForm.notes;
     delete modifiedForm.liveTransfer;
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => !modifiedForm[key]);
@@ -245,15 +248,15 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               sx={{ width: '100%' }}
               select
               disabled={!!lead}
-              name='leadSource'
+              name='lead_vendor_id'
               label='Lead Source'
-              value={form.leadSource}
+              value={form.lead_vendor_id}
               onChange={handleChange}
               fullWidth
               required
             >
               {leadSourceOptions.map((source) => (
-                <MenuItem key={source} value={source}>
+                <MenuItem key={source} value={form.lead_vendor_id}>
                   {source}
                 </MenuItem>
               ))}

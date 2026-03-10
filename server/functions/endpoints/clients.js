@@ -1,5 +1,6 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const {supabaseService} = require("../services/supabase");
 
 // eslint-disable-next-line new-cap
 const clientRouter = express.Router();
@@ -54,9 +55,9 @@ clientRouter.get('/all', async (req, res) => {
   }
 });
 
-clientRouter.post('/client', async (req, res) => {
-  const { notes, liveTransfer, ...client } = req.body;
-
+clientRouter.post('/', async (req, res) => {
+  // eslint-disable-next-line camelcase,no-unused-vars
+  const { lead_vendor_id, notes, liveTransfer, ...client } = req.body.client;
   if (!client?.email || !client?.phone) {
     logger.warn('Missing required client fields in endpoints/clients.js', {
       route: '/client',
@@ -93,11 +94,13 @@ clientRouter.post('/client', async (req, res) => {
       const { data, error: leadError } = await req.supabase
         .from('leads')
         .insert({
+          first_name: client.first_name,
+          last_name: client.last_name,
           email: client.email,
           phone: client.phone,
           agent_id: req.user.id,
           sold: false,
-          lead_vendor_id: client.lead_vendor_id,
+          lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
         })
         .select('id');
 
@@ -164,7 +167,7 @@ clientRouter.post('/client', async (req, res) => {
       }
     }
 
-    const { data: clientData, error: clientError } = await req.supabase
+    const { data: clientData, error: clientError } = await supabaseService
       .from('clients')
       .insert({
         ...client,
@@ -202,7 +205,7 @@ clientRouter.post('/client', async (req, res) => {
       .insert({
         agent_id: req.agent.id,
         client_id: createdClient.id,
-        notes,
+        agent_notes: notes,
       });
 
     if (agentClientError) {
@@ -241,7 +244,7 @@ clientRouter.post('/client', async (req, res) => {
   }
 });
 
-clientRouter.patch('/client', async (req, res) => {
+clientRouter.patch('/', async (req, res) => {
   const { clientId, client } = req.body;
 
   if (!clientId || !client) {
@@ -312,7 +315,7 @@ clientRouter.patch('/client', async (req, res) => {
   }
 });
 
-clientRouter.delete('/client', async (req, res) => {
+clientRouter.delete('/', async (req, res) => {
   const { clientId } = req.body;
 
   if (!clientId) {
@@ -369,7 +372,7 @@ clientRouter.delete('/client', async (req, res) => {
     return res.status(200).json({ message: 'Client deleted successfully' });
   } catch (error) {
     logger.error('Unexpected error deleting client in endpoints/clients.js', {
-      route: '/clients',
+      route: '/',
       method: 'DELETE',
       requesterId: req.agent?.id,
       targetClientId: clientId,
