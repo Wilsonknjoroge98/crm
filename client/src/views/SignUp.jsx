@@ -37,6 +37,10 @@ export default function SignUp() {
     onSuccess: () => {
       navigate('/clients');
       enqueueSnackbar('Account created successfully!', SNACKBAR_SUCCESS_OPTIONS);
+      enqueueSnackbar(
+        'Account created successfully!',
+        SNACKBAR_SUCCESS_OPTIONS,
+      );
     },
     onError: (error) => {
       console.error('Error creating agent:', error);
@@ -80,7 +84,7 @@ export default function SignUp() {
           level: 105,
         },
       });
-
+      navigate('/clients');
     } catch (error) {
       console.error(error);
       let message = 'Sign up failed. Please try again.';

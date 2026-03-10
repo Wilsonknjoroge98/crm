@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
 // eslint-disable-next-line no-unused-vars
 const { WebClient } = require('@slack/web-api');
-const { PRODUCT_RATES,  } = require('./constants');
+const { PRODUCT_RATES } = require('./constants');
 const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
@@ -24,22 +24,29 @@ const {
 
 admin.initializeApp();
 app.use(
-    cors({
-      origin: [
-        'https://fearless-ins.com',
-        'https://hourglasslifegroup.com',
-        'https://hourglass-ef3ca.web.app',
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:4173',
-      ],
-      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    }),
+  cors({
+    origin: [
+      'https://fearless-ins.com',
+      'https://hourglasslifegroup.com',
+      'https://hourglass-ef3ca.web.app',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:4173',
+    ],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  }),
 );
 app.use(express.json());
 app.use(authMiddleware);
-app.use(agentRouter, policyRouter, leadRouter, clientRouter, downlineProductionRouter, summaryRouter, hierarchyRouter);
-
+app.use(
+  agentRouter,
+  policyRouter,
+  leadRouter,
+  clientRouter,
+  downlineProductionRouter,
+  summaryRouter,
+  hierarchyRouter,
+);
 
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
@@ -86,7 +93,6 @@ app.use(agentRouter, policyRouter, leadRouter, clientRouter, downlineProductionR
 
 //   return Array.from(result);
 // }
-
 
 app.get('/customer-account', async (req, res) => {
   const { email } = req.query;
@@ -1446,12 +1452,19 @@ app.post('/agent', async (req, res) => {
   const { agent } = req.body;
   // get org id until find good way to have public routes
   // eslint-disable-next-line camelcase
-  const org_id = (await supabaseService.from('organizations').select('id').eq('name', agent.agency).single()).data.id;
-  // eslint-disable-next-line camelcase
-  const { data: uplineAgent, error: uplineAgenetError } = await supabaseService.from('agents')
+  const org_id = (
+    await supabaseService
+      .from('organizations')
       .select('id')
-      .eq('email', agent.uplineEmail)
-      .maybeSingle();
+      .eq('name', agent.agency)
+      .single()
+  ).data.id;
+  // eslint-disable-next-line camelcase
+  const { data: uplineAgent, error: uplineAgenetError } = await supabaseService
+    .from('agents')
+    .select('id')
+    .eq('email', agent.uplineEmail)
+    .maybeSingle();
   if (uplineAgenetError) {
     console.error('Error fetching upline agent:', uplineAgenetError);
     return res.status(500).json({ error: 'Failed to fetch upline agent' });
@@ -1473,39 +1486,54 @@ app.post('/agent', async (req, res) => {
     level: agent.level,
     id: req.user.id,
   };
-  try {
-    const { data, agentError } = await supabaseService.from('agents').insert([payload]);
 
-    if ( agentError ) {
-      console.error('Error creating agent:', agentError);
+  logger.log('Agent creation payload:', payload);
+
+  try {
+    const { data, agentError } = await supabaseService
+      .from('agents')
+      .insert([payload]);
+
+    if (agentError) {
+      logger.error('Error creating agent:', agentError);
       res.status(500).send({ error: 'Failed to create agent' });
     } else {
+      logger.log('Agent created successfully:', data);
       res.status(200).json(data);
     }
   } catch (error) {
-    console.error('Error creating agent:', error);
+    logger.error('Error creating agent:', error);
     res.status(500).json({ error: 'Failed to create agent' });
   }
 });
 app.post('/clients_temp', async (req, res) => {
-  console.log('Creating clients');
+  logger.log('Creating clients');
   const { client } = req.body;
   delete client.leadSource;
   delete client.notes;
   try {
-    const { data: clientData, error: clientError } = await supabaseService.from('clients').insert(client).select('*');
+    const { data: clientData, error: clientError } = await supabaseService
+      .from('clients')
+      .insert(client)
+      .select('*');
     if (clientError) {
       console.error('Error creating clients:', clientError);
       res.status(500).send({ error: 'Failed to create clients' });
     } else {
       // insert to agent-clients m:m table
-      const { error: relationError } = await supabaseService.from('agent_clients').insert([{
-        agent_id: req.user.id,
-        client_id: clientData[0].id,
-      }]);
+      const { error: relationError } = await supabaseService
+        .from('agent_clients')
+        .insert([
+          {
+            agent_id: req.user.id,
+            client_id: clientData[0].id,
+          },
+        ]);
       if (relationError) {
         console.error('Error creating agent-clients relation:', relationError);
-        res.status(500).send({ error: 'Failed to create agent-clients relation' });
+        res
+          .status(500)
+          .send({ error: 'Failed to create agent-clients relation' });
       }
       res.status(200).json(clientData);
     }
@@ -1514,7 +1542,6 @@ app.post('/clients_temp', async (req, res) => {
     res.status(500).json({ error: 'Failed to create clients' });
   }
 });
-
 
 // webhook to receive leads from GetSeniorQuotes.com
 
@@ -1685,7 +1712,10 @@ app.patch('/client', async (req, res) => {
   }
 
   try {
-    const { error } = await req.supabase.from('clients').update([client]).eq('id', clientId);
+    const { error } = await req.supabase
+      .from('clients')
+      .update([client])
+      .eq('id', clientId);
     res.status(200).json({ id: clientId, ...client });
   } catch (error) {
     console.error('Error updating client:', error);
@@ -1695,7 +1725,10 @@ app.patch('/client', async (req, res) => {
 
 app.patch('/policy', async (req, res) => {
   const { policyId, policy } = req.body;
-  const { error: policyError } = await req.supabase.from('policies').update([policy]).eq('id', policyId);
+  const { error: policyError } = await req.supabase
+    .from('policies')
+    .update([policy])
+    .eq('id', policyId);
   if (policyError) {
     console.error('Error updating policy:', policyError);
     res.status(500).json({ error: 'Failed to update policy' });
@@ -1708,12 +1741,16 @@ app.delete('/client', async (req, res) => {
   if (!clientId) {
     return res.status(400).json({ error: 'Missing client ID' });
   }
-    const { error } = req.supabase.from('clients').delete().eq('id', clientId).single();
+  const { error } = req.supabase
+    .from('clients')
+    .delete()
+    .eq('id', clientId)
+    .single();
 
-    if ( error ) {
-      console.error('Error deleting client:', error);
-      return res.status(500).json({ error: 'Failed to delete client' });
-    }
+  if (error) {
+    console.error('Error deleting client:', error);
+    return res.status(500).json({ error: 'Failed to delete client' });
+  }
   res.status(200).json({ message: 'Client and associated policies deleted' });
 });
 
