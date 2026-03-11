@@ -841,190 +841,196 @@ app.get('/policies/statuses', async (req, res) => {
 app.get('/insights', async (req, res) => {
   const { mode, startDate, endDate } = req.query;
 
-  if (!startDate || !endDate) {
-    console.error('Missing startDate or endDate');
-    return res.status(400).json({ error: 'Missing startDate or endDate' });
-  }
-
-  const since = dayjs(startDate).format('YYYY-MM-DD');
-  const until = dayjs(endDate).format('YYYY-MM-DD');
-
-  // ---------------------------------------------------------------------
-  // DEVELOPMENT MOCK DATA
-  // ---------------------------------------------------------------------
-  // if (mode === 'development') {
-  //   return res.status(200).json({
-  //     sources: [
-  //       { name: 'WK | Annie Winner | 5/11/25', sales: 20, spend: 2000, cps: 100 },
-  //       { name: 'TJ | Alana Book | 8/1/25', sales: 20, spend: 2000, cps: 100 },
-  //       { name: 'WK | E Philip 4 | 9/4/25', sales: 20, spend: 2000, cps: 100 },
-  //       { name: 'TJ | Alana Mug 7/13/25', sales: 10, spend: 1000, cps: 100 },
-  //       { name: 'WK | E Philip 2 | 9/4/25', sales: 10, spend: 1000, cps: 100 },
-  //       { name: 'WK | Annie Scam Hook 2 | 9/7/25', sales: 10, spend: 1000, cps: 100 },
-  //     ],
-  //     total: 100,
-  //     unknownClients: 5,
-  //   });
-  // }
-
-  // ---------------------------------------------------------------------
-  // LOAD FIRESTORE CLIENTS
-  // ---------------------------------------------------------------------
-  const db = new Firestore();
-  const ref = db.collection('clients');
-
-  const snapshot = await ref.get();
-
-  const clients = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  // Build source → sales count
-  const maps = clients.reduce(
-    (acc, c) => {
-      const key = (c.source || 'unknown').trim();
-      acc.all[key] = (acc.all[key] || 0) + 1;
-      if (key !== 'unknown') acc.known[key] = (acc.known[key] || 0) + 1;
-      return acc;
-    },
-    { all: {}, known: {} },
-  );
-
-  const totalSales = Object.values(maps.known).reduce((s, n) => s + n, 0) || 1;
-  const unknownClients = maps.all['unknown'] || 0;
-
-  const accessToken = process.env.META_MARKETING_ACCESS_TOKEN;
-
-  // 1. GET ALL ADS (name + id)
-  const adsByName = {};
+      if (!startDate || !endDate) {
+      console.error('Missing startDate or endDate');
+      return res.status(400).json({ error: 'Missing startDate or endDate' });
+    }
 
   try {
-    const adsResp = await axios.get(process.env.META_MARKETING_ADS_URL, {
-      params: {
-        fields: 'name',
-        limit: 5000,
-        access_token: accessToken,
+    const since = dayjs(startDate).format('YYYY-MM-DD');
+    const until = dayjs(endDate).format('YYYY-MM-DD');
+
+    // ---------------------------------------------------------------------
+    // DEVELOPMENT MOCK DATA
+    // ---------------------------------------------------------------------
+    // if (mode === 'development') {
+    //   return res.status(200).json({
+    //     sources: [
+    //       { name: 'WK | Annie Winner | 5/11/25', sales: 20, spend: 2000, cps: 100 },
+    //       { name: 'TJ | Alana Book | 8/1/25', sales: 20, spend: 2000, cps: 100 },
+    //       { name: 'WK | E Philip 4 | 9/4/25', sales: 20, spend: 2000, cps: 100 },
+    //       { name: 'TJ | Alana Mug 7/13/25', sales: 10, spend: 1000, cps: 100 },
+    //       { name: 'WK | E Philip 2 | 9/4/25', sales: 10, spend: 1000, cps: 100 },
+    //       { name: 'WK | Annie Scam Hook 2 | 9/7/25', sales: 10, spend: 1000, cps: 100 },
+    //     ],
+    //     total: 100,
+    //     unknownClients: 5,
+    //   });
+    // }
+
+    // ---------------------------------------------------------------------
+    // LOAD FIRESTORE CLIENTS
+    // ---------------------------------------------------------------------
+    const db = new Firestore();
+    const ref = db.collection('clients');
+
+    const snapshot = await ref.get();
+
+    const clients = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Build source → sales count
+    const maps = clients.reduce(
+      (acc, c) => {
+        const key = (c.source || 'unknown').trim();
+        acc.all[key] = (acc.all[key] || 0) + 1;
+        if (key !== 'unknown') acc.known[key] = (acc.known[key] || 0) + 1;
+        return acc;
       },
-    });
+      { all: {}, known: {} },
+    );
 
-    for (const ad of adsResp.data.data || []) {
-      if (ad.name) adsByName[ad.name.trim()] = ad.id;
-    }
-  } catch (err) {
-    console.error('Error fetching ads:', err.response?.data || err);
-    return res.status(500).send({ error: 'Meta ads fetch failed' });
-  }
+    const totalSales =
+      Object.values(maps.known).reduce((s, n) => s + n, 0) || 1;
+    const unknownClients = maps.all['unknown'] || 0;
 
-  // Helper: Get spend and leads for a single ad ID from Meta
-  async function getInsightsForAd(adId) {
+    const accessToken = process.env.META_MARKETING_ACCESS_TOKEN;
+
+    // 1. GET ALL ADS (name + id)
+    const adsByName = {};
+
     try {
-      const insightsResp = await axios.get(
-        `https://graph.facebook.com/v20.0/${adId}/insights`,
-        {
-          params: {
-            fields: 'spend,actions',
-            time_range: JSON.stringify({ since, until }),
-            access_token: accessToken,
-          },
+      const adsResp = await axios.get(process.env.META_MARKETING_ADS_URL, {
+        params: {
+          fields: 'name',
+          limit: 5000,
+          access_token: accessToken,
         },
-      );
+      });
 
-      const data = insightsResp.data.data;
-      if (!data || data.length === 0) return { spend: 0, leads: 0 };
-
-      const row = data[0];
-      const spend = parseFloat(row.spend || 0);
-      const leadAction = (row.actions || []).find(
-        (a) => a.action_type === 'lead',
-      );
-      const leads = leadAction ? parseInt(leadAction.value || 0, 10) : 0;
-
-      return { spend, leads };
-    } catch (error) {
-      console.error(
-        `Error fetching insights for ad ${adId}:`,
-        error.response?.data || error,
-      );
-      return { spend: 0, leads: 0 };
-    }
-  }
-
-  const policiesRef = db.collection('policies');
-  const policiesSnapshot = await policiesRef.get();
-  const policies = policiesSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  // ---------------------------------------------------------------------
-  // MERGE SALES + SPEND
-  // ---------------------------------------------------------------------
-  const sources = [];
-  const devEntries = {
-    'WK | Annie Winner | 5/11/25': 20,
-    'TJ | Alana Book | 8/1/25': 20,
-    'WK | E Philip 4 | 9/4/25': 20,
-    'TJ | Alana Mug 7/13/25': 10,
-    'WK | E Philip 2 | 9/4/25': 10,
-    'WK | Annie Scam Hook 2 | 9/7/25': 10,
-    'WK | Tim - Cousin Passed | 11/25/2025': 5,
-    'TJ | Roy - Uninsurable | 11/16/2025': 15,
-  };
-
-  for (const [creative, sales] of Object.entries(
-    mode === 'development' ? devEntries : maps.known,
-  )) {
-    const adId = adsByName[creative];
-    let spend = 0;
-    let leads = 0;
-
-    if (adId) {
-      ({ spend, leads } = await getInsightsForAd(adId));
+      for (const ad of adsResp.data.data || []) {
+        if (ad.name) adsByName[ad.name.trim()] = ad.id;
+      }
+    } catch (err) {
+      console.error('Error fetching ads:', err.response?.data || err);
+      return res.status(500).send({ error: 'Meta ads fetch failed' });
     }
 
-    console.log(
-      `Source: ${creative}, Sales: ${sales}, Leads: ${leads}, Spend: ${spend}`,
-    );
+    // Helper: Get spend and leads for a single ad ID from Meta
+    async function getInsightsForAd(adId) {
+      try {
+        const insightsResp = await axios.get(
+          `https://graph.facebook.com/v20.0/${adId}/insights`,
+          {
+            params: {
+              fields: 'spend,actions',
+              time_range: JSON.stringify({ since, until }),
+              access_token: accessToken,
+            },
+          },
+        );
 
-    const matched = policies.filter(
-      (p) => (p.source || 'unknown').trim() === creative,
-    );
+        const data = insightsResp.data.data;
+        if (!data || data.length === 0) return { spend: 0, leads: 0 };
 
-    const totalAnnual = matched.reduce((sum, p) => {
-      const monthly = Number(p.premiumAmount);
-      return sum + (isNaN(monthly) ? 0 : monthly * 12);
-    }, 0);
+        const row = data[0];
+        const spend = parseFloat(row.spend || 0);
+        const leadAction = (row.actions || []).find(
+          (a) => a.action_type === 'lead',
+        );
+        const leads = leadAction ? parseInt(leadAction.value || 0, 10) : 0;
 
-    const averagePremium =
-      matched.length > 0 ? totalAnnual / matched.length : 0;
+        return { spend, leads };
+      } catch (error) {
+        console.error(
+          `Error fetching insights for ad ${adId}:`,
+          error.response?.data || error,
+        );
+        return { spend: 0, leads: 0 };
+      }
+    }
 
-    sources.push({
-      id: adId || crypto.randomUUID(),
-      creative,
-      leads,
-      sales,
-      spend,
-      averagePremium: +averagePremium.toFixed(2),
-      cpl: spend > 0 && leads > 0 ? +(spend / leads).toFixed(2) : 0,
-      cps: spend > 0 && sales > 0 ? +(spend / sales).toFixed(2) : 0,
-      closeRate: leads > 0 ? +((sales / leads) * 100).toFixed(2) : 0,
+    const policiesRef = db.collection('policies');
+    const policiesSnapshot = await policiesRef.get();
+    const policies = policiesSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // ---------------------------------------------------------------------
+    // MERGE SALES + SPEND
+    // ---------------------------------------------------------------------
+    const sources = [];
+    const devEntries = {
+      'WK | Annie Winner | 5/11/25': 20,
+      'TJ | Alana Book | 8/1/25': 20,
+      'WK | E Philip 4 | 9/4/25': 20,
+      'TJ | Alana Mug 7/13/25': 10,
+      'WK | E Philip 2 | 9/4/25': 10,
+      'WK | Annie Scam Hook 2 | 9/7/25': 10,
+      'WK | Tim - Cousin Passed | 11/25/2025': 5,
+      'TJ | Roy - Uninsurable | 11/16/2025': 15,
+    };
+
+    for (const [creative, sales] of Object.entries(
+      mode === 'development' ? devEntries : maps.known,
+    )) {
+      const adId = adsByName[creative];
+      let spend = 0;
+      let leads = 0;
+
+      if (adId) {
+        ({ spend, leads } = await getInsightsForAd(adId));
+      }
+
+      console.log(
+        `Source: ${creative}, Sales: ${sales}, Leads: ${leads}, Spend: ${spend}`,
+      );
+
+      const matched = policies.filter(
+        (p) => (p.source || 'unknown').trim() === creative,
+      );
+
+      const totalAnnual = matched.reduce((sum, p) => {
+        const monthly = Number(p.premiumAmount);
+        return sum + (isNaN(monthly) ? 0 : monthly * 12);
+      }, 0);
+
+      const averagePremium =
+        matched.length > 0 ? totalAnnual / matched.length : 0;
+
+      sources.push({
+        id: adId || crypto.randomUUID(),
+        creative,
+        leads,
+        sales,
+        spend,
+        averagePremium: +averagePremium.toFixed(2),
+        cpl: spend > 0 && leads > 0 ? +(spend / leads).toFixed(2) : 0,
+        cps: spend > 0 && sales > 0 ? +(spend / sales).toFixed(2) : 0,
+        closeRate: leads > 0 ? +((sales / leads) * 100).toFixed(2) : 0,
+      });
+    }
+
+    sources.sort((a, b) => b.sales - a.sales);
+
+    console.log('Final insights response:', {
+      sources,
+      totalSales,
+      unknownClients,
     });
+
+    return res.status(200).json({
+      sources,
+      total: totalSales,
+      unknownClients,
+    });
+  } catch (error) {
+    logger.log('Error in /insights endpoint:', error);
+    return res.status(500).json({ error: 'Failed to fetch insights data' });
   }
-
-  sources.sort((a, b) => b.sales - a.sales);
-
-  console.log('Final insights response:', {
-    sources,
-    totalSales,
-    unknownClients,
-  });
-
-  return res.status(200).json({
-    sources,
-    total: totalSales,
-    unknownClients,
-  });
 });
 
 app.get('/commissions', async (req, res) => {
