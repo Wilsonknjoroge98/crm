@@ -149,18 +149,33 @@ export const CARRIER_PRODUCTS = {
   'United Home Life': ['Final Expense', 'Provider Whole Life', 'Term', 'Protector AD'],
 };
 
-export const SNACKBAR_SUCCESS_OPTIONS = {
-  variant: 'success',
+const SNACKBAR_BASE = {
+  autoHideDuration: 4000,
+  anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
   style: {
-    backgroundColor: '#D5F5E3',
-    color: '#1A1A1A',
-    fontWeight: 'bold',
+    backgroundColor: '#FFFFFF',
+    color: '#1C1A17',
     fontFamily: `"Libre Baskerville", serif`,
-    fontSize: '1rem',
+    fontSize: '0.875rem',
+    fontWeight: 400,
+    boxShadow: '0px 4px 16px rgba(0,0,0,0.08)',
+    borderRadius: '4px',
+    padding: '10px 16px',
   },
-  autoHideDuration: 5000,
-  anchorOrigin: {
-    vertical: 'bottom',
-    horizontal: 'right',
+};
+
+export const SNACKBAR_SUCCESS_OPTIONS = {
+  ...SNACKBAR_BASE,
+  style: {
+    ...SNACKBAR_BASE.style,
+    borderLeft: '3px solid #3F6F5B',
+  },
+};
+
+export const SNACKBAR_ERROR_OPTIONS = {
+  ...SNACKBAR_BASE,
+  style: {
+    ...SNACKBAR_BASE.style,
+    borderLeft: '3px solid #8B2E2E',
   },
 };

@@ -1,12 +1,12 @@
 import { Stack, Box, Divider, Chip, Typography, Switch, IconButton } from '@mui/material';
 import dayjs from 'dayjs';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { patchAccount } from '../utils/query';
 
 import useAuth from '../hooks/useAuth';
 import { enqueueSnackbar } from 'notistack';
-import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
+import { SNACKBAR_SUCCESS_OPTIONS, SNACKBAR_ERROR_OPTIONS } from '../utils/constants';
 import { useQueryClient } from '@tanstack/react-query';
 
 import UpdateStatesDialog from './UpdateStatesDialog';
@@ -33,19 +33,11 @@ const AccountDetails = ({ data }) => {
       queryClient.invalidateQueries({ queryKey: ['account'] });
     },
     onError: (error) => {
-      console.error('Error updating account:', error);
+      const message = error?.response?.data?.message || 'Failed to update account.';
+      enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
+      setDeliver(false);
     },
   });
-
-  useEffect(() => {
-    mutate({
-      token: userToken,
-      data: {
-        deliver: deliver,
-        email: agent?.email,
-      },
-    });
-  }, [deliver]);
   // TODO: data.verified + data.unverified lead type counts
   return (
     <>
@@ -119,7 +111,11 @@ const AccountDetails = ({ data }) => {
             }}
             checked={deliver}
             disabled={!data || isPending}
-            onChange={(e) => setDeliver(e.target.checked)}
+            onChange={(e) => {
+              const newValue = e.target.checked;
+              setDeliver(newValue);
+              mutate({ token: userToken, data: { deliver: newValue, email: agent?.email } });
+            }}
           />
         </Stack>
         <Divider flexItem />

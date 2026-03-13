@@ -841,10 +841,10 @@ app.get('/policies/statuses', async (req, res) => {
 app.get('/insights', async (req, res) => {
   const { mode, startDate, endDate } = req.query;
 
-      if (!startDate || !endDate) {
-      console.error('Missing startDate or endDate');
-      return res.status(400).json({ error: 'Missing startDate or endDate' });
-    }
+  if (!startDate || !endDate) {
+    console.error('Missing startDate or endDate');
+    return res.status(400).json({ error: 'Missing startDate or endDate' });
+  }
 
   try {
     const since = dayjs(startDate).format('YYYY-MM-DD');
@@ -2575,15 +2575,8 @@ app.post('/gsq-lead', async (req, res) => {
     const hyrosSource = await getHyrosSource(email);
 
     await leadsRef.add({
-      firstName,
-      lastName,
-      email,
-      phone,
-      dob,
-      issuedTo,
-      leadSource,
+      ...req.body,
       source: hyrosSource,
-      sold,
       createdAt: Timestamp.now(),
     });
 
@@ -2718,6 +2711,31 @@ app.patch('/customer-account', async (req, res) => {
 
   console.log('Updating account for', account);
 
+  if (account.deliver === true) {
+    try {
+      const gsqRes = await axios.request({
+        headers: { Authorization: `Bearer ${process.env.GSQ_TOKEN}` },
+        params: { email: account.email },
+        method: 'GET',
+        url: `${process.env.GSQ_BASE_URL}/customer-account`,
+      });
+      const current = gsqRes.data;
+      const eligible =
+        current.ringyEnabled === false ||
+        (current.ringySid && current.ringyToken);
+      if (!eligible) {
+        return res.status(400).json({
+          message: 'Ringy credentials are required to enable lead delivery.',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching agent for deliver gate:', error.message);
+      return res
+        .status(500)
+        .json({ message: 'Failed to verify agent credentials.' });
+    }
+  }
+
   const patchAgentAccount = async () => {
     try {
       const response = await axios.request({
@@ -2730,7 +2748,6 @@ app.patch('/customer-account', async (req, res) => {
           states: account.states,
         },
         method: 'PATCH',
-        // url: `${process.env.GSQ_BASE_URL}/customer-account`,
         url: `${process.env.GSQ_BASE_URL}/customer-account`,
       });
 
@@ -3290,5 +3307,159 @@ app.delete('/expense', async (req, res) => {
 // };
 
 // updatePolicies();
+
+// ---------------------------------------------------------------------------
+// Dev seed — populates the leads collection when running in the emulator
+// ---------------------------------------------------------------------------
+// const seedLeads = async () => {
+//   if (process.env.FUNCTIONS_EMULATOR !== 'true') return;
+
+//   const db = new Firestore();
+//   const leadsRef = db.collection('leads');
+//   const existing = await leadsRef.limit(1).get();
+//   if (!existing.empty) {
+//     console.log('[seed] Leads already seeded, skipping.');
+//     return;
+//   }
+
+//   const now = Date.now();
+//   const min = 60 * 1000;
+
+//   const SEED_LEADS = [
+//     {
+//       firstName: 'Margaret',
+//       lastName: 'Sullivan',
+//       email: 'margaret.sullivan@email.com',
+//       phone: '5124839201',
+//       dob: '1952-07-14',
+//       age: 72,
+//       state: 'TX',
+//       smoker: false,
+//       faceAmount: '25000',
+//       premium: '62',
+//       selectedPlan: 'Whole Life',
+//       selectedCarrier: 'Mutual of Omaha',
+//       beneficiary: 'Spouse',
+//       priority: 'End of life expenses',
+//       why: 'Leave something behind for family',
+//       bmi: '5ft 4in 148lbs',
+//       cholesterol: 'No',
+//       bloodPressure: 'Yes',
+//       verified: true,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'WK | Annie Winner | 5/11/25',
+//       createdAt: Timestamp.fromMillis(now - 5 * min),
+//     },
+//     {
+//       firstName: 'Robert',
+//       lastName: 'Kimura',
+//       email: 'rkimura55@gmail.com',
+//       phone: '9042817364',
+//       dob: '1958-03-02',
+//       age: 67,
+//       state: 'FL',
+//       smoker: false,
+//       faceAmount: '15000',
+//       premium: '44',
+//       selectedPlan: 'Guaranteed Issue',
+//       selectedCarrier: 'AIG',
+//       beneficiary: 'Child',
+//       priority: 'Funeral costs',
+//       why: "Don't want to be a burden",
+//       bmi: '5ft 10in 195lbs',
+//       cholesterol: 'Yes',
+//       bloodPressure: 'Yes',
+//       verified: true,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'TJ | Alana Book | 8/1/25',
+//       createdAt: Timestamp.fromMillis(now - 18 * min),
+//     },
+//     {
+//       firstName: 'Dorothy',
+//       lastName: 'Chambers',
+//       email: 'dorothy.chambers@yahoo.com',
+//       phone: '6023948571',
+//       dob: '1945-11-28',
+//       age: 79,
+//       state: 'AZ',
+
+//       why: 'Peace of mind',
+//       bmi: '5ft 2in 162lbs',
+//       cholesterol: 'No',
+//       bloodPressure: 'No',
+//       verified: false,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'WK | E Philip 4 | 9/4/25',
+//       createdAt: Timestamp.fromMillis(now - 42 * min),
+//     },
+//     {
+//       firstName: 'James',
+//       lastName: 'Pruitt',
+//       email: 'jamespruitt@hotmail.com',
+//       phone: '3365920847',
+//       dob: '1955-08-19',
+
+//       smoker: false,
+//       faceAmount: '20000',
+//       premium: '53',
+
+//       cholesterol: 'Yes',
+//       bloodPressure: 'No',
+//       verified: true,
+//       sold: true,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'TJ | Alana Mug 7/13/25',
+//       createdAt: Timestamp.fromMillis(now - 3 * 24 * 60 * min),
+//     },
+//     {
+//       firstName: 'Linda',
+//       lastName: 'Vasquez',
+//       email: 'lindav1961@gmail.com',
+//       phone: '7138402956',
+//       age: 64,
+//       state: 'TX',
+//       smoker: false,
+//       faceAmount: '50000',
+//       premium: '110',
+//       verified: true,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       createdAt: Timestamp.fromMillis(now - 2 * min),
+//     },
+//     {
+//       firstName: 'Eugene',
+//       lastName: 'Mallory',
+//       email: 'eugenemallory@outlook.com',
+//       phone: '5023719482',
+//       dob: '1949-01-30',
+//       age: 76,
+//       state: 'KY',
+//       smoker: true,
+//       faceAmount: '10000',
+//       premium: '74',
+//       selectedPlan: 'Guaranteed Issue',
+//       verified: false,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'unknown',
+//       createdAt: Timestamp.fromMillis(now - 90 * min),
+//     },
+//   ];
+
+//   const batch = db.batch();
+//   SEED_LEADS.forEach((lead) => batch.set(leadsRef.doc(), lead));
+//   await batch.commit();
+//   console.log(`[seed] Seeded ${SEED_LEADS.length} leads.`);
+// };
+
+// seedLeads().catch(console.error);
 
 module.exports = app;
