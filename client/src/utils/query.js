@@ -11,7 +11,7 @@ const BASE_URL = isDev
   ? import.meta.env.VITE_DEV_URL
   : isStaging
     ? import.meta.env.VITE_STAGING_URL
-    : import.meta.env.VITE_API_URL;
+    : import.meta.env.VITE_PROD_URL;
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -19,7 +19,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(async (config) => {
   // can't use a selector for redux state since we aren't in a react component
   const token = (await supabase.auth.getSession())?.data?.session?.access_token;
-  console.log('Attaching token to request:', token);
+  // console.log('Attaching token to request:', token);
   // if the token exists, add it to the request headers
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -33,7 +33,7 @@ const getOrganizations = async () => {
     params: {
       mode: import.meta.env.MODE,
     },
-  }
+  };
   try {
     const response = await apiClient.request(options);
     return response.data;
@@ -41,7 +41,7 @@ const getOrganizations = async () => {
     console.error('Error getting organizations:', error);
     throw error;
   }
-}
+};
 const getClients = async () => {
   // request config for compulife server
   const options = {
@@ -519,7 +519,7 @@ const postAgent = async ({ data }) => {
     method: 'POST',
     data: { agent: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: 'agent',
+    url: '/agent',
   };
   // response from server
   const response = await apiClient.request(options);

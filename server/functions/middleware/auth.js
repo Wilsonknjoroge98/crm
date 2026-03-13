@@ -68,6 +68,10 @@ const authMiddleware = async (req, res, next) => {
       logger.error('Agent error in auth.js', agentError);
       return res.status(403).json({ error: 'Forbidden' });
     }
+    if (!agent) {
+      logger.warn('No agent record found for user in auth.js', { userId: user.id });
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     req.user = {
       id: user.id,

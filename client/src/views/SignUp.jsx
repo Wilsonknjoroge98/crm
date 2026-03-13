@@ -69,16 +69,17 @@ export default function SignUp() {
     setLoading(true);
     try {
       // create supabase account after email verification is disabled
-      const { user } = await supabase.auth.signUp({
-            email,
-            password,
-        }
-      )
-      console.log(user)
+      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (signUpError) throw signUpError;
+      console.log(user);
 
 
       createAgent({
         data: {
+          userId: user.id,
           name,
           email,
           orgId: agency,

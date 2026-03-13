@@ -2,101 +2,109 @@ const express = require('express');
 const logger = require('firebase-functions/logger');
 // eslint-disable-next-line new-cap
 const agentRouter = express.Router();
+
+
 agentRouter.get('/', async (req, res) => {
-    logger.log('Getting current agent', {
-        route: '/agent',
-        agentId: req.agent?.id,
-    });
-    res.json(req.agent);
+  logger.log('Getting current agent', {
+    route: '/agent',
+    agentId: req.agent?.id,
+  });
+  res.json(req.agent);
 });
 agentRouter.get('/all', async (req, res) => {
-    logger.log('Getting all agents', {
-        route: '/agents',
-        requesterId: req.agent?.id,
+  logger.log('Getting all agents', {
+    route: '/agents',
+    requesterId: req.agent?.id,
+  });
+
+  const { data: agents, error } = await req.supabase.from('agents').select('*');
+
+  if (error) {
+    logger.warn('Error fetching agents in endpoints/agents.js', {
+      route: '/',
+      requesterId: req.agent?.id,
+      error,
     });
-
-    const { data: agents, error } = await req.supabase.from('agents').select('*');
-
-    if (error) {
-        logger.warn('Error fetching agents in endpoints/agents.js', {
-            route: '/',
-            requesterId: req.agent?.id,
-            error,
-        });
-        res.status(500).json({ error: 'Failed to fetch agents' });
-    } else {
-        logger.log('Fetched all agents successfully', {
-            route: '/',
-            requesterId: req.agent?.id,
-            count: agents?.length || 0,
-        });
-        res.status(200).json(agents);
-    }
+    res.status(500).json({ error: 'Failed to fetch agents' });
+  } else {
+    logger.log('Fetched all agents successfully', {
+      route: '/',
+      requesterId: req.agent?.id,
+      count: agents?.length || 0,
+    });
+    res.status(200).json(agents);
+  }
 });
 
 agentRouter.patch('/', async (req, res) => {
-    const { agentId, agent } = req.body;
+  const { agentId, agent } = req.body;
 
-    logger.log('Updating agent', {
-        route: '/agent',
-        method: 'PATCH',
-        requesterId: req.agent?.id,
-        targetAgentId: agentId,
-        fieldsToUpdate: Object.keys(agent || {}),
+  logger.log('Updating agent', {
+    route: '/agent',
+    method: 'PATCH',
+    requesterId: req.agent?.id,
+    targetAgentId: agentId,
+    fieldsToUpdate: Object.keys(agent || {}),
+  });
+
+  const { data, error } = await req.supabase
+    .from('agents')
+    .update(agent)
+    .eq('id', agentId);
+
+  if (error) {
+    logger.warn('Error updating agent in endpoints/agents.js', {
+      route: '/agent',
+      method: 'PATCH',
+      requesterId: req.agent?.id,
+      targetAgentId: agentId,
+      error,
     });
-
-    const { data, error } = await req.supabase.from('agents').update(agent).eq('id', agentId);
-
-    if (error) {
-        logger.warn('Error updating agent in endpoints/agents.js', {
-            route: '/agent',
-            method: 'PATCH',
-            requesterId: req.agent?.id,
-            targetAgentId: agentId,
-            error,
-        });
-        res.status(500).json({ error: 'Failed to update agent' });
-    } else {
-        logger.log('Updated agent successfully', {
-            route: '/agent',
-            method: 'PATCH',
-            requesterId: req.agent?.id,
-            targetAgentId: agentId,
-        });
-        res.status(200).json(data);
-    }
+    res.status(500).json({ error: 'Failed to update agent' });
+  } else {
+    logger.log('Updated agent successfully', {
+      route: '/agent',
+      method: 'PATCH',
+      requesterId: req.agent?.id,
+      targetAgentId: agentId,
+    });
+    res.status(200).json(data);
+  }
 });
 
 agentRouter.delete('/', async (req, res) => {
-    const { agentId } = req.body;
+  const { agentId } = req.body;
 
-    logger.log('Deleting agent', {
-        route: '/agent',
-        method: 'DELETE',
-        requesterId: req.agent?.id,
-        targetAgentId: agentId,
+  logger.log('Deleting agent', {
+    route: '/agent',
+    method: 'DELETE',
+    requesterId: req.agent?.id,
+    targetAgentId: agentId,
+  });
+
+  const { error } = await req.supabase
+    .from('agents')
+    .delete()
+    .eq('id', agentId);
+
+  if (error) {
+    logger.warn('Error deleting agent in endpoints/agents.js', {
+      route: '/agent',
+      method: 'DELETE',
+      requesterId: req.agent?.id,
+      targetAgentId: agentId,
+      error,
     });
-
-    const { error } = await req.supabase.from('agents').delete().eq('id', agentId);
-
-    if (error) {
-        logger.warn('Error deleting agent in endpoints/agents.js', {
-            route: '/agent',
-            method: 'DELETE',
-            requesterId: req.agent?.id,
-            targetAgentId: agentId,
-            error,
-        });
-        res.status(500).json({ error: 'Failed to delete agent' });
-    } else {
-        logger.log('Deleted agent successfully', {
-            route: '/',
-            method: 'DELETE',
-            requesterId: req.agent?.id,
-            targetAgentId: agentId,
-        });
-        res.status(200).json({ message: 'Agent deleted successfully' });
-    }
+    res.status(500).json({ error: 'Failed to delete agent' });
+  } else {
+    logger.log('Deleted agent successfully', {
+      route: '/',
+      method: 'DELETE',
+      requesterId: req.agent?.id,
+      targetAgentId: agentId,
+    });
+    res.status(200).json({ message: 'Agent deleted successfully' });
+  }
 });
 
 module.exports = agentRouter;
