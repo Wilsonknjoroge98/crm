@@ -458,7 +458,7 @@ const postClient = async ({ data }) => {
     method: 'POST',
     data: { client: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: '/client',
+    url: 'client',
   };
 
   try {

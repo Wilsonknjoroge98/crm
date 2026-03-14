@@ -27,11 +27,13 @@
     "notistack": "^3.0.2",
     "react": "^19.1.0",
     "react-csv": "^2.2.2",
+    "react-d3-tree": "^3.6.6",
     "react-dom": "^19.1.0",
     "react-number-format": "^5.4.4",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.7.1",
     "react-spinners": "^0.17.0",
+    "recharts": "^3.7.0",
     "vite-plugin-prerender": "^1.0.8"
   },
   "devDependencies": {

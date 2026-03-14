@@ -35,6 +35,7 @@ import { useLocation } from 'react-router-dom';
 
 import { toTitleCase } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
+import StyledSnackBar from './StyledSnackBar';
 
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const { pathname } = useLocation();
@@ -60,6 +61,11 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const [zipCodeError, setZipCodeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [disabled, setDisabled] = useState(true);
+  const [toast, setToast] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
   const inputRef = useRef(null);
 
   const maritalOptions = ['single', 'married', 'divorced', 'widowed'];
@@ -119,7 +125,11 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         refetchClients();
       }
       setOpen(false);
-      enqueueSnackbar('Client created successfully!', SNACKBAR_SUCCESS_OPTIONS);
+      setToast({
+        open: true,
+        message: 'Client created successfully!',
+        severity: 'success',
+      });
     },
   });
 

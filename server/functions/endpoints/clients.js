@@ -1,6 +1,6 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
-const {supabaseService} = require("../services/supabase");
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const clientRouter = express.Router();
@@ -86,7 +86,7 @@ clientRouter.post('/', async (req, res) => {
       logger.log('Creating lead for new client', {
         route: '/client',
         method: 'POST',
-        requesterId: req.agent?.id,
+        requesterId: req?.agent?.id,
         email: client.email,
         leadVendorId: client.lead_vendor_id,
       });
@@ -98,7 +98,9 @@ clientRouter.post('/', async (req, res) => {
           last_name: client.last_name,
           email: client.email,
           phone: client.phone,
-          agent_id: req.user.id,
+          state: client.state,
+          date_of_birth: client.date_of_birth,
+          agent_id: req?.agent?.id,
           sold: false,
           lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
         })

@@ -1490,6 +1490,114 @@ app.post('/clients_temp', async (req, res) => {
 });
 
 // webhook to receive leads from GetSeniorQuotes.com
+app.post('/gsq-lead', async (req, res) => {
+  const auth = req.headers['authorization']?.split(' ')[1];
+
+  if (auth !== process.env.GSQ_TOKEN) {
+    return res.status(401).send({ message: 'Unauthorized' });
+  }
+
+  const { firstName, lastName, email, phone, dob, leadSource, issuedTo, sold } =
+    req.body;
+
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !phone ||
+    !dob ||
+    !leadSource ||
+    !issuedTo ||
+    sold === undefined
+  ) {
+    return res.status(400).send({ message: 'Missing required fields' });
+  }
+
+  const getHyrosSource = async (email) => {
+    const HYROS_BODY = {
+      method: 'GET',
+      url: 'https://api.hyros.com/v1/api/v1.0/leads',
+      headers: {
+        'Content-Type': 'application/json',
+        'API-Key': process.env.HYROS_SECRET_KEY,
+      },
+      params: {
+        emails: email,
+      },
+    };
+
+    try {
+      const response = await axios.request(HYROS_BODY);
+      const hyrosData = response.data.result[0] || [];
+
+      let source = hyrosData?.lastSource?.sourceLinkAd?.name || null;
+
+      if (!source) {
+        source = hyrosData?.firstSource?.sourceLinkAd?.name || null;
+
+        if (!source) {
+          source =
+            hyrosData.lastSource?.name ||
+            hyrosData.firstSource?.name ||
+            'unknown';
+        }
+      }
+
+      return source;
+    } catch (error) {
+      console.error('Error fetching Hyros data:', error);
+    }
+  };
+
+  try {
+    const db = new Firestore();
+    const leadsRef = db.collection('leads');
+
+    const leadPhoneSnap = await db
+      .collection('leads')
+      .where('phone', '==', phone)
+      .get();
+
+    if (!leadPhoneSnap.empty) {
+      await leadPhoneSnap.docs[0].ref.update({ issuedTo });
+      return res
+        .status(409)
+        .send({ message: 'Lead with this phone number already exists' });
+    }
+
+    const leadEmailSnap = await db
+      .collection('leads')
+      .where('email', '==', email)
+      .get();
+
+    if (!leadEmailSnap.empty) {
+      await leadEmailSnap.docs[0].ref.update({ issuedTo });
+      return res
+        .status(409)
+        .send({ message: 'Lead with this email already exists' });
+    }
+
+    const hyrosSource = await getHyrosSource(email);
+
+    await leadsRef.add({
+      firstName,
+      lastName,
+      email,
+      phone,
+      dob,
+      issuedTo,
+      leadSource,
+      source: hyrosSource,
+      sold,
+      createdAt: Timestamp.now(),
+    });
+
+    res.status(201).send({ message: 'Lead saved successfully' });
+  } catch (error) {
+    console.error('Error saving lead:', error);
+    res.status(500).send({ message: 'Failed to save lead' });
+  }
+});
 
 // app.get('/insights', async (req, res) => {
 //   const { mode } = req.query;

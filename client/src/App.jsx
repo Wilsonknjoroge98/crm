@@ -47,6 +47,7 @@ const App = () => {
           minHeight: '100vh',
           width: '100%',
           overflowX: 'hidden',
+          backgroundColor: theme.palette.background.default,
         }}
       >
         {pathname !== '/login' && pathname !== '/signup' && <SidePanel />}
@@ -60,6 +61,7 @@ const App = () => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'flex-start',
+            backgroundColor: theme.palette.background.default,
             ml: pathname !== '/login' && pathname !== '/signup' ? '240px' : 0,
             // mt: user ? 0 : isMediumScreen ? 3 : 20,
           }}

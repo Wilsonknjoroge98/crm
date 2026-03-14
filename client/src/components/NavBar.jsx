@@ -77,9 +77,9 @@ export default function NavBar() {
         height: 64,
         width: `calc(100% - ${drawerWidth}px)`,
         ml: `${drawerWidth}px`,
-        boxShadow: 'none',
+        boxShadow: 5,
         bgcolor: 'transparent',
-        borderBottom: '1px solid #E0E0E0',
+        // borderBottom: '1px solid #E0E0E0',
       }}
     >
       <Toolbar>
