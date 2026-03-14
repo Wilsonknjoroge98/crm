@@ -84,13 +84,13 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   useEffect(() => {
     if (lead) {
       setForm({
-        firstName: lead.first_name || '',
-        lastName: lead.last_name || '',
+        first_name: lead.first_name || '',
+        last_name: lead.last_name || '',
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.dob || '',
         lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
-        maritalStatus: '',
+        marital_status: '',
         address: '',
         city: '',
         state: '',
@@ -273,7 +273,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               ))}
             </TextField>
           </Grid>
-          {form.leadSource === 'GetSeniorQuotes.com' &&
+          {form.lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
             pathname.includes('client') && (
               <Grid size={6}>
                 <FormControl error={true} fullWidth>

@@ -33,25 +33,17 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const { mutate: createAgent } = useMutation({
+  const { mutateAsync: createAgent } = useMutation({
     mutationFn: postAgent,
-    onSuccess: () => {
-
-      enqueueSnackbar(
-        'Account created successfully!',
-        SNACKBAR_SUCCESS_OPTIONS,
-      );
-      navigate('/clients');
-    },
     onError: (error) => {
       console.error('Error creating agent:', error);
       setErrorMsg('Failed to create account. Please try again.');
     },
   });
-  const { data: organizations = []} =  useQuery({
+  const { data: organizations = [] } = useQuery({
     queryKey: ['organizations'],
     queryFn: getOrganizations,
-  })
+  });
   const handleSignUp = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -69,15 +61,16 @@ export default function SignUp() {
     setLoading(true);
     try {
       // create supabase account after email verification is disabled
-      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      const {
+        data: { user },
+        error: signUpError,
+      } = await supabase.auth.signUp({
         email,
         password,
       });
       if (signUpError) throw signUpError;
-      console.log(user);
 
-
-      createAgent({
+      await createAgent({
         data: {
           userId: user.id,
           name,
@@ -89,11 +82,19 @@ export default function SignUp() {
           level: 105,
         },
       });
+
+      enqueueSnackbar(
+        'Account created! Please log in.',
+        SNACKBAR_SUCCESS_OPTIONS,
+      );
+      navigate('/login');
     } catch (error) {
       console.error(error);
       let message = 'Sign up failed. Please try again.';
-      if (error.code === 'auth/email-already-in-use') message = 'Email is already in use.';
-      if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
+      if (error.code === 'auth/email-already-in-use')
+        message = 'Email is already in use.';
+      if (error.code === 'auth/invalid-email')
+        message = 'Invalid email address.';
       if (error.code === 'auth/weak-password')
         message = 'Password should be at least 6 characters.';
       setErrorMsg(message);
@@ -149,7 +150,7 @@ export default function SignUp() {
           value={npn}
           onChange={(e) => setNpn(e.target.value)}
           required
-          />
+        />
 
         <TextField
           label='Password'
@@ -180,16 +181,18 @@ export default function SignUp() {
           label='Select Agency'
         >
           {organizations?.map((org) => (
-              <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
+            <MenuItem key={org.id} value={org.id}>
+              {org.name}
+            </MenuItem>
           ))}
         </TextField>
 
         <TextField
-            fullWidth
-            margin='normal'
-            value={uplineEmail   || ''}
-            onChange={(e) => setUplineEmail(e.target.value)}
-            label='Select upline email'
+          fullWidth
+          margin='normal'
+          value={uplineEmail || ''}
+          onChange={(e) => setUplineEmail(e.target.value)}
+          label='Select upline email'
         />
 
         {errorMsg && (

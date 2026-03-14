@@ -28,9 +28,9 @@ const Login = () => {
 
   useEffect(() => {
     if (url.includes('fearless')) {
-      setAgency('ag_Hq92aLsK');
+      setAgency('c533bb5e-26cf-47c5-b08d-c14e4ab4f904');
     } else {
-      setAgency('ag_tY71LfQm');
+      setAgency('446316f9-021a-460a-9bac-f7116e1bfa62');
     }
   }, []);
 
@@ -40,17 +40,15 @@ const Login = () => {
     setErrorMsg('');
 
     try {
-      const {data, error} = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
-      })
-      console.log(data, error)
+        password,
+      });
+      if (error) throw error;
       navigate('/clients');
-    }
-    catch {
-      setErrorMsg('We’re unable to verify your credentials. Please try again.')
-    }
-    finally {
+    } catch {
+      setErrorMsg('We’re unable to verify your credentials. Please try again.');
+    } finally {
       setLoading(false);
     }
   };

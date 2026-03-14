@@ -49,11 +49,11 @@ const Clients = () => {
   });
 
   const headers = [
-    { label: 'First Name', key: 'firstName' },
-    { label: 'Last Name', key: 'lastName' },
+    { label: 'First Name', key: 'first_name' },
+    { label: 'Last Name', key: 'last_name' },
     { label: 'Email', key: 'email' },
     { label: 'Phone', key: 'phone' },
-    { label: 'Date of Birth', key: 'dob' },
+    { label: 'Date of Birth', key: 'date_of_birth' },
     { label: 'Address', key: 'address' },
     { label: 'City', key: 'city' },
     { label: 'State', key: 'state' },

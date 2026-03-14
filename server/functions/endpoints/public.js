@@ -13,19 +13,23 @@ publicRouter.post('/agent', async (req, res) => {
       return res.status(400).json({ error: 'Missing userId' });
     }
 
-    const { data: uplineAgent, error: uplineAgentError } = await supabaseService
-      .from('agents')
-      .select('id')
-      .eq('email', agent.uplineEmail)
-      .maybeSingle();
+    let uplineAgentId = null;
+    if (agent.uplineEmail) {
+      const { data: uplineAgent, error: uplineAgentError } = await supabaseService
+        .from('agents')
+        .select('id')
+        .eq('email', agent.uplineEmail)
+        .maybeSingle();
 
-    if (uplineAgentError) {
-      logger.error('Error fetching upline agent:', uplineAgentError);
-      return res.status(500).json({ error: 'Failed to fetch upline agent' });
-    }
-    if (!uplineAgent) {
-      logger.warn('No upline agent found for email:', agent.uplineEmail);
-      return res.status(400).json({ error: 'No upline agent found' });
+      if (uplineAgentError) {
+        logger.error('Error fetching upline agent:', uplineAgentError);
+        return res.status(500).json({ error: 'Failed to fetch upline agent' });
+      }
+      if (!uplineAgent) {
+        logger.warn('No upline agent found for email:', agent.uplineEmail);
+      } else {
+        uplineAgentId = uplineAgent.id;
+      }
     }
 
     const payload = {
@@ -33,7 +37,7 @@ publicRouter.post('/agent', async (req, res) => {
       last_name: agent.name.split(' ')[1],
       npn: agent.npn,
       org_id: agent.orgId,
-      upline_agent_id: uplineAgent.id,
+      upline_agent_id: uplineAgentId,
       email: agent.email,
       level: agent.level,
       id: agent.userId,

@@ -8,7 +8,9 @@ import { alpha } from '@mui/material/styles';
 const formatPhone = (phone) => {
   if (!phone) return '';
   const d = phone.replace(/\D/g, '');
-  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : phone;
+  return d.length === 10
+    ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+    : phone;
 };
 
 const formatDob = (dob) => {
@@ -46,11 +48,13 @@ export default function LeadsGrid({
     return map;
   }, [agents]);
 
+  // TODO - age no longer exists on lead records, need to calculate from date_of_birth
+
   const isAdmin = agent?.role === 'admin';
 
   const rows = leads.map((lead) => ({
     ...lead,
-    fullName: `${lead.firstName || ''} ${lead.lastName || ''}`.trim(),
+    fullName: `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
   }));
 
   const columns = React.useMemo(
@@ -61,7 +65,8 @@ export default function LeadsGrid({
         width: 90,
         filterable: true,
         sortable: true,
-        renderCell: (params) => (params.value ? new Date(params.value).toLocaleString() : ''),
+        renderCell: (params) =>
+          params.value ? new Date(params.value).toLocaleString() : '',
         sortComparator: (v1, v2) => (v1 ?? 0) - (v2 ?? 0),
       },
       {
@@ -79,7 +84,9 @@ export default function LeadsGrid({
         sortable: false,
         filterable: false,
         renderCell: (params) => (
-          <Typography variant='caption'>{formatPhone(params.row.phone)}</Typography>
+          <Typography variant='caption'>
+            {formatPhone(params.row.phone)}
+          </Typography>
         ),
       },
       {
@@ -89,7 +96,9 @@ export default function LeadsGrid({
         minWidth: 110,
         sortable: false,
         filterable: false,
-        renderCell: (params) => <Typography variant='caption'>{params.row.email || ''}</Typography>,
+        renderCell: (params) => (
+          <Typography variant='caption'>{params.row.email || ''}</Typography>
+        ),
       },
       {
         field: 'dob',
@@ -101,7 +110,10 @@ export default function LeadsGrid({
           const { dob, age } = params.row;
           if (!dob) return null;
           return (
-            <Stack spacing={0} sx={{ height: '100%', justifyContent: 'center' }}>
+            <Stack
+              spacing={0}
+              sx={{ height: '100%', justifyContent: 'center' }}
+            >
               <Typography variant='caption'>{formatDob(dob)}</Typography>
               {age ? (
                 <Typography variant='caption' color='text.secondary'>
@@ -116,16 +128,32 @@ export default function LeadsGrid({
         field: 'state',
         headerName: 'State',
         width: 70,
-        renderCell: (params) => <Typography variant='caption'>{params.row.state || ''}</Typography>,
+        renderCell: (params) => (
+          <Typography variant='caption'>{params.row.state || ''}</Typography>
+        ),
       },
       {
         field: 'faceAmount',
-        headerName: 'Coverage',
+        headerName: 'Face Amount',
         width: 100,
         sortable: false,
         filterable: false,
         renderCell: (params) => (
-          <Typography variant='caption'>{formatCurrency(params.row.faceAmount)}</Typography>
+          <Typography variant='caption'>
+            {formatCurrency(params.row.faceAmount)}
+          </Typography>
+        ),
+      },
+      {
+        field: 'premium',
+        headerName: 'Premium',
+        width: 100,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => (
+          <Typography variant='caption'>
+            {formatCurrency(params.row.premium)}
+          </Typography>
         ),
       },
       {
@@ -160,8 +188,13 @@ export default function LeadsGrid({
           const { selectedCarrier, selectedPlan } = params.row;
           if (!selectedCarrier && !selectedPlan) return null;
           return (
-            <Stack spacing={0} sx={{ height: '100%', justifyContent: 'center' }}>
-              {selectedCarrier && <Typography variant='caption'>{selectedCarrier}</Typography>}
+            <Stack
+              spacing={0}
+              sx={{ height: '100%', justifyContent: 'center' }}
+            >
+              {selectedCarrier && (
+                <Typography variant='caption'>{selectedCarrier}</Typography>
+              )}
               {selectedPlan && (
                 <Typography variant='caption' color='text.secondary'>
                   {selectedPlan}

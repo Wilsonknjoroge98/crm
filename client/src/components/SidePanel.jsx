@@ -426,14 +426,16 @@ const SidePanel = () => {
           // borderTop: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <Box
-          component='img'
-          src={`${agency}_logo.png`}
-          alt='Logo'
-          sx={{
-            maxWidth: 240,
-          }}
-        />
+        {agency && (
+          <Box
+            component='img'
+            src={`${agency}_logo.png`}
+            alt='Logo'
+            sx={{
+              maxWidth: 240,
+            }}
+          />
+        )}
       </Stack>
     </Drawer>
   );

@@ -1,6 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
 const logger = require('firebase-functions/logger');
-const { createPublicClient } = require('../services/supabase');
+const { createPublicClient, supabaseService } = require('../services/supabase');
 
 const authMiddleware = async (req, res, next) => {
   // get the url and method of the request
@@ -13,12 +12,13 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const supabase = createPublicClient(req.headers.authorization);
 
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser(token);
+    } = await supabaseService.auth.getUser(token);
+
+    const supabase = createPublicClient(req.headers.authorization);
 
     if (error || !user) {
       if (error) logger.error('Auth error in auth.js', error);
@@ -68,8 +68,11 @@ const authMiddleware = async (req, res, next) => {
       logger.error('Agent error in auth.js', agentError);
       return res.status(403).json({ error: 'Forbidden' });
     }
+
     if (!agent) {
-      logger.warn('No agent record found for user in auth.js', { userId: user.id });
+      logger.warn('No agent record found for user in auth.js', {
+        userId: user.id,
+      });
       return res.status(403).json({ error: 'Forbidden' });
     }
 

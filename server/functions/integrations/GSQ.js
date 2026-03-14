@@ -19,26 +19,24 @@ const inboundLeadIntegration = async (req, res) => {
     }
 
     const {
-      firstName,
-      lastName,
+      first_name,
+      last_name,
       email,
       phone,
       dob,
-      gsqId,
-      leadSource,
-      issuedTo,
+      gsq_id,
+      issued_to,
       sold,
     } = req.body;
 
     if (
-      !firstName ||
-      !lastName ||
+      !first_name ||
+      !last_name ||
       !email ||
       !phone ||
-      !gsqId ||
+      !gsq_id ||
       !dob ||
-      !leadSource ||
-      !issuedTo ||
+      !issued_to ||
       sold === undefined
     ) {
       return res.status(400).send({ message: 'Missing required fields' });
@@ -51,30 +49,26 @@ const inboundLeadIntegration = async (req, res) => {
       .eq('name', 'GetSeniorQuotes.com')
       .single();
 
+    const { data: agent, error: agentError } = await supabaseService
+      .from('agents')
+      .select('id, email')
+      .eq('email', issued_to)
+      .single();
+
+    if (agentError || !agent) {
+      logger.error('Invalid agent email:', agentError);
+      return res.status(400).send({ message: 'Invalid agent email' });
+    }
+
+    const lead = { ...req.body };
+    delete lead.issued_to;
+    // TODO DELETE FROM sendToCRM payload
+    delete lead.gsq_source;
+
     const payload = {
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone,
-      agent_id: issuedTo,
-      date_of_birth: dob,
-      age: getAge(dob),
-      state: req.body?.state || '',
-      smoker: req.body?.smoker ?? false,
-      face_amount: req.body?.faceAmount || 0,
-      premium: req.body?.premium || 0,
-      selected_plan: req.body?.selectedPlan || '',
-      selected_carrier: req.body?.selectedCarrier || '',
-      beneficiary: req.body?.beneficiary || '',
-      priority: req.body?.priority || '',
-      why: req.body?.why || '',
-      bmi: req.body?.bmi || '',
-      cholesterol: req.body?.cholesterol || '',
-      blood_pressure: req.body?.bloodPressure || '',
-      verified: req.body?.verified ?? false,
-      sold,
+      ...lead,
+      agent_id: agent.id,
       gsq_source: hyrosSource,
-      gsq_id: gsqId,
       lead_vendor_id: vendorData.id,
     };
 
@@ -82,17 +76,48 @@ const inboundLeadIntegration = async (req, res) => {
     // check for unique constraint error
     if (error) {
       if (error.code === '23505') {
-        console.log('Lead already exists:', error);
-        return res.status(409).send({ message: 'Lead already exists' });
+        logger.info('Lead already exists:', error);
+
+        const { data: existingLead, error: leadError } = await supabaseService
+          .from('leads')
+          .select('id, created_at, agent_id')
+          .eq('email', payload.email)
+          .single();
+
+        if (existingLead?.agent_id === agent.id) {
+          return res.status(200).send({
+            message: 'Lead already exists and is assigned to this agent',
+          });
+        }
+
+        if (leadError || !existingLead) {
+          return res
+            .status(500)
+            .send({ message: 'Failed to fetch existing lead' });
+        }
+
+        const { error: updateError } = await supabaseService
+          .from('leads')
+          .update({ agent_id: agent.id })
+          .eq('id', existingLead.id);
+
+        if (updateError) {
+          logger.error('Failed to update existing lead:', updateError);
+          return res
+            .status(500)
+            .send({ message: 'Failed to update existing lead' });
+        }
+
+        return res.status(200).send({ message: 'Lead updated successfully' });
       } else {
         return res.status(400).send({ message: 'Invalid request payload' });
       }
     }
 
-    res.status(201).send({ message: 'Lead saved successfully' });
+    res.status(201).send({ message: 'Lead created successfully' });
   } catch (error) {
-    console.error('Error saving lead:', error);
-    res.status(500).send({ message: 'Failed to save lead' });
+    logger.error('Error saving lead:', error);
+    res.status(500).send({ message: 'Error saving lead:' });
   }
 };
 
@@ -107,7 +132,7 @@ const sendToGSQ = async (client) => {
       },
     };
     const response = await gsqClient.request(BODY);
-    console.log('GSQ response:', response.data);
+    logger.info('GSQ response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error sending mark lead sold:', error);

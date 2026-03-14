@@ -47,6 +47,7 @@ const AuthProvider = ({ children }) => {
             }
         });
         return () => {
+            initialized.current = false;
             listener.subscription.unsubscribe();
         };
     }, [])

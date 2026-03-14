@@ -519,7 +519,7 @@ const postAgent = async ({ data }) => {
     method: 'POST',
     data: { agent: data, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: '/agent',
+    url: 'agent',
   };
   // response from server
   const response = await apiClient.request(options);
@@ -537,7 +537,7 @@ const getAgent = async ({ data }) => {
   // request config for compulife server
   const options = {
     method: 'GET',
-    url: '/agent',
+    url: 'agent',
     params: { uid: id, mode: import.meta.env.MODE },
   };
 
