@@ -48,7 +48,6 @@ app.use('/downline-production', downlineProductionRouter);
 app.use('/summary', summaryRouter);
 app.use('/hierarchy', hierarchyRouter);
 
-
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
 //   !!process.env.FIREBASE_AUTH_EMULATOR_HOST ||
@@ -95,7 +94,7 @@ app.use('/hierarchy', hierarchyRouter);
 //   return Array.from(result);
 // }
 
-app.get('/customer-account', async (req, res) => {
+app.get('/customer_account', async (req, res) => {
   const { email } = req.query;
 
   console.log('Getting account for', email);
@@ -239,11 +238,11 @@ app.get('/premiums', async (req, res) => {
     // Sort leaderboard by points
     leaderboardArray.sort((a, b) => b.premiumAmount - a.premiumAmount);
 
-    const topLeaderboardArray = leaderboardArray.slice(0, 10);
+    // const topLeaderboardArray = leaderboardArray.slice(0, 30);
 
-    logger.log('Leaderboard data:', topLeaderboardArray);
+    logger.log('Leaderboard data:', leaderboardArray);
 
-    res.status(200).json(topLeaderboardArray);
+    res.status(200).json(leaderboardArray);
   } catch (error) {
     console.error('Error fetching leaderboard data:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard data' });
@@ -442,185 +441,191 @@ app.get('/insights', async (req, res) => {
     return res.status(400).json({ error: 'Missing startDate or endDate' });
   }
 
-  const since = dayjs(startDate).format('YYYY-MM-DD');
-  const until = dayjs(endDate).format('YYYY-MM-DD');
-
-  // ---------------------------------------------------------------------
-  // DEVELOPMENT MOCK DATA
-  // ---------------------------------------------------------------------
-  // if (mode === 'development') {
-  //   return res.status(200).json({
-  //     sources: [
-  //       { name: 'WK | Annie Winner | 5/11/25', sales: 20, spend: 2000, cps: 100 },
-  //       { name: 'TJ | Alana Book | 8/1/25', sales: 20, spend: 2000, cps: 100 },
-  //       { name: 'WK | E Philip 4 | 9/4/25', sales: 20, spend: 2000, cps: 100 },
-  //       { name: 'TJ | Alana Mug 7/13/25', sales: 10, spend: 1000, cps: 100 },
-  //       { name: 'WK | E Philip 2 | 9/4/25', sales: 10, spend: 1000, cps: 100 },
-  //       { name: 'WK | Annie Scam Hook 2 | 9/7/25', sales: 10, spend: 1000, cps: 100 },
-  //     ],
-  //     total: 100,
-  //     unknownClients: 5,
-  //   });
-  // }
-
-  // ---------------------------------------------------------------------
-  // LOAD FIRESTORE CLIENTS
-  // ---------------------------------------------------------------------
-  const db = new Firestore();
-  const ref = db.collection('clients');
-  const snapshot = await ref.get();
-
-  const clients = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  // Build source → sales count
-  const maps = clients.reduce(
-    (acc, c) => {
-      const key = (c.source || 'unknown').trim();
-      acc.all[key] = (acc.all[key] || 0) + 1;
-      if (key !== 'unknown') acc.known[key] = (acc.known[key] || 0) + 1;
-      return acc;
-    },
-    { all: {}, known: {} },
-  );
-
-  const totalSales = Object.values(maps.known).reduce((s, n) => s + n, 0) || 1;
-  const unknownClients = maps.all['unknown'] || 0;
-
-  const accessToken = process.env.META_MARKETING_ACCESS_TOKEN;
-
-  // 1. GET ALL ADS (name + id)
-  const adsByName = {};
-
   try {
-    const adsResp = await axios.get(process.env.META_MARKETING_ADS_URL, {
-      params: {
-        fields: 'name',
-        limit: 5000,
-        access_token: accessToken,
+    const since = dayjs(startDate).format('YYYY-MM-DD');
+    const until = dayjs(endDate).format('YYYY-MM-DD');
+
+    // ---------------------------------------------------------------------
+    // DEVELOPMENT MOCK DATA
+    // ---------------------------------------------------------------------
+    // if (mode === 'development') {
+    //   return res.status(200).json({
+    //     sources: [
+    //       { name: 'WK | Annie Winner | 5/11/25', sales: 20, spend: 2000, cps: 100 },
+    //       { name: 'TJ | Alana Book | 8/1/25', sales: 20, spend: 2000, cps: 100 },
+    //       { name: 'WK | E Philip 4 | 9/4/25', sales: 20, spend: 2000, cps: 100 },
+    //       { name: 'TJ | Alana Mug 7/13/25', sales: 10, spend: 1000, cps: 100 },
+    //       { name: 'WK | E Philip 2 | 9/4/25', sales: 10, spend: 1000, cps: 100 },
+    //       { name: 'WK | Annie Scam Hook 2 | 9/7/25', sales: 10, spend: 1000, cps: 100 },
+    //     ],
+    //     total: 100,
+    //     unknownClients: 5,
+    //   });
+    // }
+
+    // ---------------------------------------------------------------------
+    // LOAD FIRESTORE CLIENTS
+    // ---------------------------------------------------------------------
+    const db = new Firestore();
+    const ref = db.collection('clients');
+
+    const snapshot = await ref.get();
+
+    const clients = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Build source → sales count
+    const maps = clients.reduce(
+      (acc, c) => {
+        const key = (c.source || 'unknown').trim();
+        acc.all[key] = (acc.all[key] || 0) + 1;
+        if (key !== 'unknown') acc.known[key] = (acc.known[key] || 0) + 1;
+        return acc;
       },
-    });
+      { all: {}, known: {} },
+    );
 
-    for (const ad of adsResp.data.data || []) {
-      if (ad.name) adsByName[ad.name.trim()] = ad.id;
-    }
-  } catch (err) {
-    console.error('Error fetching ads:', err.response?.data || err);
-    return res.status(500).send({ error: 'Meta ads fetch failed' });
-  }
+    const totalSales =
+      Object.values(maps.known).reduce((s, n) => s + n, 0) || 1;
+    const unknownClients = maps.all['unknown'] || 0;
 
-  // Helper: Get spend for a single ad ID
-  async function getSpendForAd(adId) {
+    const accessToken = process.env.META_MARKETING_ACCESS_TOKEN;
+
+    // 1. GET ALL ADS (name + id)
+    const adsByName = {};
+
     try {
-      const insightsResp = await axios.get(
-        `https://graph.facebook.com/v20.0/${adId}/insights`,
-        {
-          params: {
-            fields: 'spend',
-            time_range: JSON.stringify({ since, until }),
-            access_token: accessToken,
-          },
+      const adsResp = await axios.get(process.env.META_MARKETING_ADS_URL, {
+        params: {
+          fields: 'name',
+          limit: 5000,
+          access_token: accessToken,
         },
-      );
+      });
 
-      const data = insightsResp.data.data;
-      if (!data || data.length === 0) return 0;
-
-      return parseFloat(data[0].spend || 0);
-    } catch (error) {
-      console.error(
-        `Error fetching spend for ad ${adId}:`,
-        error.response?.data || error,
-      );
-      return 0;
-    }
-  }
-
-  const policiesRef = db.collection('policies');
-  const policiesSnapshot = await policiesRef.get();
-  const policies = policiesSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  const leadsSnapshot = await db.collection('leads').get();
-  const leadsData = leadsSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  // ---------------------------------------------------------------------
-  // MERGE SALES + SPEND
-  // ---------------------------------------------------------------------
-  const sources = [];
-  const devEntries = {
-    'WK | Annie Winner | 5/11/25': 20,
-    'TJ | Alana Book | 8/1/25': 20,
-    'WK | E Philip 4 | 9/4/25': 20,
-    'TJ | Alana Mug 7/13/25': 10,
-    'WK | E Philip 2 | 9/4/25': 10,
-    'WK | Annie Scam Hook 2 | 9/7/25': 10,
-    'WK | Tim - Cousin Passed | 11/25/2025': 5,
-    'TJ | Roy - Uninsurable | 11/16/2025': 15,
-  };
-
-  for (const [creative, sales] of Object.entries(
-    mode === 'development' ? devEntries : maps.known,
-  )) {
-    const adId = adsByName[creative];
-    let spend = 0;
-
-    if (adId) {
-      spend = await getSpendForAd(adId);
+      for (const ad of adsResp.data.data || []) {
+        if (ad.name) adsByName[ad.name.trim()] = ad.id;
+      }
+    } catch (err) {
+      console.error('Error fetching ads:', err.response?.data || err);
+      return res.status(500).send({ error: 'Meta ads fetch failed' });
     }
 
-    const leads = leadsData.filter((lead) => {
-      return (lead.source || 'unknown').trim() === creative;
-    }).length;
+    // Helper: Get spend and leads for a single ad ID from Meta
+    async function getInsightsForAd(adId) {
+      try {
+        const insightsResp = await axios.get(
+          `https://graph.facebook.com/v20.0/${adId}/insights`,
+          {
+            params: {
+              fields: 'spend,actions',
+              time_range: JSON.stringify({ since, until }),
+              access_token: accessToken,
+            },
+          },
+        );
 
-    console.log(
-      `Source: ${creative}, Sales: ${sales}, Leads: ${leads}, Spend: ${spend}`,
-    );
+        const data = insightsResp.data.data;
+        if (!data || data.length === 0) return { spend: 0, leads: 0 };
 
-    const matched = policies.filter(
-      (p) => (p.source || 'unknown').trim() === creative,
-    );
+        const row = data[0];
+        const spend = parseFloat(row.spend || 0);
+        const leadAction = (row.actions || []).find(
+          (a) => a.action_type === 'lead',
+        );
+        const leads = leadAction ? parseInt(leadAction.value || 0, 10) : 0;
 
-    const totalAnnual = matched.reduce((sum, p) => {
-      const monthly = Number(p.premiumAmount);
-      return sum + (isNaN(monthly) ? 0 : monthly * 12);
-    }, 0);
+        return { spend, leads };
+      } catch (error) {
+        console.error(
+          `Error fetching insights for ad ${adId}:`,
+          error.response?.data || error,
+        );
+        return { spend: 0, leads: 0 };
+      }
+    }
 
-    const averagePremium =
-      matched.length > 0 ? totalAnnual / matched.length : 0;
+    const policiesRef = db.collection('policies');
+    const policiesSnapshot = await policiesRef.get();
+    const policies = policiesSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-    sources.push({
-      id: adId || crypto.randomUUID(),
-      creative,
-      leads,
-      sales,
-      spend,
-      averagePremium: +averagePremium.toFixed(2),
-      cpl: spend > 0 && leads > 0 ? +(spend / leads).toFixed(2) : 0,
-      cps: spend > 0 && sales > 0 ? +(spend / sales).toFixed(2) : 0,
+    // ---------------------------------------------------------------------
+    // MERGE SALES + SPEND
+    // ---------------------------------------------------------------------
+    const sources = [];
+    const devEntries = {
+      'WK | Annie Winner | 5/11/25': 20,
+      'TJ | Alana Book | 8/1/25': 20,
+      'WK | E Philip 4 | 9/4/25': 20,
+      'TJ | Alana Mug 7/13/25': 10,
+      'WK | E Philip 2 | 9/4/25': 10,
+      'WK | Annie Scam Hook 2 | 9/7/25': 10,
+      'WK | Tim - Cousin Passed | 11/25/2025': 5,
+      'TJ | Roy - Uninsurable | 11/16/2025': 15,
+    };
+
+    for (const [creative, sales] of Object.entries(
+      mode === 'development' ? devEntries : maps.known,
+    )) {
+      const adId = adsByName[creative];
+      let spend = 0;
+      let leads = 0;
+
+      if (adId) {
+        ({ spend, leads } = await getInsightsForAd(adId));
+      }
+
+      console.log(
+        `Source: ${creative}, Sales: ${sales}, Leads: ${leads}, Spend: ${spend}`,
+      );
+
+      const matched = policies.filter(
+        (p) => (p.source || 'unknown').trim() === creative,
+      );
+
+      const totalAnnual = matched.reduce((sum, p) => {
+        const monthly = Number(p.premiumAmount);
+        return sum + (isNaN(monthly) ? 0 : monthly * 12);
+      }, 0);
+
+      const averagePremium =
+        matched.length > 0 ? totalAnnual / matched.length : 0;
+
+      sources.push({
+        id: adId || crypto.randomUUID(),
+        creative,
+        leads,
+        sales,
+        spend,
+        averagePremium: +averagePremium.toFixed(2),
+        cpl: spend > 0 && leads > 0 ? +(spend / leads).toFixed(2) : 0,
+        cps: spend > 0 && sales > 0 ? +(spend / sales).toFixed(2) : 0,
+        closeRate: leads > 0 ? +((sales / leads) * 100).toFixed(2) : 0,
+      });
+    }
+
+    sources.sort((a, b) => b.sales - a.sales);
+
+    console.log('Final insights response:', {
+      sources,
+      totalSales,
+      unknownClients,
     });
+
+    return res.status(200).json({
+      sources,
+      total: totalSales,
+      unknownClients,
+    });
+  } catch (error) {
+    logger.log('Error in /insights endpoint:', error);
+    return res.status(500).json({ error: 'Failed to fetch insights data' });
   }
-
-  sources.sort((a, b) => b.sales - a.sales);
-
-  console.log('Final insights response:', {
-    sources,
-    totalSales,
-    unknownClients,
-  });
-
-  return res.status(200).json({
-    sources,
-    total: totalSales,
-    unknownClients,
-  });
 });
 
 app.get('/commissions', async (req, res) => {
@@ -1447,7 +1452,6 @@ app.get('/premiums/monthly', async (req, res) => {
   }
 });
 
-
 app.post('/clients_temp', async (req, res) => {
   logger.log('Creating clients');
   const { client } = req.body;
@@ -1606,10 +1610,35 @@ app.post('/error', async (req, res) => {
   res.status(200).send({ message: 'Error saved successfully' });
 });
 
-app.patch('/customer-account', async (req, res) => {
+app.patch('/customer_account', async (req, res) => {
   const { account } = req.body;
 
   console.log('Updating account for', account);
+
+  if (account.deliver === true) {
+    try {
+      const gsqRes = await axios.request({
+        headers: { Authorization: `Bearer ${process.env.GSQ_TOKEN}` },
+        params: { email: account.email },
+        method: 'GET',
+        url: `${process.env.GSQ_BASE_URL}/customer-account`,
+      });
+      const current = gsqRes.data;
+      const eligible =
+        current.ringyEnabled === false ||
+        (current.ringySid && current.ringyToken);
+      if (!eligible) {
+        return res.status(400).json({
+          message: 'Ringy credentials are required to enable lead delivery.',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching agent for deliver gate:', error.message);
+      return res
+        .status(500)
+        .json({ message: 'Failed to verify agent credentials.' });
+    }
+  }
 
   const patchAgentAccount = async () => {
     try {
@@ -1623,7 +1652,6 @@ app.patch('/customer-account', async (req, res) => {
           states: account.states,
         },
         method: 'PATCH',
-        // url: `${process.env.GSQ_BASE_URL}/customer-account`,
         url: `${process.env.GSQ_BASE_URL}/customer-account`,
       });
 
@@ -2142,5 +2170,159 @@ app.delete('/expense', async (req, res) => {
 // };
 
 // updatePolicies();
+
+// ---------------------------------------------------------------------------
+// Dev seed — populates the leads collection when running in the emulator
+// ---------------------------------------------------------------------------
+// const seedLeads = async () => {
+//   if (process.env.FUNCTIONS_EMULATOR !== 'true') return;
+
+//   const db = new Firestore();
+//   const leadsRef = db.collection('leads');
+//   const existing = await leadsRef.limit(1).get();
+//   if (!existing.empty) {
+//     console.log('[seed] Leads already seeded, skipping.');
+//     return;
+//   }
+
+//   const now = Date.now();
+//   const min = 60 * 1000;
+
+//   const SEED_LEADS = [
+//     {
+//       firstName: 'Margaret',
+//       lastName: 'Sullivan',
+//       email: 'margaret.sullivan@email.com',
+//       phone: '5124839201',
+//       dob: '1952-07-14',
+//       age: 72,
+//       state: 'TX',
+//       smoker: false,
+//       faceAmount: '25000',
+//       premium: '62',
+//       selectedPlan: 'Whole Life',
+//       selectedCarrier: 'Mutual of Omaha',
+//       beneficiary: 'Spouse',
+//       priority: 'End of life expenses',
+//       why: 'Leave something behind for family',
+//       bmi: '5ft 4in 148lbs',
+//       cholesterol: 'No',
+//       bloodPressure: 'Yes',
+//       verified: true,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'WK | Annie Winner | 5/11/25',
+//       createdAt: Timestamp.fromMillis(now - 5 * min),
+//     },
+//     {
+//       firstName: 'Robert',
+//       lastName: 'Kimura',
+//       email: 'rkimura55@gmail.com',
+//       phone: '9042817364',
+//       dob: '1958-03-02',
+//       age: 67,
+//       state: 'FL',
+//       smoker: false,
+//       faceAmount: '15000',
+//       premium: '44',
+//       selectedPlan: 'Guaranteed Issue',
+//       selectedCarrier: 'AIG',
+//       beneficiary: 'Child',
+//       priority: 'Funeral costs',
+//       why: "Don't want to be a burden",
+//       bmi: '5ft 10in 195lbs',
+//       cholesterol: 'Yes',
+//       bloodPressure: 'Yes',
+//       verified: true,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'TJ | Alana Book | 8/1/25',
+//       createdAt: Timestamp.fromMillis(now - 18 * min),
+//     },
+//     {
+//       firstName: 'Dorothy',
+//       lastName: 'Chambers',
+//       email: 'dorothy.chambers@yahoo.com',
+//       phone: '6023948571',
+//       dob: '1945-11-28',
+//       age: 79,
+//       state: 'AZ',
+
+//       why: 'Peace of mind',
+//       bmi: '5ft 2in 162lbs',
+//       cholesterol: 'No',
+//       bloodPressure: 'No',
+//       verified: false,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'WK | E Philip 4 | 9/4/25',
+//       createdAt: Timestamp.fromMillis(now - 42 * min),
+//     },
+//     {
+//       firstName: 'James',
+//       lastName: 'Pruitt',
+//       email: 'jamespruitt@hotmail.com',
+//       phone: '3365920847',
+//       dob: '1955-08-19',
+
+//       smoker: false,
+//       faceAmount: '20000',
+//       premium: '53',
+
+//       cholesterol: 'Yes',
+//       bloodPressure: 'No',
+//       verified: true,
+//       sold: true,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'TJ | Alana Mug 7/13/25',
+//       createdAt: Timestamp.fromMillis(now - 3 * 24 * 60 * min),
+//     },
+//     {
+//       firstName: 'Linda',
+//       lastName: 'Vasquez',
+//       email: 'lindav1961@gmail.com',
+//       phone: '7138402956',
+//       age: 64,
+//       state: 'TX',
+//       smoker: false,
+//       faceAmount: '50000',
+//       premium: '110',
+//       verified: true,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       createdAt: Timestamp.fromMillis(now - 2 * min),
+//     },
+//     {
+//       firstName: 'Eugene',
+//       lastName: 'Mallory',
+//       email: 'eugenemallory@outlook.com',
+//       phone: '5023719482',
+//       dob: '1949-01-30',
+//       age: 76,
+//       state: 'KY',
+//       smoker: true,
+//       faceAmount: '10000',
+//       premium: '74',
+//       selectedPlan: 'Guaranteed Issue',
+//       verified: false,
+//       sold: false,
+//       issuedTo: 'andrewblevins.ins@gmail.com',
+//       leadSource: 'GetSeniorQuotes.com',
+//       source: 'unknown',
+//       createdAt: Timestamp.fromMillis(now - 90 * min),
+//     },
+//   ];
+
+//   const batch = db.batch();
+//   SEED_LEADS.forEach((lead) => batch.set(leadsRef.doc(), lead));
+//   await batch.commit();
+//   console.log(`[seed] Seeded ${SEED_LEADS.length} leads.`);
+// };
+
+// seedLeads().catch(console.error);
 
 module.exports = app;

@@ -1,6 +1,15 @@
 // NavBar.jsx
 import React from 'react';
-import { AppBar, Toolbar, Typography, Avatar, Box, Stack, Menu, Button } from '@mui/material';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Avatar,
+  Box,
+  Stack,
+  Menu,
+  Button,
+} from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountDetails from './AccountDetails';
@@ -10,19 +19,20 @@ import { supabase } from '../utils/supabase';
 import { getAgent, getAccount } from '../utils/query';
 import { useQuery } from '@tanstack/react-query';
 
-import useAuth from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 import { stringToColor } from '../utils/helpers';
-import {useSelector} from "react-redux";
-import {useAgent} from "../hooks/useAgent.jsx";
+import { useSelector } from 'react-redux';
+import { useAgent } from '../hooks/useAgent.jsx';
 
 const drawerWidth = 240;
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const navigate = useNavigate();
-  const { user, userToken, isAuthenticated } = useSelector((state) => state.user)
+  const { user, userToken, isAuthenticated } = useSelector(
+    (state) => state.user,
+  );
 
   const agentData = useAgent();
   const { data: accountData } = useQuery({
@@ -95,10 +105,14 @@ export default function NavBar() {
                 }}
               >
                 <Typography variant='caption' textAlign='center'>
-                  {getInitials(agentData?.name)}
+                  {getInitials(
+                    agentData?.first_name + ' ' + agentData?.last_name,
+                  )}
                 </Typography>
               </Avatar>
-              <Typography variant='body2'>{agentData.name}</Typography>
+              <Typography variant='body2'>
+                {agentData?.first_name} {agentData?.last_name}
+              </Typography>
             </>
           )}
 

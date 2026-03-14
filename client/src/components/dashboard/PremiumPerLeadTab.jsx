@@ -1,14 +1,14 @@
 import { Box, CardContent, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getPremiumPerLead } from '../../utils/query';
-import useAuth from '../../hooks/useAuth';
+import { useAgent } from '../../hooks/useAgent';
 
 const PremiumPerLeadTab = ({ rows }) => {
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['premiumPerLead'],
-    queryFn: () => getPremiumPerLead({ token: userToken, agency: agent?.agency }),
+    queryFn: () => getPremiumPerLead({ agency: agent?.org_id }),
   });
 
   console.log('Premium Per Lead Data:', data, isLoading, error);

@@ -29,7 +29,7 @@ import {
 } from '../utils/constants';
 import { enqueueSnackbar } from 'notistack';
 
-import useAuth from '../hooks/useAuth';
+import { useSelector } from 'react-redux';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = ['Active', 'Pending', 'Lapsed', 'Insufficient Funds', 'Cancelled'];
@@ -41,7 +41,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
   const [form, setForm] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [updatesMade, setUpdatesMade] = useState(false);
-  const { user, userToken } = useAuth();
+  const { user } = useSelector((state) => state.user);
 
   useEffect(() => {
     if (policy) {
@@ -76,7 +76,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
   });
 
   const handleSubmit = () => {
-    updatePolicy({ token: userToken, data: { ...form } });
+    updatePolicy({ data: { ...form } });
   };
 
   const handleChange = (e) => {
@@ -110,7 +110,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
       ...prev,
       beneficiaries: [
         ...prev.beneficiaries,
-        { firstName: '', lastName: '', relationship: '', share: '' },
+        { first_name: '', last_name: '', relationship: '', share: '' },
       ],
     }));
   };
@@ -121,7 +121,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
       ...prev,
       contingentBeneficiaries: [
         ...prev.contingentBeneficiaries,
-        { firstName: '', lastName: '', relationship: '', share: '' },
+        { first_name: '', last_name: '', relationship: '', share: '' },
       ],
     }));
   };
@@ -165,7 +165,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
     }
 
     if (modifiedForm.beneficiaries.length !== 0) {
-      const keys = ['firstName', 'lastName', 'relationship', 'share'];
+      const keys = ['first_name', 'last_name', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
         keys.some((key) => b[key] === ''),
       );
@@ -183,7 +183,7 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
     }
 
     if (modifiedForm.contingentBeneficiaries.length !== 0) {
-      const keys = ['firstName', 'lastName', 'relationship', 'share'];
+      const keys = ['first_name', 'last_name', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
         keys.some((key) => b[key] === ''),
       );
@@ -264,10 +264,10 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
                 >
                   {Array.isArray(agents) &&
                     agents.map((agent) => {
-                      if (user && agent?.uid === user?.uid) return null; // Skip current user
+                      if (user && agent?.id === user?.id) return null;
                       return (
-                        <MenuItem key={agent?.uid} value={agent?.uid}>
-                          {agent?.name}
+                        <MenuItem key={agent?.id} value={agent?.id}>
+                          {[agent?.first_name, agent?.last_name].filter(Boolean).join(' ')}
                         </MenuItem>
                       );
                     })}
@@ -488,19 +488,19 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
               <Grid container spacing={2}>
                 <Grid item size={3}>
                   <TextField
-                    value={b.firstName}
+                    value={b.first_name}
                     label='First Name'
                     required
-                    onChange={(e) => handleBeneficiaryChange(i, 'firstName', e.target.value)}
+                    onChange={(e) => handleBeneficiaryChange(i, 'first_name', e.target.value)}
                     fullWidth
                   />
                 </Grid>
                 <Grid item size={3}>
                   <TextField
-                    value={b.lastName}
+                    value={b.last_name}
                     label='Last Name'
                     required
-                    onChange={(e) => handleBeneficiaryChange(i, 'lastName', e.target.value)}
+                    onChange={(e) => handleBeneficiaryChange(i, 'last_name', e.target.value)}
                     fullWidth
                   />
                 </Grid>
@@ -573,19 +573,19 @@ const UpdatePolicyDialog = ({ open, setOpen, policy, refetchPolicies, agents }) 
               <Grid container spacing={2}>
                 <Grid item size={3}>
                   <TextField
-                    value={b.firstName}
+                    value={b.first_name}
                     label='First Name'
                     required
-                    onChange={(e) => handleContingentChange(i, 'firstName', e.target.value)}
+                    onChange={(e) => handleContingentChange(i, 'first_name', e.target.value)}
                     fullWidth
                   />
                 </Grid>
                 <Grid item size={3}>
                   <TextField
-                    value={b.lastName}
+                    value={b.last_name}
                     label='Last Name'
                     required
-                    onChange={(e) => handleContingentChange(i, 'lastName', e.target.value)}
+                    onChange={(e) => handleContingentChange(i, 'last_name', e.target.value)}
                     fullWidth
                   />
                 </Grid>

@@ -23,7 +23,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 
-import useAuth from '../hooks/useAuth';
+import { useAgent } from '../hooks/useAgent';
 import { useEffect } from 'react';
 
 import { alpha } from '@mui/material/styles';
@@ -35,7 +35,7 @@ const Commissions = () => {
   const [totalCommissions, setTotalCommissions] = useState(0);
   const theme = useTheme();
 
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
   const {
     data = [],
     isLoading,
@@ -44,7 +44,6 @@ const Commissions = () => {
     queryKey: ['commissions'],
     queryFn: () =>
       getCommissions({
-        token: userToken,
         startDate,
         endDate,
         agent,

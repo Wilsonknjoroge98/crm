@@ -1,7 +1,15 @@
-import { Box, Grid, Typography, Divider, Container, Stack, Button } from '@mui/material';
+import {
+  Box,
+  Grid,
+  Typography,
+  Divider,
+  Container,
+  Stack,
+  Button,
+} from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getPremiumLeaderboard } from '../utils/query';
-import useAuth from '../hooks/useAuth';
+import { useAgent } from '../hooks/useAgent';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -11,8 +19,10 @@ import { useState } from 'react';
 import { MoonLoader } from 'react-spinners';
 
 const Dashboard = () => {
-  const { userToken, agent } = useAuth();
-  const [startDate, setStartDate] = useState(dayjs().add(-7, 'day').format('YYYY-MM-DD'));
+  const agent = useAgent();
+  const [startDate, setStartDate] = useState(
+    dayjs().add(-7, 'day').format('YYYY-MM-DD'),
+  );
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   const {
@@ -24,7 +34,11 @@ const Dashboard = () => {
   } = useQuery({
     queryKey: ['premiumLeaderboard'],
     queryFn: () =>
-      getPremiumLeaderboard({ token: userToken, agency: agent?.agency, startDate, endDate }),
+      getPremiumLeaderboard({
+        agency: agent?.org_id,
+        startDate,
+        endDate,
+      }),
   });
 
   console.log({ rows, isLoading, error, startDate, endDate });
@@ -42,10 +56,19 @@ const Dashboard = () => {
   return (
     <>
       <Container sx={{ mt: 4 }}>
-        <Stack direction={'column'} justifyContent='space-between' spacing={2} mb={2}>
+        <Stack
+          direction={'column'}
+          justifyContent='space-between'
+          spacing={2}
+          mb={2}
+        >
           <Typography variant='h4'>Leaderboard</Typography>
           <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <Box display='flex' justifyContent='space-between' alignItems='center'>
+            <Box
+              display='flex'
+              justifyContent='space-between'
+              alignItems='center'
+            >
               <Stack direction={'row'} spacing={2} alignItems='center'>
                 <DatePicker
                   label='Start Date'
@@ -166,7 +189,9 @@ const Dashboard = () => {
                             ? 'linear-gradient(135deg, #1976d2, #9c27b0)'
                             : 'none',
                           WebkitBackgroundClip: isTopThree ? 'text' : 'initial',
-                          WebkitTextFillColor: isTopThree ? 'transparent' : 'initial',
+                          WebkitTextFillColor: isTopThree
+                            ? 'transparent'
+                            : 'initial',
                         }}
                       >
                         ${row.premiumAmount.toLocaleString()}

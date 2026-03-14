@@ -21,18 +21,19 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import { useTheme } from '@mui/material/styles';
 
 import { useLocation, useNavigate } from 'react-router-dom';
-
-import useAuth from '../hooks/useAuth';
+import { useSelector } from 'react-redux';
+import { useAgent } from '../hooks/useAgent';
 
 const drawerWidth = 250;
 
 const SidePanel = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, agent } = useAuth();
+  const { isAuthenticated } = useSelector((state) => state.user);
+  const agent = useAgent();
   const theme = useTheme();
 
-  const agency = agent?.agency;
+  const agency = agent?.org_id;
 
   const handleItemClick = (path) => {
     if (!path) return;
@@ -96,8 +97,8 @@ const SidePanel = () => {
     <Drawer
       variant='permanent'
       sx={{
-        'width': drawerWidth,
-        'flexShrink': 0,
+        width: drawerWidth,
+        flexShrink: 0,
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
@@ -116,13 +117,15 @@ const SidePanel = () => {
               <ListItem
                 onClick={() => handleItemClick('/dashboard')}
                 sx={{
-                  'px': 3,
-                  'py': 0.5,
-                  'borderRadius': 1.5,
-                  'cursor': 'pointer',
-                  'position': 'relative',
-                  'backgroundColor':
-                    location.pathname === '/dashboard' ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  px: 3,
+                  py: 0.5,
+                  borderRadius: 1.5,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  backgroundColor:
+                    location.pathname === '/dashboard'
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'transparent',
                   '&:hover': {
                     backgroundColor: 'rgba(255,255,255,0.08)',
                   },
@@ -145,7 +148,9 @@ const SidePanel = () => {
                   sx={{
                     minWidth: 30,
                     color:
-                      location.pathname === '/dashboard' ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                      location.pathname === '/dashboard'
+                        ? '#FFFFFF'
+                        : 'rgba(255,255,255,0.85)',
                   }}
                 >
                   <LeaderboardOutlinedIcon />
@@ -157,7 +162,9 @@ const SidePanel = () => {
                       variant='body2'
                       sx={{
                         color:
-                          location.pathname === '/dashboard' ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                          location.pathname === '/dashboard'
+                            ? '#FFFFFF'
+                            : 'rgba(255,255,255,0.85)',
                       }}
                     >
                       Leaderboard
@@ -191,12 +198,14 @@ const SidePanel = () => {
                     key={text}
                     onClick={() => handleItemClick(path)}
                     sx={{
-                      'px': 3,
-                      'py': 0.5,
-                      'borderRadius': 1.5,
-                      'cursor': 'pointer',
-                      'position': 'relative',
-                      'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                      px: 3,
+                      py: 0.5,
+                      borderRadius: 1.5,
+                      cursor: 'pointer',
+                      position: 'relative',
+                      backgroundColor: isActive
+                        ? 'rgba(255,255,255,0.06)'
+                        : 'transparent',
                       '&:hover': {
                         backgroundColor: 'rgba(255,255,255,0.08)',
                       },
@@ -228,7 +237,9 @@ const SidePanel = () => {
                         <Typography
                           variant='body2'
                           sx={{
-                            color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                            color: isActive
+                              ? '#FFFFFF'
+                              : 'rgba(255,255,255,0.85)',
                           }}
                         >
                           {text}
@@ -265,12 +276,14 @@ const SidePanel = () => {
                     key={text}
                     onClick={() => handleItemClick(path)}
                     sx={{
-                      'px': 3,
-                      'py': 0.5,
-                      'borderRadius': 1.5,
-                      'position': 'relative',
-                      'cursor': path && 'pointer',
-                      'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                      px: 3,
+                      py: 0.5,
+                      borderRadius: 1.5,
+                      position: 'relative',
+                      cursor: path && 'pointer',
+                      backgroundColor: isActive
+                        ? 'rgba(255,255,255,0.06)'
+                        : 'transparent',
                       '&:hover': {
                         // if no path, the route isn't ready yet
                         backgroundColor: path && 'rgba(255,255,255,0.08)',
@@ -303,7 +316,9 @@ const SidePanel = () => {
                         <Typography
                           variant='body2'
                           sx={{
-                            color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                            color: isActive
+                              ? '#FFFFFF'
+                              : 'rgba(255,255,255,0.85)',
                           }}
                         >
                           {text}
@@ -340,13 +355,15 @@ const SidePanel = () => {
                       key={text}
                       onClick={() => handleItemClick(path)}
                       sx={{
-                        'px': 3,
-                        'py': 0.5,
+                        px: 3,
+                        py: 0.5,
 
-                        'borderRadius': 1.5,
-                        'cursor': 'pointer',
-                        'position': 'relative',
-                        'backgroundColor': isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                        borderRadius: 1.5,
+                        cursor: 'pointer',
+                        position: 'relative',
+                        backgroundColor: isActive
+                          ? 'rgba(255,255,255,0.06)'
+                          : 'transparent',
                         '&:hover': {
                           backgroundColor: 'rgba(255,255,255,0.08)',
                         },
@@ -367,7 +384,9 @@ const SidePanel = () => {
                       <ListItemIcon
                         sx={{
                           minWidth: 30,
-                          color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                          color: isActive
+                            ? '#FFFFFF'
+                            : 'rgba(255,255,255,0.85)',
                         }}
                       >
                         {icon}
@@ -378,7 +397,9 @@ const SidePanel = () => {
                           <Typography
                             variant='body2'
                             sx={{
-                              color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                              color: isActive
+                                ? '#FFFFFF'
+                                : 'rgba(255,255,255,0.85)',
                             }}
                           >
                             {text}

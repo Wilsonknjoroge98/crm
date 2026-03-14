@@ -46,11 +46,10 @@ const AuthProvider = ({ children }) => {
                 dispatch(clearAuth());
             }
         });
-        return () =>{
-            // was being called right away
-            // listener.subscription.unsubscribe();
-        }
-    })
+        return () => {
+            listener.subscription.unsubscribe();
+        };
+    }, [])
     return children;
 };
 export { AuthProvider }

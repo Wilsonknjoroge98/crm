@@ -1,16 +1,16 @@
 import { Box, CardContent, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getPersistencyRates } from '../../utils/query';
-import useAuth from '../../hooks/useAuth';
+import { useAgent } from '../../hooks/useAgent';
 const PersistencyRateTab = () => {
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
   const {
     data: rows,
     isLoading,
     error,
   } = useQuery({
     queryKey: ['persistencyRate'],
-    queryFn: () => getPersistencyRates({ token: userToken, agency: agent?.agency }),
+    queryFn: () => getPersistencyRates({ agency: agent?.org_id }),
   });
   console.log('Persistency Rate Data:', rows, isLoading, error);
 

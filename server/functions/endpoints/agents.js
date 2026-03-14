@@ -9,7 +9,7 @@ agentRouter.get('/', async (req, res) => {
     route: '/agent',
     agentId: req.agent?.id,
   });
-  res.json(req.agent);
+  res.json({ ...req.agent, role: req.user.role });
 });
 agentRouter.get('/all', async (req, res) => {
   logger.log('Getting all agents', {

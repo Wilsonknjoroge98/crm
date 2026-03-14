@@ -22,8 +22,6 @@ import { toTitleCase } from '../utils/helpers';
 
 import { enqueueSnackbar } from 'notistack';
 
-import useAuth from '../hooks/useAuth';
-
 const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
@@ -33,8 +31,6 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [emailError, setEmailError] = useState(false);
   const [updatesMade, setUpdatesMade] = useState(false);
   const [disabled, setDisabled] = useState(true);
-
-  const { userToken } = useAuth();
 
   const { mutate: updateClient, isPending } = useMutation({
     mutationFn: patchClient,
@@ -75,7 +71,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
     const name = e.target.name;
     let value = e.target.value;
 
-    const titleCaseFields = ['firstName', 'lastName', 'city', 'occupation'];
+    const titleCaseFields = ['first_name', 'last_name', 'city', 'occupation'];
 
     if (titleCaseFields.includes(name)) {
       value = toTitleCase(value);
@@ -103,7 +99,6 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
 
   const handleSubmit = () => {
     updateClient({
-      token: userToken,
       data: { clientId: client.id, client: form },
     });
   };
@@ -115,12 +110,12 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   useEffect(() => {
     if (!form) return;
     const keys = [
-      'firstName',
-      'lastName',
+      'first_name',
+      'last_name',
       'email',
       'phone',
-      'dob',
-      'maritalStatus',
+      'date_of_birth',
+      'marital_status',
       'address',
       'city',
       'state',
@@ -146,9 +141,9 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
         <Grid container spacing={2} p={2}>
           <Grid item size={6}>
             <TextField
-              name='firstName'
+              name='first_name'
               label='First Name'
-              value={form.firstName}
+              value={form.first_name}
               onChange={handleChange}
               fullWidth
               required
@@ -156,9 +151,9 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
           <Grid item size={6}>
             <TextField
-              name='lastName'
+              name='last_name'
               label='Last Name'
-              value={form.lastName}
+              value={form.last_name}
               onChange={handleChange}
               fullWidth
               required
@@ -193,10 +188,10 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
 
           <Grid item size={6}>
             <TextField
-              name='dob'
+              name='date_of_birth'
               label='Date of Birth'
               type='date'
-              value={form.dob}
+              value={form.date_of_birth}
               onChange={handleChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
@@ -206,9 +201,9 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid item size={6}>
             <TextField
               select
-              name='maritalStatus'
+              name='marital_status'
               label='Marital Status'
-              value={form.maritalStatus}
+              value={form.marital_status}
               onChange={handleChange}
               fullWidth
               required

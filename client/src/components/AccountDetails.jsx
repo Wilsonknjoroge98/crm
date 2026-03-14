@@ -1,12 +1,23 @@
-import { Stack, Box, Divider, Chip, Typography, Switch, IconButton } from '@mui/material';
+import {
+  Stack,
+  Box,
+  Divider,
+  Chip,
+  Typography,
+  Switch,
+  IconButton,
+} from '@mui/material';
 import dayjs from 'dayjs';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { patchAccount } from '../utils/query';
 
-import useAuth from '../hooks/useAuth';
+import { useAgent } from '../hooks/useAgent';
 import { enqueueSnackbar } from 'notistack';
-import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
+import {
+  SNACKBAR_SUCCESS_OPTIONS,
+  SNACKBAR_ERROR_OPTIONS,
+} from '../utils/constants';
 import { useQueryClient } from '@tanstack/react-query';
 
 import UpdateStatesDialog from './UpdateStatesDialog';
@@ -19,7 +30,8 @@ const AccountDetails = ({ data }) => {
     ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY')
     : 'N/A';
 
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
+  console.log('Agent from AccountDetails:', agent);
   const queryClient = useQueryClient();
 
   const [deliver, setDeliver] = useState(data?.deliver);
@@ -33,19 +45,12 @@ const AccountDetails = ({ data }) => {
       queryClient.invalidateQueries({ queryKey: ['account'] });
     },
     onError: (error) => {
-      console.error('Error updating account:', error);
+      const message =
+        error?.response?.data?.message || 'Failed to update account.';
+      enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
+      setDeliver(false);
     },
   });
-
-  useEffect(() => {
-    mutate({
-      token: userToken,
-      data: {
-        deliver: deliver,
-        email: agent?.email,
-      },
-    });
-  }, [deliver]);
   // TODO: data.verified + data.unverified lead type counts
   return (
     <>
@@ -84,11 +89,19 @@ const AccountDetails = ({ data }) => {
         <Divider flexItem />
 
         <Stack spacing={1} py={1}>
-          <Box display='flex' alignItems='center' justifyContent='space-between'>
+          <Box
+            display='flex'
+            alignItems='center'
+            justifyContent='space-between'
+          >
             <Typography variant='body2' color='text.secondary'>
               States:
             </Typography>
-            <IconButton size='small' color='action' onClick={() => setOpenStatesDlg(true)}>
+            <IconButton
+              size='small'
+              color='action'
+              onClick={() => setOpenStatesDlg(true)}
+            >
               <EditIcon sx={{ fontSize: '1.5rem' }} />
             </IconButton>
           </Box>
@@ -102,7 +115,12 @@ const AccountDetails = ({ data }) => {
 
         <Divider flexItem />
 
-        <Stack direction='row' spacing={1} justifyContent='space-between' alignItems='center'>
+        <Stack
+          direction='row'
+          spacing={1}
+          justifyContent='space-between'
+          alignItems='center'
+        >
           <Typography variant='body2' color='text.secondary'>
             Lead Flow:
           </Typography>
@@ -119,7 +137,11 @@ const AccountDetails = ({ data }) => {
             }}
             checked={deliver}
             disabled={!data || isPending}
-            onChange={(e) => setDeliver(e.target.checked)}
+            onChange={(e) => {
+              const newValue = e.target.checked;
+              setDeliver(newValue);
+              mutate({ data: { deliver: newValue, email: agent?.email } });
+            }}
           />
         </Stack>
         <Divider flexItem />

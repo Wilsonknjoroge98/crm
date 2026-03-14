@@ -26,7 +26,7 @@ export default function PoliciesGrid({
   const agentNameById = React.useMemo(() => {
     const map = {};
     (agents || []).forEach((a) => {
-      map[a?.uid] = a?.name;
+      map[a?.id] = [a?.first_name, a?.last_name].filter(Boolean).join(' ');
     });
     return map;
   }, [agents]);

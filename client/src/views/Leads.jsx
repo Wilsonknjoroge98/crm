@@ -1,20 +1,47 @@
-import { Container, Typography, Stack, Button, Alert } from '@mui/material';
+import { Container, Typography, Stack, Button, Alert, TextField } from '@mui/material';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getLeads, getAgents } from '../utils/query';
 import { CSVLink } from 'react-csv';
 
 import LeadsGrid from '../components/LeadsGrid';
 
-import useAuth from '../hooks/useAuth';
+import { useSelector } from 'react-redux';
+import { useAgent } from '../hooks/useAgent';
 import CreateClientDialog from '../components/CreateClientDialog';
+
+const CSV_HEADERS = [
+  { label: 'First Name', key: 'first_name' },
+  { label: 'Last Name', key: 'last_name' },
+  { label: 'Email', key: 'email' },
+  { label: 'Phone', key: 'phone' },
+  { label: 'Date of Birth', key: 'dob' },
+  { label: 'Age', key: 'age' },
+  { label: 'State', key: 'state' },
+  { label: 'Smoker', key: 'smoker' },
+  { label: 'Coverage Amount', key: 'faceAmount' },
+  { label: 'Monthly Premium', key: 'premium' },
+  { label: 'Selected Carrier', key: 'selectedCarrier' },
+  { label: 'Selected Plan', key: 'selectedPlan' },
+  { label: 'Beneficiary', key: 'beneficiary' },
+  { label: 'Priority', key: 'priority' },
+  { label: 'Reason', key: 'why' },
+  { label: 'BMI', key: 'bmi' },
+  { label: 'Cholesterol Medication', key: 'cholesterol' },
+  { label: 'Blood Pressure Medication', key: 'bloodPressure' },
+  { label: 'Verified', key: 'verified' },
+  { label: 'Sold', key: 'sold' },
+];
 
 const Leads = () => {
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [lead, setLead] = useState(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  const { user, agent, userToken } = useAuth();
+  const { user } = useSelector((state) => state.user);
+  const agent = useAgent();
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
@@ -23,36 +50,33 @@ const Leads = () => {
 
   const {
     data: leads = [],
-    refetch: refetchLeads,
     isLoading: leadsLoading,
     isError,
   } = useQuery({
-    queryKey: ['leads', user?.uid, agent?.role],
+    queryKey: ['leads', user?.id, agent?.role],
     queryFn: () =>
       getLeads({
-        token: userToken,
-        data: { agentId: user.uid, agentRole: agent.role, agency: agent?.agency },
+        data: { agentId: user?.id, agentRole: agent?.role, agency: agent?.org_id },
       }),
-    enabled: !!agent && !!userToken,
+    enabled: !!agent,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    cacheTime: 1000 * 60 * 10, // 10 minutes
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 10,
   });
 
-  const headers = [
-    { label: 'First Name', key: 'firstName' },
-    { label: 'Last Name', key: 'lastName' },
-    { label: 'Email', key: 'email' },
-    { label: 'Phone', key: 'phone' },
-    { label: 'Date of Birth', key: 'dob' },
-    { label: 'Address', key: 'address' },
-    { label: 'City', key: 'city' },
-    { label: 'State', key: 'state' },
-    { label: 'Zip Code', key: 'zip' },
-    { label: 'Occupation', key: 'occupation' },
-    { label: 'Income', key: 'income' },
-  ];
+  const csvData = useMemo(() => {
+    return leads.filter((lead) => {
+      if (!lead.createdAtMs) return true;
+      const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
+      const toMs = dateTo ? new Date(dateTo).getTime() + 86399999 : null; // inclusive end of day
+      if (fromMs && lead.createdAtMs < fromMs) return false;
+      if (toMs && lead.createdAtMs > toMs) return false;
+      return true;
+    });
+  }, [leads, dateFrom, dateTo]);
+
+  const csvFilename = `leads${dateFrom ? `_from_${dateFrom}` : ''}${dateTo ? `_to_${dateTo}` : `_${new Date().toISOString().slice(0, 10)}`}.csv`;
 
   if (isError) {
     return (
@@ -73,27 +97,35 @@ const Leads = () => {
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent='space-between'
+          alignItems={{ sm: 'center' }}
           spacing={2}
           mb={2}
         >
           <Typography variant='h4'>Leads</Typography>
-          <Stack width={'fit-content'} direction='row' alignItems='center' spacing={2}>
-            <CSVLink
-              data={leads || []}
-              headers={headers}
-              filename={`leads_${new Date().toISOString().slice(0, 10)}.csv`}
-            >
-              <Button variant='outlined'>Export CSV</Button>
+          <Stack direction='row' alignItems='center' spacing={1.5} flexWrap='wrap'>
+            <TextField
+              type='date'
+              size='small'
+              label='From'
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ width: 148 }}
+            />
+            <TextField
+              type='date'
+              size='small'
+              label='To'
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ width: 148 }}
+            />
+            <CSVLink data={csvData} headers={CSV_HEADERS} filename={csvFilename}>
+              <Button variant='outlined'>
+                Export CSV{csvData.length !== leads.length ? ` (${csvData.length})` : ''}
+              </Button>
             </CSVLink>
-
-            {/* <Button
-              variant='contained'
-              color='action'
-              startIcon={<AddIcon />}
-              onClick={() => setCreateClientOpen(true)}
-            >
-              New Client
-            </Button> */}
           </Stack>
         </Stack>
         <LeadsGrid

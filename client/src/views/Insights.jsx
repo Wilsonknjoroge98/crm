@@ -17,7 +17,7 @@ import {
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
 import { getInsights } from '../utils/query';
-import useAuth from '../hooks/useAuth';
+import { useSelector } from 'react-redux';
 
 import RefreshIcon from '@mui/icons-material/Refresh';
 
@@ -32,14 +32,13 @@ const Insights = () => {
   const [startDate, setStartDate] = useState(dayjs('2025-05-11').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
 
-  const { user, userToken } = useAuth();
+  const { user } = useSelector((state) => state.user);
 
   const { data, isLoading, isError, error, refetch, isFetching, isPending } = useQuery({
     queryKey: ['insights'],
-    enabled: !!user?.uid,
+    enabled: !!user?.id,
     queryFn: () =>
       getInsights({
-        token: userToken,
         startDate,
         endDate,
       }),

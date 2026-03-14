@@ -30,7 +30,6 @@ import { NumericFormat } from 'react-number-format';
 
 import { useMutation } from '@tanstack/react-query';
 import { postClient } from '../utils/query';
-import useAuth from '../hooks/useAuth';
 
 import { useLocation } from 'react-router-dom';
 
@@ -85,8 +84,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   useEffect(() => {
     if (lead) {
       setForm({
-        firstName: lead.firstName || '',
-        lastName: lead.lastName || '',
+        firstName: lead.first_name || '',
+        lastName: lead.last_name || '',
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.dob || '',
@@ -108,7 +107,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     const comp = components.find((c) => c.types.includes(type));
     return comp ? comp.long_name : '';
   }
-  const { user, userToken } = useAuth();
 
   const {
     mutate: createClient,
@@ -133,9 +131,12 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
       console.log(inputRef.current);
 
-      const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-        fields: ['address_components'],
-      });
+      const autocomplete = new window.google.maps.places.Autocomplete(
+        inputRef.current,
+        {
+          fields: ['address_components'],
+        },
+      );
 
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
@@ -143,11 +144,17 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         if (!place.address_components) return;
 
         const addressComponents = place.address_components;
-        const streetNumber = getAddressComponent(addressComponents, 'street_number');
+        const streetNumber = getAddressComponent(
+          addressComponents,
+          'street_number',
+        );
         const route = getAddressComponent(addressComponents, 'route');
         const city = getAddressComponent(addressComponents, 'locality');
         const zip = getAddressComponent(addressComponents, 'postal_code');
-        const state = getAddressComponent(addressComponents, 'administrative_area_level_1');
+        const state = getAddressComponent(
+          addressComponents,
+          'administrative_area_level_1',
+        );
 
         console.log({ streetNumber, route, city, zip, state });
 
@@ -166,7 +173,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
       .map((part) => {
         const idx = part.search(/[a-z]/i);
         if (idx === -1) return part;
-        return part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1);
+        return (
+          part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1)
+        );
       })
       .join(' ');
   };
@@ -219,7 +228,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     console.log('Modified Form:', modifiedForm);
     delete modifiedForm.notes;
     delete modifiedForm.liveTransfer;
-    const hasEmptyFields = Object.keys(modifiedForm).some((key) => !modifiedForm[key]);
+    const hasEmptyFields = Object.keys(modifiedForm).some(
+      (key) => !modifiedForm[key],
+    );
     if (hasEmptyFields) {
       setDisabled(true);
     } else {
@@ -262,44 +273,47 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               ))}
             </TextField>
           </Grid>
-          {form.leadSource === 'GetSeniorQuotes.com' && pathname.includes('client') && (
-            <Grid size={6}>
-              <FormControl error={true} fullWidth>
-                <Alert severity='warning'>Is this a live transfer lead?</Alert>
+          {form.leadSource === 'GetSeniorQuotes.com' &&
+            pathname.includes('client') && (
+              <Grid size={6}>
+                <FormControl error={true} fullWidth>
+                  <Alert severity='warning'>
+                    Is this a live transfer lead?
+                  </Alert>
 
-                <Stack direction='row' spacing={2}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={form.liveTransfer === true}
-                        onChange={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            liveTransfer: true,
-                          }))
-                        }
-                      />
-                    }
-                    label='Yes'
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={form.liveTransfer === false}
-                        onChange={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            liveTransfer: false,
-                          }))
-                        }
-                      />
-                    }
-                    label='No'
-                  />
-                </Stack>
-              </FormControl>
-            </Grid>
-          )}
+                  <Stack direction='row' spacing={2}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={form.liveTransfer === true}
+                          onChange={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              liveTransfer: true,
+                            }))
+                          }
+                        />
+                      }
+                      label='Yes'
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={form.liveTransfer === false}
+                          onChange={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              liveTransfer: false,
+                            }))
+                          }
+                        />
+                      }
+                      label='No'
+                    />
+                  </Stack>
+                </FormControl>
+              </Grid>
+            )}
 
           <Grid item size={12}>
             <SectionHeader title='Personal Information' />
@@ -468,7 +482,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
                 },
               }}
             />

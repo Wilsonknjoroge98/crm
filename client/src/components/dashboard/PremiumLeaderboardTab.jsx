@@ -1,10 +1,10 @@
 import { Box, CardContent, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getPremiumLeaderboard } from '../../utils/query';
-import useAuth from '../../hooks/useAuth';
+import { useAgent } from '../../hooks/useAgent';
 
 const PremiumLeaderboardTab = () => {
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
 
   const {
     data: rows,
@@ -12,7 +12,7 @@ const PremiumLeaderboardTab = () => {
     error,
   } = useQuery({
     queryKey: ['premiumLeaderboard'],
-    queryFn: () => getPremiumLeaderboard({ token: userToken, agency: agent?.agency }),
+    queryFn: () => getPremiumLeaderboard({ agency: agent?.org_id }),
   });
 
   console.log('Premium Leaderboard Data:', rows, isLoading, error);

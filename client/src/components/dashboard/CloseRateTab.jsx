@@ -1,16 +1,16 @@
 import { Box, CardContent, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getCloseRates } from '../../utils/query';
-import useAuth from '../../hooks/useAuth';
+import { useAgent } from '../../hooks/useAgent';
 const CloseRateTab = () => {
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
   const {
     data: rows,
     isLoading,
     error,
   } = useQuery({
     queryKey: ['closeRates'],
-    queryFn: () => getCloseRates({ token: userToken, agency: agent?.agency }),
+    queryFn: () => getCloseRates({ agency: agent?.org_id }),
   });
   console.log('Close Rate Data:', rows, isLoading, error);
 

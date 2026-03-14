@@ -2,7 +2,7 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import { useTheme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { getMonthlyPremiums } from '../../utils/query';
-import useAuth from '../../hooks/useAuth';
+import { useAgent } from '../../hooks/useAgent';
 import dayjs from 'dayjs';
 import { Typography } from '@mui/material';
 
@@ -22,11 +22,11 @@ const PremiumGrowthChart = () => {
     return date.format('MMM');
   };
 
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['monthlyPremiums'],
-    queryFn: () => getMonthlyPremiums({ token: userToken, agency: agent?.agency }),
+    queryFn: () => getMonthlyPremiums({ agency: agent?.org_id }),
   });
 
   console.log('Monthly Premiums Data:', data, isLoading, error);

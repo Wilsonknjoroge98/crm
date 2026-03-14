@@ -2,16 +2,16 @@ import { PieChart } from '@mui/x-charts/PieChart';
 import { useTheme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { getPolicyStatuses } from '../../utils/query';
-import useAuth from '../../hooks/useAuth';
+import { useAgent } from '../../hooks/useAgent';
 import { useEffect, useMemo, useState } from 'react';
 import { Typography } from '@mui/material';
 
 const PolicyDistributionChart = () => {
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
   const theme = useTheme();
   const { data, isLoading, error } = useQuery({
     queryKey: ['policyStatuses'],
-    queryFn: () => getPolicyStatuses({ token: userToken, agency: agent?.agency }),
+    queryFn: () => getPolicyStatuses({ agency: agent?.org_id }),
   });
 
   console.log('Policy Statuses Query:', data, isLoading, error);

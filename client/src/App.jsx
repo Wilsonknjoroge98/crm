@@ -13,20 +13,19 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { createAppTheme } from './utils/theme';
 
-import useAuth from './hooks/useAuth';
 import { useEffect, useMemo } from 'react';
-import { useSelector } from "react-redux";
-
+import { useSelector } from 'react-redux';
+import { useAgent } from './hooks/useAgent';
 
 // import Maintenance from './views/Maintenance';
 const App = () => {
   // return <Maintenance />;
-  const {  agent } = useAuth();
-    const { user, isAuthenticated, userToken } = useSelector((state) => state.user);
+  const agent = useAgent();
+  const { user, isAuthenticated } = useSelector((state) => state.user);
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const agency = agent?.agency || 'ag_Hq92aLsK';
+  const agency = agent?.org_id || 'ag_Hq92aLsK';
 
   const theme = useMemo(() => createAppTheme({ agency }), [agency]);
 
@@ -83,7 +82,11 @@ const App = () => {
           <Typography variant='caption' fontWeight={500} color='text.primary'>
             Powered by
           </Typography>
-          <Box component='img' src='fexdigital.png' sx={{ maxHeight: '30px', py: 1 }} />
+          <Box
+            component='img'
+            src='fexdigital.png'
+            sx={{ maxHeight: '30px', py: 1 }}
+          />
         </Stack>
       </Stack>
     </ThemeProvider>

@@ -388,7 +388,7 @@ const getCommissions = async ({ startDate, endDate, agent }) => {
       mode: import.meta.env.MODE,
       startDate,
       endDate,
-      agent: { uid: agent?.uid, role: agent?.role },
+      agent: { id: agent?.id, role: agent?.role },
     },
   };
 

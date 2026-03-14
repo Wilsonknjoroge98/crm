@@ -7,7 +7,8 @@ import { CSVLink } from 'react-csv';
 
 import { useState } from 'react';
 
-import useAuth from '../hooks/useAuth';
+import { useSelector } from 'react-redux';
+import { useAgent } from '../hooks/useAgent';
 
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import DeletePolicyDialog from '../components/DeletePolicyDialog';
@@ -18,7 +19,8 @@ const Policies = () => {
   const [deletePolicyOpen, setDeletePolicyOpen] = useState(false);
   const [policy, setPolicy] = useState(null);
 
-  const { user, agent, userToken } = useAuth();
+  const { user } = useSelector((state) => state.user);
+  const agent = useAgent();
 
   const {
     data: policies = [],
@@ -26,11 +28,10 @@ const Policies = () => {
     isError,
     isLoading: policiesLoading,
   } = useQuery({
-    queryKey: ['policies', user?.uid, agent?.role],
+    queryKey: ['policies', user?.id, agent?.role],
     queryFn: () =>
       getPolicies({
-        token: userToken,
-        data: { agentId: user.uid, agentRole: agent.role, agency: agent?.agency },
+        data: { agentId: user?.id, agentRole: agent?.role, agency: agent?.org_id },
       }),
     enabled: !!agent,
     refetchOnWindowFocus: false,
@@ -61,7 +62,7 @@ const Policies = () => {
 
   const getAgentEmail = (agents, id) => {
     if (!agents || !id) return '';
-    return agents.find((a) => a.uid === id)?.email || '';
+    return agents.find((a) => a.id === id)?.email || '';
   };
 
   const exportData = (policies || []).map((policy) => ({

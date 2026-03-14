@@ -17,13 +17,10 @@ import { enqueueSnackbar } from 'notistack';
 
 import { deleteClient } from '../utils/query';
 
-import useAuth from '../hooks/useAuth';
 import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 
 const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [confirm, setConfirm] = useState(false);
-
-  const { userToken } = useAuth();
 
   useEffect(() => {
     if (!open) setConfirm(false);
@@ -55,10 +52,10 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
 
   const handleDelete = () => {
     if (!client?.id) return;
-    mutate({ token: userToken, data: { clientId: client.id } });
+    mutate({ data: { clientId: client.id } });
   };
 
-  const fullName = client ? `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim() : '';
+  const fullName = client ? `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim() : '';
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='sm' fullWidth>

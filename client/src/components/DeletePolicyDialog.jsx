@@ -17,12 +17,8 @@ import { enqueueSnackbar } from 'notistack';
 
 import { deletePolicy } from '../utils/query';
 
-import useAuth from '../hooks/useAuth';
-
 const DeletePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   const [confirm, setConfirm] = useState(false);
-
-  const { userToken } = useAuth();
 
   useEffect(() => {
     if (!open) setConfirm(false);
@@ -66,7 +62,7 @@ const DeletePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
 
   const handleDelete = () => {
     if (!policy?.id) return;
-    mutate({ token: userToken, data: { policyId: policy.id } });
+    mutate({ data: { policyId: policy.id } });
   };
 
   return (

@@ -31,34 +31,42 @@ import {
 import { NumericFormat } from 'react-number-format';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { enqueueSnackbar } from 'notistack';
-import useAuth from '../hooks/useAuth';
+import { useSelector } from 'react-redux';
 import { toTitleCase } from '../utils/helpers';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
-const statuses = ['Active', 'Pending', 'Lapsed', 'Insufficient Funds', 'Cancelled'];
+const statuses = [
+  'Active',
+  'Pending',
+  'Lapsed',
+  'Insufficient Funds',
+  'Cancelled',
+];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 
 import SectionHeader from '../components/SectionHeader';
 
 const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
-  const { user, userToken } = useAuth();
+  const { user } = useSelector((state) => state.user);
 
   const initialForm = {
     policyNumber: '',
-    clientId: client?.id || '',
-    clientName: client ? `${client.firstName} ${client.lastName}` : '',
+    client_id: client?.id || '',
+    clientName: client ? `${client.first_name} ${client.last_name}` : '',
     carrier: '',
     policyStatus: 'Active',
     coverageAmount: '',
     premiumAmount: '',
-    leadSource: client?.leadSource || 'GetSeniorQuotes.com',
+    lead_source: client?.lead_source || 'GetSeniorQuotes.com',
     policyType: '',
     premiumFrequency: 'Monthly',
-    dateSold: '',
-    effectiveDate: '',
-    draftDay: '',
-    beneficiaries: [{ firstName: '', lastName: '', relationship: '', share: '' }],
+    date_sold: '',
+    effective_date: '',
+    draft_day: '',
+    beneficiaries: [
+      { first_name: '', last_name: '', relationship: '', share: '' },
+    ],
     contingentBeneficiaries: [],
     notes: '',
     splitPolicy: '',
@@ -92,7 +100,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     const { name, value } = e.target;
 
     const uppercasedFields = ['policyNumber'];
-    const transformedValue = uppercasedFields.includes(name) ? value.toUpperCase() : value;
+    const transformedValue = uppercasedFields.includes(name)
+      ? value.toUpperCase()
+      : value;
 
     setForm((prev) => ({ ...prev, [name]: transformedValue }));
   };
@@ -100,7 +110,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const handleBeneficiaryChange = (i, field, value) => {
     const newList = [...form.beneficiaries];
 
-    if (field === 'firstName' || field === 'lastName') {
+    if (field === 'first_name' || field === 'last_name') {
       value = toTitleCase(value);
     }
 
@@ -111,7 +121,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const handleContingentChange = (i, field, value) => {
     const newList = [...form.contingentBeneficiaries];
 
-    if (field === 'firstName' || field === 'lastName') {
+    if (field === 'first_name' || field === 'last_name') {
       value = toTitleCase(value);
     }
 
@@ -124,7 +134,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       ...prev,
       beneficiaries: [
         ...prev.beneficiaries,
-        { firstName: '', lastName: '', relationship: '', share: '' },
+        { first_name: '', last_name: '', relationship: '', share: '' },
       ],
     }));
   };
@@ -138,7 +148,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     } else if (type === 'contingent') {
       setForm((prev) => ({
         ...prev,
-        contingentBeneficiaries: prev.contingentBeneficiaries.filter((_, index) => index !== i),
+        contingentBeneficiaries: prev.contingentBeneficiaries.filter(
+          (_, index) => index !== i,
+        ),
       }));
     }
   };
@@ -148,16 +160,17 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       ...prev,
       contingentBeneficiaries: [
         ...prev.contingentBeneficiaries,
-        { firstName: '', lastName: '', relationship: '', share: '' },
+        { first_name: '', last_name: '', relationship: '', share: '' },
       ],
     }));
   };
 
   const handleSubmit = () => {
-    const agentIds = !form.splitPolicy ? [user.uid] : [user.uid, form.splitPolicyAgent];
+    const agentIds = !form.splitPolicy
+      ? [user?.id]
+      : [user?.id, form.splitPolicyAgent];
 
     createPolicy({
-      token: userToken,
       data: {
         policy: { ...form },
         agentIds,
@@ -170,12 +183,12 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     if (
       client?.id &&
       form.clientId !== client.id &&
-      form.clientName !== `${client.firstName} ${client.lastName}`
+      form.clientName !== `${client.first_name} ${client.last_name}`
     ) {
       setForm((prev) => ({
         ...prev,
         clientId: client.id,
-        clientName: `${client.firstName} ${client.lastName}`,
+        clientName: `${client.first_name} ${client.last_name}`,
       }));
     }
   }, [client?.id]);
@@ -186,7 +199,11 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     delete modifiedForm.notes;
 
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
-      return key !== 'splitPolicyAgent' && key !== 'splitPolicyShare' && modifiedForm[key] === '';
+      return (
+        key !== 'splitPolicyAgent' &&
+        key !== 'splitPolicyShare' &&
+        modifiedForm[key] === ''
+      );
     });
 
     if (hasEmptyFields) {
@@ -204,7 +221,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     }
 
     if (modifiedForm.beneficiaries.length !== 0) {
-      const keys = ['firstName', 'lastName', 'relationship', 'share'];
+      const keys = ['first_name', 'last_name', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.beneficiaries.some((b) =>
         keys.some((key) => b[key] === ''),
       );
@@ -222,7 +239,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     }
 
     if (modifiedForm.contingentBeneficiaries.length !== 0) {
-      const keys = ['firstName', 'lastName', 'relationship', 'share'];
+      const keys = ['first_name', 'last_name', 'relationship', 'share'];
       const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
         keys.some((key) => b[key] === ''),
       );
@@ -314,10 +331,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 >
                   {agents.length !== 0 &&
                     agents.map((agent) => {
-                      if (agent.uid === user.uid) return null;
+                      if (agent.id === user?.id) return null;
                       return (
-                        <MenuItem key={agent.uid} value={agent.uid}>
-                          {agent.name}
+                        <MenuItem key={agent.id} value={agent.id}>
+                          {[agent.first_name, agent.last_name].filter(Boolean).join(' ')}
                         </MenuItem>
                       );
                     })}
@@ -342,7 +359,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                   }}
                   slotProps={{
                     input: {
-                      startAdornment: <InputAdornment position='start'>%</InputAdornment>,
+                      startAdornment: (
+                        <InputAdornment position='start'>%</InputAdornment>
+                      ),
                     },
                   }}
                 />
@@ -355,7 +374,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid size={6}>
             <TextField
               label='Client Name'
-              value={client.firstName + ' ' + client.lastName}
+              value={client.first_name + ' ' + client.last_name}
               fullWidth
               disabled
             />
@@ -426,7 +445,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
                 },
               }}
             />
@@ -448,7 +469,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
                 },
               }}
               style={{ width: '100%' }}
@@ -522,19 +545,23 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               <Grid container spacing={2} key={i} sx={{ mb: 1 }}>
                 <Grid size={3}>
                   <TextField
-                    value={b.firstName}
+                    value={b.first_name}
                     label='First Name'
                     required
-                    onChange={(e) => handleBeneficiaryChange(i, 'firstName', e.target.value)}
+                    onChange={(e) =>
+                      handleBeneficiaryChange(i, 'first_name', e.target.value)
+                    }
                     fullWidth
                   />
                 </Grid>
                 <Grid size={3}>
                   <TextField
-                    value={b.lastName}
+                    value={b.last_name}
                     label='Last Name'
                     required
-                    onChange={(e) => handleBeneficiaryChange(i, 'lastName', e.target.value)}
+                    onChange={(e) =>
+                      handleBeneficiaryChange(i, 'last_name', e.target.value)
+                    }
                     fullWidth
                   />
                 </Grid>
@@ -544,7 +571,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                     value={b.relationship}
                     label='Relationship'
                     required
-                    onChange={(e) => handleBeneficiaryChange(i, 'relationship', e.target.value)}
+                    onChange={(e) =>
+                      handleBeneficiaryChange(i, 'relationship', e.target.value)
+                    }
                     fullWidth
                   >
                     {RELATIONSHIP_OPTIONS.map((option) => (
@@ -574,13 +603,17 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                       }}
                       slotProps={{
                         input: {
-                          startAdornment: <InputAdornment position='start'>%</InputAdornment>,
+                          startAdornment: (
+                            <InputAdornment position='start'>%</InputAdornment>
+                          ),
                         },
                       }}
                     />
                     {i !== 0 && (
                       <Stack direction='row' spacing={1} alignItems='center'>
-                        <IconButton onClick={() => handleDeleteBeneficiary('primary', i)}>
+                        <IconButton
+                          onClick={() => handleDeleteBeneficiary('primary', i)}
+                        >
                           <DeleteIcon />
                         </IconButton>
                       </Stack>
@@ -591,7 +624,11 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             </>
           ))}
           <Grid size={12}>
-            <Button onClick={handleAddBeneficiary} startIcon={<AddIcon />} sx={{ mt: 1 }}>
+            <Button
+              onClick={handleAddBeneficiary}
+              startIcon={<AddIcon />}
+              sx={{ mt: 1 }}
+            >
               Add Primary Beneficiary
             </Button>
           </Grid>
@@ -605,19 +642,23 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               <Grid container spacing={2} key={i} sx={{ mb: 1 }}>
                 <Grid size={3}>
                   <TextField
-                    value={b.firstName}
+                    value={b.first_name}
                     label='First Name'
                     required
-                    onChange={(e) => handleContingentChange(i, 'firstName', e.target.value)}
+                    onChange={(e) =>
+                      handleContingentChange(i, 'first_name', e.target.value)
+                    }
                     fullWidth
                   />
                 </Grid>
                 <Grid size={3}>
                   <TextField
-                    value={b.lastName}
+                    value={b.last_name}
                     label='Last Name'
                     required
-                    onChange={(e) => handleContingentChange(i, 'lastName', e.target.value)}
+                    onChange={(e) =>
+                      handleContingentChange(i, 'last_name', e.target.value)
+                    }
                     fullWidth
                   />
                 </Grid>
@@ -626,7 +667,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                     select
                     value={b.relationship}
                     label='Relationship'
-                    onChange={(e) => handleContingentChange(i, 'relationship', e.target.value)}
+                    onChange={(e) =>
+                      handleContingentChange(i, 'relationship', e.target.value)
+                    }
                     fullWidth
                     required
                   >
@@ -657,13 +700,17 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                       }}
                       slotProps={{
                         input: {
-                          startAdornment: <InputAdornment position='start'>%</InputAdornment>,
+                          startAdornment: (
+                            <InputAdornment position='start'>%</InputAdornment>
+                          ),
                         },
                       }}
                     />
 
                     <Stack direction='row' spacing={1} alignItems='center'>
-                      <IconButton onClick={() => handleDeleteBeneficiary('contingent', i)}>
+                      <IconButton
+                        onClick={() => handleDeleteBeneficiary('contingent', i)}
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </Stack>
@@ -673,7 +720,11 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             </Fragment>
           ))}
           <Grid size={12}>
-            <Button onClick={handleAddContingent} startIcon={<AddIcon />} sx={{ mt: 1 }}>
+            <Button
+              onClick={handleAddContingent}
+              startIcon={<AddIcon />}
+              sx={{ mt: 1 }}
+            >
               Add Contingent Beneficiary
             </Button>
           </Grid>

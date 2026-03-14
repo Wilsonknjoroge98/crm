@@ -14,7 +14,6 @@ import { getClients, getAgents } from '../utils/query';
 import { CSVLink } from 'react-csv';
 import ClientsGrid from '../components/ClientsGrid';
 
-import useAuth from '../hooks/useAuth';
 import {useAgent} from "../hooks/useAgent.jsx";
 
 const Clients = () => {

@@ -29,13 +29,13 @@ import { useState, useEffect } from 'react';
 import { getPremiumLeaderboard } from '../utils/query';
 
 import RefreshIcon from '@mui/icons-material/Refresh';
-import useAuth from '../hooks/useAuth';
+import { useAgent } from '../hooks/useAgent';
 
 const Premiums = () => {
   const [startDate, setStartDate] = useState(dayjs().add(-30, 'day').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [totalPremium, setTotalPremium] = useState(0);
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
   const theme = useTheme();
 
   const {
@@ -48,10 +48,9 @@ const Premiums = () => {
     queryKey: ['data'],
     queryFn: () =>
       getPremiumLeaderboard({
-        token: userToken,
         startDate,
         endDate,
-        agency: agent?.agency || '',
+        agency: agent?.org_id || '',
       }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

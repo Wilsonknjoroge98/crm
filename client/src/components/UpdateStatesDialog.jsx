@@ -14,7 +14,7 @@ import {
   FormControl,
 } from '@mui/material';
 import { useState } from 'react';
-import useAuth from '../hooks/useAuth';
+import { useAgent } from '../hooks/useAgent';
 
 const ALL_STATES = [
   'AL',
@@ -71,7 +71,7 @@ const ALL_STATES = [
 
 export default function UpdateStatesDialog({ open, onClose, states = [], mutate }) {
   const [currentStates, setCurrentStates] = useState(states);
-  const { userToken, agent } = useAuth();
+  const agent = useAgent();
 
   const handleAdd = (val) => {
     if (!val) return;
@@ -86,7 +86,6 @@ export default function UpdateStatesDialog({ open, onClose, states = [], mutate 
 
   const handleSave = () => {
     mutate({
-      token: userToken,
       data: {
         email: agent?.email,
         states: currentStates,

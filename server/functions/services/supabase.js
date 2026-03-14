@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const supabaseService = createClient(
   'https://wtudzhfcxsorxqimarjb.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  'sb_secret_M_1uU05asQmaCOO5jsqtYA_J9WYMss7',
 );
 const createPublicClient = (token) => {
   return createClient(

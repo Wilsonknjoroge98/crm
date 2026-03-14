@@ -1,14 +1,34 @@
-// LeadsGrid.js
 import * as React from 'react';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import { Stack, Typography, Chip } from '@mui/material';
-import EmailIcon from '@mui/icons-material/Email';
-import PhoneIcon from '@mui/icons-material/Phone';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import { styled } from '@mui/material/styles';
-import CreateClientDialog from './CreateClientDialog';
-import { useState } from 'react';
 import { alpha } from '@mui/material/styles';
+
+const formatPhone = (phone) => {
+  if (!phone) return '';
+  const d = phone.replace(/\D/g, '');
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : phone;
+};
+
+const formatDob = (dob) => {
+  if (!dob) return '';
+  const [year, month, day] = dob.split('-');
+  return `${month}/${day}/${year}`;
+};
+
+const formatCurrency = (val) => {
+  if (!val) return '';
+  const num = Number(String(val).replace(/[^0-9.]/g, ''));
+  return isNaN(num) ? val : `$${num.toLocaleString()}`;
+};
+
+const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
+  '& .row-sold': {
+    backgroundColor: alpha(theme.palette.success.light, 0.5),
+    color: theme.palette.common.black,
+  },
+}));
 
 export default function LeadsGrid({
   agent,
@@ -21,111 +41,190 @@ export default function LeadsGrid({
   const agentNameById = React.useMemo(() => {
     const map = {};
     (agents || []).forEach((a) => {
-      map[a.uid] = a.name;
+      map[a.id] = [a.first_name, a.last_name].filter(Boolean).join(' ');
     });
     return map;
   }, [agents]);
 
-  const isAdmin = agent && agent['role'] === 'admin';
+  const isAdmin = agent?.role === 'admin';
 
-  const rows = leads.map((lead) => {
-    return {
-      ...lead,
-      fullName: `${lead.firstName || ''} ${lead.lastName || ''}`.trim(),
-    };
-  });
-
-  const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
-    '& .row-sold': {
-      backgroundColor: alpha(theme.palette.success.light, 0.5),
-      color: theme.palette.common.black,
-    },
+  const rows = leads.map((lead) => ({
+    ...lead,
+    fullName: `${lead.firstName || ''} ${lead.lastName || ''}`.trim(),
   }));
 
-  const columns = React.useMemo(() => {
-    const cols = [];
-
-    cols.push(
+  const columns = React.useMemo(
+    () => [
       {
         field: 'createdAtMs',
-        headerName: 'Received At',
+        headerName: 'Received',
+        width: 90,
         filterable: true,
         sortable: true,
-        width: 200,
-
-        renderCell: (params) => {
-          return params.value ? new Date(params.value).toLocaleString() : 'unknown';
-        },
-        sortComparator: (v1, v2) => {
-          const a = v1 ?? 0;
-          const b = v2 ?? 0;
-          return a - b;
-        },
+        renderCell: (params) => (params.value ? new Date(params.value).toLocaleString() : ''),
+        sortComparator: (v1, v2) => (v1 ?? 0) - (v2 ?? 0),
       },
       {
         field: 'fullName',
         headerName: 'Name',
-        flex: 1,
-        width: 100,
-        renderCell: (params) => {
-          const c = params.row;
-          return <Typography variant='caption'>{c.fullName}</Typography>;
-        },
-      },
-
-      {
-        field: 'email',
-        headerName: 'Email',
-        flex: 1,
-        width: 200,
-        sortable: false,
-        filterable: false,
-        renderCell: (params) => {
-          const lead = params.row;
-          return <>{lead.email && <Typography variant='caption'>{lead.email}</Typography>}</>;
-        },
+        width: 90,
+        renderCell: (params) => (
+          <Typography variant='caption'>{params.row.fullName || ''}</Typography>
+        ),
       },
       {
         field: 'phone',
         headerName: 'Phone',
+        width: 110,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => (
+          <Typography variant='caption'>{formatPhone(params.row.phone)}</Typography>
+        ),
+      },
+      {
+        field: 'email',
+        headerName: 'Email',
         flex: 1,
-        width: 200,
+        minWidth: 110,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => <Typography variant='caption'>{params.row.email || ''}</Typography>,
+      },
+      {
+        field: 'dob',
+        headerName: 'DOB',
+        width: 100,
         sortable: false,
         filterable: false,
         renderCell: (params) => {
-          const lead = params.row;
-          return <>{lead.phone && <Typography variant='caption'>{lead.phone}</Typography>}</>;
+          const { dob, age } = params.row;
+          if (!dob) return null;
+          return (
+            <Stack spacing={0} sx={{ height: '100%', justifyContent: 'center' }}>
+              <Typography variant='caption'>{formatDob(dob)}</Typography>
+              {age ? (
+                <Typography variant='caption' color='text.secondary'>
+                  Age {age}
+                </Typography>
+              ) : null}
+            </Stack>
+          );
         },
       },
-
       {
-        field: 'sold',
-        headerName: 'Sold',
-        flex: 1,
-        width: 200,
+        field: 'state',
+        headerName: 'State',
+        width: 70,
+        renderCell: (params) => <Typography variant='caption'>{params.row.state || ''}</Typography>,
+      },
+      {
+        field: 'faceAmount',
+        headerName: 'Coverage',
+        width: 100,
         sortable: false,
         filterable: false,
+        renderCell: (params) => (
+          <Typography variant='caption'>{formatCurrency(params.row.faceAmount)}</Typography>
+        ),
       },
+      {
+        field: 'smoker',
+        headerName: 'Smoker',
+        width: 80,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          const { smoker } = params.row;
+          if (smoker === undefined || smoker === null) return null;
 
+          return (
+            <Chip
+              label={smoker ? 'Yes' : 'No'}
+              size='small'
+              color={smoker ? 'warning' : 'default'}
+              variant='outlined'
+              sx={{ fontSize: '0.7rem' }}
+            />
+          );
+        },
+      },
+      {
+        field: 'selectedCarrier',
+        headerName: 'Carrier / Plan',
+        flex: 1,
+        minWidth: 100,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          const { selectedCarrier, selectedPlan } = params.row;
+          if (!selectedCarrier && !selectedPlan) return null;
+          return (
+            <Stack spacing={0} sx={{ height: '100%', justifyContent: 'center' }}>
+              {selectedCarrier && <Typography variant='caption'>{selectedCarrier}</Typography>}
+              {selectedPlan && (
+                <Typography variant='caption' color='text.secondary'>
+                  {selectedPlan}
+                </Typography>
+              )}
+            </Stack>
+          );
+        },
+      },
+      {
+        field: 'verified',
+        headerName: 'Verified',
+        width: 80,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          const { verified } = params.row;
+          if (verified === undefined || verified === null) return null;
+          return (
+            <Chip
+              label={verified ? 'Yes' : 'No'}
+              size='small'
+              color={verified ? 'success' : 'default'}
+              variant='outlined'
+              sx={{ fontSize: '0.7rem' }}
+            />
+          );
+        },
+      },
+      {
+        field: 'sold',
+        headerName: '',
+        width: 70,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          if (!params.row.sold) return null;
+          return (
+            <Chip
+              label='Sold'
+              size='small'
+              color='success'
+              sx={{ fontSize: '0.7rem', color: 'primary.contrastText' }}
+            />
+          );
+        },
+      },
       {
         field: 'actions',
         type: 'actions',
         headerName: '',
-        align: 'right',
         width: 10,
+        align: 'right',
         headerAlign: 'right',
         getActions: (params) => {
-          const lead = params.row;
-          if (lead.sold) {
-            return [];
-          }
+          if (params.row.sold) return [];
           return [
             <GridActionsCellItem
               key='add'
               icon={<AddCircleIcon />}
               label='Make Client'
               onClick={() => {
-                setLead(lead);
+                setLead(params.row);
                 setCreateClientOpen(true);
               }}
               showInMenu={true}
@@ -133,19 +232,14 @@ export default function LeadsGrid({
           ];
         },
       },
-    );
-
-    return cols;
-  }, [isAdmin, agentNameById]);
+    ],
+    [isAdmin, agentNameById],
+  );
 
   return (
-    <Stack sx={{ minHeight: 600, maxHeight: 800, maxWidth: 1200 }}>
+    <Stack sx={{ minHeight: 600, maxHeight: 800, width: '100%' }}>
       <StyledDataGrid
-        sx={{
-          border: 'none',
-          boxShadow: 'none',
-          bgcolor: 'transparent',
-        }}
+        sx={{ border: 'none', boxShadow: 'none', bgcolor: 'transparent' }}
         rowHeight={60}
         rows={rows || []}
         loading={!!leadsLoading}
@@ -157,9 +251,7 @@ export default function LeadsGrid({
           sorting: { sortModel: [{ field: 'createdAtMs', sort: 'desc' }] },
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
-        getRowClassName={(params) => {
-          if (params.row.sold) return 'row-sold';
-        }}
+        getRowClassName={(params) => (params.row.sold ? 'row-sold' : '')}
       />
     </Stack>
   );
