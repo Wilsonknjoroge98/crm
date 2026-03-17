@@ -20,7 +20,12 @@ clientRouter.get('/all', async (req, res) => {
                 *,
                 agent_clients!agent_clients_client_id_fkey (
                     agent_id,
-                    client_id
+                    client_id,
+                    agents!agent_clients_agent_id_fkey (
+                        id,
+                        first_name,
+                        last_name
+                    )
                 )
             `,
       )
@@ -36,14 +41,20 @@ clientRouter.get('/all', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
+    const mapped = (clients || []).map(({ agent_clients, ...client }) => {
+      const a = agent_clients?.[0]?.agents;
+      const agent_name = a ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null : null;
+      return { ...client, agent_name };
+    });
+
     logger.log('Fetched clients successfully', {
       route: '/clients',
       method: 'GET',
       requesterId: req.agent?.id,
-      count: clients?.length || 0,
+      count: mapped.length,
     });
 
-    return res.status(200).json(clients);
+    return res.status(200).json(mapped);
   } catch (error) {
     logger.error('Unexpected error fetching clients in endpoints/clients.js', {
       route: '/clients',
@@ -74,6 +85,7 @@ clientRouter.post('/', async (req, res) => {
     logger.log('Creating client', {
       route: '/client',
       method: 'POST',
+      client: client,
       requesterId: req.agent?.id,
       email: client.email,
       liveTransfer: !!liveTransfer,
@@ -87,11 +99,12 @@ clientRouter.post('/', async (req, res) => {
         route: '/client',
         method: 'POST',
         requesterId: req?.agent?.id,
+        userId: req?.user?.id,
         email: client.email,
         leadVendorId: client.lead_vendor_id,
       });
 
-      const { data, error: leadError } = await req.supabase
+      const { data, error: leadError } = await supabaseService
         .from('leads')
         .insert({
           first_name: client.first_name,

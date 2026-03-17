@@ -27,7 +27,7 @@ const AccountDetails = ({ data }) => {
   const [openStatesDlg, setOpenStatesDlg] = useState(false);
 
   const formattedDate = data?.lastIssuedDate?._seconds
-    ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY')
+    ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY HH:mm:ss')
     : 'N/A';
 
   const agent = useAgent();

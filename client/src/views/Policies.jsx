@@ -31,7 +31,11 @@ const Policies = () => {
     queryKey: ['policies', user?.id, agent?.role],
     queryFn: () =>
       getPolicies({
-        data: { agentId: user?.id, agentRole: agent?.role, agency: agent?.org_id },
+        data: {
+          agentId: user?.id,
+          agentRole: agent?.role,
+          agency: agent?.org_id,
+        },
       }),
     enabled: !!agent,
     refetchOnWindowFocus: false,
@@ -47,35 +51,18 @@ const Policies = () => {
   });
 
   const headers = [
-    { label: 'Policy Number', key: 'policyNumber' },
-    { label: 'Client Name', key: 'clientName' },
-    { label: 'Carrier', key: 'carrier' },
-    { label: 'Policy Type', key: 'policyType' },
-    { label: 'Premium Amount', key: 'premiumAmount' },
-    { label: 'Status', key: 'policyStatus' },
-    { label: 'Effective Date', key: 'effectiveDate' },
-    { label: 'Split Policy', key: 'splitPolicy' },
-    { label: 'Split Policy Agent', key: 'splitPolicyAgent' },
-    { label: 'Selling Agent', key: 'sellingAgent' },
-    { label: 'Split Policy Percentage', key: 'splitPolicyShare' },
+    { label: 'Policy Number', key: 'policy_number' },
+    { label: 'Client Name', key: 'client_name' },
+    { label: 'Carrier', key: 'carrier_name' },
+    { label: 'Writing Agent', key: 'writing_agent_name' },
+    { label: 'Premium Amount', key: 'premium_amount' },
+    { label: 'Coverage Amount', key: 'coverage_amount' },
+    { label: 'Status', key: 'policy_status' },
+    { label: 'Effective Date', key: 'effective_date' },
+    { label: 'Sold Date', key: 'sold_date' },
+    { label: 'Draft Day', key: 'draft_day' },
+    { label: 'Premium Frequency', key: 'premium_frequency' },
   ];
-
-  const getAgentEmail = (agents, id) => {
-    if (!agents || !id) return '';
-    return agents.find((a) => a.id === id)?.email || '';
-  };
-
-  const exportData = (policies || []).map((policy) => ({
-    ...policy,
-    splitPolicyShare: policy.splitPolicy ? policy?.splitPolicyShare : 'N/A', // replace key with email
-    splitPolicyAgent: policy.splitPolicy ? getAgentEmail(agents, policy?.splitPolicyAgent) : 'N/A',
-    sellingAgent: policy.splitPolicy
-      ? getAgentEmail(
-          agents,
-          policy?.agentIds?.find((a) => a != policy.splitPolicyAgent),
-        )
-      : getAgentEmail(agents, policy?.agentIds[0]),
-  }));
 
   const handleUpdatePolicy = (data) => {
     setPolicy(data);
@@ -126,9 +113,14 @@ const Policies = () => {
           mb={2}
         >
           <Typography variant='h4'>Policies</Typography>
-          <Stack width={'fit-content'} direction='row' alignItems='center' spacing={2}>
+          <Stack
+            width={'fit-content'}
+            direction='row'
+            alignItems='center'
+            spacing={2}
+          >
             <CSVLink
-              data={exportData || []}
+              data={policies || []}
               headers={headers}
               filename={`policies_${new Date().toISOString().slice(0, 10)}.csv`}
               style={{ textDecoration: 'none' }}
@@ -140,10 +132,8 @@ const Policies = () => {
 
         <PoliciesGrid
           agent={agent}
-          agents={agents}
           policies={policies}
           policiesLoading={policiesLoading}
-          agentsLoading={agentsLoading}
           handleUpdatePolicy={handleUpdatePolicy}
           setPolicy={setPolicy}
           setDeletePolicyOpen={setDeletePolicyOpen}

@@ -7,14 +7,14 @@ import UpdateClientDialog from '../components/UpdateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import DeleteClientDialog from '../components/DeleteClientDialog';
 
-import {useSelector} from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getClients, getAgents } from '../utils/query';
 import { CSVLink } from 'react-csv';
 import ClientsGrid from '../components/ClientsGrid';
 
-import {useAgent} from "../hooks/useAgent.jsx";
+import { useAgent } from '../hooks/useAgent.jsx';
 
 const Clients = () => {
   const [createClientOpen, setCreateClientOpen] = useState(false);
@@ -23,9 +23,11 @@ const Clients = () => {
   const [deleteClientOpen, setDeleteClientOpen] = useState(false);
   const [client, setClient] = useState(null);
   // get user info from redux store
-  const { user, isAuthenticated, userToken } = useSelector((state) => state.user);
+  const { user, isAuthenticated, userToken } = useSelector(
+    (state) => state.user,
+  );
   const agent = useAgent();
-  console.log(agent)
+  console.log(agent);
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
@@ -39,8 +41,7 @@ const Clients = () => {
     isError,
   } = useQuery({
     queryKey: ['clients', user?.id, agent?.role],
-    queryFn: () =>
-      getClients(),
+    queryFn: () => getClients(),
     enabled: isAuthenticated,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -138,7 +139,12 @@ const Clients = () => {
           mb={2}
         >
           <Typography variant='h4'>Clients</Typography>
-          <Stack width={'fit-content'} direction='row' alignItems='center' spacing={2}>
+          <Stack
+            width={'fit-content'}
+            direction='row'
+            alignItems='center'
+            spacing={2}
+          >
             <CSVLink
               data={clients || []}
               headers={headers}

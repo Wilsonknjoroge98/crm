@@ -10,9 +10,9 @@ exports.app = functions.https.onRequest(expressApp);
 exports.inboundGSQLead = functions.https.onRequest(inboundLeadIntegration);
 
 exports.updatePolicyStatus = onSchedule(
-    {
-        schedule: '0 * * * *',
-        timeZone: 'America/Los_Angeles',
-    },
-    updatePolicyStatus,
+  {
+    schedule: '0 * * * *',
+    timeZone: 'America/Los_Angeles',
+  },
+  updatePolicyStatus,
 );

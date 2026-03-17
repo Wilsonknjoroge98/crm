@@ -21,6 +21,8 @@ const {
   summaryRouter,
   hierarchyRouter,
   publicRouter,
+  inviteRouter,
+  leadVendorsRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -41,9 +43,11 @@ app.use(express.json());
 app.use(publicRouter);
 app.use(authMiddleware);
 app.use('/agent', agentRouter);
+app.use('/invite', inviteRouter);
 app.use('/policy', policyRouter);
 app.use('/lead', leadRouter);
 app.use('/client', clientRouter);
+app.use('/lead-vendors', leadVendorsRouter);
 app.use('/downline-production', downlineProductionRouter);
 app.use('/summary', summaryRouter);
 app.use('/hierarchy', hierarchyRouter);

@@ -14,75 +14,52 @@ import {
   Chip,
   Paper,
   TableContainer,
-  Snackbar,
+  CircularProgress,
   Alert,
+  Button,
+  IconButton,
+  Tooltip,
+  Box,
 } from '@mui/material';
-import { useState } from 'react';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import AddLinkIcon from '@mui/icons-material/AddLink';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getAgents, patchAgent, createInvite } from '../utils/query';
 import { stringToColor } from '../utils/helpers';
-import StyledSnackBar from '../components/StyledSnackBar';
+import { enqueueSnackbar } from 'notistack';
+import {
+  SNACKBAR_ERROR_OPTIONS,
+  SNACKBAR_SUCCESS_OPTIONS,
+} from '../utils/constants';
 
 const LEVELS = Array.from({ length: 13 }, (_, i) => 80 + i * 5); // 80–140
 
-const MOCK_AGENTS = [
-  {
-    id: 1,
-    email: 'sarah.johnson@example.com',
-    first_name: 'Sarah',
-    last_name: 'Johnson',
-    npn: '10234567',
-    level: 120,
-    upline_agent_id: null,
-    active: true,
-  },
-  {
-    id: 2,
-    email: 'mike.torres@example.com',
-    first_name: 'Mike',
-    last_name: 'Torres',
-    npn: '10345678',
-    level: 105,
-    upline_agent_id: 1,
-    active: true,
-  },
-  {
-    id: 3,
-    email: 'linda.wu@example.com',
-    first_name: 'Linda',
-    last_name: 'Wu',
-    npn: '10456789',
-    level: 95,
-    upline_agent_id: 2,
-    active: true,
-  },
-  {
-    id: 4,
-    email: 'alex.thomas@example.com',
-    first_name: 'Alex',
-    last_name: 'Thomas',
-    npn: '10567890',
-    level: 90,
-    upline_agent_id: 1,
-    active: false,
-  },
-  {
-    id: 5,
-    email: 'carmen.reyes@example.com',
-    first_name: 'Carmen',
-    last_name: 'Reyes',
-    npn: '10678901',
-    level: 100,
-    upline_agent_id: 2,
-    active: true,
-  },
-];
-
 const Agents = () => {
-  const [agents, setAgents] = useState(MOCK_AGENTS);
-  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+  const queryClient = useQueryClient();
 
-  const handleUpdate = (id, field, value) => {
-    setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, [field]: value } : a)));
-    setToast({ open: true, severity: 'success', message: 'Agent updated' });
+  const {
+    data: agents = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['agents'],
+    queryFn: getAgents,
+  });
+
+  const { mutate: updateAgent } = useMutation({
+    mutationFn: patchAgent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      enqueueSnackbar('Agent updated', SNACKBAR_SUCCESS_OPTIONS);
+    },
+    onError: (err) => {
+      const message = err?.response?.data?.error || 'Failed to update agent';
+      enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
+    },
+  });
+
+  const handleUpdate = (agentId, field, value) => {
+    updateAgent({ agentId, agent: { [field]: value } });
   };
 
   const getAgentName = (uplineId) => {
@@ -90,16 +67,43 @@ const Agents = () => {
     return match ? `${match.first_name} ${match.last_name}` : null;
   };
 
+  if (isLoading) {
+    return (
+      <Stack alignItems='center' justifyContent='center' sx={{ py: 8 }}>
+        <CircularProgress />
+      </Stack>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Stack alignItems='center' justifyContent='center' sx={{ py: 4 }}>
+        <Alert severity='error'>
+          Failed to load agents. Please refresh or try again later.
+        </Alert>
+      </Stack>
+    );
+  }
+
   return (
     <Container sx={{ mt: 4 }}>
-      <Stack direction='row' justifyContent='space-between' alignItems='center' mb={3}>
+      <Stack
+        direction='row'
+        justifyContent='space-between'
+        alignItems='center'
+        mb={3}
+      >
         <Typography variant='h4'>Agents</Typography>
         <Typography variant='body2' color='text.secondary'>
           {agents.length} agent{agents.length !== 1 ? 's' : ''}
         </Typography>
       </Stack>
 
-      <TableContainer component={Paper} variant='outlined' sx={{ borderRadius: 2 }}>
+      <TableContainer
+        component={Paper}
+        variant='outlined'
+        sx={{ boxShadow: 0, border: 'none', backgroundColor: 'transparent' }}
+      >
         <Table>
           <TableHead>
             <TableRow>
@@ -127,12 +131,21 @@ const Agents = () => {
               const uplineName = getAgentName(agent.upline_agent_id);
 
               return (
-                <TableRow key={agent.id} hover sx={{ '&:last-child td': { border: 0 } }}>
+                <TableRow
+                  key={agent.id}
+                  hover
+                  sx={{ '&:last-child td': { border: 0 } }}
+                >
                   {/* Agent */}
                   <TableCell>
                     <Stack direction='row' alignItems='center' spacing={1.5}>
                       <Avatar
-                        sx={{ width: 34, height: 34, fontSize: '.8rem', bgcolor: avatarColor }}
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          fontSize: '.8rem',
+                          bgcolor: avatarColor,
+                        }}
                       >
                         {initials}
                       </Avatar>
@@ -159,12 +172,14 @@ const Agents = () => {
                     <Select
                       size='small'
                       value={agent.level}
-                      onChange={(e) => handleUpdate(agent.id, 'level', e.target.value)}
+                      onChange={(e) =>
+                        handleUpdate(agent.id, 'level', e.target.value)
+                      }
                       sx={{ minWidth: 100 }}
                     >
                       {LEVELS.map((l) => (
                         <MenuItem key={l} value={l}>
-                          {l}
+                          <Typography variant='caption'>{l}</Typography>
                         </MenuItem>
                       ))}
                     </Select>
@@ -177,12 +192,18 @@ const Agents = () => {
                       value={agent.upline_agent_id ?? ''}
                       displayEmpty
                       onChange={(e) =>
-                        handleUpdate(agent.id, 'upline_agent_id', e.target.value || null)
+                        handleUpdate(
+                          agent.id,
+                          'upline_agent_id',
+                          e.target.value || null,
+                        )
                       }
                       sx={{ minWidth: 160 }}
                       renderValue={(val) =>
                         val ? (
-                          uplineName
+                          <Typography variant='caption'>
+                            {uplineName}
+                          </Typography>
                         ) : (
                           <Typography variant='caption' color='text.disabled'>
                             No upline
@@ -196,10 +217,20 @@ const Agents = () => {
                         </Typography>
                       </MenuItem>
                       {agents
-                        .filter((a) => a.id !== agent.id)
+                        .filter(
+                          (a) =>
+                            a.id !== agent.id &&
+                            a.active &&
+                            a?.level > agent.level,
+                        )
                         .map((a) => (
                           <MenuItem key={a.id} value={a.id}>
-                            {`${a.first_name} ${a.last_name}`}
+                            <Typography
+                              variant='caption'
+                              color='text.secondary'
+                            >
+                              {`${a.first_name} ${a.last_name}`}
+                            </Typography>
                           </MenuItem>
                         ))}
                     </Select>
@@ -211,7 +242,9 @@ const Agents = () => {
                       <Switch
                         size='small'
                         checked={agent.active}
-                        onChange={(e) => handleUpdate(agent.id, 'active', e.target.checked)}
+                        onChange={(e) =>
+                          handleUpdate(agent.id, 'active', e.target.checked)
+                        }
                         color='success'
                       />
                       <Chip
@@ -229,13 +262,6 @@ const Agents = () => {
           </TableBody>
         </Table>
       </TableContainer>
-
-      <StyledSnackBar
-        open={toast.open}
-        message={toast.message}
-        severity={toast.severity}
-        onClose={() => setToast({ open: false, message: '', severity: 'success' })}
-      />
     </Container>
   );
 };

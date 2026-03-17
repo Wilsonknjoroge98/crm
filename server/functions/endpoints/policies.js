@@ -8,13 +8,26 @@ policyRouter.get('/all', async (req, res) => {
   try {
     const { data: policies, error } = await req.supabase
       .from('policies')
-      .select('*');
+      .select(`
+        *,
+        clients ( first_name, last_name ),
+        carriers ( name ),
+        agents ( first_name, last_name )
+      `);
+
     if (error) {
       console.log('error', error);
-      res.status(500).json({ error: 'Failed to fetch policies' });
-    } else {
-      res.status(200).json(policies);
+      return res.status(500).json({ error: 'Failed to fetch policies' });
     }
+
+    const mapped = (policies || []).map(({ clients: c, carriers: car, agents: a, ...policy }) => ({
+      ...policy,
+      client_name: c ? `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || null : null,
+      carrier_name: car?.name || null,
+      writing_agent_name: a ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null : null,
+    }));
+
+    res.status(200).json(mapped);
   } catch (error) {
     console.log('error', error);
     res.status(500).json({ error: 'Failed to fetch policies' });

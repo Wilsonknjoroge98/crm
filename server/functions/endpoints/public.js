@@ -1,9 +1,62 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
+const dayjs = require('dayjs');
 
 // eslint-disable-next-line new-cap
 const publicRouter = express.Router();
+
+publicRouter.get('/invite/validate', async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res
+      .status(400)
+      .json({ valid: false, error: 'Missing invite token' });
+  }
+
+  try {
+    const { data, error } = await supabaseService
+      .from('invites')
+      .select('id, used, expires_at')
+      .eq('token', token)
+      .maybeSingle();
+
+    if (error) {
+      logger.error('Error validating invite in endpoints/public.js', { error });
+      return res
+        .status(500)
+        .json({ valid: false, error: 'Failed to validate invite' });
+    }
+
+    if (!data) {
+      return res
+        .status(404)
+        .json({ valid: false, error: 'Invalid invite token' });
+    }
+
+    if (data.used) {
+      return res
+        .status(410)
+        .json({ valid: false, error: 'This invite has already been used' });
+    }
+
+    if (dayjs().isAfter(dayjs(data.expires_at))) {
+      return res
+        .status(410)
+        .json({ valid: false, error: 'This invite has expired' });
+    }
+
+    return res.status(200).json({ valid: true });
+  } catch (error) {
+    logger.error('Unexpected error validating invite in endpoints/public.js', {
+      error,
+    });
+    return res
+      .status(500)
+      .json({ valid: false, error: 'Internal server error' });
+  }
+});
 
 publicRouter.post('/agent', async (req, res) => {
   try {
@@ -14,29 +67,35 @@ publicRouter.post('/agent', async (req, res) => {
     }
 
     let uplineAgentId = null;
-    if (agent.uplineEmail) {
-      const { data: uplineAgent, error: uplineAgentError } = await supabaseService
-        .from('agents')
-        .select('id')
-        .eq('email', agent.uplineEmail)
+    let orgId = agent.orgId ?? null;
+
+    if (agent.token) {
+      const { data: invite, error: inviteError } = await supabaseService
+        .from('invites')
+        .select('upline_agent_id, agents ( org_id, level )')
+        .eq('token', agent.token)
         .maybeSingle();
 
-      if (uplineAgentError) {
-        logger.error('Error fetching upline agent:', uplineAgentError);
-        return res.status(500).json({ error: 'Failed to fetch upline agent' });
+      if (inviteError) {
+        logger.error(
+          'Error fetching invite for upline resolution:',
+          inviteError,
+        );
+        return res
+          .status(500)
+          .json({ error: 'Failed to resolve upline from invite' });
       }
-      if (!uplineAgent) {
-        logger.warn('No upline agent found for email:', agent.uplineEmail);
-      } else {
-        uplineAgentId = uplineAgent.id;
-      }
+
+      uplineAgentId = invite?.upline_agent_id ?? null;
+      orgId = invite?.agents?.org_id ?? null;
+      agent.level = invite?.agents?.level - 5 ?? agent.level;
     }
 
     const payload = {
       first_name: agent.name.split(' ')[0],
       last_name: agent.name.split(' ')[1],
       npn: agent.npn,
-      org_id: agent.orgId,
+      org_id: orgId,
       upline_agent_id: uplineAgentId,
       email: agent.email,
       level: agent.level,
@@ -56,6 +115,14 @@ publicRouter.post('/agent', async (req, res) => {
     }
 
     logger.log('Agent created successfully:', data[0]);
+
+    if (agent.token) {
+      await supabaseService
+        .from('invites')
+        .update({ used: true })
+        .eq('token', agent.token);
+    }
+
     return res.status(201).json(data[0]);
   } catch (error) {
     logger.error('Error creating agent:', error);

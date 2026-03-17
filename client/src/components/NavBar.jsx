@@ -9,15 +9,18 @@ import {
   Stack,
   Menu,
   Button,
+  Alert,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import LogoutIcon from '@mui/icons-material/Logout';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import AccountDetails from './AccountDetails';
-import { signOut } from 'firebase/auth';
-import { auth } from '../utils/firebase'; // Ensure this path is correct
-import { supabase } from '../utils/supabase';
-import { getAgent, getAccount } from '../utils/query';
-import { useQuery } from '@tanstack/react-query';
+import { getAccount, createInvite } from '../utils/query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { enqueueSnackbar } from 'notistack';
+import {
+  SNACKBAR_SUCCESS_OPTIONS,
+  SNACKBAR_ERROR_OPTIONS,
+} from '../utils/constants';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -29,7 +32,21 @@ const drawerWidth = 240;
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
-  const navigate = useNavigate();
+
+  const { mutate: generateInvite, isPending: inviteLoading } = useMutation({
+    mutationFn: createInvite,
+    onSuccess: (data) => {
+      const link = `${window.location.origin}/signup?token=${data.token}`;
+      navigator.clipboard.writeText(link);
+      enqueueSnackbar(
+        'Invite link copied to clipboard',
+        SNACKBAR_SUCCESS_OPTIONS,
+      );
+    },
+    onError: () =>
+      enqueueSnackbar('Failed to generate invite link', SNACKBAR_ERROR_OPTIONS),
+  });
+
   const { user, userToken, isAuthenticated } = useSelector(
     (state) => state.user,
   );
@@ -38,6 +55,7 @@ export default function NavBar() {
   const { data: accountData } = useQuery({
     queryKey: ['account', user?.email, isAuthenticated],
     queryFn: () => getAccount({ email: user?.email, token: userToken }),
+    staleTime: 1000 * 60 * 1,
   });
 
   const getInitials = (name) => {
@@ -53,19 +71,6 @@ export default function NavBar() {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      await signOut(auth);
-      // sign out of supabase
-
-      navigate('/login');
-      console.log('User signed out successfully');
-    } catch (error) {
-      console.error('Sign-out error:', error);
-    }
   };
 
   return (
@@ -84,6 +89,17 @@ export default function NavBar() {
     >
       <Toolbar>
         <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          variant='outlined'
+          size='small'
+          startIcon={<PersonAddOutlinedIcon />}
+          onClick={() => generateInvite()}
+          disabled={inviteLoading}
+          sx={{ mr: 2, fontSize: 12 }}
+        >
+          Invite Agent
+        </Button>
 
         <Stack
           direction='row'
@@ -139,37 +155,13 @@ export default function NavBar() {
             p={2}
             spacing={2}
           >
-            {accountData && <AccountDetails data={accountData} />}
-            <Stack direction='row' spacing={1} maxHeight={30}>
-              {/* <Button
-                variant='contained'
-                onClick={() =>
-                  window.open(
-                    `https://buy.stripe.com/00w5kDcWE7k38cG9qt6Ri03?prefilled_email=${user?.email}`,
-                    '_blank',
-                  )
-                }
-                sx={{
-                  bgcolor: (theme) => theme.palette.action.main,
-                  color: (theme) => theme.palette.action.contrastText,
-                  fontSize: 10,
-                }}
-              >
-                Purchase Leads
-              </Button> */}
-
-              <Button
-                variant='outlined'
-                endIcon={<LogoutIcon />}
-                sx={{
-                  fontSize: 10,
-                  boxShadow: 'none',
-                }}
-                onClick={handleSignOut}
-              >
-                Logout
-              </Button>
-            </Stack>
+            {accountData ? (
+              <AccountDetails data={accountData} />
+            ) : (
+              <Stack>
+                <Alert severity='error'>Unable to find account</Alert>
+              </Stack>
+            )}
           </Stack>
         </Menu>
       </Toolbar>

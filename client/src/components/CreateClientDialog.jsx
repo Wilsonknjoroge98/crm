@@ -28,8 +28,8 @@ import { SNACKBAR_SUCCESS_OPTIONS, STATES } from '../utils/constants';
 
 import { NumericFormat } from 'react-number-format';
 
-import { useMutation } from '@tanstack/react-query';
-import { postClient } from '../utils/query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { postClient, getLeadVendors } from '../utils/query';
 
 import { useLocation } from 'react-router-dom';
 
@@ -69,23 +69,13 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const inputRef = useRef(null);
 
   const maritalOptions = ['single', 'married', 'divorced', 'widowed'];
-  const leadSourceOptions = [
-    'GetSeniorQuotes.com',
-    'Ethos',
-    'Life Jacket',
-    'Legacy Term',
-    'Freedom Life',
-    'Veteran Exclusive',
-    'LeadConex',
-    'Arise',
-    'CRM Center',
-    'ILC',
-    'Closer Tech',
-    'StrongPoint',
-    'NeverBroke',
-    'Referral',
-    'Self Generated',
-  ];
+
+  const { data: leadVendors = [] } = useQuery({
+    queryKey: ['leadVendors'],
+    queryFn: getLeadVendors,
+  });
+
+  console.log('LEAD VENDORS', leadVendors);
 
   useEffect(() => {
     if (lead) {
@@ -95,7 +85,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.dob || '',
-        lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+        lead_vendor_id:
+          lead.lead_vendor_id || '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
         marital_status: '',
         address: '',
         city: '',
@@ -193,8 +184,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const handleChange = (e) => {
     const name = e.target.name;
     let value = e.target.value;
-    console.log('Name:', name);
-    console.log('Value:', value);
 
     const titleCaseFields = ['first_name', 'last_name', 'city', 'occupation'];
 
@@ -276,9 +265,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               fullWidth
               required
             >
-              {leadSourceOptions.map((source) => (
-                <MenuItem key={source} value={form.lead_vendor_id}>
-                  {source}
+              {leadVendors.map((vendor) => (
+                <MenuItem key={vendor.id} value={vendor.id}>
+                  {vendor.name}
                 </MenuItem>
               ))}
             </TextField>

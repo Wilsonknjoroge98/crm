@@ -43,16 +43,21 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 
 const CashFlowSummary = () => {
   const queryClient = useQueryClient();
-  const [inflow, setInflow] = useState({ commissions: 5000, leadPurchases: 2000 });
-  const [expenses, setExpenses] = useState([{ name: 'Meta Ads', amount: 1000 }]);
+  const [inflow, setInflow] = useState({
+    commissions: 5000,
+    leadPurchases: 2000,
+  });
+  const [expenses, setExpenses] = useState([
+    { name: 'Meta Ads', amount: 1000 },
+  ]);
   const [adSpend, setAdSpend] = useState(0);
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
-  const [startDate, setStartDate] = useState(dayjs().add(-30, 'day').format('YYYY-MM-DD'));
+  const [startDate, setStartDate] = useState(
+    dayjs().add(-30, 'day').format('YYYY-MM-DD'),
+  );
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [expenseDate, setExpenseDate] = useState(dayjs().format('YYYY-MM-DD'));
-
-
 
   const handleStartChange = (newValue) => {
     const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
@@ -85,6 +90,7 @@ const CashFlowSummary = () => {
     isFetching: isCommissionsFetching,
   } = useQuery({
     queryKey: ['commissions'],
+    staleTime: 1000 * 60 * 5,
     queryFn: () =>
       getCommissions({
         startDate,
@@ -108,6 +114,7 @@ const CashFlowSummary = () => {
         startDate,
         endDate,
       }),
+    staleTime: 1000 * 60 * 5,
   });
 
   const {
@@ -122,6 +129,7 @@ const CashFlowSummary = () => {
         startDate,
         endDate,
       }),
+    staleTime: 1000 * 60 * 5,
   });
 
   const {
@@ -136,12 +144,17 @@ const CashFlowSummary = () => {
         startDate,
         endDate,
       }),
+    staleTime: 1000 * 60 * 5,
   });
 
   const isLoading =
-    isCommissionsLoading || isExpensesLoading || isStripeLoading || isAdSpendLoading;
+    isCommissionsLoading ||
+    isExpensesLoading ||
+    isStripeLoading ||
+    isAdSpendLoading;
 
-  const AGENT_NAME = import.meta.env.MODE === 'development' ? 'Sam Atherton' : 'Shea Morales';
+  const AGENT_NAME =
+    import.meta.env.MODE === 'development' ? 'Sam Atherton' : 'Shea Morales';
 
   useEffect(() => {
     if (data) {
@@ -174,7 +187,9 @@ const CashFlowSummary = () => {
   useEffect(() => {
     console.log('Expenses data changed:', expensesData);
     if (expensesData && Array.isArray(expensesData)) {
-      const sortedExpenses = [...expensesData].sort((a, b) => b?.amount - a?.amount);
+      const sortedExpenses = [...expensesData].sort(
+        (a, b) => b?.amount - a?.amount,
+      );
       setExpenses(sortedExpenses);
     }
   }, [expensesData]);
@@ -199,7 +214,8 @@ const CashFlowSummary = () => {
   };
 
   const totalInflow = (inflow?.commissions || 0) + (inflow?.leadPurchases || 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0) + adSpend;
+  const totalExpenses =
+    expenses.reduce((sum, e) => sum + e.amount, 0) + adSpend;
   const netCashFlow = totalInflow - totalExpenses;
 
   return (
@@ -212,7 +228,11 @@ const CashFlowSummary = () => {
       >
         <Typography variant='h4'>Cash Flow</Typography>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <Box display='flex' justifyContent='space-between' alignItems='center'>
+          <Box
+            display='flex'
+            justifyContent='space-between'
+            alignItems='center'
+          >
             <Stack direction={'row'} spacing={2} alignItems='center'>
               <DatePicker
                 label='Start Date'
@@ -326,10 +346,15 @@ const CashFlowSummary = () => {
               </Box>
 
               {expenses.map((e, idx) => (
-                <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box
+                  key={idx}
+                  sx={{ display: 'flex', justifyContent: 'space-between' }}
+                >
                   <Stack direction='row' alignItems='center' spacing={1}>
                     <Typography>{e.name}</Typography>
-                    <Typography variant='caption'>{dayjs(e.date).format('MMM D, YYYY')}</Typography>
+                    <Typography variant='caption'>
+                      {dayjs(e.date).format('MMM D, YYYY')}
+                    </Typography>
                     <IconButton
                       aria-label='delete'
                       size='small'

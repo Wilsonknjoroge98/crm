@@ -559,6 +559,16 @@ const getAgent = async ({ data }) => {
   }
 };
 
+const patchAgent = async ({ agentId, agent }) => {
+  const options = {
+    method: 'PATCH',
+    data: { agentId, agent, mode: import.meta.env.MODE },
+    url: '/agent',
+  };
+  const response = await apiClient.request(options);
+  return response.data;
+};
+
 const getAgents = async () => {
   // request config for compulife server
   const options = {
@@ -831,6 +841,35 @@ const postError = async (data) => {
   return response.data;
 };
 
+const getLeadVendors = async () => {
+  const options = {
+    method: 'GET',
+    url: '/lead-vendors',
+    params: { mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting lead vendors:', error);
+    throw error;
+  }
+};
+
+const createInvite = async () => {
+  const response = await apiClient.request({ method: 'POST', url: '/invite' });
+  return response.data;
+};
+
+const validateInvite = async (token) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/invite/validate',
+    params: { token },
+  });
+  return response.data;
+};
+
 export {
   getClients,
   getPolicies,
@@ -845,6 +884,7 @@ export {
   deleteClient,
   deletePolicy,
   getAgents,
+  patchAgent,
   getInsights,
   getPremiumLeaderboard,
   getMonthlyPremiums,
@@ -861,4 +901,7 @@ export {
   getLeads,
   patchAccount,
   postError,
+  createInvite,
+  validateInvite,
+  getLeadVendors,
 };

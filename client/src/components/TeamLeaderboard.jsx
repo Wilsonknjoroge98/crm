@@ -36,7 +36,9 @@ const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
   };
 
   const fmtNum = (n) =>
-    new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Number(n || 0));
+    new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(
+      Number(n || 0),
+    );
   const fmtMoney0 = (n) =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -94,7 +96,11 @@ const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
                     <TableRow key={row.agentId}>
                       {' '}
                       <TableCell>
-                        <Stack direction='row' alignItems='center' spacing={1.5}>
+                        <Stack
+                          direction='row'
+                          alignItems='center'
+                          spacing={1.5}
+                        >
                           <Avatar
                             sx={{
                               width: 32,
@@ -113,14 +119,24 @@ const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
                       </TableCell>
                       <TableCell>{fmtMoney(row.premium)}</TableCell>
                       <TableCell>
-                        <Stack direction='row' alignItems='center' spacing={1.5}>
+                        <Stack
+                          direction='row'
+                          alignItems='center'
+                          spacing={1.5}
+                        >
                           <Box>
-                            <Typography variant='body2'>{row.clients}</Typography>
+                            <Typography variant='body2'>
+                              {row.clients}
+                            </Typography>
                           </Box>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack direction='row' alignItems='center' spacing={0.5}>
+                        <Stack
+                          direction='row'
+                          alignItems='center'
+                          spacing={0.5}
+                        >
                           <Typography> {fmtNum(row.policies)} </Typography>
                           <IconButton
                             size='small'
@@ -131,7 +147,9 @@ const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
                           </IconButton>
                         </Stack>
                       </TableCell>
-                      <TableCell color='text.secondary'>{fmtMoney(row.avgPremium)}</TableCell>
+                      <TableCell color='text.secondary'>
+                        {fmtMoney(row.avgPremium)}
+                      </TableCell>
                     </TableRow>
                   ))}
             </TableBody>

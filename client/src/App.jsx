@@ -41,7 +41,7 @@ const App = () => {
 
   return (
     <ThemeProvider theme={theme}>
-      {user && <NavBar />}
+      {user && pathname !== '/login' && pathname !== '/signup' && <NavBar />}
       <Stack
         sx={{
           minHeight: '100vh',

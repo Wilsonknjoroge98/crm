@@ -6,6 +6,8 @@ const downlineProductionRouter = require('./downline_production');
 const summaryRouter = require('./summary');
 const hierarchyRouter = require('./hierarchy');
 const publicRouter = require('./public');
+const inviteRouter = require('./invites');
+const leadVendorsRouter = require('./lead_vendors');
 module.exports = {
     agentRouter,
     policyRouter,
@@ -15,5 +17,7 @@ module.exports = {
     summaryRouter,
     hierarchyRouter,
     publicRouter,
+    inviteRouter,
+    leadVendorsRouter,
 };
 

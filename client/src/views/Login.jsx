@@ -5,8 +5,8 @@ import {
   Typography,
   CircularProgress,
   Alert,
-  Paper,
-  Link,
+  Divider,
+  Stack,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -20,17 +20,13 @@ const Login = () => {
   const [agency, setAgency] = useState('');
   const navigate = useNavigate();
 
-  // const agency = agent?.agency || 'ag_tY71LfQm';
-  // const agency = agent?.agency || 'ag_Hq92aLsK';
-
-  // get domain name from url
   const url = window.location.href;
 
   useEffect(() => {
     if (url.includes('fearless')) {
-      setAgency('c533bb5e-26cf-47c5-b08d-c14e4ab4f904');
-    } else {
       setAgency('446316f9-021a-460a-9bac-f7116e1bfa62');
+    } else {
+      setAgency('c533bb5e-26cf-47c5-b08d-c14e4ab4f904');
     }
   }, []);
 
@@ -40,14 +36,16 @@ const Login = () => {
     setErrorMsg('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
       navigate('/clients');
     } catch {
-      setErrorMsg('We’re unable to verify your credentials. Please try again.');
+      setErrorMsg(
+        'We\u2019re unable to verify your credentials. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -55,73 +53,90 @@ const Login = () => {
 
   return (
     <Box
-      component={Paper}
-      elevation={0}
       sx={{
-        maxWidth: 400,
-        mx: 'auto',
-        my: 4,
-        p: 4,
-        boxShadow: 'none',
+        minHeight: '100vh',
         display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
         alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <Box
-        component='img'
-        src={`${agency}_logo.png`}
-        sx={{ maxHeight: '200px', alignSelf: 'center', justifySelf: 'center' }}
-      />
-      <Typography variant='h5' gutterBottom fontWeight={600}>
-        Login
-      </Typography>
-
-      <form onSubmit={handleLogin}>
-        <TextField
-          label='Email'
-          type='email'
-          fullWidth
-          margin='normal'
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-
-        <TextField
-          label='Password'
-          type='password'
-          fullWidth
-          margin='normal'
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-
-        {errorMsg && (
-          <Alert severity='error' sx={{ mt: 2 }}>
-            {errorMsg}
-          </Alert>
+      <Stack spacing={4} sx={{ width: '100%', maxWidth: 360, px: 2 }}>
+        {agency && (
+          <Box
+            component='img'
+            src={`${agency}_logo.png`}
+            sx={{ maxHeight: 200, alignSelf: 'center', objectFit: 'contain' }}
+          />
         )}
 
-        <Button
-          type='submit'
-          variant='contained'
-          color='primary'
-          fullWidth
-          sx={{ mt: 3 }}
-          disabled={loading}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Login'}
-        </Button>
-        <Typography sx={{ mt: 2 }} textAlign='center'>
-          Don't have an account?{' '}
-          <Link href='/signup' underline='hover'>
-            Sign Up
-          </Link>
-        </Typography>
-      </form>
+        <Stack spacing={0.5}>
+          <Typography variant='h5' fontWeight={600}>
+            Welcome back
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>
+            Sign in to your account to continue
+          </Typography>
+        </Stack>
+
+        <form onSubmit={handleLogin}>
+          <Stack spacing={2}>
+            <TextField
+              label='Email'
+              type='email'
+              fullWidth
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              size='small'
+            />
+            <TextField
+              label='Password'
+              type='password'
+              fullWidth
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              size='small'
+            />
+
+            {errorMsg && (
+              <Alert severity='error' sx={{ py: 0.5 }}>
+                {errorMsg}
+              </Alert>
+            )}
+
+            <Button
+              type='submit'
+              variant='contained'
+              color='primary'
+              fullWidth
+              disabled={loading}
+              sx={{ mt: 1 }}
+            >
+              {loading ? <CircularProgress size={20} /> : 'Sign In'}
+            </Button>
+          </Stack>
+        </form>
+
+        <Stack spacing={1.5}>
+          <Divider />
+          <Typography
+            variant='caption'
+            color='text.secondary'
+            textAlign='center'
+          >
+            Need access?{' '}
+            <Typography
+              component='span'
+              variant='caption'
+              color='text.primary'
+              sx={{ fontWeight: 500 }}
+            >
+              Ask your upline for an invite link.
+            </Typography>
+          </Typography>
+        </Stack>
+      </Stack>
     </Box>
   );
 };

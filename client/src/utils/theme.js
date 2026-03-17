@@ -88,7 +88,7 @@ export const createAppTheme = ({ agency }) => {
       MuiTableHead: {
         styleOverrides: {
           root: {
-            'backgroundColor': '#F9F9F9',
+            backgroundColor: '#F9F9F9',
             '& .MuiTableCell-head': {
               fontWeight: 700,
               fontSize: '0.875rem',
@@ -113,6 +113,7 @@ export const createAppTheme = ({ agency }) => {
           },
         },
       },
+
       // MuiAlert: {
       //   styleOverrides: {
       //     standardInfo: ({ theme }) => ({

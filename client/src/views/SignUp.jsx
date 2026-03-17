@@ -1,5 +1,3 @@
-// SignUp.jsx
-
 import {
   Box,
   TextField,
@@ -7,31 +5,65 @@ import {
   Typography,
   CircularProgress,
   Alert,
-  Paper,
+  Divider,
   Link,
-  MenuItem,
   Stack,
 } from '@mui/material';
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { postAgent, getOrganizations } from '../utils/query';
+import { useState, useEffect } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { postAgent, validateInvite } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 import { toTitleCase } from '../utils/helpers';
-import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
+import {
+  SNACKBAR_SUCCESS_OPTIONS,
+  SNACKBAR_ERROR_OPTIONS,
+} from '../utils/constants';
 import { supabase } from '../utils/supabase';
+
 export default function SignUp() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [npn, setNpn] = useState('');
   const [name, setName] = useState('');
-  const [agency, setAgency] = useState('');
-  const [uplineEmail, setUplineEmail] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const {
+    data: tokenValidation,
+    isLoading: tokenLoading,
+    isError: tokenError,
+    error: tokenErrorData,
+  } = useQuery({
+    queryKey: ['invite-validate', token],
+    queryFn: () => validateInvite(token),
+    enabled: !!token,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!token) {
+      enqueueSnackbar(
+        'An invite link is required to sign up.',
+        SNACKBAR_ERROR_OPTIONS,
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tokenErrorData) {
+      enqueueSnackbar(
+        tokenErrorData?.response?.data?.error ||
+          'Failed to validate invite token.',
+        SNACKBAR_ERROR_OPTIONS,
+      );
+    }
+  }, [tokenErrorData]);
 
   const { mutateAsync: createAgent } = useMutation({
     mutationFn: postAgent,
@@ -40,16 +72,19 @@ export default function SignUp() {
       setErrorMsg('Failed to create account. Please try again.');
     },
   });
-  const { data: organizations = [] } = useQuery({
-    queryKey: ['organizations'],
-    queryFn: getOrganizations,
-  });
+
+  const tokenInvalid =
+    !token || tokenError || (tokenValidation && !tokenValidation.valid);
+
   const handleSignUp = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!agency) {
-      setErrorMsg('Please select an agency.');
+    if (tokenInvalid) {
+      enqueueSnackbar(
+        'A valid invite link is required to sign up.',
+        SNACKBAR_ERROR_OPTIONS,
+      );
       return;
     }
 
@@ -60,14 +95,10 @@ export default function SignUp() {
 
     setLoading(true);
     try {
-      // create supabase account after email verification is disabled
       const {
         data: { user },
         error: signUpError,
-      } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      } = await supabase.auth.signUp({ email, password });
       if (signUpError) throw signUpError;
 
       await createAgent({
@@ -75,149 +106,182 @@ export default function SignUp() {
           userId: user.id,
           name,
           email,
-          orgId: agency,
           npn,
-          uplineEmail,
           role: 'agent',
           level: 105,
+          token,
         },
       });
 
-      enqueueSnackbar(
-        'Account created! Please log in.',
-        SNACKBAR_SUCCESS_OPTIONS,
-      );
-      navigate('/login');
+      enqueueSnackbar('Account created!', SNACKBAR_SUCCESS_OPTIONS);
+      navigate('/clients');
     } catch (error) {
       console.error(error);
-      let message = 'Sign up failed. Please try again.';
-      if (error.code === 'auth/email-already-in-use')
-        message = 'Email is already in use.';
-      if (error.code === 'auth/invalid-email')
-        message = 'Invalid email address.';
-      if (error.code === 'auth/weak-password')
-        message = 'Password should be at least 6 characters.';
-      setErrorMsg(message);
+      setErrorMsg('Sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (tokenLoading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (tokenInvalid) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Stack spacing={2} sx={{ width: '100%', maxWidth: 360, px: 2 }}>
+          <Stack spacing={0.5}>
+            <Typography variant='h5' fontWeight={600}>
+              Invalid Invite
+            </Typography>
+            <Typography variant='body2' color='text.secondary'>
+              This invite link is invalid, expired, or has already been used.
+            </Typography>
+          </Stack>
+          <Alert severity='error' sx={{ py: 0.5 }}>
+            Please request a new invite link from your upline.
+          </Alert>
+          <Divider />
+          <Typography
+            variant='caption'
+            color='text.secondary'
+            textAlign='center'
+          >
+            Already have an account?{' '}
+            <Link
+              href='/login'
+              underline='hover'
+              color='text.primary'
+              fontWeight={500}
+            >
+              Sign in
+            </Link>
+          </Typography>
+        </Stack>
+      </Box>
+    );
+  }
+
   return (
     <Box
-      component={Paper}
-      elevation={0}
       sx={{
-        maxWidth: 400,
-        mx: 'auto',
-        my: 4,
-        p: 4,
-        boxShadow: 'none',
+        minHeight: '100vh',
         display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
         alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <Typography variant='h5' gutterBottom fontWeight={600}>
-        Sign Up
-      </Typography>
+      <Stack spacing={4} sx={{ width: '100%', maxWidth: 360, px: 2 }}>
+        <Stack spacing={0.5}>
+          <Typography variant='h5' fontWeight={600}>
+            Create your account
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>
+            You&apos;ve been invited to join the platform.
+          </Typography>
+        </Stack>
 
-      <form onSubmit={handleSignUp}>
-        <TextField
-          label='Name'
-          type='text'
-          margin='normal'
-          fullWidth
-          value={name}
-          onChange={(e) => setName(toTitleCase(e.target.value))}
-        />
+        <form onSubmit={handleSignUp}>
+          <Stack spacing={2}>
+            <TextField
+              label='Full Name'
+              type='text'
+              fullWidth
+              size='small'
+              value={name}
+              onChange={(e) => setName(toTitleCase(e.target.value))}
+            />
+            <TextField
+              label='Email'
+              type='email'
+              fullWidth
+              size='small'
+              value={email}
+              onChange={(e) => setEmail(e.target.value.toLowerCase())}
+              required
+            />
+            <TextField
+              label='NPN'
+              type='text'
+              fullWidth
+              size='small'
+              value={npn}
+              onChange={(e) => setNpn(e.target.value)}
+              required
+            />
+            <TextField
+              label='Password'
+              type='password'
+              fullWidth
+              size='small'
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <TextField
+              label='Confirm Password'
+              type='password'
+              fullWidth
+              size='small'
+              value={confirmPass}
+              onChange={(e) => setConfirmPass(e.target.value)}
+              required
+            />
 
-        <TextField
-          label='Email'
-          type='email'
-          margin='normal'
-          fullWidth
-          value={email}
-          onChange={(e) => setEmail(e.target.value.toLowerCase())}
-          required
-        />
-        <TextField
-          label='NPN'
-          type='text'
-          margin='normal'
-          fullWidth
-          value={npn}
-          onChange={(e) => setNpn(e.target.value)}
-          required
-        />
+            {errorMsg && (
+              <Alert severity='error' sx={{ py: 0.5 }}>
+                {errorMsg}
+              </Alert>
+            )}
 
-        <TextField
-          label='Password'
-          type='password'
-          margin='normal'
-          fullWidth
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+            <Button
+              type='submit'
+              variant='contained'
+              color='primary'
+              fullWidth
+              disabled={loading || npn.length !== 10}
+              sx={{ mt: 1 }}
+            >
+              {loading ? <CircularProgress size={20} /> : 'Create Account'}
+            </Button>
+          </Stack>
+        </form>
 
-        <TextField
-          label='Confirm Password'
-          type='password'
-          margin='normal'
-          fullWidth
-          value={confirmPass}
-          onChange={(e) => setConfirmPass(e.target.value)}
-          required
-        />
-
-        <TextField
-          select
-          fullWidth
-          margin='normal'
-          value={agency || ''}
-          onChange={(e) => setAgency(e.target.value)}
-          label='Select Agency'
-        >
-          {organizations?.map((org) => (
-            <MenuItem key={org.id} value={org.id}>
-              {org.name}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <TextField
-          fullWidth
-          margin='normal'
-          value={uplineEmail || ''}
-          onChange={(e) => setUplineEmail(e.target.value)}
-          label='Select upline email'
-        />
-
-        {errorMsg && (
-          <Alert severity='error' sx={{ mt: 2 }}>
-            {errorMsg}
-          </Alert>
-        )}
-
-        <Button
-          type='submit'
-          variant='contained'
-          color='primary'
-          fullWidth
-          sx={{ mt: 3 }}
-          disabled={loading}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Sign Up'}
-        </Button>
-        <Typography sx={{ mt: 2 }} textAlign='center'>
-          Already have an account?{' '}
-          <Link href='/login' underline='hover'>
-            Log In
-          </Link>
-        </Typography>
-      </form>
+        <Stack spacing={1.5}>
+          <Divider />
+          <Typography
+            variant='caption'
+            color='text.secondary'
+            textAlign='center'
+          >
+            Already have an account?{' '}
+            <Link href='/login' underline='hover' color='text.primary'>
+              <Typography component='span' variant='caption' fontWeight={500}>
+                Sign in
+              </Typography>
+            </Link>
+          </Typography>
+        </Stack>
+      </Stack>
     </Box>
   );
 }

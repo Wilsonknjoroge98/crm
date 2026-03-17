@@ -1,4 +1,3 @@
-const { createClient } = require('@supabase/supabase-js');
 const logger = require('firebase-functions/logger');
 const { createPublicClient } = require('../services/supabase');
 
@@ -13,7 +12,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const supabase = createPublicClient(req.headers.authorization);
+    const supabase = createPublicClient(authHeader);
 
     const {
       data: { user },

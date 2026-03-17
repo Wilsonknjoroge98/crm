@@ -19,12 +19,14 @@ import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 
 import { useTheme } from '@mui/material/styles';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent';
+import { supabase } from '../utils/supabase';
 
 const drawerWidth = 250;
 
@@ -37,8 +39,23 @@ const SidePanel = () => {
 
   const agency = agent?.org_id;
 
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+
+      navigate('/login');
+      console.log('User signed out successfully');
+    } catch (error) {
+      console.error('Sign-out error:', error);
+    }
+  };
+
   const handleItemClick = (path) => {
     if (!path) return;
+    if (path == 'sign_out') {
+      handleSignOut();
+      return;
+    }
     if (path.includes('https')) {
       window.open(path, '_blank');
       return;
@@ -70,11 +87,7 @@ const SidePanel = () => {
       icon: <QueryStatsOutlinedIcon />,
       path: '/team-production',
     },
-    {
-      text: 'Agents',
-      icon: <BadgeOutlinedIcon />,
-      path: '/agents',
-    },
+
     {
       text: 'Marketplace',
       icon: <ShoppingCartOutlinedIcon />,
@@ -85,9 +98,19 @@ const SidePanel = () => {
       icon: <SettingsOutlinedIcon />,
       path: 'https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00',
     },
+    {
+      text: 'Sign Out',
+      icon: <LogoutOutlinedIcon />,
+      path: 'sign_out',
+    },
   ];
 
   const adminItems = [
+    {
+      text: 'Agents',
+      icon: <BadgeOutlinedIcon />,
+      path: '/agents',
+    },
     {
       text: 'Insights',
       icon: <InsightsIcon />,

@@ -15,25 +15,15 @@ export default function ClientsGrid({
   agent,
   clients,
   clientsLoading,
-  agents,
   carrierMap,
   handleAddPolicies,
   handleUpdateClient,
   handleDeleteClient,
   showToolbar = false, // toggle quick filter toolbar
 }) {
-  const agentNameById = React.useMemo(() => {
-    const map = {};
-    (agents || []).forEach((a) => {
-      map[a.id] = [a.first_name, a.last_name].filter(Boolean).join(' ');
-    });
-    return map;
-  }, [agents]);
-
   const [isAdmin, setIsAdmin] = React.useState(false);
 
   useEffect(() => {
-    console.log('agent in ClientsGrid', agent);
     if (agent && (agent['role'] === 'admin' || agent['role'] === 'owner')) {
       setIsAdmin(true);
     }
@@ -54,40 +44,15 @@ export default function ClientsGrid({
 
     if (isAdmin) {
       cols.push({
-        field: 'agentIds',
+        field: 'agent_name',
         headerName: 'Agent',
         flex: 1,
         width: 100,
         sortable: true,
         filterable: true,
-        valueGetter: (value) => value.map((id) => agentNameById[id] || '').join(', '),
-        renderCell: (params) => {
-          const value = params.value;
-
-          return (
-            <Stack
-              sx={{
-                width: '100%',
-                height: '100%',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <Stack
-                direction={'row'}
-                sx={{
-                  height: '100%',
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  alignItems: 'center',
-                }}
-              >
-                <Typography variant='caption' key={value}>
-                  {value}
-                </Typography>
-              </Stack>
-            </Stack>
-          );
-        },
+        renderCell: (params) => (
+          <Typography variant='caption'>{params.value}</Typography>
+        ),
       });
     }
 
@@ -99,7 +64,9 @@ export default function ClientsGrid({
         sortable: true,
         width: 170,
         renderCell: (params) => {
-          return params.value ? new Date(params.value).toLocaleString() : 'unknown';
+          return params.value
+            ? new Date(params.value).toLocaleString()
+            : 'unknown';
         },
         sortComparator: (v1, v2) => {
           const a = v1 ?? 0;
@@ -165,7 +132,9 @@ export default function ClientsGrid({
           const state = c.state || '';
           const zip = c.zip || '';
           return (
-            <Stack sx={{ width: '100%', height: '100%', justifyContent: 'center' }}>
+            <Stack
+              sx={{ width: '100%', height: '100%', justifyContent: 'center' }}
+            >
               <Typography variant='caption'>{`${street}, ${city}`}</Typography>
               <Typography variant='caption'>{`${state} ${zip}`}</Typography>
             </Stack>
@@ -185,7 +154,13 @@ export default function ClientsGrid({
           const policies = (c && c.policyData) || [];
           if (!policies.length) {
             return (
-              <Stack direction='row' spacing={0} alignItems='center' justifyContent='center' py={2}>
+              <Stack
+                direction='row'
+                spacing={0}
+                alignItems='center'
+                justifyContent='center'
+                py={2}
+              >
                 {/* <Chip
                   icon={<WarningIcon color='warning' />}
                   sx={{ color: '#000' }}
@@ -219,7 +194,11 @@ export default function ClientsGrid({
                 //   }`}
                 // />
                 <>
-                  <Typography key={p.id} variant='caption' sx={{ color: 'text.primary' }}>{`${
+                  <Typography
+                    key={p.id}
+                    variant='caption'
+                    sx={{ color: 'text.primary' }}
+                  >{`${
                     (carrierMap && carrierMap[p.carrier]) || p.carrier
                   }`}</Typography>
                   <Typography
@@ -237,7 +216,9 @@ export default function ClientsGrid({
         field: 'source',
         headerName: 'Ad Source',
         width: 150,
-        renderCell: (params) => <Typography variant='caption'>{params.value}</Typography>,
+        renderCell: (params) => (
+          <Typography variant='caption'>{params.value}</Typography>
+        ),
       },
       {
         field: 'actions',
@@ -278,7 +259,6 @@ export default function ClientsGrid({
     return cols;
   }, [
     isAdmin,
-    agentNameById,
     carrierMap,
     handleAddPolicies,
     handleUpdateClient,
@@ -309,12 +289,6 @@ ClientsGrid.propTypes = {
   agent: PropTypes.object,
   clients: PropTypes.arrayOf(PropTypes.object).isRequired,
   clientsLoading: PropTypes.bool,
-  agents: PropTypes.arrayOf(
-    PropTypes.shape({
-      uid: PropTypes.string.isRequired,
-      name: PropTypes.string,
-    }),
-  ),
   carrierMap: PropTypes.object,
   handleAddPolicies: PropTypes.func,
   handleUpdateClient: PropTypes.func,
