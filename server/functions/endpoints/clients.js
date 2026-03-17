@@ -43,7 +43,9 @@ clientRouter.get('/all', async (req, res) => {
 
     const mapped = (clients || []).map(({ agent_clients, ...client }) => {
       const a = agent_clients?.[0]?.agents;
-      const agent_name = a ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null : null;
+      const agent_name = a
+        ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
+        : null;
       return { ...client, agent_name };
     });
 
@@ -68,7 +70,25 @@ clientRouter.get('/all', async (req, res) => {
 
 clientRouter.post('/', async (req, res) => {
   // eslint-disable-next-line camelcase,no-unused-vars
-  const { lead_vendor_id, notes, liveTransfer, ...client } = req.body.client;
+  const { lead_vendor_id, notes, live_transfer, ...client } = req.body.client;
+
+  console.log('Received client creation request', {
+    route: '/client',
+    method: 'POST',
+    lead_vendor_id,
+    notes,
+    live_transfer,
+    client,
+  });
+
+  delete client.live_transfer;
+
+  console.log('Client data after processing', {
+    route: '/client',
+    method: 'POST',
+    client,
+  });
+
   if (!client?.email || !client?.phone) {
     logger.warn('Missing required client fields in endpoints/clients.js', {
       route: '/client',
@@ -76,187 +96,177 @@ clientRouter.post('/', async (req, res) => {
       requesterId: req.agent?.id,
       hasEmail: !!client?.email,
       hasPhone: !!client?.phone,
-      liveTransfer: !!liveTransfer,
+      liveTransfer: !!live_transfer,
     });
     return res.status(400).json({ error: 'Missing required client fields' });
   }
 
-  try {
-    logger.log('Creating client', {
+  logger.log('Creating client', {
+    route: '/client',
+    method: 'POST',
+    client: client,
+    requesterId: req.agent?.id,
+    email: client.email,
+    liveTransfer: !!live_transfer,
+    hasNotes: !!notes,
+  });
+
+  let leadId = null;
+
+  logger.log('Creating lead for new client', {
+    route: '/client',
+    method: 'POST',
+    requesterId: req?.agent?.id,
+    userId: req?.user?.id,
+    email: client.email,
+    leadVendorId: lead_vendor_id,
+  });
+
+  const { data: existingLead, error: existingLeadError } = await supabaseService
+    .from('leads')
+    .select('id')
+    .eq('phone', client.phone)
+    .maybeSingle();
+
+  if (existingLeadError) {
+    logger.error('Error checking for existing lead in endpoints/clients.js', {
       route: '/client',
       method: 'POST',
-      client: client,
       requesterId: req.agent?.id,
       email: client.email,
-      liveTransfer: !!liveTransfer,
-      hasNotes: !!notes,
+      error: existingLeadError,
     });
-
-    let leadId;
-
-    if (!liveTransfer) {
-      logger.log('Creating lead for new client', {
-        route: '/client',
-        method: 'POST',
-        requesterId: req?.agent?.id,
-        userId: req?.user?.id,
-        email: client.email,
-        leadVendorId: client.lead_vendor_id,
-      });
-
-      const { data, error: leadError } = await supabaseService
-        .from('leads')
-        .insert({
-          first_name: client.first_name,
-          last_name: client.last_name,
-          email: client.email,
-          phone: client.phone,
-          state: client.state,
-          date_of_birth: client.date_of_birth,
-          agent_id: req?.agent?.id,
-          sold: false,
-          lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
-        })
-        .select('id');
-
-      if (leadError) {
-        logger.error('Error creating lead in endpoints/clients.js', {
-          route: '/client',
-          method: 'POST',
-          requesterId: req.agent?.id,
-          email: client.email,
-          error: leadError,
-        });
-        return res.status(500).json({ error: 'Failed to create lead' });
-      }
-
-      leadId = data?.[0]?.id;
-
-      if (!leadId) {
-        logger.error('Lead created without id in endpoints/clients.js', {
-          route: '/client',
-          method: 'POST',
-          requesterId: req.agent?.id,
-          email: client.email,
-        });
-        return res.status(500).json({ error: 'Failed to create lead' });
-      }
-    } else {
-      logger.log('Fetching existing live transfer lead', {
-        route: '/client',
-        method: 'POST',
-        requesterId: req.agent?.id,
-        email: client.email,
-      });
-
-      const { data, error: leadError } = await req.supabase
-        .from('leads')
-        .select('id')
-        .eq('email', client.email)
-        .single();
-
-      if (leadError) {
-        logger.error(
-          'Error fetching live transfer lead in endpoints/clients.js',
-          {
-            route: '/client',
-            method: 'POST',
-            requesterId: req.agent?.id,
-            email: client.email,
-            error: leadError,
-          },
-        );
-        return res.status(500).json({ error: 'Failed to fetch lead' });
-      }
-
-      leadId = data?.id;
-
-      if (!leadId) {
-        logger.error('Live transfer lead missing id in endpoints/clients.js', {
-          route: '/client',
-          method: 'POST',
-          requesterId: req.agent?.id,
-          email: client.email,
-        });
-        return res.status(500).json({ error: 'Failed to fetch lead' });
-      }
-    }
-
-    const { data: clientData, error: clientError } = await supabaseService
-      .from('clients')
-      .insert({
-        ...client,
-        lead_id: leadId,
-      })
-      .select('*');
-
-    if (clientError) {
-      logger.error('Error creating client in endpoints/clients.js', {
-        route: '/client',
-        method: 'POST',
-        requesterId: req.agent?.id,
-        email: client.email,
-        leadId,
-        error: clientError,
-      });
-      return res.status(500).json({ error: 'Failed to create client' });
-    }
-
-    const createdClient = clientData?.[0];
-
-    if (!createdClient?.id) {
-      logger.error('Client created without id in endpoints/clients.js', {
-        route: '/client',
-        method: 'POST',
-        requesterId: req.agent?.id,
-        email: client.email,
-        leadId,
-      });
-      return res.status(500).json({ error: 'Failed to create client' });
-    }
-
-    const { error: agentClientError } = await req.supabase
-      .from('agent_clients')
-      .insert({
-        agent_id: req.agent.id,
-        client_id: createdClient.id,
-        agent_notes: notes,
-      });
-
-    if (agentClientError) {
-      logger.error(
-        'Error creating agent_clients record in endpoints/clients.js',
-        {
-          route: '/client',
-          method: 'POST',
-          requesterId: req.agent?.id,
-          clientId: createdClient.id,
-          leadId,
-          error: agentClientError,
-        },
-      );
-      return res.status(500).json({ error: 'Failed to link client to agent' });
-    }
-
-    logger.log('Created client successfully', {
-      route: '/client',
-      method: 'POST',
-      requesterId: req.agent?.id,
-      clientId: createdClient.id,
-      leadId,
-      liveTransfer: !!liveTransfer,
-    });
-
-    return res.status(201).json(createdClient);
-  } catch (error) {
-    logger.error('Unexpected error creating client in endpoints/clients.js', {
-      route: '/client',
-      method: 'POST',
-      requesterId: req.agent?.id,
-      error,
-    });
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Failed to check existing leads' });
   }
+
+  if (
+    !existingLead &&
+    lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
+    live_transfer
+  ) {
+    const { error: updateLeadError } = await supabaseService
+      .from('leads')
+      .update({
+        gsq_live_transfer: true,
+      })
+      .eq('id', existingLead.id);
+    leadId = existingLead.id;
+  } else {
+    const { data: lead, error: leadError } = await supabaseService
+      .from('leads')
+      .insert({
+        first_name: client.first_name,
+        last_name: client.last_name,
+        email: client.email,
+        phone: client.phone,
+        state: client.state,
+        date_of_birth: client.date_of_birth,
+        agent_id: req?.agent?.id,
+        sold: true,
+        lead_vendor_id: lead_vendor_id,
+        gsq_live_transfer: live_transfer || false,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (leadError) {
+      logger.error('Error creating lead in endpoints/clients.js', {
+        route: '/client',
+        method: 'POST',
+        requesterId: req.agent?.id,
+        email: client.email,
+        error: leadError,
+      });
+      return res.status(500).json({ error: 'Failed to create lead' });
+    }
+
+    leadId = lead?.id;
+  }
+
+  if (!leadId) {
+    logger.error('Lead created without id in endpoints/clients.js', {
+      route: '/client',
+      method: 'POST',
+      requesterId: req.agent?.id,
+      email: client.email,
+    });
+    return res.status(500).json({ error: 'Failed to create lead' });
+  }
+
+  const { data: newClient, error: clientError } = await supabaseService
+    .from('clients')
+    .insert({
+      ...client,
+      lead_id: leadId,
+    })
+    .select('*')
+    .maybeSingle();
+
+  if (clientError) {
+    logger.error('Error creating client in endpoints/clients.js', {
+      route: '/client',
+      method: 'POST',
+      requesterId: req.agent?.id,
+      email: client.email,
+      leadId,
+      error: clientError,
+    });
+    return res.status(500).json({ error: 'Failed to create client' });
+  }
+
+  if (!newClient?.id) {
+    logger.error('Client created without id in endpoints/clients.js', {
+      route: '/client',
+      method: 'POST',
+      requesterId: req.agent?.id,
+      email: client.email,
+      leadId,
+    });
+    return res.status(500).json({ error: 'Failed to create client' });
+  }
+
+  const { error: agentClientError } = await req.supabase
+    .from('agent_clients')
+    .insert({
+      agent_id: req.agent.id,
+      client_id: newClient.id,
+      agent_notes: notes || null,
+    });
+
+  if (agentClientError) {
+    logger.error(
+      'Error creating agent_clients record in endpoints/clients.js',
+      {
+        route: '/client',
+        method: 'POST',
+        requesterId: req.agent?.id,
+        clientId: newClient.id,
+        leadId,
+        error: agentClientError,
+      },
+    );
+    return res.status(500).json({ error: 'Failed to link client to agent' });
+  }
+
+  logger.log('Created client successfully', {
+    route: '/client',
+    method: 'POST',
+    requesterId: req.agent?.id,
+    clientId: newClient.id,
+    leadId,
+    liveTransfer: !!live_transfer,
+  });
+
+  return res.status(201).json(newClient);
+  // } catch (error) {
+  //   logger.error('Unexpected error creating client in endpoints/clients.js', {
+  //     route: '/client',
+  //     method: 'POST',
+  //     requesterId: req.agent?.id,
+  //     error,
+  //   });
+  //   return res.status(500).json({ error: 'Internal server error' });
+  // }
 });
 
 clientRouter.patch('/', async (req, res) => {
@@ -350,11 +360,12 @@ clientRouter.delete('/', async (req, res) => {
       targetClientId: clientId,
     });
 
-    const { data, error } = await req.supabase
+    const { data, error } = await supabaseService
       .from('clients')
       .delete()
       .eq('id', clientId)
-      .select('id');
+      .select('id')
+      .maybeSingle();
 
     if (error) {
       logger.error('Error deleting client in endpoints/clients.js', {
@@ -367,7 +378,7 @@ clientRouter.delete('/', async (req, res) => {
       return res.status(500).json({ error: 'Failed to delete client' });
     }
 
-    if (!data || data.length === 0) {
+    if (!data) {
       logger.warn('Client not found for delete in endpoints/clients.js', {
         route: '/clients',
         method: 'DELETE',

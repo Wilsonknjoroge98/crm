@@ -7,24 +7,18 @@ import {
   TextField,
   Button,
   MenuItem,
-  Divider,
   InputAdornment,
-  LinearProgress,
   Stack,
   Alert,
-  CircularProgress,
   FormControl,
   FormControlLabel,
   Checkbox,
-  Box,
-  Typography,
+  Skeleton,
 } from '@mui/material';
 
-import { enqueueSnackbar } from 'notistack';
-
 import { useEffect, useState, useRef } from 'react';
-
-import { SNACKBAR_SUCCESS_OPTIONS, STATES } from '../utils/constants';
+import { enqueueSnackbar } from 'notistack';
+import { STATES, SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 
 import { NumericFormat } from 'react-number-format';
 
@@ -35,7 +29,6 @@ import { useLocation } from 'react-router-dom';
 
 import { toTitleCase } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
-import StyledSnackBar from './StyledSnackBar';
 
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   const { pathname } = useLocation();
@@ -54,6 +47,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     occupation: '',
     income: '',
     notes: '',
+    live_transfer: undefined,
   };
 
   const [form, setForm] = useState(initialForm);
@@ -70,12 +64,10 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
   const maritalOptions = ['single', 'married', 'divorced', 'widowed'];
 
-  const { data: leadVendors = [] } = useQuery({
+  const { data: leadVendors = [], isLoading: leadVendorsLoading } = useQuery({
     queryKey: ['leadVendors'],
     queryFn: getLeadVendors,
   });
-
-  console.log('LEAD VENDORS', leadVendors);
 
   useEffect(() => {
     if (lead) {
@@ -95,7 +87,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         occupation: '',
         income: '',
         notes: '',
-        liveTransfer: false,
+        live_transfer: undefined,
       });
     }
   }, [lead]);
@@ -121,6 +113,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         message: 'Client created successfully!',
         severity: 'success',
       });
+      enqueueSnackbar('Client created successfully!', SNACKBAR_SUCCESS_OPTIONS);
     },
   });
 
@@ -226,9 +219,12 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     const modifiedForm = { ...form };
     console.log('Modified Form:', modifiedForm);
     delete modifiedForm.notes;
-    delete modifiedForm.liveTransfer;
+    console.log('lead vendor id', form.lead_vendor_id);
+    if (form.lead_vendor_id !== '1043bc55-a8cd-485f-bddc-46bcfc06d4ba') {
+      delete modifiedForm.live_transfer;
+    }
     const hasEmptyFields = Object.keys(modifiedForm).some(
-      (key) => !modifiedForm[key],
+      (key) => modifiedForm[key] === undefined || modifiedForm[key] === '',
     );
     if (hasEmptyFields) {
       setDisabled(true);
@@ -254,23 +250,27 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             <SectionHeader title='Lead information' />
           </Grid>
           <Grid item size={6}>
-            <TextField
-              sx={{ width: '100%' }}
-              select
-              disabled={!!lead}
-              name='lead_vendor_id'
-              label='Lead Source'
-              value={form.lead_vendor_id}
-              onChange={handleChange}
-              fullWidth
-              required
-            >
-              {leadVendors.map((vendor) => (
-                <MenuItem key={vendor.id} value={vendor.id}>
-                  {vendor.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            {leadVendorsLoading ? (
+              <Skeleton variant='rounded' height={56} />
+            ) : (
+              <TextField
+                sx={{ width: '100%' }}
+                select
+                disabled={!!lead}
+                name='lead_vendor_id'
+                label='Lead Source'
+                value={form.lead_vendor_id}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                {leadVendors.map((vendor) => (
+                  <MenuItem key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
           </Grid>
           {form.lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
             pathname.includes('client') && (
@@ -284,11 +284,11 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
                     <FormControlLabel
                       control={
                         <Checkbox
-                          checked={form.liveTransfer === true}
+                          checked={form.live_transfer === true}
                           onChange={() =>
                             setForm((prev) => ({
                               ...prev,
-                              liveTransfer: true,
+                              live_transfer: true,
                             }))
                           }
                         />
@@ -298,11 +298,11 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
                     <FormControlLabel
                       control={
                         <Checkbox
-                          checked={form.liveTransfer === false}
+                          checked={form.live_transfer === false}
                           onChange={() =>
                             setForm((prev) => ({
                               ...prev,
-                              liveTransfer: false,
+                              live_transfer: false,
                             }))
                           }
                         />
