@@ -32,7 +32,11 @@ agentRouter.get('/all', async (req, res) => {
     requesterId: req.agent?.id,
     count: agents?.length || 0,
   });
-  res.status(200).json(agents);
+
+  const agentsSorted = agents?.sort((a, b) =>
+    a.first_name.localeCompare(b.first_name),
+  );
+  res.status(200).json(agentsSorted);
 });
 
 agentRouter.patch('/', async (req, res) => {
@@ -58,7 +62,9 @@ agentRouter.patch('/', async (req, res) => {
       .single();
 
     if (currentError) {
-      return res.status(500).json({ error: 'Failed to validate agent hierarchy' });
+      return res
+        .status(500)
+        .json({ error: 'Failed to validate agent hierarchy' });
     }
 
     // Check upline constraint: new level must be less than upline's level
@@ -85,7 +91,9 @@ agentRouter.patch('/', async (req, res) => {
     if (!downlineError && downlines?.length) {
       const blocking = downlines.filter((d) => d.level >= newLevel);
       if (blocking.length) {
-        const names = blocking.map((d) => `${d.first_name} ${d.last_name} (${d.level})`).join(', ');
+        const names = blocking
+          .map((d) => `${d.first_name} ${d.last_name} (${d.level})`)
+          .join(', ');
         return res.status(422).json({
           error: `Level ${newLevel} conflicts with downline agent(s): ${names}. Agent level must be above all direct downlines.`,
         });

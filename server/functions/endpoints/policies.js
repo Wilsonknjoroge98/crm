@@ -1,122 +1,287 @@
 const express = require('express');
-const { buildPolicySlackPayload, sendToGSQ } = require('../helpers');
-const dayjs = require('dayjs');
+const logger = require('firebase-functions/logger');
+const { sendToGSQ } = require('../helpers');
+const { supabaseService } = require('../services/supabase');
 // eslint-disable-next-line new-cap
 const policyRouter = express.Router();
 
+const mapBeneficiaries = (list, policyId, type) =>
+  (list || [])
+    .filter((b) => b.first_name && b.last_name)
+    .map((b) => ({
+      policy_id: policyId,
+      first_name: b.first_name,
+      last_name: b.last_name,
+      relationship: b.relationship || null,
+      phone: b.phone || null,
+      allocation_percent: b.share || null,
+      beneficiary_type: type,
+    }));
+
 policyRouter.get('/all', async (req, res) => {
   try {
-    const { data: policies, error } = await req.supabase
-      .from('policies')
+    logger.log('Fetching policies', {
+      route: '/policy/all',
+      method: 'GET',
+      requesterId: req.agent?.id,
+    });
+    const { data: policies, error } = await req.supabase.from('policies')
       .select(`
         *,
-        clients ( first_name, last_name ),
+        clients!policies_client_id_fkey ( first_name, last_name ),
         carriers ( name ),
-        agents ( first_name, last_name )
+        products ( name ),
+        writing_agent:agents!policies_writing_agent_id_fkey ( first_name, last_name ),
+        split_agent:agents!policies_split_agent_id_fkey ( first_name, last_name ),
+        beneficiaries!beneficiaries_policy_id_fkey ( id, first_name, last_name, relationship, allocation_percent, beneficiary_type, phone )
       `);
 
     if (error) {
-      console.log('error', error);
+      logger.error('Error fetching policies in endpoints/policies.js', {
+        error,
+      });
       return res.status(500).json({ error: 'Failed to fetch policies' });
     }
 
-    const mapped = (policies || []).map(({ clients: c, carriers: car, agents: a, ...policy }) => ({
-      ...policy,
-      client_name: c ? `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || null : null,
-      carrier_name: car?.name || null,
-      writing_agent_name: a ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null : null,
-    }));
+    const mapped = (policies || []).map(
+      ({
+        clients: c,
+        carriers: car,
+        products: prod,
+        writing_agent: wa,
+        split_agent: sa,
+        beneficiaries: bens,
+        ...policy
+      }) => ({
+        ...policy,
+        client_name: c
+          ? `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || null
+          : null,
+        carrier_name: car?.name || null,
+        product_name: prod?.name || null,
+        writing_agent_name: wa
+          ? `${wa.first_name ?? ''} ${wa.last_name ?? ''}`.trim() || null
+          : null,
+        split_agent_name: sa
+          ? `${sa.first_name ?? ''} ${sa.last_name ?? ''}`.trim() || null
+          : null,
+        beneficiaries: bens || [],
+      }),
+    );
 
     res.status(200).json(mapped);
   } catch (error) {
-    console.log('error', error);
+    logger.error('Error fetching policies in endpoints/policies.js', { error });
     res.status(500).json({ error: 'Failed to fetch policies' });
   }
 });
+
 policyRouter.post('/', async (req, res) => {
-  console.log('Creating policy');
-  const { policy, clientId, agentIds } = req.body;
+  const { policy, client_id } = req.body;
 
-  const isGSQ = policy.leadSource === 'GetSeniorQuotes.com';
-
-  if (!policy || !clientId || !agentIds) {
-    console.log('Missing data');
-    return res
-      .status(400)
-      .json({ error: 'Missing policy, client ID, or agent ID' });
+  if (!policy || !client_id) {
+    logger.warn('Missing policy or client ID in endpoints/policies.js');
+    return res.status(400).json({ error: 'Missing policy or client ID' });
   }
 
-  const policyNumber = policy.policy_number.trim();
+  const carrier_id = policy?.carrier;
+  const product_id = policy?.product;
 
-  console.log('Creating policy', policyNumber);
-  const { data: policyData, error: policyError } = await req.supabase
+  const {
+    beneficiaries,
+    contingent_beneficiaries,
+    clientName,
+    split_policy,
+    lead_vendor_id,
+    carrier,
+    notes,
+    product,
+    ...policyFields
+  } = policy;
+
+  const insertPayload = {
+    ...policyFields,
+    client_id,
+    carrier_id,
+    product_id,
+    premium_frequency: policyFields.premium_frequency.toLowerCase(),
+    policy_status: policyFields.policy_status.toLowerCase(),
+    writing_agent_id: req.agent.id,
+    writing_agent_notes: notes || null,
+  };
+
+  logger.log('Creating policy', {
+    route: '/policy',
+    method: 'POST',
+    requesterId: req.agent?.id,
+    policyNumber: insertPayload.policy_number,
+    client_id,
+  });
+
+  const { data: policyData, error: policyError } = await supabaseService
     .from('policies')
-    .insert(policy)
-    .select('*');
-  // check for uniques constraint violation
+    .insert(insertPayload)
+    .select('id')
+    .single();
+
   if (policyError) {
     if (policyError.code === '23505') {
-      console.error('Policy number already exists:', policyNumber);
-      return res.status(400).json({ error: 'Policy number already exists' });
+      return res.status(409).json({ error: 'Policy number already exists' });
     }
-    console.error('Error creating policy:', policyError);
+    logger.error('Error creating policy in endpoints/policies.js', {
+      error: policyError,
+    });
     return res.status(500).json({ error: 'Failed to create policy' });
   }
 
-  try {
-    // eslint-disable-next-line no-unused-vars
-    // const payload = buildPolicySlackPayload({
-    //   agentName: `${req.agent.first_name} ${req.agent.last_name}`,
-    //   product: policy.policyType,
-    //   effectiveDate: dayjs(policy.effectiveDate).format('MM/DD'),
-    //   annualPremium: Math.round(policy.premiumAmount * 12),
-    //   carrier: policy.carrier,
-    // });
-    // const client = new WebClient(process.env.SLACK_BOT_TOKEN);
-    // const response = await client.chat.postMessage({
-    //   channel: '#sales',
-    //   text: payload.text,
-    //   blocks: payload.blocks,
-    // });
-    // console.log('Slack bot test message sent:', response.ts);
-  } catch (error) {
-    console.error(
-      'Error testing Slack bot:',
-      error.response?.data || error.message,
-    );
+  const policyId = policyData.id;
+
+  const allBeneficiaries = [
+    ...mapBeneficiaries(beneficiaries, policyId, 'primary'),
+    ...mapBeneficiaries(contingent_beneficiaries, policyId, 'contingent'),
+  ];
+
+  if (allBeneficiaries.length > 0) {
+    const { error: beneficiaryError } = await supabaseService
+      .from('beneficiaries')
+      .insert(allBeneficiaries);
+
+    if (beneficiaryError) {
+      logger.error('Error creating beneficiaries in endpoints/policies.js', {
+        error: beneficiaryError,
+        policyId,
+      });
+      return res.status(500).json({ error: 'Failed to create beneficiaries' });
+    }
   }
 
   try {
     const { data: clientData, error: clientError } = await req.supabase
       .from('clients')
-      .select('*')
-      .eq('id', clientId)
+      .select('phone')
+      .eq('id', client_id)
       .single();
 
     if (clientError) {
-      console.error('Error fetching client:', clientError);
-      return res.status(500).json({ error: 'Failed to fetch client' });
+      logger.error('Error fetching client in endpoints/policies.js', {
+        error: clientError,
+        client_id,
+      });
     }
 
-    // mark as sold in GSQ
-    if (isGSQ) await sendToGSQ(clientData);
-    // mark lead as sold in CRM DB
-    await req.supabase
+    // if (isGSQ) await sendToGSQ(clientData);
+    await supabaseService
       .from('leads')
-      .update({
-        sold: true,
-      })
+      .update({ sold: true })
       .eq('phone', clientData.phone);
-
-    res.status(201).json({
-      id: policyData.id,
-      ...policy,
-      agentIds: agentIds,
-      client: clientId,
-    });
   } catch (error) {
-    console.error('Error creating policy:', error);
-    res.status(500).json({ error: 'Failed to create policy' });
+    logger.error('Error updating lead sold status in endpoints/policies.js', {
+      error,
+      client_id,
+    });
   }
+
+  logger.log('Created policy successfully', {
+    route: '/policy',
+    method: 'POST',
+    requesterId: req.agent?.id,
+    policyId,
+  });
+
+  return res.status(201).json({ id: policyId });
 });
+
+policyRouter.patch('/', async (req, res) => {
+  const { policyId, policy } = req.body;
+
+  if (!policyId || !policy) {
+    logger.warn('Missing policyId or policy payload in endpoints/policies.js');
+    return res
+      .status(400)
+      .json({ error: 'Missing policyId or policy payload' });
+  }
+
+  const {
+    beneficiaries,
+    contingent_beneficiaries,
+    clientName,
+    split_policy,
+    ...policyFields
+  } = policy;
+
+  logger.log('Updating policy', {
+    route: '/policy',
+    method: 'PATCH',
+    requesterId: req.agent?.id,
+    policyId,
+    fieldsToUpdate: Object.keys(policyFields),
+  });
+
+  const { data, error } = await supabaseService
+    .from('policies')
+    .update(policyFields)
+    .eq('id', policyId)
+    .select('id')
+    .single();
+
+  if (error) {
+    logger.error('Error updating policy in endpoints/policies.js', {
+      error,
+      policyId,
+    });
+    return res.status(500).json({ error: 'Failed to update policy' });
+  }
+
+  if (!data) {
+    return res.status(404).json({ error: 'Policy not found' });
+  }
+
+  const hasBeneficiaries =
+    beneficiaries !== undefined || contingent_beneficiaries !== undefined;
+
+  if (hasBeneficiaries) {
+    const { error: deleteError } = await supabaseService
+      .from('beneficiaries')
+      .delete()
+      .eq('policy_id', policyId);
+
+    if (deleteError) {
+      logger.error('Error deleting beneficiaries in endpoints/policies.js', {
+        error: deleteError,
+        policyId,
+      });
+      return res.status(500).json({ error: 'Failed to update beneficiaries' });
+    }
+
+    const allBeneficiaries = [
+      ...mapBeneficiaries(beneficiaries, policyId, 'primary'),
+      ...mapBeneficiaries(contingent_beneficiaries, policyId, 'contingent'),
+    ];
+
+    if (allBeneficiaries.length > 0) {
+      const { error: insertError } = await supabaseService
+        .from('beneficiaries')
+        .insert(allBeneficiaries);
+
+      if (insertError) {
+        logger.error(
+          'Error reinserting beneficiaries in endpoints/policies.js',
+          { error: insertError, policyId },
+        );
+        return res
+          .status(500)
+          .json({ error: 'Failed to update beneficiaries' });
+      }
+    }
+  }
+
+  logger.log('Updated policy successfully', {
+    route: '/policy',
+    method: 'PATCH',
+    requesterId: req.agent?.id,
+    policyId,
+  });
+  return res.status(200).json({ id: policyId });
+});
+
 module.exports = policyRouter;

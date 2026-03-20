@@ -8,6 +8,7 @@ const hierarchyRouter = require('./hierarchy');
 const publicRouter = require('./public');
 const inviteRouter = require('./invites');
 const leadVendorsRouter = require('./lead_vendors');
+const carriersRouter = require('./carriers');
 module.exports = {
     agentRouter,
     policyRouter,
@@ -19,5 +20,6 @@ module.exports = {
     publicRouter,
     inviteRouter,
     leadVendorsRouter,
+    carriersRouter,
 };
 

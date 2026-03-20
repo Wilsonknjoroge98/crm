@@ -21,11 +21,15 @@ clientRouter.get('/all', async (req, res) => {
                 agent_clients!agent_clients_client_id_fkey (
                     agent_id,
                     client_id,
+                    agent_notes,
                     agents!agent_clients_agent_id_fkey (
                         id,
                         first_name,
                         last_name
                     )
+                ),
+                leads!clients_lead_id_fkey (
+                    gsq_source
                 )
             `,
       )
@@ -41,13 +45,18 @@ clientRouter.get('/all', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
-    const mapped = (clients || []).map(({ agent_clients, ...client }) => {
-      const a = agent_clients?.[0]?.agents;
-      const agent_name = a
-        ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
-        : null;
-      return { ...client, agent_name };
-    });
+    const mapped = (clients || []).map(
+      ({ agent_clients, leads, ...client }) => {
+        const ac = agent_clients?.[0];
+        const a = ac?.agents;
+        const agent_name = a
+          ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
+          : null;
+        const notes = ac?.agent_notes ?? null;
+        const gsq_source = leads?.gsq_source ?? null;
+        return { ...client, agent_name, notes, gsq_source };
+      },
+    );
 
     logger.log('Fetched clients successfully', {
       route: '/clients',
@@ -71,6 +80,7 @@ clientRouter.get('/all', async (req, res) => {
 clientRouter.post('/', async (req, res) => {
   // eslint-disable-next-line camelcase,no-unused-vars
   const { lead_vendor_id, notes, live_transfer, ...client } = req.body.client;
+  delete client.live_transfer;
 
   console.log('Received client creation request', {
     route: '/client',
@@ -81,16 +91,8 @@ clientRouter.post('/', async (req, res) => {
     client,
   });
 
-  delete client.live_transfer;
-
-  console.log('Client data after processing', {
-    route: '/client',
-    method: 'POST',
-    client,
-  });
-
   if (!client?.email || !client?.phone) {
-    logger.warn('Missing required client fields in endpoints/clients.js', {
+    logger.warn('Missing required client fields in clients.js', {
       route: '/client',
       method: 'POST',
       requesterId: req.agent?.id,
@@ -101,99 +103,65 @@ clientRouter.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Missing required client fields' });
   }
 
-  logger.log('Creating client', {
-    route: '/client',
-    method: 'POST',
-    client: client,
-    requesterId: req.agent?.id,
-    email: client.email,
-    liveTransfer: !!live_transfer,
-    hasNotes: !!notes,
-  });
-
   let leadId = null;
 
-  logger.log('Creating lead for new client', {
-    route: '/client',
-    method: 'POST',
-    requesterId: req?.agent?.id,
-    userId: req?.user?.id,
-    email: client.email,
-    leadVendorId: lead_vendor_id,
-  });
+  console.log('GSQ Lead Vendor ID:', process.env.GSQ_LEAD_VENDOR_ID);
 
-  const { data: existingLead, error: existingLeadError } = await supabaseService
-    .from('leads')
-    .select('id')
-    .eq('phone', client.phone)
-    .maybeSingle();
+  if (lead_vendor_id === process.env.GSQ_LEAD_VENDOR_ID) {
+    const { data: existingLead, error: existingLeadError } =
+      await supabaseService
+        .from('leads')
+        .select('id')
+        .eq('phone', client.phone)
+        .maybeSingle();
 
-  if (existingLeadError) {
-    logger.error('Error checking for existing lead in endpoints/clients.js', {
-      route: '/client',
-      method: 'POST',
-      requesterId: req.agent?.id,
-      email: client.email,
-      error: existingLeadError,
-    });
-    return res.status(500).json({ error: 'Failed to check existing leads' });
-  }
-
-  if (
-    !existingLead &&
-    lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
-    live_transfer
-  ) {
-    const { error: updateLeadError } = await supabaseService
-      .from('leads')
-      .update({
-        gsq_live_transfer: true,
-      })
-      .eq('id', existingLead.id);
-    leadId = existingLead.id;
-  } else {
-    const { data: lead, error: leadError } = await supabaseService
-      .from('leads')
-      .insert({
-        first_name: client.first_name,
-        last_name: client.last_name,
-        email: client.email,
-        phone: client.phone,
-        state: client.state,
-        date_of_birth: client.date_of_birth,
-        agent_id: req?.agent?.id,
-        sold: true,
-        lead_vendor_id: lead_vendor_id,
-        gsq_live_transfer: live_transfer || false,
-      })
-      .select('id')
-      .maybeSingle();
-
-    if (leadError) {
-      logger.error('Error creating lead in endpoints/clients.js', {
+    if (existingLeadError) {
+      logger.error('Error checking for existing lead in clients.js', {
         route: '/client',
         method: 'POST',
         requesterId: req.agent?.id,
         email: client.email,
-        error: leadError,
+        error: existingLeadError,
       });
-      return res.status(500).json({ error: 'Failed to create lead' });
+      return res.status(500).json({ error: 'Failed to check existing leads' });
     }
 
-    leadId = lead?.id;
+    if (!existingLead) {
+      const { error: newLeadError } = await supabaseService
+        .from('leads')
+        .insert({
+          first_name: client.first_name,
+          last_name: client.last_name,
+          email: client.email,
+          phone: client.phone,
+          state: client.state,
+          date_of_birth: client.date_of_birth,
+          agent_id: req?.agent?.id,
+          sold: true,
+          lead_vendor_id: lead_vendor_id,
+          gsq_live_transfer: live_transfer || false,
+        })
+        .select('id')
+        .maybeSingle();
+
+      if (newLeadError) {
+        logger.error('Error creating lead in clients.js', {
+          route: '/client',
+          method: 'POST',
+          requesterId: req.agent?.id,
+          email: client.email,
+          error: newLeadError,
+        });
+      }
+
+      leadId = newLeadError?.id || null;
+
+      return res.status(500).json({ error: 'Failed to create lead' });
+    }
+    leadId = existingLead?.id || null;
   }
 
-  if (!leadId) {
-    logger.error('Lead created without id in endpoints/clients.js', {
-      route: '/client',
-      method: 'POST',
-      requesterId: req.agent?.id,
-      email: client.email,
-    });
-    return res.status(500).json({ error: 'Failed to create lead' });
-  }
-
-  const { data: newClient, error: clientError } = await supabaseService
+  const { data: newClient, error: newClientError } = await supabaseService
     .from('clients')
     .insert({
       ...client,
@@ -202,20 +170,20 @@ clientRouter.post('/', async (req, res) => {
     .select('*')
     .maybeSingle();
 
-  if (clientError) {
-    logger.error('Error creating client in endpoints/clients.js', {
+  if (newClientError) {
+    logger.error('Error creating client in clients.js', {
       route: '/client',
       method: 'POST',
       requesterId: req.agent?.id,
       email: client.email,
       leadId,
-      error: clientError,
+      error: newClientError,
     });
     return res.status(500).json({ error: 'Failed to create client' });
   }
 
   if (!newClient?.id) {
-    logger.error('Client created without id in endpoints/clients.js', {
+    logger.error('Supabase insert did not return an id clients.js', {
       route: '/client',
       method: 'POST',
       requesterId: req.agent?.id,
@@ -234,17 +202,14 @@ clientRouter.post('/', async (req, res) => {
     });
 
   if (agentClientError) {
-    logger.error(
-      'Error creating agent_clients record in endpoints/clients.js',
-      {
-        route: '/client',
-        method: 'POST',
-        requesterId: req.agent?.id,
-        clientId: newClient.id,
-        leadId,
-        error: agentClientError,
-      },
-    );
+    logger.error('Error creating agent_clients record in clients.js', {
+      route: '/client',
+      method: 'POST',
+      requesterId: req.agent?.id,
+      clientId: newClient.id,
+      leadId,
+      error: agentClientError,
+    });
     return res.status(500).json({ error: 'Failed to link client to agent' });
   }
 
@@ -258,22 +223,13 @@ clientRouter.post('/', async (req, res) => {
   });
 
   return res.status(201).json(newClient);
-  // } catch (error) {
-  //   logger.error('Unexpected error creating client in endpoints/clients.js', {
-  //     route: '/client',
-  //     method: 'POST',
-  //     requesterId: req.agent?.id,
-  //     error,
-  //   });
-  //   return res.status(500).json({ error: 'Internal server error' });
-  // }
 });
 
 clientRouter.patch('/', async (req, res) => {
   const { clientId, client } = req.body;
 
   if (!clientId || !client) {
-    logger.warn('Missing client update payload in endpoints/clients.js', {
+    logger.warn('Missing client update payload in clients.js', {
       route: '/clients',
       method: 'PATCH',
       requesterId: req.agent?.id,
@@ -284,23 +240,33 @@ clientRouter.patch('/', async (req, res) => {
       .json({ error: 'Missing clientId or client payload' });
   }
 
+  const {
+    notes,
+    agent_name,
+    gsq_source,
+    createdAtMs,
+    fullName,
+    ...clientFields
+  } = client;
+
   try {
     logger.log('Updating client', {
       route: '/clients',
       method: 'PATCH',
       requesterId: req.agent?.id,
       targetClientId: clientId,
-      fieldsToUpdate: Object.keys(client || {}),
+      fieldsToUpdate: Object.keys(clientFields),
+      hasNotes: notes !== undefined,
     });
 
-    const { data, error } = await req.supabase
+    const { data: updatedClient, error } = await supabaseService
       .from('clients')
-      .update(client)
+      .update(clientFields)
       .eq('id', clientId)
       .select('*');
 
     if (error) {
-      logger.error('Error updating client in endpoints/clients.js', {
+      logger.error('Error updating client in clients.js', {
         route: '/clients',
         method: 'PATCH',
         requesterId: req.agent?.id,
@@ -310,14 +276,33 @@ clientRouter.patch('/', async (req, res) => {
       return res.status(500).json({ error: 'Failed to update client' });
     }
 
-    if (!data || data.length === 0) {
-      logger.warn('Client not found for update in endpoints/clients.js', {
+    if (!updatedClient || updatedClient.length === 0) {
+      logger.warn('Client not found for update in clients.js', {
         route: '/clients',
         method: 'PATCH',
         requesterId: req.agent?.id,
         targetClientId: clientId,
       });
       return res.status(404).json({ error: 'Client not found' });
+    }
+
+    if (notes !== undefined) {
+      const { error: notesError } = await supabaseService
+        .from('agent_clients')
+        .update({ agent_notes: notes })
+        .eq('client_id', clientId)
+        .eq('agent_id', req.agent.id);
+
+      if (notesError) {
+        logger.error('Error updating agent_notes in clients.js', {
+          route: '/clients',
+          method: 'PATCH',
+          requesterId: req.agent?.id,
+          targetClientId: clientId,
+          error: notesError,
+        });
+        return res.status(500).json({ error: 'Failed to update notes' });
+      }
     }
 
     logger.log('Updated client successfully', {
@@ -327,9 +312,9 @@ clientRouter.patch('/', async (req, res) => {
       targetClientId: clientId,
     });
 
-    return res.status(200).json(data[0]);
+    return res.status(200).json({ ...updatedClient[0], notes: notes ?? null });
   } catch (error) {
-    logger.error('Unexpected error updating client in endpoints/clients.js', {
+    logger.error('Unexpected error updating client in clients.js', {
       route: '/clients',
       method: 'PATCH',
       requesterId: req.agent?.id,
@@ -344,7 +329,7 @@ clientRouter.delete('/', async (req, res) => {
   const { clientId } = req.body;
 
   if (!clientId) {
-    logger.warn('Missing clientId in endpoints/clients.js', {
+    logger.warn('Missing clientId in clients.js', {
       route: '/clients',
       method: 'DELETE',
       requesterId: req.agent?.id,
@@ -368,7 +353,7 @@ clientRouter.delete('/', async (req, res) => {
       .maybeSingle();
 
     if (error) {
-      logger.error('Error deleting client in endpoints/clients.js', {
+      logger.error('Error deleting client in clients.js', {
         route: '/clients',
         method: 'DELETE',
         requesterId: req.agent?.id,
@@ -379,7 +364,7 @@ clientRouter.delete('/', async (req, res) => {
     }
 
     if (!data) {
-      logger.warn('Client not found for delete in endpoints/clients.js', {
+      logger.warn('Client not found for delete in clients.js', {
         route: '/clients',
         method: 'DELETE',
         requesterId: req.agent?.id,
@@ -397,7 +382,7 @@ clientRouter.delete('/', async (req, res) => {
 
     return res.status(200).json({ message: 'Client deleted successfully' });
   } catch (error) {
-    logger.error('Unexpected error deleting client in endpoints/clients.js', {
+    logger.error('Unexpected error deleting client in clients.js', {
       route: '/',
       method: 'DELETE',
       requesterId: req.agent?.id,

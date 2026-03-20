@@ -27,7 +27,7 @@ import { postClient, getLeadVendors } from '../utils/query';
 
 import { useLocation } from 'react-router-dom';
 
-import { toTitleCase } from '../utils/helpers';
+import { toTitleCase, formatPhone } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
 
 const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
@@ -52,6 +52,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
   const [form, setForm] = useState(initialForm);
   const [phoneError, setPhoneError] = useState(false);
+  const [phoneMask, setPhoneMask] = useState('###-###-####');
   const [zipCodeError, setZipCodeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [disabled, setDisabled] = useState(true);
@@ -193,8 +194,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     }
 
     if (name === 'phone') {
-      setPhoneError(!/^\d{3}-?\d{3}-?\d{4}$/.test(value));
-      value = value.replace(/-/g, '');
+      value = value.replace(/\D/g, '').slice(0, 10);
+      setPhoneError(value.length > 0 && value.length < 10);
     } else if (name === 'zip') {
       setZipCodeError(!/^[0-9]{5}$/.test(value));
     } else if (name === 'email') {
@@ -219,8 +220,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     const modifiedForm = { ...form };
     console.log('Modified Form:', modifiedForm);
     delete modifiedForm.notes;
+
     console.log('lead vendor id', form.lead_vendor_id);
-    if (form.lead_vendor_id !== '1043bc55-a8cd-485f-bddc-46bcfc06d4ba') {
+    if (form.lead_vendor_id !== import.meta.env.VITE_GSQ_LEAD_VENDOR_ID) {
       delete modifiedForm.live_transfer;
     }
     const hasEmptyFields = Object.keys(modifiedForm).some(
@@ -355,7 +357,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             <TextField
               name='phone'
               label='Phone'
-              value={form.phone}
+              value={formatPhone(form.phone)}
               onChange={handleChange}
               error={phoneError}
               helperText={phoneError ? 'Invalid phone number' : ''}

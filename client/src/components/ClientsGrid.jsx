@@ -34,7 +34,6 @@ export default function ClientsGrid({
   const rows = clients.map((client) => {
     return {
       ...client,
-      createdAtMs: client.created_at,
       fullName: `${client.first_name || ''} ${client.last_name || ''}`.trim(),
     };
   });
@@ -213,7 +212,7 @@ export default function ClientsGrid({
         },
       },
       {
-        field: 'source',
+        field: 'gsq_source',
         headerName: 'Ad Source',
         width: 150,
         renderCell: (params) => (
@@ -240,7 +239,7 @@ export default function ClientsGrid({
             <GridActionsCellItem
               key='edit'
               icon={<EditIcon />}
-              label='Update Client'
+              label='Edit / View Client'
               onClick={() => handleUpdateClient && handleUpdateClient(c)}
               showInMenu={true}
             />,
@@ -277,7 +276,7 @@ export default function ClientsGrid({
         disableRowSelectionOnClick
         pageSizeOptions={[10, 25, 50, 100]}
         initialState={{
-          sorting: { sortModel: [{ field: 'createdAtMs', sort: 'desc' }] },
+          sorting: { sortModel: [{ field: 'created_at', sort: 'desc' }] },
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
       />

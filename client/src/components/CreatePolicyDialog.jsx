@@ -17,14 +17,19 @@ import {
   FormControlLabel,
   Checkbox,
   Alert,
+  Skeleton,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { postPolicy, getAgents } from '../utils/query';
+import {
+  postPolicy,
+  getAgents,
+  getCarriers,
+  getProducts,
+} from '../utils/query';
 import {
   RELATIONSHIP_OPTIONS,
-  CARRIER_PRODUCTS,
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 
@@ -32,7 +37,7 @@ import { NumericFormat } from 'react-number-format';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { enqueueSnackbar } from 'notistack';
 import { useSelector } from 'react-redux';
-import { toTitleCase } from '../utils/helpers';
+import { toTitleCase, formatPhone } from '../utils/helpers';
 
 const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
 const statuses = [
@@ -51,27 +56,27 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const { user } = useSelector((state) => state.user);
 
   const initialForm = {
-    policyNumber: '',
+    policy_number: '',
     client_id: client?.id || '',
     clientName: client ? `${client.first_name} ${client.last_name}` : '',
     carrier: '',
-    policyStatus: 'Active',
-    coverageAmount: '',
-    premiumAmount: '',
-    lead_source: client?.lead_source || 'GetSeniorQuotes.com',
-    policyType: '',
-    premiumFrequency: 'Monthly',
-    date_sold: '',
+    policy_status: 'Active',
+    coverage_amount: '',
+    premium_amount: '',
+    lead_vendor_id: client?.lead_vendor_id || 'GetSeniorQuotes.com',
+    product: '',
+    premium_frequency: 'Monthly',
+    sold_date: '',
     effective_date: '',
     draft_day: '',
     beneficiaries: [
-      { first_name: '', last_name: '', relationship: '', share: '' },
+      { first_name: '', last_name: '', relationship: '', phone: '', share: '' },
     ],
-    contingentBeneficiaries: [],
+    contingent_beneficiaries: [],
     notes: '',
-    splitPolicy: '',
-    splitPolicyAgent: undefined,
-    splitPolicyShare: undefined,
+    split_policy: '',
+    split_agent_id: undefined,
+    split_agent_share: undefined,
   };
 
   const {
@@ -89,9 +94,19 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     },
   });
 
-  const { data: agents } = useQuery({
+  const { data: agents, isLoading: agentsLoading } = useQuery({
     queryKey: ['agents'],
     queryFn: () => getAgents(),
+  });
+
+  const { data: carriers = [], isLoading: carriersLoading } = useQuery({
+    queryKey: ['carriers'],
+    queryFn: getCarriers,
+  });
+
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: getProducts,
   });
 
   const [form, setForm] = useState(initialForm);
@@ -99,7 +114,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    const uppercasedFields = ['policyNumber'];
+    const uppercasedFields = ['policy_number'];
     const transformedValue = uppercasedFields.includes(name)
       ? value.toUpperCase()
       : value;
@@ -114,19 +129,27 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       value = toTitleCase(value);
     }
 
+    if (field === 'phone') {
+      value = value.replace(/\D/g, '').slice(0, 10);
+    }
+
     newList[i][field] = value;
     setForm((prev) => ({ ...prev, beneficiaries: newList }));
   };
 
   const handleContingentChange = (i, field, value) => {
-    const newList = [...form.contingentBeneficiaries];
+    const newList = [...form.contingent_beneficiaries];
 
     if (field === 'first_name' || field === 'last_name') {
       value = toTitleCase(value);
     }
 
+    if (field === 'phone') {
+      value = value.replace(/\D/g, '').slice(0, 10);
+    }
+
     newList[i][field] = value;
-    setForm((prev) => ({ ...prev, contingentBeneficiaries: newList }));
+    setForm((prev) => ({ ...prev, contingent_beneficiaries: newList }));
   };
 
   const handleAddBeneficiary = () => {
@@ -134,7 +157,13 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       ...prev,
       beneficiaries: [
         ...prev.beneficiaries,
-        { first_name: '', last_name: '', relationship: '', share: '' },
+        {
+          first_name: '',
+          last_name: '',
+          relationship: '',
+          phone: '',
+          share: '',
+        },
       ],
     }));
   };
@@ -148,7 +177,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     } else if (type === 'contingent') {
       setForm((prev) => ({
         ...prev,
-        contingentBeneficiaries: prev.contingentBeneficiaries.filter(
+        contingent_beneficiaries: prev.contingent_beneficiaries.filter(
           (_, index) => index !== i,
         ),
       }));
@@ -158,23 +187,24 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const handleAddContingent = () => {
     setForm((prev) => ({
       ...prev,
-      contingentBeneficiaries: [
-        ...prev.contingentBeneficiaries,
-        { first_name: '', last_name: '', relationship: '', share: '' },
+      contingent_beneficiaries: [
+        ...prev.contingent_beneficiaries,
+        {
+          first_name: '',
+          last_name: '',
+          relationship: '',
+          phone: '',
+          share: '',
+        },
       ],
     }));
   };
 
   const handleSubmit = () => {
-    const agentIds = !form.splitPolicy
-      ? [user?.id]
-      : [user?.id, form.splitPolicyAgent];
-
     createPolicy({
       data: {
         policy: { ...form },
-        agentIds,
-        clientId: client.id,
+        client_id: form?.client_id,
       },
     });
   };
@@ -198,22 +228,25 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     const modifiedForm = { ...form };
     delete modifiedForm.notes;
 
+    console.log('Validating form', modifiedForm);
+
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
       return (
-        key !== 'splitPolicyAgent' &&
-        key !== 'splitPolicyShare' &&
+        key !== 'split_agent_id' &&
+        key !== 'split_agent_share' &&
         modifiedForm[key] === ''
       );
     });
 
     if (hasEmptyFields) {
+      console.log('Form', modifiedForm);
       console.log('Empty fields detected');
       setDisabled(true);
       return;
     }
 
-    if (modifiedForm.splitPolicy) {
-      if (!modifiedForm.splitPolicyAgent || !modifiedForm.splitPolicyShare) {
+    if (modifiedForm.split_policy) {
+      if (!modifiedForm.split_agent_id || !modifiedForm.split_agent_share) {
         console.log('Empty fields detected');
         setDisabled(true);
         return;
@@ -238,13 +271,13 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       }
     }
 
-    if (modifiedForm.contingentBeneficiaries.length !== 0) {
+    if (modifiedForm.contingent_beneficiaries.length !== 0) {
       const keys = ['first_name', 'last_name', 'relationship', 'share'];
-      const hasEmptyFields = modifiedForm.contingentBeneficiaries.some((b) =>
+      const hasEmptyFields = modifiedForm.contingent_beneficiaries.some((b) =>
         keys.some((key) => b[key] === ''),
       );
 
-      const shareValue = modifiedForm.contingentBeneficiaries.reduce(
+      const shareValue = modifiedForm.contingent_beneficiaries.reduce(
         (acc, b) => acc + parseFloat(b.share || 0),
         0,
       );
@@ -259,6 +292,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     console.log('Form is valid, enabling submit button');
     setDisabled(false);
   }, [form]);
+
+  if (!agents) {
+    console.log('Agents data is undefined');
+  }
 
   if (!form) {
     return null;
@@ -291,11 +328,11 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={form.splitPolicy === true}
+                      checked={form.split_policy === true}
                       onChange={() =>
                         setForm((prev) => ({
                           ...prev,
-                          splitPolicy: true,
+                          split_policy: true,
                         }))
                       }
                     />
@@ -305,11 +342,11 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={form.splitPolicy === false}
+                      checked={form.split_policy === false}
                       onChange={() =>
                         setForm((prev) => ({
                           ...prev,
-                          splitPolicy: false,
+                          split_policy: false,
                         }))
                       }
                     />
@@ -318,44 +355,50 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 />
               </Stack>
             </FormControl>
-            {form.splitPolicy && (
+            {form.split_policy && (
               <Stack direction='row' spacing={2} sx={{ mt: 2 }}>
-                <TextField
-                  select
-                  name='splitPolicyAgent'
-                  label='Other Agent'
-                  value={form?.splitPolicyAgent}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                >
-                  {agents.length !== 0 &&
-                    agents.map((agent) => {
-                      if (agent.id === user?.id) return null;
-                      return (
-                        <MenuItem key={agent.id} value={agent.id}>
-                          {[agent.first_name, agent.last_name].filter(Boolean).join(' ')}
-                        </MenuItem>
-                      );
-                    })}
-                </TextField>
+                {agentsLoading ? (
+                  <Skeleton variant='rectangular' width={210} height={56} />
+                ) : (
+                  <TextField
+                    select
+                    name='split_agent_id'
+                    label='Other Agent'
+                    value={form?.split_agent_id || ''}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  >
+                    {agents.length !== 0 &&
+                      agents.map((agent) => {
+                        if (agent.id === user?.id) return null;
+                        return (
+                          <MenuItem key={agent.id} value={agent.id}>
+                            {[agent.first_name, agent.last_name]
+                              .filter(Boolean)
+                              .join(' ')}
+                          </MenuItem>
+                        );
+                      })}
+                  </TextField>
+                )}
 
                 <NumericFormat
                   style={{ width: '100%' }}
-                  name='splitPolicyShare'
+                  name='split_agent_share'
                   label='Other Agent’s Commission Share'
-                  value={form?.splitPolicyShare}
+                  value={form?.split_agent_share || ''}
                   thousandSeparator=','
                   onChange={handleChange}
                   customInput={TextField}
                   required
                   isAllowed={(values) => {
                     const { floatValue } = values;
-                    return floatValue === undefined || floatValue <= 100;
+                    return floatValue === undefined || floatValue <= 99;
                   }}
                   onValueChange={(values) => {
                     const { value } = values; // raw value without formatting
-                    setForm({ ...form, splitPolicyShare: value });
+                    setForm({ ...form, split_agent_share: value });
                   }}
                   slotProps={{
                     input: {
@@ -380,50 +423,77 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             />
           </Grid>
           <Grid size={6}>
+            {carriersLoading ? (
+              <Skeleton variant='rounded' height={56} />
+            ) : (
+              <TextField
+                select
+                name='carrier'
+                label='Carrier'
+                value={form.carrier}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                {carriers.map((carrier) => (
+                  <MenuItem key={carrier.id} value={carrier.id}>
+                    {carrier.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          </Grid>
+
+          <Grid size={6}>
+            {productsLoading ? (
+              <Skeleton variant='rounded' height={56} />
+            ) : (
+              <TextField
+                select
+                name='product'
+                label='Product'
+                value={form.product}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                {products
+                  .filter((p) => p.carrier_id === form.carrier)
+                  .map((product) => (
+                    <MenuItem key={product.id} value={product.id}>
+                      {product.name}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            )}
+          </Grid>
+          <Grid size={6}>
             <TextField
-              select
-              name='carrier'
-              label='Carrier'
-              value={form.carrier}
+              name='policy_number'
+              label='Policy #'
+              value={form.policy_number}
               onChange={handleChange}
               fullWidth
               required
-            >
-              {Object.keys(CARRIER_PRODUCTS).map((carrier) => (
-                <MenuItem key={carrier} value={carrier}>
-                  {carrier}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           </Grid>
 
           <Grid size={6}>
             <TextField
               select
-              name='policyType'
-              label='Product'
-              value={form.policyType}
+              name='policy_status'
+              label='Policy Status'
+              value={form.policy_status}
               onChange={handleChange}
               fullWidth
               required
             >
-              {form.carrier &&
-                CARRIER_PRODUCTS[form.carrier].map((carrier) => (
-                  <MenuItem key={carrier} value={carrier}>
-                    {carrier}
-                  </MenuItem>
-                ))}
+              {statuses.map((s) => (
+                <MenuItem key={s} value={s}>
+                  {s}
+                </MenuItem>
+              ))}
             </TextField>
-          </Grid>
-          <Grid size={6}>
-            <TextField
-              name='policyNumber'
-              label='Policy #'
-              value={form.policyNumber}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
           </Grid>
 
           <Grid size={12}>
@@ -433,15 +503,15 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid size={6}>
             <NumericFormat
               style={{ width: '100%' }}
-              name='coverageAmount'
+              name='coverage_amount'
               label='Coverage Amount'
-              value={form.coverageAmount}
+              value={form.coverage_amount}
               thousandSeparator=','
               customInput={TextField}
               required
               onValueChange={(values) => {
                 const { value } = values; // raw value without formatting
-                setForm((prev) => ({ ...prev, coverageAmount: value }));
+                setForm((prev) => ({ ...prev, coverage_amount: value }));
               }}
               slotProps={{
                 input: {
@@ -454,9 +524,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
           <Grid size={6}>
             <NumericFormat
-              name='premiumAmount'
+              name='premium_amount'
               label='Monthly Premium Amount'
-              value={form.premiumAmount}
+              value={form.premium_amount}
               decimalScale={2}
               decimalSeparator='.'
               fixedDecimalScale={true}
@@ -465,7 +535,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               required
               onValueChange={(values) => {
                 const { value } = values; // raw value without formatting
-                setForm((prev) => ({ ...prev, premiumAmount: value }));
+                setForm((prev) => ({ ...prev, premium_amount: value }));
               }}
               slotProps={{
                 input: {
@@ -481,9 +551,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid size={6}>
             <TextField
               select
-              name='draftDay'
+              name='draft_day'
               label='Recurring Draft Day'
-              value={form.draftDay}
+              value={form.draft_day}
               onChange={handleChange}
               fullWidth
               required
@@ -499,9 +569,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid size={6}>
             <TextField
               select
-              name='premiumFrequency'
+              name='premium_frequency'
               label='Premium Frequency'
-              value={form.premiumFrequency}
+              value={form.premium_frequency}
               onChange={handleChange}
               fullWidth
               required
@@ -516,10 +586,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
 
           <Grid size={6}>
             <TextField
-              name='dateSold'
+              name='sold_date'
               label='Date Sold'
               type='date'
-              value={form.dateSold}
+              value={form.sold_date}
               onChange={handleChange}
               fullWidth
               required
@@ -527,10 +597,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
           <Grid size={6}>
             <TextField
-              name='effectiveDate'
+              name='effective_date'
               label='Effective Date'
               type='date'
-              value={form.effectiveDate}
+              value={form.effective_date}
               onChange={handleChange}
               fullWidth
               required
@@ -543,7 +613,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           {form.beneficiaries.map((b, i) => (
             <>
               <Grid container spacing={2} key={i} sx={{ mb: 1 }}>
-                <Grid size={3}>
+                <Grid size={2}>
                   <TextField
                     value={b.first_name}
                     label='First Name'
@@ -554,7 +624,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                     fullWidth
                   />
                 </Grid>
-                <Grid size={3}>
+                <Grid size={2}>
                   <TextField
                     value={b.last_name}
                     label='Last Name'
@@ -565,7 +635,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                     fullWidth
                   />
                 </Grid>
-                <Grid size={3}>
+                <Grid size={2}>
                   <TextField
                     select
                     value={b.relationship}
@@ -584,6 +654,16 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                   </TextField>
                 </Grid>
                 <Grid size={3}>
+                  <TextField
+                    value={formatPhone(b.phone || '')}
+                    label='Phone'
+                    onChange={(e) =>
+                      handleBeneficiaryChange(i, 'phone', e.target.value)
+                    }
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={3}>
                   <Stack direction='row' spacing={1} alignItems='center'>
                     <NumericFormat
                       style={{ width: '100%' }}
@@ -598,7 +678,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                         return floatValue === undefined || floatValue <= 100;
                       }}
                       onValueChange={(values) => {
-                        const { value } = values; // raw value without formatting
+                        const { value } = values;
                         handleBeneficiaryChange(i, 'share', value);
                       }}
                       slotProps={{
@@ -637,10 +717,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             <SectionHeader title='Contingent Beneficiareis' />
           </Grid>
 
-          {form.contingentBeneficiaries.map((b, i) => (
+          {form.contingent_beneficiaries.map((b, i) => (
             <Fragment key={i}>
               <Grid container spacing={2} key={i} sx={{ mb: 1 }}>
-                <Grid size={3}>
+                <Grid size={2}>
                   <TextField
                     value={b.first_name}
                     label='First Name'
@@ -651,7 +731,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                     fullWidth
                   />
                 </Grid>
-                <Grid size={3}>
+                <Grid size={2}>
                   <TextField
                     value={b.last_name}
                     label='Last Name'
@@ -662,7 +742,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                     fullWidth
                   />
                 </Grid>
-                <Grid size={3}>
+                <Grid size={2}>
                   <TextField
                     select
                     value={b.relationship}
@@ -681,6 +761,16 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                   </TextField>
                 </Grid>
                 <Grid size={3}>
+                  <TextField
+                    value={formatPhone(b.phone || '')}
+                    label='Phone'
+                    onChange={(e) =>
+                      handleContingentChange(i, 'phone', e.target.value)
+                    }
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={3}>
                   <Stack direction='row' spacing={1} alignItems='center'>
                     <NumericFormat
                       style={{ width: '100%' }}
@@ -695,7 +785,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                         return floatValue === undefined || floatValue <= 100;
                       }}
                       onValueChange={(values) => {
-                        const { value } = values; // raw value without formatting
+                        const { value } = values;
                         handleContingentChange(i, 'share', value);
                       }}
                       slotProps={{

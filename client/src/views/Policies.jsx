@@ -45,6 +45,8 @@ const Policies = () => {
     cacheTime: 1000 * 60 * 10, // 10 minutes
   });
 
+  console.log('Fetched policies:', policies);
+
   const { data: agents = [], isLoading: agentsLoading } = useQuery({
     queryKey: ['agents'],
     queryFn: () => getAgents(),
@@ -73,7 +75,7 @@ const Policies = () => {
     return (
       <Stack alignItems='center' justifyContent='center' sx={{ py: 4 }}>
         <Alert severity='error' sx={{ my: 2 }}>
-          Failed to load clients. Please refresh or try again later.
+          Failed to load policies. Please refresh or try again later.
         </Alert>
       </Stack>
     );

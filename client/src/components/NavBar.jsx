@@ -55,7 +55,9 @@ export default function NavBar() {
   const { data: accountData } = useQuery({
     queryKey: ['account', user?.email, isAuthenticated],
     queryFn: () => getAccount({ email: user?.email, token: userToken }),
-    staleTime: 1000 * 60 * 1,
+    staleTime: 1000 * 60 * 5,
+    refetchOnMount: false,
+    enabled: !!user?.email && isAuthenticated,
   });
 
   const getInitials = (name) => {

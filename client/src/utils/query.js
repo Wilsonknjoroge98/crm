@@ -410,23 +410,22 @@ const getCommissions = async ({ startDate, endDate, agent }) => {
   }
 };
 
-const getPolicies = async ({ data }) => {
+const getPolicies = async () => {
   // request config for compulife server
   const options = {
     method: 'GET',
     // signal: signal,
-    url: '/policies',
-    params: {
-      agentId: agentId,
-      agentRole: agentRole,
-      mode: import.meta.env.MODE,
-      agency: agency,
-    },
+    url: '/policy/all',
+    // params: {
+    //   agentId: agentId,
+    //   agentRole: agentRole,
+    //   mode: import.meta.env.MODE,
+    //   agency: agency,
+    // },
   };
 
   try {
     const response = await apiClient.request(options);
-
     console.log('Policies fetched:', response.data);
 
     return response.data;
@@ -728,45 +727,31 @@ const patchPolicy = async ({ data }) => {
 };
 
 const postPolicy = async ({ data }) => {
-  const { policy, clientId, agentIds } = data || {};
+  const { policy, client_id } = data || {};
 
-  // client side validation
-  if (!policy || !clientId || !agentIds) {
+  console.log('Posting policy:', data);
+
+  if (!policy || !client_id) {
     console.log('missing data');
     throw new Error('Missing data');
   }
 
   console.log('Posting Policy: ', policy);
 
-  const controller = new AbortController();
-  // request config for custom firebase endpoint
   const options = {
     method: 'POST',
+    url: '/policy',
     data: {
       policy: policy,
-      clientId: clientId,
-      agentIds: agentIds,
+      client_id: client_id,
       mode: import.meta.env.MODE,
     },
-    signal: controller.signal,
-    url: '/policy',
   };
   try {
-    // response from server
     const response = await apiClient.request(options);
-
-    // return to component
     return response.data;
   } catch (error) {
     console.error('Error posting policy:', error);
-
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status ?? 500;
-
-      if (status === 409) throw new Error('Policy number already exists');
-      throw new Error('Internal Server Error');
-    }
-
     throw error;
   }
 };
@@ -841,6 +826,36 @@ const postError = async (data) => {
   return response.data;
 };
 
+const getCarriers = async () => {
+  const options = {
+    method: 'GET',
+    url: '/carriers',
+    params: { mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting carriers:', error);
+    throw error;
+  }
+};
+
+const getProducts = async () => {
+  const options = {
+    method: 'GET',
+    url: '/carriers/products',
+    params: { mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting products:', error);
+    throw error;
+  }
+};
+
 const getLeadVendors = async () => {
   const options = {
     method: 'GET',
@@ -904,4 +919,6 @@ export {
   createInvite,
   validateInvite,
   getLeadVendors,
+  getCarriers,
+  getProducts,
 };

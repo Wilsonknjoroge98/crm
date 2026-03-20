@@ -22,7 +22,7 @@ import { toTitleCase } from '../utils/helpers';
 
 import { enqueueSnackbar } from 'notistack';
 
-const maritalOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
+const maritalOptions = ['single', 'married', 'divorced', 'widowed'];
 
 const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   const [form, setForm] = useState({ ...client });
@@ -54,16 +54,12 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
       .map((part) => {
         const idx = part.search(/[a-z]/i);
         if (idx === -1) return part;
-        return part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1);
+        return (
+          part.slice(0, idx) + part[idx].toUpperCase() + part.slice(idx + 1)
+        );
       })
       .join(' ');
   };
-
-  function standardizeName(name) {
-    const lowerCaseName = name.toLowerCase().trim();
-
-    return lowerCaseName.charAt(0).toUpperCase() + lowerCaseName.slice(1);
-  }
 
   const handleChange = (e) => {
     setUpdatesMade(true);
@@ -292,7 +288,9 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: <InputAdornment position='start'>$</InputAdornment>,
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
                 },
               }}
             />

@@ -23,6 +23,7 @@ const {
   publicRouter,
   inviteRouter,
   leadVendorsRouter,
+  carriersRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -48,6 +49,7 @@ app.use('/policy', policyRouter);
 app.use('/lead', leadRouter);
 app.use('/client', clientRouter);
 app.use('/lead-vendors', leadVendorsRouter);
+app.use('/carriers', carriersRouter);
 app.use('/downline-production', downlineProductionRouter);
 app.use('/summary', summaryRouter);
 app.use('/hierarchy', hierarchyRouter);
@@ -119,7 +121,7 @@ app.get('/customer_account', async (req, res) => {
       console.log('Account Fetched:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching leads:', error.message);
+      console.error('Error fetching leads from GSQ:', error.message);
       throw error;
     }
   };
