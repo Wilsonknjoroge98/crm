@@ -96,6 +96,7 @@ export const CARRIER_PRODUCTS = {
     'Graded Final Expense',
   ],
   'Corebridge': ['GIWL', 'SIWL'],
+  'Columbus Life': ['IUL'],
   'Ethos': [
     'Ameritas IUL',
     'Ameritas SI Term',
