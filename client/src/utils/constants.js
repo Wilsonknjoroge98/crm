@@ -115,6 +115,7 @@ export const CARRIER_PRODUCTS = {
     'Your Term',
   ],
   'Illinois Mutual': ['Final Expense'],
+  'InstaBrain': ['Term Life', 'Whole Life'],
   'Kansas City Life': ['SIGNATURE TERM', 'SIGNATURE TERM ROP'],
   'Ladder': ['TERM'],
   'LGA': ['Quility Term'],
