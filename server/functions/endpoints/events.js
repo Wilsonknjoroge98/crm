@@ -46,15 +46,6 @@ eventsRouter.get('/', async (req, res) => {
         : null;
       const premium = Number(policy.premium_amount) * 12;
 
-      if (policy.sold_date) {
-        events.push({
-          type: 'sale',
-          date: policy.sold_date,
-          agent_name: agentName,
-          premium,
-        });
-      }
-
       if (policy.effective_date && policy.effective_date <= today) {
         events.push({
           type: 'effective',

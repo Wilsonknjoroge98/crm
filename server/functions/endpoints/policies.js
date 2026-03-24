@@ -1,6 +1,5 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
-const { sendToGSQ } = require('../helpers');
 const { supabaseService } = require('../services/supabase');
 // eslint-disable-next-line new-cap
 const policyRouter = express.Router();
@@ -73,6 +72,85 @@ policyRouter.get('/all', async (req, res) => {
   } catch (error) {
     logger.error('Error fetching policies in endpoints/policies.js', { error });
     res.status(500).json({ error: 'Failed to fetch policies' });
+  }
+});
+
+policyRouter.get('/', async (req, res) => {
+  try {
+    const targetAgentId = req.query.agentId || req.agent.id;
+
+    logger.log('Fetching policies for agent', {
+      route: '/policy',
+      method: 'GET',
+      requesterId: req.agent?.id,
+      targetAgentId,
+    });
+
+    const { data: policies, error } = await supabaseService
+      .from('policies')
+      .select(`
+        *,
+        clients!policies_client_id_fkey ( first_name, last_name ),
+        carriers ( name ),
+        products ( name ),
+        writing_agent:agents!policies_writing_agent_id_fkey ( first_name, last_name ),
+        split_agent:agents!policies_split_agent_id_fkey ( first_name, last_name ),
+        beneficiaries!beneficiaries_policy_id_fkey ( id, first_name, last_name, relationship, allocation_percent, beneficiary_type, phone )
+      `)
+      .eq('writing_agent_id', targetAgentId);
+
+    if (error) {
+      logger.error('Error fetching policies in endpoints/policies.js', {
+        route: '/policy',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to fetch policies' });
+    }
+
+    const mapped = (policies || []).map(
+      ({
+        clients: c,
+        carriers: car,
+        products: prod,
+        writing_agent: wa,
+        split_agent: sa,
+        beneficiaries: bens,
+        ...policy
+      }) => ({
+        ...policy,
+        client_name: c
+          ? `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || null
+          : null,
+        carrier_name: car?.name || null,
+        product_name: prod?.name || null,
+        writing_agent_name: wa
+          ? `${wa.first_name ?? ''} ${wa.last_name ?? ''}`.trim() || null
+          : null,
+        split_agent_name: sa
+          ? `${sa.first_name ?? ''} ${sa.last_name ?? ''}`.trim() || null
+          : null,
+        beneficiaries: bens || [],
+      }),
+    );
+
+    logger.log('Fetched policies successfully', {
+      route: '/policy',
+      method: 'GET',
+      requesterId: req.agent?.id,
+      count: mapped.length,
+    });
+
+    return res.status(200).json(mapped);
+  } catch (error) {
+    logger.error('Unexpected error fetching policies in endpoints/policies.js', {
+      route: '/policy',
+      method: 'GET',
+      requesterId: req.agent?.id,
+      error,
+    });
+    return res.status(500).json({ error: 'Failed to fetch policies' });
   }
 });
 
@@ -206,6 +284,13 @@ policyRouter.patch('/', async (req, res) => {
     contingent_beneficiaries,
     clientName,
     split_policy,
+    product,
+    carrier,
+    carrier_name,
+    product_name,
+    client_name,
+    split_agent_name,
+    writing_agent_name,
     ...policyFields
   } = policy;
 
@@ -282,6 +367,71 @@ policyRouter.patch('/', async (req, res) => {
     policyId,
   });
   return res.status(200).json({ id: policyId });
+});
+
+policyRouter.delete('/', async (req, res) => {
+  const { policyId } = req.body;
+
+  if (!policyId) {
+    logger.warn('Missing policyId in endpoints/policies.js', {
+      route: '/policy',
+      method: 'DELETE',
+      requesterId: req.agent?.id,
+    });
+    return res.status(400).json({ error: 'Missing policyId' });
+  }
+
+  try {
+    logger.log('Deleting policy', {
+      route: '/policy',
+      method: 'DELETE',
+      requesterId: req.agent?.id,
+      policyId,
+    });
+
+    const { error: beneficiaryError } = await req.supabase
+      .from('beneficiaries')
+      .delete()
+      .eq('policy_id', policyId);
+
+    if (beneficiaryError) {
+      logger.error('Error deleting beneficiaries in endpoints/policies.js', {
+        error: beneficiaryError,
+        policyId,
+      });
+      return res
+        .status(500)
+        .json({ error: 'Failed to delete policy beneficiaries' });
+    }
+
+    const { error: policyError } = await req.supabase
+      .from('policies')
+      .delete()
+      .eq('id', policyId);
+
+    if (policyError) {
+      logger.error('Error deleting policy in endpoints/policies.js', {
+        error: policyError,
+        policyId,
+      });
+      return res.status(500).json({ error: 'Failed to delete policy' });
+    }
+
+    logger.log('Deleted policy successfully', {
+      route: '/policy',
+      method: 'DELETE',
+      requesterId: req.agent?.id,
+      policyId,
+    });
+
+    return res.status(200).json({ message: 'Policy deleted successfully' });
+  } catch (error) {
+    logger.error('Unexpected error deleting policy in endpoints/policies.js', {
+      error,
+      policyId,
+    });
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = policyRouter;

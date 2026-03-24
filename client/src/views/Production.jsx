@@ -94,7 +94,7 @@ const Production = () => {
           <Events />
         </Grid>
       </Grid>
-      {value === 0 && (
+      {(value === 0 || value === 1) && (
         <TeamLeaderboard
           startDate={startDate}
           endDate={endDate}

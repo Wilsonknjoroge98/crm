@@ -60,7 +60,7 @@ const Clients = () => {
     { label: 'State', key: 'state' },
     { label: 'Zip Code', key: 'zip' },
     { label: 'Occupation', key: 'occupation' },
-    { label: 'Income', key: 'income' },
+    { label: 'Annual Income', key: 'annual_income' },
   ];
 
   const carrierMap = {

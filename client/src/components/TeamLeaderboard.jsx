@@ -8,27 +8,30 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TablePagination,
   Skeleton,
   IconButton,
 } from '@mui/material';
 import LaunchIcon from '@mui/icons-material/Launch';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getTeamLeaderboard } from '../utils/query';
 import { stringToColor } from '../utils/helpers';
-const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
-  const TEAM_DATA = [
-    { name: 'Sarah J.', clients: 20, premium: 45000, policies: 12 },
-    { name: 'Mike R.', clients: 18, premium: 38000, policies: 10 },
-    { name: 'Alex T.', clients: 15, premium: 32000, policies: 8 },
-    { name: 'Jordan K.', clients: 12, premium: 28000, policies: 7 },
-    { name: 'Linda W.', clients: 8, premium: 15000, policies: 4 },
-  ];
 
-  const PERSONAL_DATA = {
-    clients: 42,
-    policies: 41,
-    premium: 158000,
-  };
+const TeamLeaderboard = ({
+  startDate,
+  endDate,
+  setSelectedAgent,
+  setDrawerOpen,
+}) => {
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const isLoading = false; // Replace with actual loading state
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['teamLeaderboard', startDate, endDate],
+    queryFn: () => getTeamLeaderboard({ startDate, endDate }),
+    enabled: !!startDate && !!endDate,
+  });
 
   const handleRowClick = (agent) => {
     setSelectedAgent(agent);
@@ -39,12 +42,6 @@ const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
     new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(
       Number(n || 0),
     );
-  const fmtMoney0 = (n) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(Number(n || 0));
 
   const fmtMoney = (n) =>
     new Intl.NumberFormat('en-US', {
@@ -53,16 +50,11 @@ const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
       maximumFractionDigits: 0,
     }).format(Number(n || 0));
 
-  const downlineRows = TEAM_DATA.map((agent, idx) => ({
-    agentId: idx + 1,
-    ...agent,
-    avgPremium: agent.premium / agent.policies,
-  }));
   return (
     <>
-      <Typography variant='h6' mb={2}>
-        Team Leaderboard
-      </Typography>
+      {/* <Typography variant='h6' mb={2}>
+        Team
+      </Typography> */}
 
       {isLoading ? (
         <Stack gap={1}>
@@ -76,84 +68,70 @@ const TeamLeaderboard = ({ setSelectedAgent, setDrawerOpen }) => {
           <Table>
             <TableHead sx={{ bgcolor: 'action.hover' }}>
               <TableRow>
-                <TableCell sx>Agent</TableCell>
-                <TableCell sx>Premium</TableCell>
-                <TableCell sx>Clients</TableCell>
-                <TableCell sx>Policies</TableCell>
-                <TableCell sx>Avg Premium</TableCell>
+                <TableCell>Agent</TableCell>
+                <TableCell>Premium</TableCell>
+                <TableCell>Clients</TableCell>
+                <TableCell>Policies</TableCell>
+                <TableCell>Avg Premium</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {isLoading
-                ? [...Array(3)].map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell colSpan={5}>
-                        <Skeleton height={40} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                : downlineRows.map((row) => (
-                    <TableRow key={row.agentId}>
-                      {' '}
-                      <TableCell>
-                        <Stack
-                          direction='row'
-                          alignItems='center'
-                          spacing={1.5}
+              {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
+                <TableRow key={row.agentId}>
+                  <TableCell>
+                    <Stack direction='row' alignItems='center' spacing={1.5}>
+                      <Avatar
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          fontSize: '0.875rem',
+                          fontWeight: 700,
+                          bgcolor: stringToColor(row.name),
+                        }}
+                      >
+                        {row.name[0]}
+                      </Avatar>
+                      <Typography variant='body2'>{row.name}</Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    {row.premium > 0 ? fmtMoney(row.premium) : '—'}
+                  </TableCell>
+                  <TableCell>
+                    {row.clients > 0 ? fmtNum(row.clients) : '—'}
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction='row' alignItems='center' spacing={0.5}>
+                      <Typography>
+                        {row.policies > 0 ? fmtNum(row.policies) : '—'}
+                      </Typography>
+                      {row.policies > 0 && (
+                        <IconButton
+                          size='small'
+                          color='primary'
+                          onClick={() => handleRowClick(row)}
                         >
-                          <Avatar
-                            sx={{
-                              width: 32,
-                              height: 32,
-                              fontSize: '0.875rem',
-                              fontWeight: 700,
-                              bgcolor: stringToColor(row.name),
-                            }}
-                          >
-                            {row.name[0]}
-                          </Avatar>
-                          <Box>
-                            <Typography variant='body2'>{row.name}</Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>{fmtMoney(row.premium)}</TableCell>
-                      <TableCell>
-                        <Stack
-                          direction='row'
-                          alignItems='center'
-                          spacing={1.5}
-                        >
-                          <Box>
-                            <Typography variant='body2'>
-                              {row.clients}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Stack
-                          direction='row'
-                          alignItems='center'
-                          spacing={0.5}
-                        >
-                          <Typography> {fmtNum(row.policies)} </Typography>
-                          <IconButton
-                            size='small'
-                            color='primary'
-                            onClick={() => handleRowClick(row)}
-                          >
-                            <LaunchIcon fontSize='small' />
-                          </IconButton>
-                        </Stack>
-                      </TableCell>
-                      <TableCell color='text.secondary'>
-                        {fmtMoney(row.avgPremium)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <LaunchIcon fontSize='small' />
+                        </IconButton>
+                      )}
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    {row.avgPremium > 0 ? fmtMoney(row.avgPremium) : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component='div'
+            count={rows.length}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            rowsPerPageOptions={[10, 25, 50]}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+          />
         </Box>
       )}
     </>

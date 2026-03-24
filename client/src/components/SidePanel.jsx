@@ -7,7 +7,6 @@ import {
   Typography,
   Box,
   Stack,
-  Divider,
 } from '@mui/material';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import InsightsIcon from '@mui/icons-material/Insights';
@@ -142,10 +141,10 @@ const SidePanel = () => {
 
       <Box sx={{ px: 1.5 }}>
         {isAuthenticated && (
-          <Stack spacing={3}>
+          <Stack spacing={1}>
             <List disablePadding>
               <ListItem
-                onClick={() => handleItemClick('/dashboard')}
+                onClick={() => handleItemClick('/leaderboard')}
                 sx={{
                   px: 3,
                   py: 0.5,
@@ -153,14 +152,14 @@ const SidePanel = () => {
                   cursor: 'pointer',
                   position: 'relative',
                   backgroundColor:
-                    location.pathname === '/dashboard'
+                    location.pathname === '/leaderboard'
                       ? 'rgba(255,255,255,0.06)'
                       : 'transparent',
                   '&:hover': {
                     backgroundColor: 'rgba(255,255,255,0.08)',
                   },
                   '&::before':
-                    location.pathname === '/dashboard'
+                    location.pathname === '/leaderboard'
                       ? {
                           content: '""',
                           position: 'absolute',
@@ -178,7 +177,7 @@ const SidePanel = () => {
                   sx={{
                     minWidth: 30,
                     color:
-                      location.pathname === '/dashboard'
+                      location.pathname === '/leaderboard'
                         ? '#FFFFFF'
                         : 'rgba(255,255,255,0.85)',
                   }}
@@ -192,7 +191,7 @@ const SidePanel = () => {
                       variant='body2'
                       sx={{
                         color:
-                          location.pathname === '/dashboard'
+                          location.pathname === '/leaderboard'
                             ? '#FFFFFF'
                             : 'rgba(255,255,255,0.85)',
                       }}
@@ -462,7 +461,7 @@ const SidePanel = () => {
             src={`${agency}_logo.png`}
             alt='Logo'
             sx={{
-              maxWidth: 240,
+              maxWidth: 200,
             }}
           />
         )}

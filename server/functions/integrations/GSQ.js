@@ -2,6 +2,7 @@ const axios = require('axios');
 
 const { getHyrosSource } = require('./hyros');
 const { supabaseService } = require('../services/supabase');
+const logger = require('../utils/logger');
 
 const gsqClient = axios.create({
   baseURL: process.env.GSQ_BASE_URL,
@@ -19,31 +20,33 @@ const inboundLeadIntegration = async (req, res) => {
     }
 
     const {
-      first_name,
-      last_name,
+      firstName,
+      lastName,
       email,
       phone,
+      state,
       dob,
-      gsq_id,
-      issued_to,
+      gsqId,
+      issuedTo,
       sold,
     } = req.body;
 
     if (
-      !first_name ||
-      !last_name ||
+      !firstName ||
+      !lastName ||
       !email ||
       !phone ||
-      !gsq_id ||
+      !gsqId ||
       !dob ||
-      !issued_to ||
+      !issuedTo ||
+      !state ||
       sold === undefined
     ) {
       return res.status(400).send({ message: 'Missing required fields' });
     }
 
     const hyrosSource = await getHyrosSource(email);
-    const { data: vendorData } = await supabaseService
+    const { data: leadVendor } = await supabaseService
       .from('lead_vendors')
       .select('id')
       .eq('name', 'GetSeniorQuotes.com')
@@ -52,7 +55,7 @@ const inboundLeadIntegration = async (req, res) => {
     const { data: agent, error: agentError } = await supabaseService
       .from('agents')
       .select('id, email')
-      .eq('email', issued_to)
+      .eq('email', issuedTo)
       .single();
 
     if (agentError || !agent) {
@@ -61,15 +64,35 @@ const inboundLeadIntegration = async (req, res) => {
     }
 
     const lead = { ...req.body };
-    delete lead.issued_to;
+    delete lead.issuedTo;
     // TODO DELETE FROM sendToCRM payload
-    delete lead.gsq_source;
+    delete lead.gsqSource;
 
     const payload = {
-      ...lead,
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+      email,
+      state,
+      sold: false,
+      date_of_birth: dob,
+      smoker: lead.smoker ?? false,
+      face_amount: lead.faceAmount ?? null,
+      premium: lead.premium ?? null,
+      selected_plan: lead.selectedPlan ?? null,
+      selected_carrier: lead.selectedCarrier ?? null,
+      beneficiary: lead.beneficiary ?? null,
+      priority: lead.priority ?? null,
+      why: lead.why ?? null,
+      cholesterol_medication: lead.cholesterolMedication ?? false,
+      blood_pressure_medication: lead.bloodPressureMedication ?? false,
+      text_verified: lead.verified ?? false,
+      height_feet: lead.heightFeet ?? null,
+      height_inches: lead.heightInches ?? null,
+      weight: lead.weight ?? null,
       agent_id: agent.id,
       gsq_source: hyrosSource,
-      lead_vendor_id: vendorData.id,
+      lead_vendor_id: leadVendor.id,
     };
 
     const { error } = await supabaseService.from('leads').insert(payload);

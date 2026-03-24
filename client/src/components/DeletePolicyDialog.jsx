@@ -16,6 +16,7 @@ import { useMutation } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
 
 import { deletePolicy } from '../utils/query';
+import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 
 const DeletePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
   const [confirm, setConfirm] = useState(false);
@@ -28,19 +29,7 @@ const DeletePolicyDialog = ({ open, setOpen, policy, refetchPolicies }) => {
     mutationFn: deletePolicy,
     onSuccess: () => {
       refetchPolicies();
-      enqueueSnackbar('Policy deleted successfully.', {
-        variant: 'success',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
+      enqueueSnackbar('Policy deleted successfully.', SNACKBAR_SUCCESS_OPTIONS);
       setOpen(false);
     },
     onError: () => {

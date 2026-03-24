@@ -13,7 +13,7 @@ clientRouter.get('/all', async (req, res) => {
       requesterId: req?.agent?.id,
     });
 
-    const { data: clients, error } = await req.supabase
+    const { data: clients, error } = await supabaseService
       .from('clients')
       .select(
         `
@@ -30,6 +30,11 @@ clientRouter.get('/all', async (req, res) => {
                 ),
                 leads!clients_lead_id_fkey (
                     gsq_source
+                ),
+                policies!policies_client_id_fkey (
+                    id,
+                    policy_number,
+                    carriers ( name )
                 )
             `,
       )
@@ -46,7 +51,7 @@ clientRouter.get('/all', async (req, res) => {
     }
 
     const mapped = (clients || []).map(
-      ({ agent_clients, leads, ...client }) => {
+      ({ agent_clients, leads, policies, ...client }) => {
         const ac = agent_clients?.[0];
         const a = ac?.agents;
         const agent_name = a
@@ -54,7 +59,12 @@ clientRouter.get('/all', async (req, res) => {
           : null;
         const notes = ac?.agent_notes ?? null;
         const gsq_source = leads?.gsq_source ?? null;
-        return { ...client, agent_name, notes, gsq_source };
+        const policyData = (policies || []).map((p) => ({
+          id: p.id,
+          carrier: p.carriers?.name || null,
+          policyNumber: p.policy_number,
+        }));
+        return { ...client, agent_name, notes, gsq_source, policyData };
       },
     );
 
@@ -73,6 +83,91 @@ clientRouter.get('/all', async (req, res) => {
       requesterId: req.agent?.id,
       error,
     });
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+clientRouter.get('/', async (req, res) => {
+  try {
+    logger.log('Getting clients for current agent only', {
+      route: '/clients/mine',
+      method: 'GET',
+      requesterId: req?.agent?.id,
+    });
+
+    const { data: clients, error } = await supabaseService
+      .from('clients')
+      .select(
+        `
+                *,
+                agent_clients!agent_clients_client_id_fkey (
+                    agent_id,
+                    client_id,
+                    agent_notes,
+                    agents!agent_clients_agent_id_fkey (
+                        id,
+                        first_name,
+                        last_name
+                    )
+                ),
+                leads!clients_lead_id_fkey (
+                    gsq_source
+                ),
+                policies!policies_client_id_fkey (
+                    id,
+                    policy_number,
+                    carriers ( name )
+                )
+            `,
+      )
+      .eq('agent_clients.agent_id', req.agent.id);
+
+    if (error) {
+      logger.error('Error fetching own clients in endpoints/clients.js', {
+        route: '/clients/mine',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to fetch clients' });
+    }
+
+    const mapped = (clients || [])
+      .filter((c) => c.agent_clients?.[0]?.agent_id === req.agent.id)
+      .map(({ agent_clients, leads, policies, ...client }) => {
+        const ac = agent_clients?.[0];
+        const a = ac?.agents;
+        const agent_name = a
+          ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
+          : null;
+        const notes = ac?.agent_notes ?? null;
+        const gsq_source = leads?.gsq_source ?? null;
+        const policyData = (policies || []).map((p) => ({
+          id: p.id,
+          carrier: p.carriers?.name || null,
+          policyNumber: p.policy_number,
+        }));
+        return { ...client, agent_name, notes, gsq_source, policyData };
+      });
+
+    logger.log('Fetched own clients successfully', {
+      route: '/clients/mine',
+      method: 'GET',
+      requesterId: req.agent?.id,
+      count: mapped.length,
+    });
+
+    return res.status(200).json(mapped);
+  } catch (error) {
+    logger.error(
+      'Unexpected error fetching own clients in endpoints/clients.js',
+      {
+        route: '/clients/mine',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      },
+    );
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -107,57 +202,54 @@ clientRouter.post('/', async (req, res) => {
 
   console.log('GSQ Lead Vendor ID:', process.env.GSQ_LEAD_VENDOR_ID);
 
-  if (lead_vendor_id === process.env.GSQ_LEAD_VENDOR_ID) {
-    const { data: existingLead, error: existingLeadError } =
-      await supabaseService
-        .from('leads')
-        .select('id')
-        .eq('phone', client.phone)
-        .maybeSingle();
+  const { data: existingLead, error: existingLeadError } = await supabaseService
+    .from('leads')
+    .select('id')
+    .eq('phone', client.phone)
+    .maybeSingle();
 
-    if (existingLeadError) {
-      logger.error('Error checking for existing lead in clients.js', {
+  if (existingLeadError) {
+    logger.error('Error checking for existing lead in clients.js', {
+      route: '/client',
+      method: 'POST',
+      requesterId: req.agent?.id,
+      email: client.email,
+      error: existingLeadError,
+    });
+    return res.status(500).json({ error: 'Failed to check existing leads' });
+  }
+
+  if (!existingLead) {
+    const { data: newLead, error: newLeadError } = await supabaseService
+      .from('leads')
+      .insert({
+        first_name: client.first_name,
+        last_name: client.last_name,
+        email: client.email,
+        phone: client.phone,
+        state: client.state,
+        date_of_birth: client.date_of_birth,
+        agent_id: req?.agent?.id,
+        sold: true,
+        lead_vendor_id: lead_vendor_id,
+        gsq_live_transfer: live_transfer || false,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (newLeadError) {
+      logger.error('Error creating new lead in clients.js', {
         route: '/client',
         method: 'POST',
         requesterId: req.agent?.id,
         email: client.email,
-        error: existingLeadError,
+        error: newLeadError,
       });
-      return res.status(500).json({ error: 'Failed to check existing leads' });
-    }
-
-    if (!existingLead) {
-      const { error: newLeadError } = await supabaseService
-        .from('leads')
-        .insert({
-          first_name: client.first_name,
-          last_name: client.last_name,
-          email: client.email,
-          phone: client.phone,
-          state: client.state,
-          date_of_birth: client.date_of_birth,
-          agent_id: req?.agent?.id,
-          sold: true,
-          lead_vendor_id: lead_vendor_id,
-          gsq_live_transfer: live_transfer || false,
-        })
-        .select('id')
-        .maybeSingle();
-
-      if (newLeadError) {
-        logger.error('Error creating lead in clients.js', {
-          route: '/client',
-          method: 'POST',
-          requesterId: req.agent?.id,
-          email: client.email,
-          error: newLeadError,
-        });
-      }
-
-      leadId = newLeadError?.id || null;
-
       return res.status(500).json({ error: 'Failed to create lead' });
     }
+
+    leadId = newLead?.id || null;
+  } else {
     leadId = existingLead?.id || null;
   }
 
@@ -246,6 +338,8 @@ clientRouter.patch('/', async (req, res) => {
     gsq_source,
     createdAtMs,
     fullName,
+    income,
+    policyData,
     ...clientFields
   } = client;
 
@@ -255,7 +349,7 @@ clientRouter.patch('/', async (req, res) => {
       method: 'PATCH',
       requesterId: req.agent?.id,
       targetClientId: clientId,
-      fieldsToUpdate: Object.keys(clientFields),
+      client: client,
       hasNotes: notes !== undefined,
     });
 
@@ -353,6 +447,16 @@ clientRouter.delete('/', async (req, res) => {
       .maybeSingle();
 
     if (error) {
+      if (error.code === '23503') {
+        logger.warn('FK violation deleting client in clients.js', {
+          route: '/clients',
+          method: 'DELETE',
+          requesterId: req.agent?.id,
+          targetClientId: clientId,
+          error,
+        });
+        return res.status(409).json({ error: 'Client has associated policies that must be deleted first.' });
+      }
       logger.error('Error deleting client in clients.js', {
         route: '/clients',
         method: 'DELETE',

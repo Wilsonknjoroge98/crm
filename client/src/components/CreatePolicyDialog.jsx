@@ -18,6 +18,7 @@ import {
   Checkbox,
   Alert,
   Skeleton,
+  Box,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useEffect, useState, Fragment } from 'react';
@@ -49,7 +50,6 @@ const statuses = [
 ];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
 
-import SectionHeader from '../components/SectionHeader';
 
 const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
@@ -303,26 +303,30 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='md' fullWidth>
-      <DialogTitle
-        sx={{
-          fontWeight: 700,
-          fontSize: '1.5rem',
-          pb: 1,
-        }}
-      >
-        New Policy
+      <DialogTitle>
+        <Box
+          sx={{
+            borderLeft: '3px solid',
+            borderColor: 'primary.main',
+            pl: 1.5,
+          }}
+        >
+          <Typography variant='caption' color='text.secondary'>
+            Creating policy for
+          </Typography>
+          <Typography variant='subtitle1' fontWeight={600}>
+            {client.first_name} {client.last_name}
+          </Typography>
+        </Box>
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} p={2}>
-          <Grid size={12}>
-            <SectionHeader title='Policy Ownership' />
-          </Grid>
 
           <Grid size={12}>
-            <FormControl error={true} fullWidth>
-              <Typography variant='subtitle2' gutterBottom>
+            <FormControl fullWidth>
+              <Alert sx={{ width: 'fit-content' }} severity='warning'>
                 Is this a split policy?
-              </Typography>
+              </Alert>
 
               <Stack direction='row' spacing={2}>
                 <FormControlLabel
@@ -410,17 +414,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 />
               </Stack>
             )}
-          </Grid>
-          <Grid size={12}>
-            <SectionHeader title='Core Information' />
-          </Grid>
-          <Grid size={6}>
-            <TextField
-              label='Client Name'
-              value={client.first_name + ' ' + client.last_name}
-              fullWidth
-              disabled
-            />
+            <Divider sx={{ my: 2 }} />
           </Grid>
           <Grid size={6}>
             {carriersLoading ? (
@@ -494,10 +488,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                 </MenuItem>
               ))}
             </TextField>
-          </Grid>
-
-          <Grid size={12}>
-            <SectionHeader title='Financials & Dates' />
           </Grid>
 
           <Grid size={6}>
@@ -608,7 +598,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
 
           <Grid size={12}>
-            <SectionHeader title='Primary Beneficiaries' />
+            <Divider />
+          </Grid>
+          <Grid size={12}>
+            <Typography fontWeight='bold'>Primary Beneficiaries</Typography>
           </Grid>
           {form.beneficiaries.map((b, i) => (
             <>
@@ -714,7 +707,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
 
           <Grid size={12}>
-            <SectionHeader title='Contingent Beneficiareis' />
+            <Divider />
+          </Grid>
+          <Grid size={12}>
+            <Typography fontWeight='bold'>Contingent Beneficiaries</Typography>
           </Grid>
 
           {form.contingent_beneficiaries.map((b, i) => (
@@ -820,7 +816,9 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
           {error && (
             <Alert severity='error' sx={{ mb: 2, width: '100%', p: 2 }}>
-              {error.message}
+              {error?.response?.status === 409
+                ? 'A policy with this policy number already exists.'
+                : error?.response?.data?.error || error.message}
             </Alert>
           )}
         </Grid>

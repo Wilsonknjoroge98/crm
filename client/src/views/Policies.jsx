@@ -29,14 +29,7 @@ const Policies = () => {
     isLoading: policiesLoading,
   } = useQuery({
     queryKey: ['policies', user?.id, agent?.role],
-    queryFn: () =>
-      getPolicies({
-        data: {
-          agentId: user?.id,
-          agentRole: agent?.role,
-          agency: agent?.org_id,
-        },
-      }),
+    queryFn: getPolicies,
     enabled: !!agent,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

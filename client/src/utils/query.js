@@ -46,7 +46,7 @@ const getClients = async () => {
   // request config for compulife server
   const options = {
     method: 'GET',
-    url: '/client/all',
+    url: 'client',
     // signal: signal,
     params: {
       mode: import.meta.env.MODE,
@@ -410,18 +410,11 @@ const getCommissions = async ({ startDate, endDate, agent }) => {
   }
 };
 
-const getPolicies = async () => {
-  // request config for compulife server
+const getPolicies = async ({ agentId } = {}) => {
   const options = {
     method: 'GET',
-    // signal: signal,
-    url: '/policy/all',
-    // params: {
-    //   agentId: agentId,
-    //   agentRole: agentRole,
-    //   mode: import.meta.env.MODE,
-    //   agency: agency,
-    // },
+    url: '/policy',
+    params: agentId ? { agentId } : undefined,
   };
 
   try {
@@ -726,6 +719,25 @@ const patchPolicy = async ({ data }) => {
   return response.data;
 };
 
+const deletePolicy = async ({ data }) => {
+  const { policyId } = data || {};
+
+  if (!policyId) {
+    throw new Error('Missing policy ID');
+  }
+
+  const controller = new AbortController();
+  const options = {
+    method: 'DELETE',
+    data: { policyId, mode: import.meta.env.MODE },
+    signal: controller.signal,
+    url: '/policy',
+  };
+
+  const response = await apiClient.request(options);
+  return response.data;
+};
+
 const postPolicy = async ({ data }) => {
   const { policy, client_id } = data || {};
 
@@ -777,32 +789,6 @@ const deleteClient = async ({ data }) => {
   // response from server
   const response = await apiClient.request(options);
   console.log('Delete response:', response.data);
-  // return to component
-  return response.data;
-};
-
-const deletePolicy = async ({ data }) => {
-  const { policyId } = data || {};
-
-  console.log('Deleting policy with ID:', policyId);
-
-  // client side validation
-  if (!policyId) {
-    throw new Error('Missing policy ID');
-  }
-  const controller = new AbortController();
-  // request config for custom firebase endpoint
-
-  const options = {
-    method: 'DELETE',
-    data: { policyId: policyId, mode: import.meta.env.MODE },
-    signal: controller.signal,
-    url: '/policy',
-  };
-  // response from server
-  const response = await apiClient.request(options);
-  console.log('Delete response:', response.data);
-
   // return to component
   return response.data;
 };
@@ -871,6 +857,81 @@ const getLeadVendors = async () => {
   }
 };
 
+const getEvents = async ({ limit } = {}) => {
+  const options = {
+    method: 'GET',
+    url: '/events',
+    params: { limit, mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting events:', error);
+    throw error;
+  }
+};
+
+const getHierarchy = async () => {
+  const options = {
+    method: 'GET',
+    url: '/hierarchy',
+    params: { mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting hierarchy:', error);
+    throw error;
+  }
+};
+
+const getTeamLeaderboard = async ({ startDate, endDate }) => {
+  const options = {
+    method: 'GET',
+    url: '/team-leaderboard',
+    params: { startDate, endDate, mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting team leaderboard:', error);
+    throw error;
+  }
+};
+
+const getPersonalSummary = async ({ startDate, endDate }) => {
+  const options = {
+    method: 'GET',
+    url: '/summary/personal',
+    params: { startDate, endDate, mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting personal summary:', error);
+    throw error;
+  }
+};
+
+const getTeamSummary = async ({ startDate, endDate }) => {
+  const options = {
+    method: 'GET',
+    url: '/summary/team',
+    params: { startDate, endDate, mode: import.meta.env.MODE },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting team summary:', error);
+    throw error;
+  }
+};
+
 const createInvite = async () => {
   const response = await apiClient.request({ method: 'POST', url: '/invite' });
   return response.data;
@@ -921,4 +982,9 @@ export {
   getLeadVendors,
   getCarriers,
   getProducts,
+  getTeamSummary,
+  getPersonalSummary,
+  getTeamLeaderboard,
+  getHierarchy,
+  getEvents,
 };

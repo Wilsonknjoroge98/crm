@@ -117,7 +117,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
       'state',
       'zip',
       'occupation',
-      'income',
+      'annual_income',
     ];
 
     const hasEmpty = keys.some((k) => form[k] === '');
@@ -277,14 +277,14 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid item size={6}>
             <NumericFormat
               style={{ width: '100%' }}
-              name='income'
+              name='annual_income'
               label='Annual Income'
-              value={form.income}
+              value={form.annual_income}
               thousandSeparator=','
               customInput={TextField}
               onValueChange={(values) => {
                 const { value } = values; // raw value without formatting
-                setForm((prev) => ({ ...prev, income: value }));
+                setForm((prev) => ({ ...prev, annual_income: value }));
               }}
               slotProps={{
                 input: {

@@ -224,6 +224,7 @@ export default function SignUp() {
               type='text'
               fullWidth
               size='small'
+              inputProps={{ maxLength: 10 }}
               value={npn}
               onChange={(e) => setNpn(e.target.value)}
               required

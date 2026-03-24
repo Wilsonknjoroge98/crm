@@ -13,8 +13,8 @@ const Commissions = lazy(() => import('../views/Commissions'));
 const CashFlow = lazy(() => import('../views/CashFlow'));
 const Leads = lazy(() => import('../views/Leads'));
 const Purchase = lazy(() => import('../views/Purchase'));
-const Dashboard = lazy(() => import('../views/Dashboard'));
-const TeamProduction = lazy(() => import('../views/TeamProduction'));
+const Leaderboard = lazy(() => import('../views/Leaderboard'));
+const Production = lazy(() => import('../views/Production'));
 const Agents = lazy(() => import('../views/Agents'));
 import ErrorBoundary from '../views/ErrorBoundary';
 
@@ -84,7 +84,7 @@ const router = createBrowserRouter([
               </div>
             }
           >
-            <TeamProduction />
+            <Production />
           </Suspense>
         ),
       },
@@ -174,7 +174,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: '/dashboard',
+        path: '/leaderboard',
         element: (
           <Suspense
             fallback={

@@ -40,7 +40,7 @@ export const createAppTheme = ({ agency }) => {
         main: '#8B2E2E',
       },
       background: {
-        default: '#F7F5F2',
+        default: '#FFFFFF',
         paper: '#FFFFFF',
       },
       text: {
@@ -85,15 +85,41 @@ export const createAppTheme = ({ agency }) => {
           },
         },
       },
-      MuiTableHead: {
+      // MuiTableHead: {
+      //   styleOverrides: {
+      //     root: {
+      //       backgroundColor: '#F9F9F9',
+      //       '& .MuiTableCell-head': {
+      //         fontWeight: 700,
+      //         fontSize: '0.875rem',
+      //         color: '#1A1A1A',
+      //       },
+      //     },
+      //   },
+      // },
+      MuiDataGrid: {
         styleOverrides: {
           root: {
-            backgroundColor: '#F9F9F9',
-            '& .MuiTableCell-head': {
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              color: '#1A1A1A',
+            '& .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaderTitle': {
+              userSelect: 'none',
             },
+          },
+        },
+      },
+      MuiListItem: {
+        styleOverrides: {
+          root: {
+            userSelect: 'none',
+          },
+        },
+      },
+      MuiTypography: {
+        styleOverrides: {
+          root: {
+            '&.MuiTypography-h1, &.MuiTypography-h2, &.MuiTypography-h3, &.MuiTypography-h4, &.MuiTypography-h5, &.MuiTypography-h6':
+              {
+                userSelect: 'none',
+              },
           },
         },
       },

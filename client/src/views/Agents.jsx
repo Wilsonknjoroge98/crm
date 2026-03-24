@@ -7,6 +7,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TablePagination,
   Avatar,
   Switch,
   Select,
@@ -16,15 +17,11 @@ import {
   TableContainer,
   CircularProgress,
   Alert,
-  Button,
-  IconButton,
-  Tooltip,
-  Box,
 } from '@mui/material';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import AddLinkIcon from '@mui/icons-material/AddLink';
+
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAgents, patchAgent, createInvite } from '../utils/query';
+import { getAgents, patchAgent } from '../utils/query';
 import { stringToColor } from '../utils/helpers';
 import { enqueueSnackbar } from 'notistack';
 import {
@@ -35,6 +32,8 @@ import {
 const LEVELS = Array.from({ length: 13 }, (_, i) => 80 + i * 5); // 80–140
 
 const Agents = () => {
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const queryClient = useQueryClient();
 
   const {
@@ -124,7 +123,7 @@ const Agents = () => {
           </TableHead>
 
           <TableBody>
-            {agents.map((agent) => {
+            {agents.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((agent) => {
               const fullName = `${agent.first_name} ${agent.last_name}`;
               const avatarColor = stringToColor(fullName);
               const initials = `${agent.first_name[0]}${agent.last_name[0]}`;
@@ -261,6 +260,15 @@ const Agents = () => {
             })}
           </TableBody>
         </Table>
+        <TablePagination
+          component='div'
+          count={agents.length}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={[10, 25, 50]}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+        />
       </TableContainer>
     </Container>
   );

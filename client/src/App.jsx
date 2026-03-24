@@ -32,10 +32,10 @@ const App = () => {
   useEffect(() => {
     if (pathname === '/signup') return;
 
-    if (isAuthenticated) {
-      navigate('/clients');
-    } else {
+    if (!isAuthenticated) {
       navigate('/login');
+    } else if (pathname === '/login') {
+      navigate('/leads');
     }
   }, [user]);
 

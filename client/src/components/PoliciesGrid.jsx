@@ -24,11 +24,11 @@ export default function PoliciesGrid({
   const [isAdmin, setIsAdmin] = useState(false);
 
   const statusConfig = {
-    'Active': { icon: <CheckCircleIcon color='success' /> },
-    'Pending': { icon: <AutorenewIcon color='success' /> },
-    'Lapsed': { icon: <WarningIcon color='error' /> },
-    'Insufficient Funds': { icon: <AccountBalanceIcon color='error' /> },
-    'Cancelled': { icon: <CancelIcon color='error' /> },
+    active: { icon: <CheckCircleIcon color='success' /> },
+    pending: { icon: <AutorenewIcon color='success' /> },
+    lapsed: { icon: <WarningIcon color='error' /> },
+    'insufficient funds': { icon: <AccountBalanceIcon color='error' /> },
+    cancelled: { icon: <CancelIcon color='error' /> },
   };
 
   useEffect(() => {
@@ -72,7 +72,6 @@ export default function PoliciesGrid({
       {
         field: 'policy_number',
         headerName: 'Policy #',
-        flex: 1,
         minWidth: 80,
         renderCell: (params) => (
           <Typography variant='caption'>{params.value}</Typography>
@@ -91,7 +90,16 @@ export default function PoliciesGrid({
         field: 'carrier_name',
         headerName: 'Carrier',
         flex: 1,
-        width: 120,
+        width: 100,
+        renderCell: (params) => (
+          <Typography variant='caption'>{params.value}</Typography>
+        ),
+      },
+      {
+        field: 'product_name',
+        headerName: 'Product',
+        flex: 1,
+        width: 100,
         renderCell: (params) => (
           <Typography variant='caption'>{params.value}</Typography>
         ),

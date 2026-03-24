@@ -55,7 +55,9 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
     mutate({ data: { clientId: client.id } });
   };
 
-  const fullName = client ? `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim() : '';
+  const fullName = client
+    ? `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim()
+    : '';
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth='sm' fullWidth>
@@ -63,21 +65,30 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 0.5 }}>
           <Typography variant='body1'>
-            You’re about to permanently delete <strong>{fullName || 'this client'}</strong>.
+            You’re about to permanently delete{' '}
+            <strong>{fullName || 'this client'}</strong>.
           </Typography>
           <Alert severity='warning'>
-            This action cannot be undone. <strong>All associated policies</strong> will be deleted
-            along with the client.
+            This action cannot be undone.{' '}
+            <strong>All associated policies</strong> will be deleted along with
+            the client.
           </Alert>
 
           {isError && (
             <Alert severity='error'>
-              {error?.message || 'An error occurred while deleting the client.'}
+              {error?.response?.status === 409
+                ? error?.response?.data?.error
+                : 'An error occurred while deleting the client.'}
             </Alert>
           )}
 
           <FormControlLabel
-            control={<Checkbox checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />}
+            control={
+              <Checkbox
+                checked={confirm}
+                onChange={(e) => setConfirm(e.target.checked)}
+              />
+            }
             label='I understand this will permanently delete the client and all associated policies.'
           />
         </Stack>

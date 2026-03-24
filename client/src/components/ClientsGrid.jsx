@@ -10,6 +10,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useEffect, useState } from 'react';
 import WarningIcon from '@mui/icons-material/Warning';
+import dayjs from 'dayjs';
 
 export default function ClientsGrid({
   agent,
@@ -76,18 +77,36 @@ export default function ClientsGrid({
       {
         field: 'fullName',
         headerName: 'Name',
-        flex: 1,
-        width: 100,
+        width: 125,
         renderCell: (params) => {
           const c = params.row;
           return <Typography variant='caption'>{c.fullName}</Typography>;
         },
       },
       {
+        field: 'date_of_birth',
+        headerName: 'Age',
+        width: 50,
+        filterable: true,
+        sortable: true,
+        renderCell: (params) => {
+          const dob = params.value;
+          console.log('Calculating age for DOB:', dob);
+          const birthDate = dob ? dayjs(dob) : null;
+          const age = birthDate ? dayjs().diff(birthDate, 'year') : undefined;
+          console.log('Calculated age:', age);
+          return (
+            <Typography variant='caption'>
+              {age !== undefined ? age : '—'}
+            </Typography>
+          );
+        },
+      },
+      {
         field: 'contact',
         headerName: 'Contact',
         flex: 1,
-        width: 200,
+        width: 225,
         sortable: true,
         filterable: true,
         valueGetter: (value, row) => {
@@ -123,7 +142,7 @@ export default function ClientsGrid({
         field: 'address',
         headerName: 'Address',
         flex: 1,
-        minWidth: 150,
+        minWidth: 200,
         renderCell: (params) => {
           const c = params.row;
           const street = c.address || '';
@@ -139,6 +158,24 @@ export default function ClientsGrid({
             </Stack>
           );
         },
+      },
+      {
+        field: 'annual_income',
+        headerName: 'Annual Income',
+        width: 100,
+        renderCell: (params) => (
+          <Typography variant='caption'>
+            {params.value ? `$${Number(params.value).toLocaleString()}` : '—'}
+          </Typography>
+        ),
+      },
+      {
+        field: 'occupation',
+        headerName: 'Occupation',
+        width: 100,
+        renderCell: (params) => (
+          <Typography variant='caption'>{params.value}</Typography>
+        ),
       },
 
       {
@@ -210,14 +247,6 @@ export default function ClientsGrid({
             </Stack>
           );
         },
-      },
-      {
-        field: 'gsq_source',
-        headerName: 'Ad Source',
-        width: 150,
-        renderCell: (params) => (
-          <Typography variant='caption'>{params.value}</Typography>
-        ),
       },
       {
         field: 'actions',

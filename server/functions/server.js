@@ -17,9 +17,10 @@ const {
   policyRouter,
   leadRouter,
   clientRouter,
-  downlineProductionRouter,
+  teamLeaderboardRouter,
   summaryRouter,
   hierarchyRouter,
+  eventsRouter,
   publicRouter,
   inviteRouter,
   leadVendorsRouter,
@@ -50,9 +51,10 @@ app.use('/lead', leadRouter);
 app.use('/client', clientRouter);
 app.use('/lead-vendors', leadVendorsRouter);
 app.use('/carriers', carriersRouter);
-app.use('/downline-production', downlineProductionRouter);
+app.use('/team-leaderboard', teamLeaderboardRouter);
 app.use('/summary', summaryRouter);
 app.use('/hierarchy', hierarchyRouter);
+app.use('/events', eventsRouter);
 
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
@@ -252,190 +254,6 @@ app.get('/premiums', async (req, res) => {
   } catch (error) {
     console.error('Error fetching leaderboard data:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard data' });
-  }
-});
-
-app.get('/persistency-rates', async (req, res) => {
-  console.log('Getting persistency data');
-  const { agency } = req.query;
-
-  const db = new Firestore();
-  try {
-    const agentsSnapshot = await db.collection('agents').get();
-    const agents = agentsSnapshot.docs.map((doc) => doc.data());
-
-    const agencyAgentIds = agents
-      .filter((a) => (agency ? a.agency === agency : true))
-      .map((a) => a.uid);
-
-    const persistencyData = {};
-
-    for (const id of agencyAgentIds) {
-      if (id === 'lBGucpmk50Vkc75M4wgojbGIIic2') continue;
-
-      const agent = agents.find((a) => a.uid === id);
-
-      const policies = await db
-        .collection('policies')
-        .where('agentIds', 'array-contains', id)
-        .get();
-
-      const totalPolicies = policies.size;
-
-      if (totalPolicies === 0) {
-        continue;
-      }
-
-      const activeOrPendingPolicies = policies.docs.filter((doc) => {
-        const data = doc.data();
-        return (
-          data.policyStatus === 'Active' || data.policyStatus === 'Pending'
-        );
-      }).length;
-
-      const persistencyRate = totalPolicies
-        ? (activeOrPendingPolicies / totalPolicies) * 100
-        : 0;
-
-      persistencyData[agent.name] = {
-        totalPolicies,
-        activeOrPendingPolicies,
-        persistencyRate: Math.floor(Math.round(persistencyRate * 100) / 100),
-      };
-    }
-
-    const persistencyDataArray = Object.entries(persistencyData).map(
-      ([agentName, data]) => ({
-        name: agentName,
-        ...data,
-      }),
-    );
-
-    persistencyDataArray.sort((a, b) => b.persistencyRate - a.persistencyRate);
-
-    res.status(200).json(persistencyDataArray);
-  } catch (error) {
-    console.error('Error getting premiums per lead:', error);
-    res.status(500).json({ error: 'Failed to get premiums per lead' });
-  }
-});
-
-app.get('/close-rates', async (req, res) => {
-  console.log('Getting close rates data');
-  const { agency } = req.query;
-
-  const db = new Firestore();
-  try {
-    const agentsSnapshot = await db.collection('agents').get();
-    const agents = agentsSnapshot.docs.map((doc) => doc.data());
-
-    const agencyAgentIds = agents
-      .filter((a) => (agency ? a.agency === agency : true))
-      .map((a) => a.uid);
-
-    const closeRates = {};
-
-    for (const id of agencyAgentIds) {
-      if (id === 'lBGucpmk50Vkc75M4wgojbGIIic2') continue;
-      const agent = agents.find((a) => a.uid === id);
-      console.log('Agency Agent ID:', id, 'Agent Name:', agent?.name);
-
-      const leads = await db
-        .collection('leads')
-        .where('issuedTo', '==', agent.email)
-        .get();
-
-      const clients = await db
-        .collection('clients')
-        .where('agentIds', 'array-contains', id)
-        .get();
-
-      const totalClients = clients.size;
-
-      const totalLeads = leads.size;
-      const closeRate = totalLeads ? (totalClients / totalLeads) * 100 : 0;
-
-      if (totalLeads === 0) {
-        continue;
-      }
-
-      closeRates[agent.name] = {
-        leadCount: totalLeads,
-        totalClients,
-        closeRate: Math.floor(Math.round(closeRate * 100) / 100),
-      };
-    }
-
-    const closeRatesArray = Object.entries(closeRates).map(
-      ([agentName, data]) => ({
-        name: agentName,
-        ...data,
-      }),
-    );
-
-    closeRatesArray.sort((a, b) => b.closeRate - a.closeRate);
-
-    res.status(200).json(closeRatesArray);
-  } catch (error) {
-    console.error('Error getting premiums per lead:', error);
-    res.status(500).json({ error: 'Failed to get premiums per lead' });
-  }
-});
-
-app.get('/policies/statuses', async (req, res) => {
-  console.log('Getting policy statuses');
-  const { agency } = req.query;
-
-  const db = new Firestore();
-
-  try {
-    const agentsSnapshot = await db.collection('agents').get();
-    const agents = agentsSnapshot.docs.map((doc) => doc.data());
-
-    const agencyAgentIds = agents
-      .filter((a) => (agency ? a.agency === agency : true))
-      .map((a) => a.uid);
-
-    // 3. Fetch policies
-    const policiesSnapshot = await db.collection('policies').get();
-
-    const policies = policiesSnapshot.docs.map((doc) => doc.data());
-
-    const agencyPolicies = policies.filter((policy) => {
-      const policyAgentIds = policy.agentIds || [];
-      return policyAgentIds.some((id) => agencyAgentIds.includes(id));
-    });
-
-    const activePolicies = agencyPolicies.filter(
-      (p) => p.policyStatus === 'Active',
-    ).length;
-    const pendingPolicies = agencyPolicies.filter(
-      (p) => p.policyStatus === 'Pending',
-    ).length;
-    const lapsedPolicies = agencyPolicies.filter(
-      (p) =>
-        p.policyStatus === 'Lapsed' ||
-        p.policyStatus === 'Cancelled' ||
-        p.policyStatus === 'Insufficient Funds',
-    ).length;
-
-    res.status(200).json([
-      {
-        label: 'Active',
-        value: activePolicies,
-      },
-      {
-        label: 'Pending',
-        value: pendingPolicies,
-      },
-      {
-        label: 'Lapsed',
-        value: lapsedPolicies,
-      },
-    ]);
-  } catch (error) {
-    console.error('Error getting policy statuses:', error);
-    res.status(500).json({ error: 'Failed to get policy statuses' });
   }
 });
 
@@ -1288,213 +1106,6 @@ app.get('/stripe-charges', async (req, res) => {
   }
 });
 
-app.get('/premiums/per-lead', async (req, res) => {
-  console.log('Getting premiums per lead');
-  const { agency } = req.query;
-
-  const db = new Firestore();
-  try {
-    // 2. Fetch agents
-    const agentsSnapshot = await db.collection('agents').get();
-    const agents = agentsSnapshot.docs.map((doc) => doc.data());
-
-    const agencyAgentIds = agents
-      .filter((a) => (agency ? a.agency === agency : true))
-      .map((a) => a.uid);
-
-    const perLeadData = {};
-
-    for (const id of agencyAgentIds) {
-      if (id === 'lBGucpmk50Vkc75M4wgojbGIIic2') continue;
-
-      const agent = agents.find((a) => a.uid === id);
-      console.log('Agency Agent ID:', id, 'Agent Name:', agent?.name);
-
-      const leads = await db
-        .collection('leads')
-        .where('issuedTo', '==', agent.email)
-        .get();
-
-      const policies = await db
-        .collection('policies')
-        .where('agentIds', 'array-contains', id)
-        .get();
-
-      const gsqPolicies = policies.docs.filter((doc) => {
-        const data = doc.data();
-        return data.leadSource === 'GetSeniorQuotes.com';
-      });
-
-      let totalPremium = 0;
-      gsqPolicies.forEach((policyDoc) => {
-        const policyData = policyDoc.data();
-        totalPremium += Number(policyData.premiumAmount) * 12 || 0;
-      });
-
-      const leadCount = leads.size;
-
-      if (leadCount === 0) {
-        continue;
-      }
-
-      const premiumPerLead = totalPremium / leadCount;
-
-      perLeadData[agent.name] = {
-        leadCount,
-        totalPremium,
-        premiumPerLead: Math.round(premiumPerLead),
-      };
-    }
-
-    const perLeadDataArray = Object.entries(perLeadData).map(
-      ([name, data]) => ({
-        name,
-        ...data,
-      }),
-    );
-
-    perLeadDataArray.sort((a, b) => b.premiumPerLead - a.premiumPerLead);
-
-    res.status(200).json(perLeadDataArray);
-  } catch (error) {
-    console.error('Error getting premiums per lead:', error);
-    res.status(500).json({ error: 'Failed to get premiums per lead' });
-  }
-});
-
-app.get('/premiums/monthly', async (req, res) => {
-  console.log('Getting monthly premiums');
-  const { agency } = req.query;
-  const db = new Firestore();
-
-  const getLast12Months = () => {
-    const months = [];
-    const now = new Date();
-
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = Number(
-        `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`,
-      );
-
-      months.push({
-        key, // "2025-03"
-        label: d.toLocaleString('default', { month: 'short' }), // "Mar"
-        year: d.getFullYear(),
-        month: d.getMonth(), // 0-indexed
-        premium: 0,
-      });
-    }
-
-    return months;
-  };
-
-  try {
-    // 1. Build month buckets
-    const months = getLast12Months();
-
-    const startDate = new Date(months[0].year, months[0].month, 1);
-    const endDate = new Date(
-      months[11].year,
-      months[11].month + 1,
-      0,
-      23,
-      59,
-      59,
-    );
-
-    // 2. Fetch agents
-    const agentsSnapshot = await db.collection('agents').get();
-    const agents = agentsSnapshot.docs.map((doc) => doc.data());
-
-    const agencyAgentIds = agents
-      .filter((a) => (agency ? a.agency === agency : true))
-      .map((a) => a.uid);
-
-    if (!agencyAgentIds.length) {
-      return res.status(200).json(months);
-    }
-
-    // 3. Fetch policies
-    const policiesSnapshot = await db.collection('policies').get();
-
-    const policies = policiesSnapshot.docs.map((doc) => doc.data());
-
-    const agencyPolicies = policies.filter((policy) => {
-      const policyAgentIds = policy.agentIds || [];
-      return policyAgentIds.some((id) => agencyAgentIds.includes(id));
-    });
-
-    // 4. Bucket policies into months
-    for (const policy of agencyPolicies) {
-      if (!policy.effectiveDate || !policy.premiumAmount) continue;
-
-      const effectiveDate = new Date(policy.effectiveDate);
-      if (effectiveDate < startDate || effectiveDate > endDate) continue;
-
-      const monthKey = Number(
-        `${effectiveDate.getFullYear()}${String(
-          effectiveDate.getMonth() + 1,
-        ).padStart(2, '0')}`,
-      );
-
-      const bucket = months.find((m) => m.key === monthKey);
-      if (!bucket) continue;
-
-      const monthlyPremium = Number(policy.premiumAmount) * 12 || 0;
-      bucket.premium += monthlyPremium;
-    }
-
-    // 5. Return chart-ready structure
-    res.status(200).json(
-      months.map((m) => ({
-        month: m.key,
-        premium: Math.round(m.premium),
-      })),
-    );
-  } catch (err) {
-    console.error('Monthly premium error:', err);
-    res.status(500).json({ error: 'Failed to fetch monthly premiums' });
-  }
-});
-
-app.post('/clients_temp', async (req, res) => {
-  logger.log('Creating clients');
-  const { client } = req.body;
-  delete client.leadSource;
-  delete client.notes;
-  try {
-    const { data: clientData, error: clientError } = await supabaseService
-      .from('clients')
-      .insert(client)
-      .select('*');
-    if (clientError) {
-      console.error('Error creating clients:', clientError);
-      res.status(500).send({ error: 'Failed to create clients' });
-    } else {
-      // insert to agent-clients m:m table
-      const { error: relationError } = await supabaseService
-        .from('agent_clients')
-        .insert([
-          {
-            agent_id: req.user.id,
-            client_id: clientData[0].id,
-          },
-        ]);
-      if (relationError) {
-        console.error('Error creating agent-clients relation:', relationError);
-        res
-          .status(500)
-          .send({ error: 'Failed to create agent-clients relation' });
-      }
-      res.status(200).json(clientData);
-    }
-  } catch (error) {
-    console.error('Error creating clients:', error);
-    res.status(500).json({ error: 'Failed to create clients' });
-  }
-});
-
 // webhook to receive leads from GetSeniorQuotes.com
 app.post('/gsq-lead', async (req, res) => {
   const auth = req.headers['authorization']?.split(' ')[1];
@@ -1503,8 +1114,17 @@ app.post('/gsq-lead', async (req, res) => {
     return res.status(401).send({ message: 'Unauthorized' });
   }
 
-  const { firstName, lastName, email, phone, dob, leadSource, issuedTo, sold } =
-    req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    dob,
+    leadSource,
+    issuedTo,
+    state,
+    sold,
+  } = req.body;
 
   if (
     !firstName ||
@@ -1514,6 +1134,7 @@ app.post('/gsq-lead', async (req, res) => {
     !dob ||
     !leadSource ||
     !issuedTo ||
+    !state ||
     sold === undefined
   ) {
     return res.status(400).send({ message: 'Missing required fields' });
