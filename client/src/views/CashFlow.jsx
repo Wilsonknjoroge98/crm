@@ -84,7 +84,7 @@ const CashFlowSummary = () => {
   });
 
   const {
-    data = [],
+    data: commissionsData = {},
     refetch: refetchCommissions,
     isLoading: isCommissionsLoading,
     isFetching: isCommissionsFetching,
@@ -101,6 +101,8 @@ const CashFlowSummary = () => {
       console.error('Error fetching commissions data:', error);
     },
   });
+
+  console.log('Commissions data:', commissionsData);
 
   const {
     data: expensesData = [],
@@ -157,14 +159,15 @@ const CashFlowSummary = () => {
     import.meta.env.MODE === 'development' ? 'Sam Atherton' : 'Shea Morales';
 
   useEffect(() => {
-    if (data) {
-      const sheaCommissions = data[AGENT_NAME] || 0;
+    if (commissionsData) {
       setInflow((prev) => ({
         ...prev,
-        commissions: sheaCommissions,
+        total: commissionsData[AGENT_NAME]?.total || 0,
+        directCommissions: commissionsData[AGENT_NAME]?.direct || 0,
+        overridingCommissions: commissionsData[AGENT_NAME]?.overriding || 0,
       }));
     }
-  }, [data]);
+  }, [commissionsData]);
 
   useEffect(() => {
     if (stripeData) {
@@ -301,7 +304,7 @@ const CashFlowSummary = () => {
                 ) : (
                   <Typography variant='subtitle1' fontWeight={600}>
                     $
-                    {inflow?.commissions?.toLocaleString('en-US', {
+                    {inflow?.commissions?.total.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}

@@ -8,11 +8,12 @@ import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import DeleteClientDialog from '../components/DeleteClientDialog';
 
 import { useSelector } from 'react-redux';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getClients, getAgents } from '../utils/query';
 import { CSVLink } from 'react-csv';
 import ClientsGrid from '../components/ClientsGrid';
+import DateRangeFilter from '../components/DateRangeFilter';
 
 import { useAgent } from '../hooks/useAgent.jsx';
 
@@ -22,6 +23,8 @@ const Clients = () => {
   const [createPoliciesOpen, setCreatePoliciesOpen] = useState(false);
   const [deleteClientOpen, setDeleteClientOpen] = useState(false);
   const [client, setClient] = useState(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   // get user info from redux store
   const { user, isAuthenticated, userToken } = useSelector(
     (state) => state.user,
@@ -62,6 +65,20 @@ const Clients = () => {
     { label: 'Occupation', key: 'occupation' },
     { label: 'Annual Income', key: 'annual_income' },
   ];
+
+  const csvData = useMemo(() => {
+    return clients.filter((c) => {
+      if (!c.created_at) return true;
+      const createdMs = new Date(c.created_at).getTime();
+      const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
+      const toMs = dateTo ? new Date(dateTo).getTime() + 86399999 : null;
+      if (fromMs && createdMs < fromMs) return false;
+      if (toMs && createdMs > toMs) return false;
+      return true;
+    });
+  }, [clients, dateFrom, dateTo]);
+
+  const csvFilename = `clients${dateFrom ? `_from_${dateFrom}` : ''}${dateTo ? `_to_${dateTo}` : `_${new Date().toISOString().slice(0, 10)}`}.csv`;
 
   const carrierMap = {
     'Liberty Bankers Insurance Group': 'Liberty Bankers',
@@ -140,19 +157,22 @@ const Clients = () => {
         >
           <Typography variant='h4'>Clients</Typography>
           <Stack
-            width={'fit-content'}
             direction='row'
             alignItems='center'
-            spacing={2}
+            spacing={1.5}
+            flexWrap='wrap'
           >
-            <CSVLink
-              data={clients || []}
-              headers={headers}
-              filename={`clients_${new Date().toISOString().slice(0, 10)}.csv`}
-            >
-              <Button variant='outlined'>Export CSV</Button>
+            <DateRangeFilter
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
+            />
+            <CSVLink data={csvData} headers={headers} filename={csvFilename}>
+              <Button variant='outlined'>
+                Export CSV{` (${csvData.length})`}
+              </Button>
             </CSVLink>
-
             <Button
               variant='contained'
               color='action'

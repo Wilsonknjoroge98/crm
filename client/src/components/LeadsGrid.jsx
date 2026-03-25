@@ -60,7 +60,7 @@ export default function LeadsGrid({
   const columns = React.useMemo(
     () => [
       {
-        field: 'createdAtMs',
+        field: 'created_at',
         headerName: 'Received',
         width: 90,
         filterable: true,
@@ -74,15 +74,29 @@ export default function LeadsGrid({
         headerName: 'Name',
         width: 90,
         renderCell: (params) => (
-          <Typography variant='caption'>{params.row.fullName || ''}</Typography>
+          <Typography variant='caption'>
+            {params.row.first_name || ''} {params.row.last_name || ''}
+          </Typography>
         ),
+      },
+      {
+        field: 'age',
+        headerName: 'Age',
+        width: 80,
+        sortable: true,
+        filterable: true,
+        renderCell: (params) => {
+          const { age } = params.row;
+          if (!age) return '—';
+          return <Typography variant='caption'>{age}</Typography>;
+        },
       },
       {
         field: 'phone',
         headerName: 'Phone',
         width: 110,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => (
           <Typography variant='caption'>
             {formatPhone(params.row.phone)}
@@ -94,33 +108,25 @@ export default function LeadsGrid({
         headerName: 'Email',
         flex: 1,
         minWidth: 110,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => (
-          <Typography variant='caption'>{params.row.email || ''}</Typography>
+          <Typography variant='caption'>{params.row.email || '—'}</Typography>
         ),
       },
       {
-        field: 'dob',
+        field: 'date_of_birth',
         headerName: 'DOB',
         width: 100,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => {
-          const { dob, age } = params.row;
-          if (!dob) return null;
+          const { date_of_birth } = params.row;
+          if (!date_of_birth) return '—';
           return (
-            <Stack
-              spacing={0}
-              sx={{ height: '100%', justifyContent: 'center' }}
-            >
-              <Typography variant='caption'>{formatDob(dob)}</Typography>
-              {age ? (
-                <Typography variant='caption' color='text.secondary'>
-                  Age {age}
-                </Typography>
-              ) : null}
-            </Stack>
+            <Typography variant='caption'>
+              {formatDob(date_of_birth)}
+            </Typography>
           );
         },
       },
@@ -129,18 +135,18 @@ export default function LeadsGrid({
         headerName: 'State',
         width: 70,
         renderCell: (params) => (
-          <Typography variant='caption'>{params.row.state || ''}</Typography>
+          <Typography variant='caption'>{params.row.state || '—'}</Typography>
         ),
       },
       {
-        field: 'faceAmount',
+        field: 'face_amount',
         headerName: 'Face Amount',
         width: 100,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => (
           <Typography variant='caption'>
-            {formatCurrency(params.row.faceAmount)}
+            {formatCurrency(params.row.face_amount) || '—'}
           </Typography>
         ),
       },
@@ -148,11 +154,11 @@ export default function LeadsGrid({
         field: 'premium',
         headerName: 'Premium',
         width: 100,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => (
           <Typography variant='caption'>
-            {formatCurrency(params.row.premium)}
+            {formatCurrency(params.row.premium) || '—'}
           </Typography>
         ),
       },
@@ -160,11 +166,11 @@ export default function LeadsGrid({
         field: 'smoker',
         headerName: 'Smoker',
         width: 80,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => {
           const { smoker } = params.row;
-          if (smoker === undefined || smoker === null) return null;
+          if (smoker === undefined || smoker === null) return '—';
 
           return (
             <Chip
@@ -178,26 +184,26 @@ export default function LeadsGrid({
         },
       },
       {
-        field: 'selectedCarrier',
+        field: 'selected_carrier',
         headerName: 'Carrier / Plan',
         flex: 1,
         minWidth: 100,
         sortable: false,
         filterable: false,
         renderCell: (params) => {
-          const { selectedCarrier, selectedPlan } = params.row;
-          if (!selectedCarrier && !selectedPlan) return null;
+          const { selected_carrier, selected_plan } = params.row;
+          if (!selected_carrier && !selected_plan) return '—';
           return (
             <Stack
               spacing={0}
               sx={{ height: '100%', justifyContent: 'center' }}
             >
-              {selectedCarrier && (
-                <Typography variant='caption'>{selectedCarrier}</Typography>
+              {selected_carrier && (
+                <Typography variant='caption'>{selected_carrier}</Typography>
               )}
-              {selectedPlan && (
+              {selected_plan && (
                 <Typography variant='caption' color='text.secondary'>
-                  {selectedPlan}
+                  {selected_plan}
                 </Typography>
               )}
             </Stack>
@@ -208,11 +214,11 @@ export default function LeadsGrid({
         field: 'verified',
         headerName: 'Verified',
         width: 80,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => {
           const { verified } = params.row;
-          if (verified === undefined || verified === null) return null;
+          if (verified === undefined || verified === null) return '—';
           return (
             <Chip
               label={verified ? 'Yes' : 'No'}
@@ -228,8 +234,8 @@ export default function LeadsGrid({
         field: 'sold',
         headerName: '',
         width: 70,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         renderCell: (params) => {
           if (!params.row.sold) return null;
           return (

@@ -5,7 +5,7 @@ import { getPolicies, getAgents } from '../utils/query';
 
 import { CSVLink } from 'react-csv';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent';
@@ -13,11 +13,14 @@ import { useAgent } from '../hooks/useAgent';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import DeletePolicyDialog from '../components/DeletePolicyDialog';
 import PoliciesGrid from '../components/PoliciesGrid';
+import DateRangeFilter from '../components/DateRangeFilter';
 
 const Policies = () => {
   const [updatePolicyOpen, setUpdatePolicyOpen] = useState(false);
   const [deletePolicyOpen, setDeletePolicyOpen] = useState(false);
   const [policy, setPolicy] = useState(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const { user } = useSelector((state) => state.user);
   const agent = useAgent();
@@ -58,6 +61,20 @@ const Policies = () => {
     { label: 'Draft Day', key: 'draft_day' },
     { label: 'Premium Frequency', key: 'premium_frequency' },
   ];
+
+  const csvData = useMemo(() => {
+    return policies.filter((p) => {
+      if (!p.created_at) return true;
+      const createdMs = new Date(p.created_at).getTime();
+      const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
+      const toMs = dateTo ? new Date(dateTo).getTime() + 86399999 : null;
+      if (fromMs && createdMs < fromMs) return false;
+      if (toMs && createdMs > toMs) return false;
+      return true;
+    });
+  }, [policies, dateFrom, dateTo]);
+
+  const csvFilename = `policies${dateFrom ? `_from_${dateFrom}` : ''}${dateTo ? `_to_${dateTo}` : `_${new Date().toISOString().slice(0, 10)}`}.csv`;
 
   const handleUpdatePolicy = (data) => {
     setPolicy(data);
@@ -109,18 +126,26 @@ const Policies = () => {
         >
           <Typography variant='h4'>Policies</Typography>
           <Stack
-            width={'fit-content'}
             direction='row'
             alignItems='center'
-            spacing={2}
+            spacing={1.5}
+            flexWrap='wrap'
           >
+            <DateRangeFilter
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
+            />
             <CSVLink
-              data={policies || []}
+              data={csvData}
               headers={headers}
-              filename={`policies_${new Date().toISOString().slice(0, 10)}.csv`}
+              filename={csvFilename}
               style={{ textDecoration: 'none' }}
             >
-              <Button variant='outlined'>Export CSV</Button>
+              <Button variant='outlined'>
+                Export CSV{` (${csvData.length})`}
+              </Button>
             </CSVLink>
           </Stack>
         </Stack>

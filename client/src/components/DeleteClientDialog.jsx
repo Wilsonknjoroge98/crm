@@ -33,21 +33,6 @@ const DeleteClientDialog = ({ open, setOpen, client, refetchClients }) => {
       refetchClients?.();
       setOpen(false);
     },
-    onError: () => {
-      enqueueSnackbar('Failed to delete client.', {
-        variant: 'error',
-        style: {
-          fontWeight: 'bold',
-          fontFamily: `"Libre Baskerville", serif`,
-          fontSize: '1rem',
-        },
-        autoHideDuration: 5000,
-        anchorOrigin: {
-          vertical: 'bottom',
-          horizontal: 'right',
-        },
-      });
-    },
   });
 
   const handleDelete = () => {

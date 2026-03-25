@@ -18,7 +18,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { useState } from 'react';
 import { MoonLoader } from 'react-spinners';
 
-const Dashboard = () => {
+const Leaderboard = () => {
   const agent = useAgent();
   const [startDate, setStartDate] = useState(
     dayjs().add(-7, 'day').format('YYYY-MM-DD'),
@@ -231,4 +231,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default Leaderboard;

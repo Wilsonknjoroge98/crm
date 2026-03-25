@@ -9,18 +9,13 @@ import {
   Stack,
   Menu,
   Button,
-  Alert,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import AccountDetails from './AccountDetails';
-import { getAccount, createInvite } from '../utils/query';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { enqueueSnackbar } from 'notistack';
-import {
-  SNACKBAR_SUCCESS_OPTIONS,
-  SNACKBAR_ERROR_OPTIONS,
-} from '../utils/constants';
+import InviteAgentDialog from './InviteAgentDialog';
+import { getAccount } from '../utils/query';
+import { useQuery } from '@tanstack/react-query';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -32,20 +27,7 @@ const drawerWidth = 240;
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
-
-  const { mutate: generateInvite, isPending: inviteLoading } = useMutation({
-    mutationFn: createInvite,
-    onSuccess: (data) => {
-      const link = `${window.location.origin}/signup?token=${data.token}`;
-      navigator.clipboard.writeText(link);
-      enqueueSnackbar(
-        'Invite link copied to clipboard',
-        SNACKBAR_SUCCESS_OPTIONS,
-      );
-    },
-    onError: () =>
-      enqueueSnackbar('Failed to generate invite link', SNACKBAR_ERROR_OPTIONS),
-  });
+  const [inviteOpen, setInviteOpen] = React.useState(false);
 
   const { user, userToken, isAuthenticated } = useSelector(
     (state) => state.user,
@@ -76,6 +58,8 @@ export default function NavBar() {
   };
 
   return (
+    <>
+    <InviteAgentDialog open={inviteOpen} setOpen={setInviteOpen} />
     <AppBar
       position='static'
       color='default'
@@ -96,8 +80,7 @@ export default function NavBar() {
           variant='outlined'
           size='small'
           startIcon={<PersonAddOutlinedIcon />}
-          onClick={() => generateInvite()}
-          disabled={inviteLoading}
+          onClick={() => setInviteOpen(true)}
           sx={{ mr: 2, fontSize: 12 }}
         >
           Invite Agent
@@ -157,16 +140,11 @@ export default function NavBar() {
             p={2}
             spacing={2}
           >
-            {accountData ? (
-              <AccountDetails data={accountData} />
-            ) : (
-              <Stack>
-                <Alert severity='error'>Unable to find account</Alert>
-              </Stack>
-            )}
+            <AccountDetails data={accountData} />
           </Stack>
         </Menu>
       </Toolbar>
     </AppBar>
+    </>
   );
 }

@@ -1,20 +1,12 @@
-// Attribution.jsx
 import {
-  Card,
-  CardContent,
   Stack,
   Typography,
-  List,
-  ListItem,
-  ListItemText,
-  Skeleton,
   Alert,
   Box,
-  Divider,
   Container,
   Button,
 } from '@mui/material';
-import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
+import { DataGrid } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
 import { getInsights } from '../utils/query';
 import { useSelector } from 'react-redux';
@@ -29,22 +21,25 @@ import dayjs from 'dayjs';
 import { useState } from 'react';
 
 const Insights = () => {
-  const [startDate, setStartDate] = useState(dayjs('2025-05-11').format('YYYY-MM-DD'));
+  const [startDate, setStartDate] = useState(
+    dayjs('2025-05-11').format('YYYY-MM-DD'),
+  );
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   const { user } = useSelector((state) => state.user);
 
-  const { data, isLoading, isError, error, refetch, isFetching, isPending } = useQuery({
-    queryKey: ['insights'],
-    enabled: !!user?.id,
-    queryFn: () =>
-      getInsights({
-        startDate,
-        endDate,
-      }),
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data, isLoading, isError, error, refetch, isFetching, isPending } =
+    useQuery({
+      queryKey: ['insights'],
+      enabled: !!user?.id,
+      queryFn: () =>
+        getInsights({
+          startDate,
+          endDate,
+        }),
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5,
+    });
 
   console.log('Insights data:', data);
 
@@ -144,7 +139,11 @@ const Insights = () => {
         <Stack justifyContent='space-between' spacing={2} mb={2}>
           <Typography variant='h4'>Creative Insights</Typography>
           <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <Box display='flex' justifyContent='space-between' alignItems='center'>
+            <Box
+              display='flex'
+              justifyContent='space-between'
+              alignItems='center'
+            >
               <Stack direction={'row'} spacing={2} alignItems='center'>
                 <DatePicker
                   label='Start Date'

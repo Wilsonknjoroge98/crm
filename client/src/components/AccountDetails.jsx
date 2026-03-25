@@ -6,6 +6,7 @@ import {
   Typography,
   Switch,
   IconButton,
+  Alert,
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useState } from 'react';
@@ -13,6 +14,8 @@ import { useMutation } from '@tanstack/react-query';
 import { patchAccount } from '../utils/query';
 
 import { useAgent } from '../hooks/useAgent';
+import { supabase } from '../utils/supabase';
+import { useNavigate } from 'react-router-dom';
 import { enqueueSnackbar } from 'notistack';
 import {
   SNACKBAR_SUCCESS_OPTIONS,
@@ -22,9 +25,11 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import UpdateStatesDialog from './UpdateStatesDialog';
 import EditIcon from '@mui/icons-material/Edit';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 
 const AccountDetails = ({ data }) => {
   const [openStatesDlg, setOpenStatesDlg] = useState(false);
+  const navigate = useNavigate();
 
   const formattedDate = data?.lastIssuedDate?._seconds
     ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY HH:mm:ss')
@@ -51,7 +56,17 @@ const AccountDetails = ({ data }) => {
       setDeliver(false);
     },
   });
-  // TODO: data.verified + data.unverified lead type counts
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+
+      navigate('/login');
+      console.log('User signed out successfully');
+    } catch (error) {
+      console.error('Sign-out error:', error);
+    }
+  };
   return (
     <>
       <UpdateStatesDialog
@@ -60,29 +75,23 @@ const AccountDetails = ({ data }) => {
         states={states}
         mutate={mutate}
       />
-      <Stack spacing={1}>
+      <Stack spacing={1} minWidth={250}>
         <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2' color='text.secondary'>
-            Outstanding Leads:
-          </Typography>
+          <Typography variant='body2'>Outstanding Leads:</Typography>
           <Typography variant='body2' fontWeight='bold'>
-            {data?.outstandingLeads}
+            {data?.outstandingLeads || '—'}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2' color='text.secondary'>
-            Verified Leads:
-          </Typography>
+          <Typography variant='body2'>Verified Leads:</Typography>
           <Typography variant='body2' fontWeight='bold'>
-            {data?.verified}
+            {data?.verified || '—'}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2' color='text.secondary'>
-            Unverified Leads:
-          </Typography>
+          <Typography variant='body2'>Unverified Leads:</Typography>
           <Typography variant='body2' fontWeight='bold'>
-            {data?.unverified}
+            {data?.unverified || '—'}
           </Typography>
         </Stack>
 
@@ -94,12 +103,10 @@ const AccountDetails = ({ data }) => {
             alignItems='center'
             justifyContent='space-between'
           >
-            <Typography variant='body2' color='text.secondary'>
-              States:
-            </Typography>
+            <Typography variant='body2'>States:</Typography>
             <IconButton
               size='small'
-              color='action'
+              color='primary'
               onClick={() => setOpenStatesDlg(true)}
             >
               <EditIcon sx={{ fontSize: '1.5rem' }} />
@@ -121,9 +128,7 @@ const AccountDetails = ({ data }) => {
           justifyContent='space-between'
           alignItems='center'
         >
-          <Typography variant='body2' color='text.secondary'>
-            Lead Flow:
-          </Typography>
+          <Typography variant='body2'>Lead Flow:</Typography>
 
           <Switch
             variant='body2'
@@ -147,10 +152,26 @@ const AccountDetails = ({ data }) => {
         <Divider flexItem />
 
         <Stack direction='row' justifyContent='space-between'>
-          <Typography variant='body2' color='text.secondary'>
-            Last Issued:
-          </Typography>
+          <Typography variant='body2'>Last Issued:</Typography>
           <Typography variant='body2'>{formattedDate}</Typography>
+        </Stack>
+        <Divider flexItem />
+        {!data && (
+          <Alert severity='error'>
+            <Typography variant='caption'>
+              Unable to load account details
+            </Typography>
+          </Alert>
+        )}
+        <Stack direction='row' justifyContent='flex-end'>
+          <IconButton
+            size='small'
+            color='error'
+            onClick={handleSignOut}
+            sx={{ mt: 1 }}
+          >
+            <LogoutOutlinedIcon />
+          </IconButton>
         </Stack>
       </Stack>
     </>

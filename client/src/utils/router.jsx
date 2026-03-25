@@ -16,6 +16,7 @@ const Purchase = lazy(() => import('../views/Purchase'));
 const Leaderboard = lazy(() => import('../views/Leaderboard'));
 const Production = lazy(() => import('../views/Production'));
 const Agents = lazy(() => import('../views/Agents'));
+const ResetPassword = lazy(() => import('../views/ResetPassword'));
 import ErrorBoundary from '../views/ErrorBoundary';
 
 const router = createBrowserRouter([
@@ -190,7 +191,7 @@ const router = createBrowserRouter([
               </div>
             }
           >
-            <Dashboard />
+            <Leaderboard />
           </Suspense>
         ),
       },
@@ -318,6 +319,27 @@ const router = createBrowserRouter([
             }
           >
             <SignUp />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/reset-password',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <ResetPassword />
           </Suspense>
         ),
       },

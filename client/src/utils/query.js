@@ -79,7 +79,7 @@ const getLeads = async ({ data }) => {
   const options = {
     method: 'GET',
     // signal: signal,
-    url: '/leads',
+    url: '/lead',
     params: {
       mode: import.meta.env.MODE,
     },

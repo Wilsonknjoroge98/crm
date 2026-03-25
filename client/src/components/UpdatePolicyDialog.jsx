@@ -56,6 +56,8 @@ const UpdatePolicyDialog = ({
   const [updatesMade, setUpdatesMade] = useState(false);
   const { user } = useSelector((state) => state.user);
 
+  console.log();
+
   useEffect(() => {
     if (policy) {
       const primaryBens = (policy.beneficiaries || [])

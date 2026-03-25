@@ -1,4 +1,12 @@
-import { Box, Grid, Typography, Divider, Container, Stack, Button } from '@mui/material';
+import {
+  Box,
+  Grid,
+  Typography,
+  Divider,
+  Container,
+  Stack,
+  Button,
+} from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getPremiumLeaderboard } from '../utils/query';
 import useAuth from '../hooks/useAuth';
@@ -24,26 +32,27 @@ const DateSelector = ({
         <Box display='flex' justifyContent='space-between' alignItems='center'>
           <Stack direction={'row'} spacing={1} alignItems='center'>
             <DatePicker
-              label='Start Date'
+              label='From'
               value={startDate ? dayjs(startDate) : null}
               onChange={handleStartChange}
               slotProps={{
                 textField: {
                   size: 'small',
                   variant: 'outlined',
-                  sx: { maxWidth: 175 },
+                  sx: { maxWidth: 170 },
                 },
               }}
             />
+
             <DatePicker
-              label='End Date'
+              label='To'
               value={endDate ? dayjs(endDate) : null}
               onChange={handleEndChange}
               slotProps={{
                 textField: {
                   size: 'small',
                   variant: 'outlined',
-                  sx: { maxWidth: 175 },
+                  sx: { maxWidth: 170 },
                 },
               }}
             />

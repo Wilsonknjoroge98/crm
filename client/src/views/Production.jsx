@@ -17,6 +17,7 @@ import TeamLeaderboard from '../components/TeamLeaderboard';
 import TeamSummary from '../components/TeamSummary';
 import PersonalSummary from '../components/PersonalSummary';
 import Events from '../components/Events';
+import ProductionIntroDialog, { STORAGE_KEY } from '../components/ProductionIntroDialog';
 
 const Production = () => {
   const [startDate, setStartDate] = useState(
@@ -25,6 +26,9 @@ const Production = () => {
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [introOpen, setIntroOpen] = useState(
+    () => localStorage.getItem(STORAGE_KEY) !== 'true',
+  );
 
   const isLoading = false;
 
@@ -35,6 +39,7 @@ const Production = () => {
 
   return (
     <Container sx={{ borderRadius: 2, p: 3 }}>
+      <ProductionIntroDialog open={introOpen} setOpen={setIntroOpen} />
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         justifyContent='space-between'
@@ -60,15 +65,9 @@ const Production = () => {
       />
 
       <Tabs value={value} onChange={handleChange}>
-        <Tab
-          label='Team Summary'
-          sx={{ letterSpacing: 1, fontSize: '.875rem' }}
-        />
-        <Tab
-          label='Personal Summary'
-          sx={{ letterSpacing: 1, fontSize: '.875rem' }}
-        />
-        <Tab label='Org Chart' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab label='Team' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab label='Personal' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab label='Hierarchy' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
       </Tabs>
 
       <Grid container spacing={3} my={4}>

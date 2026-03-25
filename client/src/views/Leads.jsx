@@ -1,4 +1,4 @@
-import { Container, Typography, Stack, Button, Alert, TextField } from '@mui/material';
+import { Container, Typography, Stack, Button, Alert } from '@mui/material';
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { getLeads, getAgents } from '../utils/query';
 import { CSVLink } from 'react-csv';
 
 import LeadsGrid from '../components/LeadsGrid';
+import DateRangeFilter from '../components/DateRangeFilter';
 
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent';
@@ -16,21 +17,22 @@ const CSV_HEADERS = [
   { label: 'Last Name', key: 'last_name' },
   { label: 'Email', key: 'email' },
   { label: 'Phone', key: 'phone' },
-  { label: 'Date of Birth', key: 'dob' },
+  { label: 'Date of Birth', key: 'date_of_birth' },
   { label: 'Age', key: 'age' },
   { label: 'State', key: 'state' },
   { label: 'Smoker', key: 'smoker' },
-  { label: 'Coverage Amount', key: 'faceAmount' },
+  { label: 'Coverage Amount', key: 'face_amount' },
   { label: 'Monthly Premium', key: 'premium' },
-  { label: 'Selected Carrier', key: 'selectedCarrier' },
-  { label: 'Selected Plan', key: 'selectedPlan' },
+  { label: 'Selected Carrier', key: 'selected_carrier' },
+  { label: 'Selected Plan', key: 'selected_plan' },
   { label: 'Beneficiary', key: 'beneficiary' },
   { label: 'Priority', key: 'priority' },
   { label: 'Reason', key: 'why' },
   { label: 'BMI', key: 'bmi' },
-  { label: 'Cholesterol Medication', key: 'cholesterol' },
-  { label: 'Blood Pressure Medication', key: 'bloodPressure' },
+  { label: 'Cholesterol Medication', key: 'cholesterol_medication' },
+  { label: 'Blood Pressure Medication', key: 'blood_pressure_medication' },
   { label: 'Verified', key: 'verified' },
+  { label: 'Lead Vendor', key: 'lead_vendor_name' },
   { label: 'Sold', key: 'sold' },
 ];
 
@@ -56,7 +58,11 @@ const Leads = () => {
     queryKey: ['leads', user?.id, agent?.role],
     queryFn: () =>
       getLeads({
-        data: { agentId: user?.id, agentRole: agent?.role, agency: agent?.org_id },
+        data: {
+          agentId: user?.id,
+          agentRole: agent?.role,
+          agency: agent?.org_id,
+        },
       }),
     enabled: !!agent,
     refetchOnWindowFocus: false,
@@ -76,6 +82,8 @@ const Leads = () => {
     });
   }, [leads, dateFrom, dateTo]);
 
+  console.log('leads', leads);
+
   const csvFilename = `leads${dateFrom ? `_from_${dateFrom}` : ''}${dateTo ? `_to_${dateTo}` : `_${new Date().toISOString().slice(0, 10)}`}.csv`;
 
   if (isError) {
@@ -91,7 +99,11 @@ const Leads = () => {
   return (
     <>
       {createClientOpen && (
-        <CreateClientDialog open={createClientOpen} setOpen={setCreateClientOpen} lead={lead} />
+        <CreateClientDialog
+          open={createClientOpen}
+          setOpen={setCreateClientOpen}
+          lead={lead}
+        />
       )}
       <Container sx={{ mt: 4 }}>
         <Stack
@@ -102,28 +114,26 @@ const Leads = () => {
           mb={2}
         >
           <Typography variant='h4'>Leads</Typography>
-          <Stack direction='row' alignItems='center' spacing={1.5} flexWrap='wrap'>
-            <TextField
-              type='date'
-              size='small'
-              label='From'
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ width: 148 }}
+          <Stack
+            direction='row'
+            alignItems='center'
+            spacing={1.5}
+            flexWrap='wrap'
+          >
+            <DateRangeFilter
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
             />
-            <TextField
-              type='date'
-              size='small'
-              label='To'
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ width: 148 }}
-            />
-            <CSVLink data={csvData} headers={CSV_HEADERS} filename={csvFilename}>
+            <CSVLink
+              data={csvData}
+              headers={CSV_HEADERS}
+              filename={csvFilename}
+            >
               <Button variant='outlined'>
-                Export CSV{csvData.length !== leads.length ? ` (${csvData.length})` : ''}
+                Export CSV
+                {csvData.length !== leads.length ? ` (${csvData.length})` : ''}
               </Button>
             </CSVLink>
           </Stack>
