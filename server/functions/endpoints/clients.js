@@ -186,6 +186,9 @@ clientRouter.post('/', async (req, res) => {
     client,
   });
 
+  // TODO - turn on before deploy
+  // await sendToGSQ(client)
+
   if (!client?.email || !client?.phone) {
     logger.warn('Missing required client fields in clients.js', {
       route: '/client',
@@ -199,8 +202,6 @@ clientRouter.post('/', async (req, res) => {
   }
 
   let leadId = null;
-
-  console.log('GSQ Lead Vendor ID:', process.env.GSQ_LEAD_VENDOR_ID);
 
   const { data: existingLead, error: existingLeadError } = await supabaseService
     .from('leads')
@@ -439,6 +440,61 @@ clientRouter.delete('/', async (req, res) => {
       targetClientId: clientId,
     });
 
+    // Fetch policy IDs for this client so we can cascade through beneficiaries
+    const { data: clientPolicies, error: fetchPoliciesError } = await supabaseService
+      .from('policies')
+      .select('id')
+      .eq('client_id', clientId);
+
+    if (fetchPoliciesError) {
+      logger.error('Error fetching policies for client delete in clients.js', {
+        route: '/clients',
+        method: 'DELETE',
+        requesterId: req.agent?.id,
+        targetClientId: clientId,
+        error: fetchPoliciesError,
+      });
+      return res.status(500).json({ error: 'Failed to fetch associated policies' });
+    }
+
+    const policyIds = (clientPolicies || []).map((p) => p.id);
+
+    // Delete beneficiaries first (they reference policies via FK)
+    if (policyIds.length > 0) {
+      const { error: beneficiariesError } = await supabaseService
+        .from('beneficiaries')
+        .delete()
+        .in('policy_id', policyIds);
+
+      if (beneficiariesError) {
+        logger.error('Error deleting beneficiaries in clients.js', {
+          route: '/clients',
+          method: 'DELETE',
+          requesterId: req.agent?.id,
+          targetClientId: clientId,
+          error: beneficiariesError,
+        });
+        return res.status(500).json({ error: 'Failed to delete associated beneficiaries' });
+      }
+    }
+
+    // Now safe to delete policies
+    const { error: policiesError } = await supabaseService
+      .from('policies')
+      .delete()
+      .eq('client_id', clientId);
+
+    if (policiesError) {
+      logger.error('Error deleting associated policies in clients.js', {
+        route: '/clients',
+        method: 'DELETE',
+        requesterId: req.agent?.id,
+        targetClientId: clientId,
+        error: policiesError,
+      });
+      return res.status(500).json({ error: 'Failed to delete associated policies' });
+    }
+
     const { data, error } = await supabaseService
       .from('clients')
       .delete()
@@ -447,16 +503,6 @@ clientRouter.delete('/', async (req, res) => {
       .maybeSingle();
 
     if (error) {
-      if (error.code === '23503') {
-        logger.warn('FK violation deleting client in clients.js', {
-          route: '/clients',
-          method: 'DELETE',
-          requesterId: req.agent?.id,
-          targetClientId: clientId,
-          error,
-        });
-        return res.status(409).json({ error: 'Client has associated policies that must be deleted first.' });
-      }
       logger.error('Error deleting client in clients.js', {
         route: '/clients',
         method: 'DELETE',

@@ -88,7 +88,8 @@ policyRouter.get('/', async (req, res) => {
 
     const { data: policies, error } = await supabaseService
       .from('policies')
-      .select(`
+      .select(
+        `
         *,
         clients!policies_client_id_fkey ( first_name, last_name ),
         carriers ( name ),
@@ -96,7 +97,8 @@ policyRouter.get('/', async (req, res) => {
         writing_agent:agents!policies_writing_agent_id_fkey ( first_name, last_name ),
         split_agent:agents!policies_split_agent_id_fkey ( first_name, last_name ),
         beneficiaries!beneficiaries_policy_id_fkey ( id, first_name, last_name, relationship, allocation_percent, beneficiary_type, phone )
-      `)
+      `,
+      )
       .eq('writing_agent_id', targetAgentId);
 
     if (error) {
@@ -144,12 +146,15 @@ policyRouter.get('/', async (req, res) => {
 
     return res.status(200).json(mapped);
   } catch (error) {
-    logger.error('Unexpected error fetching policies in endpoints/policies.js', {
-      route: '/policy',
-      method: 'GET',
-      requesterId: req.agent?.id,
-      error,
-    });
+    logger.error(
+      'Unexpected error fetching policies in endpoints/policies.js',
+      {
+        route: '/policy',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      },
+    );
     return res.status(500).json({ error: 'Failed to fetch policies' });
   }
 });
@@ -247,7 +252,6 @@ policyRouter.post('/', async (req, res) => {
       });
     }
 
-    // if (isGSQ) await sendToGSQ(clientData);
     await supabaseService
       .from('leads')
       .update({ sold: true })

@@ -6,7 +6,6 @@ const dayjs = require('dayjs');
 const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
 // eslint-disable-next-line no-unused-vars
-const { WebClient } = require('@slack/web-api');
 const { PRODUCT_RATES } = require('./constants');
 const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
@@ -453,6 +452,159 @@ app.get('/insights', async (req, res) => {
 });
 
 app.get('/commissions', async (req, res) => {
+  // TODO - flip to shea's id
+  const AGENT_ID = '6a1aae1d-f2be-4cd5-aad0-fa1ed43da147';
+
+  const getContractRate = (level, carrierName, productName) => {
+    const rate = PRODUCT_RATES?.[carrierName]?.[productName]?.[String(level)];
+    return rate != null ? rate / 100 : 1;
+  };
+
+  try {
+    logger.log('Calculating commissions', {
+      route: '/commissions',
+      method: 'GET',
+      targetAgentId: AGENT_ID,
+    });
+
+    const { data: allAgents, error: agentsError } = await supabaseService
+      .from('agents')
+      .select('id, first_name, last_name, level, upline_agent_id');
+
+    if (agentsError) {
+      logger.error('Error fetching agents in /commissions', {
+        error: agentsError,
+      });
+      return res.status(500).json({ error: 'Failed to fetch agents' });
+    }
+
+    const agent = allAgents.find((a) => a.id === AGENT_ID);
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    // BFS to collect all downline agent IDs (excluding the agent themselves)
+    const downlineIds = new Set();
+    const queue = [AGENT_ID];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      for (const a of allAgents) {
+        if (a.upline_agent_id === currentId && !downlineIds.has(a.id)) {
+          downlineIds.add(a.id);
+          queue.push(a.id);
+        }
+      }
+    }
+    const { data: ownPolicies, error: ownPoliciesError } = await supabaseService
+      .from('policies')
+      .select(
+        'id, premium_amount, split_agent_id, split_agent_share, carriers ( name ), products ( name )',
+      )
+      .eq('writing_agent_id', AGENT_ID);
+
+    if (ownPoliciesError) {
+      logger.error('Error fetching own policies in /commissions', {
+        error: ownPoliciesError,
+      });
+      return res.status(500).json({ error: 'Failed to fetch policies' });
+    }
+
+    let directCommissions = 0;
+
+    for (const policy of ownPolicies || []) {
+      const carrierName = policy.carriers?.name;
+      const productName = policy.products?.name;
+      const contractRate = getContractRate(
+        agent.level,
+        carrierName,
+        productName,
+      );
+      const ap = Number(policy.premium_amount) * 12;
+
+      if (policy.split_agent_id && policy.split_agent_share != null) {
+        // Writing agent's share is whatever the split agent doesn't take
+        const writingAgentShare = (100 - policy.split_agent_share) / 100;
+        directCommissions += ap * writingAgentShare * contractRate;
+      } else {
+        directCommissions += ap * contractRate;
+      }
+    }
+
+    let overridingCommissions = 0;
+
+    if (downlineIds.size > 0) {
+      const { data: downlinePolicies, error: downlinePoliciesError } =
+        await supabaseService
+          .from('policies')
+          .select(
+            'id, premium_amount, writing_agent_id, carriers ( name ), products ( name )',
+          )
+          .in('writing_agent_id', [...downlineIds]);
+
+      if (downlinePoliciesError) {
+        logger.error('Error fetching downline policies in /commissions', {
+          error: downlinePoliciesError,
+        });
+        return res
+          .status(500)
+          .json({ error: 'Failed to fetch downline policies' });
+      }
+
+      const agentMap = new Map(allAgents.map((a) => [a.id, a]));
+
+      for (const policy of downlinePolicies || []) {
+        const downlineAgent = agentMap.get(policy.writing_agent_id);
+        if (!downlineAgent) continue;
+
+        const carrierName = policy.carriers?.name;
+        const productName = policy.products?.name;
+        const uplineRate = getContractRate(
+          agent.level,
+          carrierName,
+          productName,
+        );
+        const downlineRate = getContractRate(
+          downlineAgent.level,
+          carrierName,
+          productName,
+        );
+        const overrideRate = uplineRate - downlineRate;
+
+        if (overrideRate > 0) {
+          const ap = Number(policy.premium_amount) * 12;
+          overridingCommissions += ap * overrideRate;
+        }
+      }
+    }
+
+    const totalCommissions = Math.round(
+      directCommissions + overridingCommissions,
+    );
+
+    logger.log('Commissions calculated successfully', {
+      route: '/commissions',
+      method: 'GET',
+      targetAgentId: AGENT_ID,
+      agentName: `${agent.first_name} ${agent.last_name}`,
+      directCommissions: Math.round(directCommissions),
+      overridingCommissions: Math.round(overridingCommissions),
+      totalCommissions,
+    });
+
+    return res.status(200).json({
+      agentId: AGENT_ID,
+      agentName: `${agent.first_name} ${agent.last_name}`,
+      direct: Math.round(directCommissions),
+      overriding: Math.round(overridingCommissions),
+      total: Math.round(totalCommissions),
+    });
+  } catch (error) {
+    logger.error('Unexpected error in /commissions', { error });
+    return res.status(500).json({ error: 'Failed to calculate commissions' });
+  }
+});
+
+app.get('/commissions_legacy', async (req, res) => {
   const { startDate, endDate } = req.query;
 
   if (!startDate || !endDate) {
@@ -462,23 +614,6 @@ app.get('/commissions', async (req, res) => {
 
   const startTimestamp = dayjs(startDate, 'YYYY-MM-DD').startOf('day');
   const endTimestamp = dayjs(endDate, 'YYYY-MM-DD').endOf('day');
-
-  // if (mode === 'development') {
-  //   console.log('Development mode: returning sample data');
-
-  //   const sampleCommissions = {
-  //     'Shea Morales': 12000,
-  //     'Bob Brown': 2000,
-  //     'John Doe': 8000,
-  //     'Jane Smith': 6000,
-  //     'Alice Johnson': 4000,
-  //   };
-
-  //   const sortedCommissions = Object.fromEntries(
-  //     Object.entries(sampleCommissions).sort(([, a], [, b]) => b - a),
-  //   );
-  //   return res.status(200).send(sortedCommissions);
-  // }
 
   const getLevel = async (agent, policy) => {
     console.log(
@@ -1225,6 +1360,26 @@ app.post('/gsq-lead', async (req, res) => {
     res.status(500).send({ message: 'Failed to save lead' });
   }
 });
+
+// seed-leads-supabase.js
+//
+// Usage:
+//   SUPABASE_URL="https://xyzcompany.supabase.co" \
+//   SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
+//   AGENT_ID="your-agent-uuid" \
+//   LEAD_VENDOR_ID="your-lead-vendor-uuid" \
+//   COUNT=100 \
+//   node seed-leads-supabase.js
+//
+// Optional env vars:
+//   BATCH_SIZE=500
+//   DEFAULT_STATE=FL
+//   GSQ_SOURCE=seed-script
+
+// main().catch((err) => {
+//   console.error('Fatal error:', err);
+//   process.exit(1);
+// });
 
 // app.get('/insights', async (req, res) => {
 //   const { mode } = req.query;

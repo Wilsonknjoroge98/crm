@@ -32,7 +32,6 @@ teamLeaderboardRouter.get('/', async (req, res) => {
         .json({ error: 'Failed to fetch agents for team leaderboard' });
     }
 
-    // Collect only the requesting agent + their recursive downline
     const downlineIds = new Set();
     const queue = [req.agent.id];
     while (queue.length > 0) {
@@ -126,6 +125,8 @@ teamLeaderboardRouter.get('/', async (req, res) => {
     }
 
     teamLeaderboard.sort((a, b) => b.premium - a.premium);
+
+    console.log('Generated team leaderboard:', teamLeaderboard);
 
     logger.log('Generated team leaderboard successfully', {
       route: '/team-leaderboard',

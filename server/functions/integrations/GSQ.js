@@ -2,7 +2,7 @@ const axios = require('axios');
 
 const { getHyrosSource } = require('./hyros');
 const { supabaseService } = require('../services/supabase');
-const logger = require('../utils/logger');
+const logger = require('firebase-functions/logger');
 
 const gsqClient = axios.create({
   baseURL: process.env.GSQ_BASE_URL,
@@ -86,6 +86,7 @@ const inboundLeadIntegration = async (req, res) => {
       why: lead.why ?? null,
       cholesterol_medication: lead.cholesterolMedication ?? false,
       blood_pressure_medication: lead.bloodPressureMedication ?? false,
+      // TODO: verify these GSQ fields
       text_verified: lead.verified ?? false,
       height_feet: lead.heightFeet ?? null,
       height_inches: lead.heightInches ?? null,
