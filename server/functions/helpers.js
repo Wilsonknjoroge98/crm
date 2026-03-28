@@ -1,117 +1,113 @@
-const {request} = require("axios");
-const axios = require("axios");
-const dayjs = require("dayjs");
-const {PRODUCT_RATES, STATE_ABBREV_MAP} = require("./constants");
-const crypto = require("crypto");
+// const {request} = require("axios");
+// const axios = require("axios");
+// const dayjs = require("dayjs");
+// const {PRODUCT_RATES, STATE_ABBREV_MAP} = require("./constants");
+// const crypto = require("crypto");
 
+// const calculateCommissions = async (agentData, agent, policy, premium) => {
+//     let sheaCommission = 0;
 
-const calculateCommissions = async (agentData, agent, policy, premium) => {
-    let sheaCommission = 0;
+//     const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
+//     const productRates = carrierRates?.[policy.policyType?.trim()];
 
-    const carrierRates = PRODUCT_RATES[policy.carrier?.trim()];
-    const productRates = carrierRates?.[policy.policyType?.trim()];
+//     let agentLevel = await getLevel(agent, policy);
+//     if (!agentLevel) {
+//         agentLevel = agent.level;
+//     }
 
-    let agentLevel = await getLevel(agent, policy);
-    if (!agentLevel) {
-        agentLevel = agent.level;
-    }
+//     let agentProductRate = getRate(productRates, agentLevel);
 
-    let agentProductRate = getRate(productRates, agentLevel);
+//     if (!agentProductRate) {
+//         agentProductRate = 1;
+//     }
 
-    if (!agentProductRate) {
-        agentProductRate = 1;
-    }
+//     const agentCommission = Math.round(premium * agentProductRate);
 
-    const agentCommission = Math.round(premium * agentProductRate);
+//     console.log('agent commission:', {
+//         agent: agent.name,
+//         agentCommission,
+//         premium,
+//         agentProductRate,
+//     });
 
-    console.log('agent commission:', {
-        agent: agent.name,
-        agentCommission,
-        premium,
-        agentProductRate,
-    });
+//     if (agent.uid === process.env.SHEA_UID) {
+//         sheaCommission += agentCommission;
+//         console.log('Shea commission from sale:', agentCommission);
+//     }
 
-    if (agent.uid === process.env.SHEA_UID) {
-        sheaCommission += agentCommission;
-        console.log('Shea commission from sale:', agentCommission);
-    }
+//     if (agent.uplineUid) {
+//         const upline = agentData.find((a) => a.uid === agent.uplineUid);
 
-    if (agent.uplineUid) {
-        const upline = agentData.find((a) => a.uid === agent.uplineUid);
+//         if (!upline) {
+//             console.error('Upline not found for agent:', agent.uid, agent.name);
+//             return sheaCommission;
+//         }
 
-        if (!upline) {
-            console.error('Upline not found for agent:', agent.uid, agent.name);
-            return sheaCommission;
-        }
+//         let uplineLevel = await getLevel(upline, policy);
+//         if (!uplineLevel) {
+//             uplineLevel = upline.level;
+//         }
 
-        let uplineLevel = await getLevel(upline, policy);
-        if (!uplineLevel) {
-            uplineLevel = upline.level;
-        }
+//         let uplineProductRate = getRate(productRates, uplineLevel);
+//         if (!uplineProductRate) {
+//             uplineProductRate = 1;
+//         }
 
-        let uplineProductRate = getRate(productRates, uplineLevel);
-        if (!uplineProductRate) {
-            uplineProductRate = 1;
-        }
+//         const uplineCommission = Math.round(
+//             premium * (uplineProductRate - agentProductRate),
+//         );
+//         if (upline.uid === process.env.SHEA_UID) {
+//             sheaCommission += uplineCommission;
+//             console.log('Shea commission from upline:', uplineCommission);
+//         }
 
-        const uplineCommission = Math.round(
-            premium * (uplineProductRate - agentProductRate),
-        );
-        if (upline.uid === process.env.SHEA_UID) {
-            sheaCommission += uplineCommission;
-            console.log('Shea commission from upline:', uplineCommission);
-        }
+//         if (upline.uplineUid) {
+//             const secondUpline = agentData.find((a) => a.uid === upline.uplineUid);
 
-        if (upline.uplineUid) {
-            const secondUpline = agentData.find((a) => a.uid === upline.uplineUid);
+//             if (!secondUpline) {
+//                 console.error(
+//                     'Second upline not found for agent:',
+//                     upline.uid,
+//                     upline.name,
+//                 );
+//                 return sheaCommission;
+//             }
 
-            if (!secondUpline) {
-                console.error(
-                    'Second upline not found for agent:',
-                    upline.uid,
-                    upline.name,
-                );
-                return sheaCommission;
-            }
+//             let secondUplineLevel = await getLevel(secondUpline, policy);
+//             if (!secondUplineLevel) {
+//                 secondUplineLevel = secondUpline.level;
+//             }
 
-            let secondUplineLevel = await getLevel(secondUpline, policy);
-            if (!secondUplineLevel) {
-                secondUplineLevel = secondUpline.level;
-            }
+//             let secondUplineProductRate =
+//                 productRates?.[String(secondUplineLevel)] / 100;
+//             if (!secondUplineProductRate) {
+//                 secondUplineProductRate = 1;
+//             }
 
-            let secondUplineProductRate =
-                productRates?.[String(secondUplineLevel)] / 100;
-            if (!secondUplineProductRate) {
-                secondUplineProductRate = 1;
-            }
+//             const secondUplineCommission = Math.round(
+//                 premium * (secondUplineProductRate - uplineProductRate),
+//             );
 
-            const secondUplineCommission = Math.round(
-                premium * (secondUplineProductRate - uplineProductRate),
-            );
+//             if (secondUpline.uid === process.env.SHEA_UID) {
+//                 sheaCommission += secondUplineCommission;
+//                 console.log(
+//                     'Shea commission from second upline:',
+//                     secondUplineCommission,
+//                 );
+//             }
+//         }
+//     }
 
-            if (secondUpline.uid === process.env.SHEA_UID) {
-                sheaCommission += secondUplineCommission;
-                console.log(
-                    'Shea commission from second upline:',
-                    secondUplineCommission,
-                );
-            }
-        }
-    }
+//     return sheaCommission;
+// };
 
-    return sheaCommission;
-};
+// // send sale to Hyros
 
-
-// send sale to Hyros
-
-
-const getRate = (productRates, level, defaultValue = 1) => {
-    const raw = Number(productRates?.[String(level)]);
-    return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
-};
+// const getRate = (productRates, level, defaultValue = 1) => {
+//     const raw = Number(productRates?.[String(level)]);
+//     return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
+// };
 // const standardizeAddress = (address) => {
-
 
 //   return address
 //     .toLowerCase()
@@ -388,4 +384,4 @@ const getRate = (productRates, level, defaultValue = 1) => {
 //   }
 //   res.status(200).send(commissions);
 // });
-module.exports = { getRate, };
+module.exports = { getRate };

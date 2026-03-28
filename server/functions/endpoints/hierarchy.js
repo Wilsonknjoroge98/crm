@@ -1,5 +1,6 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const hierarchyRouter = express.Router();
@@ -16,7 +17,7 @@ hierarchyRouter.get('/', async (req, res) => {
       requesterId: req.agent?.id,
     });
 
-    const { data: agents, error: agentsError } = await req.supabase
+    const { data: agents, error: agentsError } = await supabaseService
       .from('agents')
       .select('id, first_name, last_name, level, upline_agent_id');
 
@@ -42,7 +43,7 @@ hierarchyRouter.get('/', async (req, res) => {
 
     const agentIds = agents.map((agent) => agent.id);
 
-    const { data: policies, error: policiesError } = await req.supabase
+    const { data: policies, error: policiesError } = await supabaseService
       .from('policies')
       .select('id, writing_agent_id, premium_amount')
       .in('writing_agent_id', agentIds);

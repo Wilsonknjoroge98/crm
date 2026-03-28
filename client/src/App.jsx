@@ -21,7 +21,7 @@ import { useAgent } from './hooks/useAgent';
 const App = () => {
   // return <Maintenance />;
   const agent = useAgent();
-  const { user, isAuthenticated } = useSelector((state) => state.user);
+  const { user, isAuthenticated, authInitialized } = useSelector((state) => state.user);
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -29,19 +29,33 @@ const App = () => {
 
   const theme = useMemo(() => createAppTheme({ agency }), [agency]);
 
+  const isPublicRoute =
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/reset-password';
+
   useEffect(() => {
-    if (pathname === '/signup') return;
+    if (isPublicRoute) return;
+    if (!authInitialized) return;
+
+    // If a Supabase password recovery hash is present, redirect to reset-password
+    // regardless of auth state — this must take priority
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      navigate('/reset-password');
+      return;
+    }
 
     if (!isAuthenticated) {
       navigate('/login');
     } else if (pathname === '/login') {
       navigate('/leads');
     }
-  }, [user]);
+  }, [authInitialized, isAuthenticated]);
 
   return (
     <ThemeProvider theme={theme}>
-      {user && pathname !== '/login' && pathname !== '/signup' && <NavBar />}
+      {user && !isPublicRoute && <NavBar />}
       <Stack
         sx={{
           minHeight: '100vh',
@@ -50,7 +64,7 @@ const App = () => {
           backgroundColor: theme.palette.background.default,
         }}
       >
-        {pathname !== '/login' && pathname !== '/signup' && <SidePanel />}
+        {!isPublicRoute && <SidePanel />}
 
         <Box
           pt={user ? '64px' : 0}
@@ -62,7 +76,7 @@ const App = () => {
             alignItems: 'center',
             justifyContent: 'flex-start',
             backgroundColor: theme.palette.background.default,
-            ml: pathname !== '/login' && pathname !== '/signup' ? '240px' : 0,
+            ml: !isPublicRoute ? '220px' : 0,
             // mt: user ? 0 : isMediumScreen ? 3 : 20,
           }}
         >

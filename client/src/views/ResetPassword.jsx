@@ -24,8 +24,11 @@ const ResetPassword = () => {
   useEffect(() => {
     // Supabase JS v2 automatically parses the #access_token hash on load
     // and fires PASSWORD_RECOVERY when a valid recovery session is detected.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
+        console.log('Password recovery session detected.');
         setSessionReady(true);
       }
     });
@@ -62,7 +65,10 @@ const ResetPassword = () => {
     setLoading(false);
 
     if (updateError) {
-      setError(updateError.message || 'Failed to update password. Your link may have expired.');
+      setError(
+        updateError.message ||
+          'Failed to update password. Your link may have expired.',
+      );
     } else {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
@@ -72,7 +78,14 @@ const ResetPassword = () => {
   // Still waiting for the Supabase auth event
   if (!sessionReady && !tokenError) {
     return (
-      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <Stack spacing={2} alignItems='center'>
           <CircularProgress size={32} />
           <Typography variant='body2' color='text.secondary'>
@@ -86,14 +99,22 @@ const ResetPassword = () => {
   // Token was missing or already expired
   if (tokenError && !sessionReady) {
     return (
-      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <Stack spacing={3} sx={{ width: '100%', maxWidth: 360, px: 2 }}>
           <Stack spacing={0.5}>
             <Typography variant='h5' fontWeight={600}>
               Link Expired
             </Typography>
             <Typography variant='body2' color='text.secondary'>
-              This password reset link is no longer valid. It may have already been used or expired.
+              This password reset link is no longer valid. It may have already
+              been used or expired.
             </Typography>
           </Stack>
           <Alert severity='warning'>
@@ -109,24 +130,41 @@ const ResetPassword = () => {
 
   if (success) {
     return (
-      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <Stack spacing={3} sx={{ width: '100%', maxWidth: 360, px: 2 }}>
           <Stack spacing={0.5}>
             <Typography variant='h5' fontWeight={600}>
               Password Updated
             </Typography>
             <Typography variant='body2' color='text.secondary'>
-              Your password has been changed successfully. Redirecting you to login…
+              Your password has been changed successfully. Redirecting you to
+              login…
             </Typography>
           </Stack>
-          <Alert severity='success'>You're all set. You can now sign in with your new password.</Alert>
+          <Alert severity='success'>
+            You're all set. You can now sign in with your new password.
+          </Alert>
         </Stack>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       <Stack spacing={4} sx={{ width: '100%', maxWidth: 360, px: 2 }}>
         <Stack spacing={0.5}>
           <Typography variant='h5' fontWeight={600}>

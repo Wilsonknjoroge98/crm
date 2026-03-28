@@ -44,6 +44,7 @@ const getOrganizations = async () => {
 };
 const getClients = async () => {
   // request config for compulife server
+  console.log('Fetching clients');
   const options = {
     method: 'GET',
     url: 'client',
@@ -410,11 +411,16 @@ const getCommissions = async ({ startDate, endDate, agent }) => {
   }
 };
 
-const getPolicies = async ({ agentId } = {}) => {
+const getPolicies = async ({ agentId, startDate, endDate } = {}) => {
+  const params = {};
+  if (agentId) params.agentId = agentId;
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+
   const options = {
     method: 'GET',
     url: '/policy',
-    params: agentId ? { agentId } : undefined,
+    params: Object.keys(params).length ? params : undefined,
   };
 
   try {
@@ -593,43 +599,27 @@ const deleteExpense = async ({ expenseId }) => {
   }
 
   const controller = new AbortController();
-  // request config for custom firebase endpoint
   const options = {
     method: 'DELETE',
-    data: { expenseId: expenseId, mode: import.meta.env.MODE },
     signal: controller.signal,
-    url: '/expense',
+    url: `/expenses/${expenseId}`,
   };
 
-  // response from server
   const response = await apiClient.request(options);
-  console.log('Delete response:', response.data);
-
-  // return to component
   return response.data;
 };
 
-const postExpense = async ({ name, amount, date }) => {
-  // client side validation
-  if (!name || !amount || !date) {
-    console.log('missing data');
-    throw new Error('Missing data');
+const postExpense = async ({ name, amount }) => {
+  if (!name || amount == null) {
+    throw new Error('Missing name or amount');
   }
 
-  console.log('Posting Expense: ', { name, amount, date });
-
   const controller = new AbortController();
-  // request config for custom firebase endpoint
   const options = {
     method: 'POST',
-    data: {
-      name: name,
-      amount: amount,
-      date: date,
-      mode: import.meta.env.MODE,
-    },
+    data: { name, amount },
     signal: controller.signal,
-    url: '/expense',
+    url: '/expenses',
   };
 
   try {
@@ -650,21 +640,31 @@ const postExpense = async ({ name, amount, date }) => {
 };
 
 const getExpenses = async ({ startDate, endDate }) => {
-  // request config for compulife server
   const options = {
     method: 'GET',
     url: '/expenses',
-    params: {
-      startDate,
-      endDate,
-      mode: import.meta.env.MODE,
-    },
+    params: { startDate, endDate },
   };
   try {
     const response = await apiClient.request(options);
     return response.data;
   } catch (error) {
     console.error('Error getting expenses:', error);
+    throw error;
+  }
+};
+
+const getAllExpenses = async ({ startDate, endDate }) => {
+  const options = {
+    method: 'GET',
+    url: '/expenses/all',
+    params: { startDate, endDate },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting all expenses:', error);
     throw error;
   }
 };
@@ -972,6 +972,7 @@ export {
   postExpense,
   deleteExpense,
   getExpenses,
+  getAllExpenses,
   getAdSpend,
   getCommissions,
   getLeads,

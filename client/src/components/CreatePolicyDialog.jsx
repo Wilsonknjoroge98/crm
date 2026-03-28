@@ -40,7 +40,13 @@ import { enqueueSnackbar } from 'notistack';
 import { useSelector } from 'react-redux';
 import { toTitleCase, formatPhone } from '../utils/helpers';
 
-const frequencies = ['Monthly', 'Quarterly', 'Semi-Annual', 'Annual'];
+const frequencies = [
+  'weekly',
+  'monthly',
+  'quarterly',
+  'semi-annually',
+  'annually',
+];
 const statuses = [
   'Active',
   'Pending',
@@ -49,7 +55,6 @@ const statuses = [
   'Cancelled',
 ];
 const draftDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
-
 
 const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
@@ -65,7 +70,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     premium_amount: '',
     lead_vendor_id: client?.lead_vendor_id || 'GetSeniorQuotes.com',
     product: '',
-    premium_frequency: 'Monthly',
+    premium_frequency: 'monthly',
     sold_date: '',
     effective_date: '',
     draft_day: '',
@@ -321,7 +326,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} p={2}>
-
           <Grid size={12}>
             <FormControl fullWidth>
               <Alert sx={{ width: 'fit-content' }} severity='warning'>

@@ -67,7 +67,11 @@ export default function LeadsGrid({
         sortable: true,
         renderCell: (params) =>
           params.value ? new Date(params.value).toLocaleString() : '',
-        sortComparator: (v1, v2) => (v1 ?? 0) - (v2 ?? 0),
+        sortComparator: (v1, v2) => {
+          const a = v1 ? new Date(v1).getTime() : 0;
+          const b = v2 ? new Date(v2).getTime() : 0;
+          return a - b;
+        },
       },
       {
         field: 'fullName',
@@ -82,7 +86,7 @@ export default function LeadsGrid({
       {
         field: 'age',
         headerName: 'Age',
-        width: 80,
+
         sortable: true,
         filterable: true,
         renderCell: (params) => {
@@ -94,7 +98,7 @@ export default function LeadsGrid({
       {
         field: 'phone',
         headerName: 'Phone',
-        width: 110,
+
         sortable: true,
         filterable: true,
         renderCell: (params) => (
@@ -107,7 +111,7 @@ export default function LeadsGrid({
         field: 'email',
         headerName: 'Email',
         flex: 1,
-        minWidth: 110,
+
         sortable: true,
         filterable: true,
         renderCell: (params) => (
@@ -117,7 +121,8 @@ export default function LeadsGrid({
       {
         field: 'date_of_birth',
         headerName: 'DOB',
-        width: 100,
+        flex: 1,
+
         sortable: true,
         filterable: true,
         renderCell: (params) => {
@@ -133,7 +138,8 @@ export default function LeadsGrid({
       {
         field: 'state',
         headerName: 'State',
-        width: 70,
+        flex: 1,
+
         renderCell: (params) => (
           <Typography variant='caption'>{params.row.state || '—'}</Typography>
         ),
@@ -141,7 +147,8 @@ export default function LeadsGrid({
       {
         field: 'face_amount',
         headerName: 'Face Amount',
-        width: 100,
+        flex: 1,
+
         sortable: true,
         filterable: true,
         renderCell: (params) => (
@@ -153,7 +160,8 @@ export default function LeadsGrid({
       {
         field: 'premium',
         headerName: 'Premium',
-        width: 100,
+        flex: 1,
+
         sortable: true,
         filterable: true,
         renderCell: (params) => (
@@ -165,7 +173,8 @@ export default function LeadsGrid({
       {
         field: 'smoker',
         headerName: 'Smoker',
-        width: 80,
+        flex: 1,
+
         sortable: true,
         filterable: true,
         renderCell: (params) => {
@@ -187,7 +196,7 @@ export default function LeadsGrid({
         field: 'selected_carrier',
         headerName: 'Carrier / Plan',
         flex: 1,
-        minWidth: 100,
+
         sortable: false,
         filterable: false,
         renderCell: (params) => {
@@ -213,7 +222,8 @@ export default function LeadsGrid({
       {
         field: 'verified',
         headerName: 'Verified',
-        width: 80,
+        flex: 1,
+        minWidth: 70,
         sortable: true,
         filterable: true,
         renderCell: (params) => {
@@ -233,7 +243,7 @@ export default function LeadsGrid({
       {
         field: 'sold',
         headerName: '',
-        width: 70,
+        flex: 0,
         sortable: true,
         filterable: true,
         renderCell: (params) => {

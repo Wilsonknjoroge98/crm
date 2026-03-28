@@ -6,7 +6,7 @@ const supabaseService = createClient(
 const createPublicClient = (token) => {
   return createClient(
     'https://wtudzhfcxsorxqimarjb.supabase.co',
-    process.env.SUPABASE_PUBLIC_KEY,
+    process.env.SUPABASE_ANON_KEY,
     {
       global: {
         headers: {

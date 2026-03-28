@@ -11,7 +11,7 @@ const gsqClient = axios.create({
   },
 });
 
-const inboundLeadIntegration = async (req, res) => {
+const inboundGSQ = async (req, res) => {
   try {
     const auth = req.headers['authorization']?.split(' ')[1];
 
@@ -86,13 +86,13 @@ const inboundLeadIntegration = async (req, res) => {
       why: lead.why ?? null,
       cholesterol_medication: lead.cholesterolMedication ?? false,
       blood_pressure_medication: lead.bloodPressureMedication ?? false,
-      // TODO: verify these GSQ fields
-      text_verified: lead.verified ?? false,
+      verified: lead.verified ?? false,
       height_feet: lead.heightFeet ?? null,
       height_inches: lead.heightInches ?? null,
       weight: lead.weight ?? null,
       agent_id: agent.id,
       gsq_source: hyrosSource,
+      gsq_id: lead.gsqId,
       lead_vendor_id: leadVendor.id,
     };
 
@@ -145,14 +145,14 @@ const inboundLeadIntegration = async (req, res) => {
   }
 };
 
-const sendToGSQ = async (client) => {
+const sendSaleToGSQ = async (phone, email) => {
   try {
     const BODY = {
       url: `/sold`,
       method: 'POST',
       data: {
-        email: client.email,
-        phone: client.phone,
+        phone: phone,
+        email: email,
       },
     };
     const response = await gsqClient.request(BODY);
@@ -163,4 +163,5 @@ const sendToGSQ = async (client) => {
     throw error;
   }
 };
-module.exports = { inboundLeadIntegration, sendToGSQ };
+
+module.exports = { inboundGSQ, sendSaleToGSQ };

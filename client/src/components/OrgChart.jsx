@@ -21,11 +21,7 @@ const OrgChart = () => {
   }, [orgData]);
 
   return (
-    <Box sx={{ mt: 4 }}>
-      <Typography variant='h6' sx={{ mb: 2, fontWeight: 700 }}>
-        Team Hierarchy
-      </Typography>
-
+    <Box sx={{ mt: 4, width: '100%', height: '100%' }}>
       {isLoading ? (
         <Skeleton variant='rounded' height={400} />
       ) : (
@@ -76,7 +72,11 @@ const OrgChart = () => {
                       >
                         <Typography
                           variant='caption'
-                          sx={{ fontWeight: 800, display: 'block', lineHeight: 1.2 }}
+                          sx={{
+                            fontWeight: 800,
+                            display: 'block',
+                            lineHeight: 1.2,
+                          }}
                         >
                           {rd3tProps.nodeDatum.name}
                         </Typography>

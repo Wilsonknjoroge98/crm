@@ -69,8 +69,8 @@ export default function ClientsGrid({
             : 'unknown';
         },
         sortComparator: (v1, v2) => {
-          const a = v1 ?? 0;
-          const b = v2 ?? 0;
+          const a = v1 ? new Date(v1).getTime() : 0;
+          const b = v2 ? new Date(v2).getTime() : 0;
           return a - b;
         },
       },

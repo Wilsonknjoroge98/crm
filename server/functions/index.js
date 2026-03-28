@@ -1,13 +1,13 @@
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/scheduler');
 
-const { inboundLeadIntegration } = require('./integrations/GSQ');
+const { inboundGSQ } = require('./integrations/GSQ');
 const { updatePolicyStatus } = require('./jobs/update_policy_status');
 
 const expressApp = require('./server.js');
 
 exports.app = functions.https.onRequest(expressApp);
-exports.inboundGSQLead = functions.https.onRequest(inboundLeadIntegration);
+exports.newLead = functions.https.onRequest(inboundGSQ);
 
 exports.updatePolicyStatus = onSchedule(
   {

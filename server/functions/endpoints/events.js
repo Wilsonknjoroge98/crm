@@ -1,5 +1,6 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const eventsRouter = express.Router();
@@ -16,14 +17,41 @@ eventsRouter.get('/', async (req, res) => {
       limit,
     });
 
-    const { data: policies, error } = await req.supabase.from('policies')
+    const { data: allAgents, error: agentsError } = await supabaseService
+      .from('agents')
+      .select('id, upline_agent_id');
+
+    if (agentsError) {
+      logger.error('Error fetching agents for events in endpoints/events.js', {
+        route: '/events',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error: agentsError,
+      });
+      return res.status(500).json({ error: 'Failed to fetch agents' });
+    }
+
+    const downlineIds = new Set();
+    const queue = [req.agent.id];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (downlineIds.has(currentId)) continue;
+      downlineIds.add(currentId);
+      for (const a of allAgents) {
+        if (a.upline_agent_id === currentId) queue.push(a.id);
+      }
+    }
+    const downlineIdList = [...downlineIds];
+
+    const { data: policies, error } = await supabaseService.from('policies')
       .select(`
         id,
         premium_amount,
         sold_date,
         effective_date,
         writing_agent:agents!policies_writing_agent_id_fkey ( first_name, last_name )
-      `);
+      `)
+      .in('writing_agent_id', downlineIdList);
 
     if (error) {
       logger.error(
@@ -45,6 +73,15 @@ eventsRouter.get('/', async (req, res) => {
         ? `${policy.writing_agent.first_name ?? ''} ${policy.writing_agent.last_name ?? ''}`.trim()
         : null;
       const premium = Number(policy.premium_amount) * 12;
+
+      if (policy.sold_date && policy.sold_date <= today) {
+        events.push({
+          type: 'sale',
+          date: policy.sold_date,
+          agent_name: agentName,
+          premium,
+        });
+      }
 
       if (policy.effective_date && policy.effective_date <= today) {
         events.push({

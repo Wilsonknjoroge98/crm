@@ -10,6 +10,7 @@ const inviteRouter = require('./invites');
 const leadVendorsRouter = require('./lead_vendors');
 const carriersRouter = require('./carriers');
 const eventsRouter = require('./events');
+const expensesRouter = require('./expenses');
 module.exports = {
   agentRouter,
   policyRouter,
@@ -23,4 +24,5 @@ module.exports = {
   leadVendorsRouter,
   carriersRouter,
   eventsRouter,
+  expensesRouter,
 };

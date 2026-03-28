@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
 import {
   Box,
   Grid,
@@ -17,11 +20,13 @@ import TeamLeaderboard from '../components/TeamLeaderboard';
 import TeamSummary from '../components/TeamSummary';
 import PersonalSummary from '../components/PersonalSummary';
 import Events from '../components/Events';
-import ProductionIntroDialog, { STORAGE_KEY } from '../components/ProductionIntroDialog';
+import ProductionIntroDialog, {
+  STORAGE_KEY,
+} from '../components/ProductionIntroDialog';
 
 const Production = () => {
   const [startDate, setStartDate] = useState(
-    dayjs().add(-7, 'day').format('YYYY-MM-DD'),
+    dayjs().add(-180, 'day').format('YYYY-MM-DD'),
   );
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -33,8 +38,10 @@ const Production = () => {
   const isLoading = false;
 
   const [value, setValue] = useState(0);
+  const [nameFilter, setNameFilter] = useState('');
   const handleChange = (event, newValue) => {
     setValue(newValue);
+    setNameFilter('');
   };
 
   return (
@@ -62,6 +69,8 @@ const Production = () => {
         drawerOpen={drawerOpen}
         setDrawerOpen={setDrawerOpen}
         selectedAgent={selectedAgent}
+        startDate={startDate}
+        endDate={endDate}
       />
 
       <Tabs value={value} onChange={handleChange}>
@@ -71,36 +80,64 @@ const Production = () => {
       </Tabs>
 
       <Grid container spacing={3} my={4}>
-        <Grid container size={9}>
-          {value === 0 && (
-            <>
-              <TeamSummary startDate={startDate} endDate={endDate} />
-            </>
-          )}
-
-          {value === 1 && (
+        {/* Summary stats — full-width top row */}
+        {value === 0 && (
+          <Grid size={12}>
+            <TeamSummary startDate={startDate} endDate={endDate} />
+          </Grid>
+        )}
+        {value === 1 && (
+          <Grid size={12}>
             <PersonalSummary startDate={startDate} endDate={endDate} />
-          )}
+          </Grid>
+        )}
 
-          {value === 2 && (
+        {/* Search field — above leaderboard column only, leaving events column empty */}
+        {(value === 0 || value === 1) && (
+          <Grid size={8}>
+            <TextField
+              size='small'
+              placeholder='Agent name'
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              sx={{ maxWidth: 280 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position='start'>
+                    <SearchIcon fontSize='small' />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+        )}
+
+        {/* Leaderboard + Events — same row, tops naturally flush */}
+        {(value === 0 || value === 1) && (
+          <>
+            <Grid size={8}>
+              <TeamLeaderboard
+                nameFilter={nameFilter}
+                startDate={startDate}
+                endDate={endDate}
+                setSelectedAgent={setSelectedAgent}
+                setDrawerOpen={setDrawerOpen}
+              />
+            </Grid>
+            <Grid size={4}>
+              <Events />
+            </Grid>
+          </>
+        )}
+
+        {value === 2 && (
+          <Grid size={12}>
             <Box sx={{ width: '100%', height: 300 }}>
               <OrgChart />
             </Box>
-          )}
-        </Grid>
-
-        <Grid size={3}>
-          <Events />
-        </Grid>
+          </Grid>
+        )}
       </Grid>
-      {(value === 0 || value === 1) && (
-        <TeamLeaderboard
-          startDate={startDate}
-          endDate={endDate}
-          setSelectedAgent={setSelectedAgent}
-          setDrawerOpen={setDrawerOpen}
-        />
-      )}
     </Container>
   );
 };

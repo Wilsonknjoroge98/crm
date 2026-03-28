@@ -59,33 +59,23 @@ const ProductionIntroDialog = ({ open, setOpen }) => {
             then explore the three tabs below.
           </Typography>
 
-          <Divider />
-
           <Section
             icon={<GroupsIcon />}
             title='Team'
-            description="See a summary of your entire agency's production — total premiums written, policies sold, and a leaderboard ranking every agent under you for the selected date range."
+            description='See a summary of your agency and a leaderboard ranking every agent under you for the selected date range.'
           />
 
           <Section
             icon={<PersonIcon />}
             title='Personal'
-            description="Zoom in on your own numbers. This tab shows only your individual production — your policies, your premium totals, and your activity for the period you've selected."
+            description="This tab shows only your individual production for the period you've selected."
           />
 
           <Section
             icon={<AccountTreeIcon />}
             title='Hierarchy'
-            description="A visual map of how your agency is structured. You'll see who reports to whom, making it easy to understand your downline at a glance."
+            description='A visual map of how your agency is structured, making it easy to understand your downline at a glance.'
           />
-
-          <Divider />
-
-          <Typography variant='body2' color='text.secondary'>
-            You can always change the date range using the <strong>From</strong>{' '}
-            and <strong>To</strong> fields at the top of the page, then click{' '}
-            <strong>Apply</strong> to refresh the data.
-          </Typography>
         </Stack>
       </DialogContent>
 

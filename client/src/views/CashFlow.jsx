@@ -25,7 +25,7 @@ import {
   getCommissions,
   getStripeCharges,
   getAdSpend,
-  getExpenses,
+  getAllExpenses,
   postExpense,
   deleteExpense,
 } from '../utils/query';
@@ -44,7 +44,9 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 const CashFlowSummary = () => {
   const queryClient = useQueryClient();
   const [inflow, setInflow] = useState({
-    commissions: 5000,
+    totalCommissions: 5000,
+    directCommissions: 3000,
+    overridingCommissions: 0,
     leadPurchases: 2000,
   });
   const [expenses, setExpenses] = useState([
@@ -112,7 +114,7 @@ const CashFlowSummary = () => {
   } = useQuery({
     queryKey: ['expenses'],
     queryFn: () =>
-      getExpenses({
+      getAllExpenses({
         startDate,
         endDate,
       }),
@@ -155,16 +157,13 @@ const CashFlowSummary = () => {
     isStripeLoading ||
     isAdSpendLoading;
 
-  const AGENT_NAME =
-    import.meta.env.MODE === 'development' ? 'Sam Atherton' : 'Shea Morales';
-
   useEffect(() => {
     if (commissionsData) {
       setInflow((prev) => ({
         ...prev,
-        total: commissionsData[AGENT_NAME]?.total || 0,
-        directCommissions: commissionsData[AGENT_NAME]?.direct || 0,
-        overridingCommissions: commissionsData[AGENT_NAME]?.overriding || 0,
+        totalCommissions: commissionsData?.total || 0,
+        directCommissions: commissionsData?.direct || 0,
+        overridingCommissions: commissionsData?.overriding || 0,
       }));
     }
   }, [commissionsData]);
@@ -216,7 +215,8 @@ const CashFlowSummary = () => {
     });
   };
 
-  const totalInflow = (inflow?.commissions || 0) + (inflow?.leadPurchases || 0);
+  const totalInflow =
+    (inflow?.totalCommissions || 0) + (inflow?.leadPurchases || 0);
   const totalExpenses =
     expenses.reduce((sum, e) => sum + e.amount, 0) + adSpend;
   const netCashFlow = totalInflow - totalExpenses;
@@ -304,13 +304,45 @@ const CashFlowSummary = () => {
                 ) : (
                   <Typography variant='subtitle1' fontWeight={600}>
                     $
-                    {inflow?.commissions?.total.toLocaleString('en-US', {
+                    {inflow?.totalCommissions?.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
                   </Typography>
                 )}
               </Box>
+              {!isCommissionsLoading && !isCommissionsFetching && (
+                <Box sx={{ pl: 2, mb: 0.5 }}>
+                  <Box
+                    sx={{ display: 'flex', justifyContent: 'space-between' }}
+                  >
+                    <Typography variant='caption' color='text.secondary'>
+                      Direct
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      $
+                      {inflow?.directCommissions?.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{ display: 'flex', justifyContent: 'space-between' }}
+                  >
+                    <Typography variant='caption' color='text.secondary'>
+                      Override
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      $
+                      {inflow?.overridingCommissions?.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography>Lead Purchases</Typography>

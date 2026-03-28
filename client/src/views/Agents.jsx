@@ -8,6 +8,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
+  TableSortLabel,
   Avatar,
   Switch,
   Select,
@@ -17,7 +18,10 @@ import {
   TableContainer,
   CircularProgress,
   Alert,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -34,6 +38,8 @@ const LEVELS = Array.from({ length: 13 }, (_, i) => 80 + i * 5); // 80–140
 const Agents = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [nameFilter, setNameFilter] = useState('');
+  const [sortDir, setSortDir] = useState('asc');
   const queryClient = useQueryClient();
 
   const {
@@ -60,6 +66,20 @@ const Agents = () => {
   const handleUpdate = (agentId, field, value) => {
     updateAgent({ agentId, agent: { [field]: value } });
   };
+
+  const filteredAgents = agents
+    .filter((a) =>
+      `${a.first_name} ${a.last_name}`
+        .toLowerCase()
+        .includes(nameFilter.toLowerCase()),
+    )
+    .sort((a, b) => {
+      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+      return sortDir === 'asc'
+        ? nameA.localeCompare(nameB)
+        : nameB.localeCompare(nameA);
+    });
 
   const getAgentName = (uplineId) => {
     const match = agents.find((a) => a.id === uplineId);
@@ -98,15 +118,52 @@ const Agents = () => {
         </Typography>
       </Stack>
 
+      <TextField
+        size='small'
+        placeholder='Agent name'
+        value={nameFilter}
+        onChange={(e) => {
+          setNameFilter(e.target.value);
+          setPage(0);
+        }}
+        sx={{ mb: 2, maxWidth: 280 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position='start'>
+              <SearchIcon fontSize='small' />
+            </InputAdornment>
+          ),
+        }}
+      />
+
       <TableContainer
         component={Paper}
         variant='outlined'
         sx={{ boxShadow: 0, border: 'none', backgroundColor: 'transparent' }}
       >
         <Table>
-          <TableHead>
+          <TableHead sx={{ bgcolor: 'action.hover' }}>
             <TableRow>
-              {['AGENT', 'NPN', 'LEVEL', 'UPLINE', 'STATUS'].map((col) => (
+              <TableCell
+                sx={{
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  fontSize: '.75rem',
+                  letterSpacing: 1,
+                }}
+                sortDirection={sortDir}
+              >
+                <TableSortLabel
+                  active
+                  direction={sortDir}
+                  onClick={() =>
+                    setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+                  }
+                >
+                  AGENT
+                </TableSortLabel>
+              </TableCell>
+              {['NPN', 'LEVEL', 'UPLINE', 'STATUS'].map((col) => (
                 <TableCell
                   key={col}
                   sx={{
@@ -123,151 +180,156 @@ const Agents = () => {
           </TableHead>
 
           <TableBody>
-            {agents.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((agent) => {
-              const fullName = `${agent.first_name} ${agent.last_name}`;
-              const avatarColor = stringToColor(fullName);
-              const initials = `${agent.first_name[0]}${agent.last_name[0]}`;
-              const uplineName = getAgentName(agent.upline_agent_id);
+            {filteredAgents
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((agent) => {
+                const fullName = `${agent.first_name} ${agent.last_name}`;
+                const avatarColor = stringToColor(fullName);
+                const initials = `${agent.first_name[0]}${agent.last_name[0]}`;
+                const uplineName = getAgentName(agent.upline_agent_id);
 
-              return (
-                <TableRow
-                  key={agent.id}
-                  hover
-                  sx={{ '&:last-child td': { border: 0 } }}
-                >
-                  {/* Agent */}
-                  <TableCell>
-                    <Stack direction='row' alignItems='center' spacing={1.5}>
-                      <Avatar
-                        sx={{
-                          width: 34,
-                          height: 34,
-                          fontSize: '.8rem',
-                          bgcolor: avatarColor,
-                        }}
-                      >
-                        {initials}
-                      </Avatar>
-                      <Stack>
-                        <Typography variant='body2' fontWeight={600}>
-                          {fullName}
-                        </Typography>
-                        <Typography variant='caption' color='text.secondary'>
-                          {agent.email}
-                        </Typography>
+                return (
+                  <TableRow
+                    key={agent.id}
+                    hover
+                    sx={{ '&:last-child td': { border: 0 } }}
+                  >
+                    {/* Agent */}
+                    <TableCell>
+                      <Stack direction='row' alignItems='center' spacing={1.5}>
+                        <Avatar
+                          sx={{
+                            width: 34,
+                            height: 34,
+                            fontSize: '.8rem',
+                            bgcolor: avatarColor,
+                          }}
+                        >
+                          {initials}
+                        </Avatar>
+                        <Stack>
+                          <Typography variant='body2' fontWeight={600}>
+                            {fullName}
+                          </Typography>
+                          <Typography variant='caption' color='text.secondary'>
+                            {agent.email}
+                          </Typography>
+                        </Stack>
                       </Stack>
-                    </Stack>
-                  </TableCell>
+                    </TableCell>
 
-                  {/* NPN */}
-                  <TableCell>
-                    <Typography variant='body2' color='text.secondary'>
-                      {agent.npn}
-                    </Typography>
-                  </TableCell>
+                    {/* NPN */}
+                    <TableCell>
+                      <Typography variant='body2' color='text.secondary'>
+                        {agent.npn}
+                      </Typography>
+                    </TableCell>
 
-                  {/* Level */}
-                  <TableCell>
-                    <Select
-                      size='small'
-                      value={agent.level}
-                      onChange={(e) =>
-                        handleUpdate(agent.id, 'level', e.target.value)
-                      }
-                      sx={{ minWidth: 100 }}
-                    >
-                      {LEVELS.map((l) => (
-                        <MenuItem key={l} value={l}>
-                          <Typography variant='caption'>{l}</Typography>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </TableCell>
-
-                  {/* Upline */}
-                  <TableCell>
-                    <Select
-                      size='small'
-                      value={agent.upline_agent_id ?? ''}
-                      displayEmpty
-                      onChange={(e) =>
-                        handleUpdate(
-                          agent.id,
-                          'upline_agent_id',
-                          e.target.value || null,
-                        )
-                      }
-                      sx={{ minWidth: 160 }}
-                      renderValue={(val) =>
-                        val ? (
-                          <Typography variant='caption'>
-                            {uplineName}
-                          </Typography>
-                        ) : (
-                          <Typography variant='caption' color='text.disabled'>
-                            No upline
-                          </Typography>
-                        )
-                      }
-                    >
-                      <MenuItem value=''>
-                        <Typography variant='caption' color='text.secondary'>
-                          No upline
-                        </Typography>
-                      </MenuItem>
-                      {agents
-                        .filter(
-                          (a) =>
-                            a.id !== agent.id &&
-                            a.active &&
-                            a?.level > agent.level,
-                        )
-                        .map((a) => (
-                          <MenuItem key={a.id} value={a.id}>
-                            <Typography
-                              variant='caption'
-                              color='text.secondary'
-                            >
-                              {`${a.first_name} ${a.last_name}`}
-                            </Typography>
+                    {/* Level */}
+                    <TableCell>
+                      <Select
+                        size='small'
+                        value={agent.level}
+                        onChange={(e) =>
+                          handleUpdate(agent.id, 'level', e.target.value)
+                        }
+                        sx={{ minWidth: 100 }}
+                      >
+                        {LEVELS.map((l) => (
+                          <MenuItem key={l} value={l}>
+                            <Typography variant='caption'>{l}</Typography>
                           </MenuItem>
                         ))}
-                    </Select>
-                  </TableCell>
+                      </Select>
+                    </TableCell>
 
-                  {/* Status */}
-                  <TableCell>
-                    <Stack direction='row' alignItems='center' spacing={1}>
-                      <Switch
+                    {/* Upline */}
+                    <TableCell>
+                      <Select
                         size='small'
-                        checked={agent.active}
+                        value={agent.upline_agent_id ?? ''}
+                        displayEmpty
                         onChange={(e) =>
-                          handleUpdate(agent.id, 'active', e.target.checked)
+                          handleUpdate(
+                            agent.id,
+                            'upline_agent_id',
+                            e.target.value || null,
+                          )
                         }
-                        color='success'
-                      />
-                      <Chip
-                        label={agent.active ? 'Active' : 'Inactive'}
-                        size='small'
-                        color={agent.active ? 'success' : 'default'}
-                        variant='outlined'
-                        sx={{ fontSize: '.7rem' }}
-                      />
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                        sx={{ minWidth: 160 }}
+                        renderValue={(val) =>
+                          val ? (
+                            <Typography variant='caption'>
+                              {uplineName}
+                            </Typography>
+                          ) : (
+                            <Typography variant='caption' color='text.disabled'>
+                              No upline
+                            </Typography>
+                          )
+                        }
+                      >
+                        <MenuItem value=''>
+                          <Typography variant='caption' color='text.secondary'>
+                            No upline
+                          </Typography>
+                        </MenuItem>
+                        {agents
+                          .filter(
+                            (a) =>
+                              a.id !== agent.id &&
+                              a.active &&
+                              a?.level > agent.level,
+                          )
+                          .map((a) => (
+                            <MenuItem key={a.id} value={a.id}>
+                              <Typography
+                                variant='caption'
+                                color='text.secondary'
+                              >
+                                {`${a.first_name} ${a.last_name}`}
+                              </Typography>
+                            </MenuItem>
+                          ))}
+                      </Select>
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell>
+                      <Stack direction='row' alignItems='center' spacing={1}>
+                        <Switch
+                          size='small'
+                          checked={agent.active}
+                          onChange={(e) =>
+                            handleUpdate(agent.id, 'active', e.target.checked)
+                          }
+                          color='success'
+                        />
+                        <Chip
+                          label={agent.active ? 'Active' : 'Inactive'}
+                          size='small'
+                          color={agent.active ? 'success' : 'default'}
+                          variant='outlined'
+                          sx={{ fontSize: '.7rem' }}
+                        />
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
         <TablePagination
           component='div'
-          count={agents.length}
+          count={filteredAgents.length}
           page={page}
           rowsPerPage={rowsPerPage}
           rowsPerPageOptions={[10, 25, 50]}
           onPageChange={(_, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
         />
       </TableContainer>
     </Container>

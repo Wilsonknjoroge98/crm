@@ -85,18 +85,18 @@ export const createAppTheme = ({ agency }) => {
           },
         },
       },
-      // MuiTableHead: {
-      //   styleOverrides: {
-      //     root: {
-      //       backgroundColor: '#F9F9F9',
-      //       '& .MuiTableCell-head': {
-      //         fontWeight: 700,
-      //         fontSize: '0.875rem',
-      //         color: '#1A1A1A',
-      //       },
-      //     },
-      //   },
-      // },
+      MuiTableHead: {
+        styleOverrides: {
+          root: {
+            backgroundColor: '#F9F9F9',
+            '& .MuiTableCell-head': {
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              color: '#1A1A1A',
+            },
+          },
+        },
+      },
       MuiDataGrid: {
         styleOverrides: {
           root: {

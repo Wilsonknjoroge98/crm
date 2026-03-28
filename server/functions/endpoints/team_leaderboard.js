@@ -1,5 +1,6 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const teamLeaderboardRouter = express.Router();
@@ -16,7 +17,7 @@ teamLeaderboardRouter.get('/', async (req, res) => {
       endDate,
     });
 
-    const { data: allAgents, error: agentsError } = await req.supabase
+    const { data: allAgents, error: agentsError } = await supabaseService
       .from('agents')
       .select('id, first_name, last_name, upline_agent_id');
 
@@ -50,7 +51,7 @@ teamLeaderboardRouter.get('/', async (req, res) => {
       const agentName =
         `${agent.first_name || ''} ${agent.last_name || ''}`.trim();
 
-      let clientsQuery = req.supabase
+      let clientsQuery = supabaseService
         .from('clients')
         .select(
           'id, agent_clients!agent_clients_client_id_fkey!inner(agent_id)',
@@ -64,7 +65,7 @@ teamLeaderboardRouter.get('/', async (req, res) => {
           .lte('created_at', `${endDate}T23:59:59.999`);
       }
 
-      const { count: clientsCount, error: clientsError } = await clientsQuery;
+      const { error: clientsError } = await clientsQuery;
 
       if (clientsError) {
         logger.error(
@@ -82,7 +83,7 @@ teamLeaderboardRouter.get('/', async (req, res) => {
           .json({ error: 'Failed to fetch clients for team leaderboard' });
       }
 
-      let policiesQuery = req.supabase
+      let policiesQuery = supabaseService
         .from('policies')
         .select('premium_amount')
         .eq('writing_agent_id', agent.id);
@@ -117,7 +118,7 @@ teamLeaderboardRouter.get('/', async (req, res) => {
       teamLeaderboard.push({
         agentId: agent.id,
         name: agentName,
-        clients: clientsCount || 0,
+        // clients: clientsCount || 0,
         policies: totalPolicies,
         premium: totalPremium * 12,
         avgPremium: totalPolicies > 0 ? (totalPremium * 12) / totalPolicies : 0,

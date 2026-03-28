@@ -44,13 +44,11 @@ const Clients = () => {
     isError,
   } = useQuery({
     queryKey: ['clients', user?.id, agent?.role],
-    queryFn: () => getClients(),
+    queryFn: getClients,
     enabled: isAuthenticated,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    cacheTime: 1000 * 60 * 10, // 10 minutes
   });
+
+  console.log('Fetched clients', clients);
 
   const headers = [
     { label: 'First Name', key: 'first_name' },

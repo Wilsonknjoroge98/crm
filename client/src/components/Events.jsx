@@ -67,7 +67,7 @@ const CompactActivityItem = ({ agentName, action, date, premium }) => (
   </Box>
 );
 
-const Events = ({ limit = 3 }) => {
+const Events = ({ limit = 10 }) => {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events', limit],
     queryFn: () => getEvents({ limit }),

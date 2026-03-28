@@ -23,7 +23,7 @@ import { stringToColor } from '../utils/helpers';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent.jsx';
 
-const drawerWidth = 240;
+const drawerWidth = 220;
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);

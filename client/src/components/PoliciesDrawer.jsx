@@ -5,10 +5,10 @@ import { Drawer, Box, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getPolicies } from '../utils/query';
 
-const PoliciesDrawer = ({ drawerOpen, setDrawerOpen, selectedAgent }) => {
+const PoliciesDrawer = ({ drawerOpen, setDrawerOpen, selectedAgent, startDate, endDate }) => {
   const { data: policies = [], isLoading } = useQuery({
-    queryKey: ['policies', selectedAgent?.agentId],
-    queryFn: () => getPolicies({ agentId: selectedAgent?.agentId }),
+    queryKey: ['policies', selectedAgent?.agentId, startDate, endDate],
+    queryFn: () => getPolicies({ agentId: selectedAgent?.agentId, startDate, endDate }),
     enabled: drawerOpen && !!selectedAgent?.agentId,
   });
 

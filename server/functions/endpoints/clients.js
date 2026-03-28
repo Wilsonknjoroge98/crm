@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
+const { sendSaleToGSQ } = require('../integrations/GSQ');
 
 // eslint-disable-next-line new-cap
 const clientRouter = express.Router();
@@ -95,21 +96,41 @@ clientRouter.get('/', async (req, res) => {
       requesterId: req?.agent?.id,
     });
 
+    const { data: agentLinks, error: linksError } = await supabaseService
+      .from('agent_clients')
+      .select('client_id, agent_notes')
+      .eq('agent_id', req.agent.id);
+
+    if (linksError) {
+      logger.error('Error fetching agent_clients in endpoints/clients.js', {
+        route: '/clients/mine',
+        method: 'GET',
+        requesterId: req.agent.id,
+        error: linksError,
+      });
+      return res.status(500).json({ error: 'Failed to fetch clients' });
+    }
+
+    if (!agentLinks?.length) {
+      return res.status(200).json([]);
+    }
+
+    const { data: agentData, error: agentError } = await supabaseService
+      .from('agents')
+      .select('first_name, last_name')
+      .eq('id', req.agent.id)
+      .maybeSingle();
+
+    const clientIds = agentLinks.map((l) => l.client_id);
+    const notesByClientId = Object.fromEntries(
+      agentLinks.map((l) => [l.client_id, l.agent_notes ?? null]),
+    );
+
     const { data: clients, error } = await supabaseService
       .from('clients')
       .select(
         `
                 *,
-                agent_clients!agent_clients_client_id_fkey (
-                    agent_id,
-                    client_id,
-                    agent_notes,
-                    agents!agent_clients_agent_id_fkey (
-                        id,
-                        first_name,
-                        last_name
-                    )
-                ),
                 leads!clients_lead_id_fkey (
                     gsq_source
                 ),
@@ -120,35 +141,38 @@ clientRouter.get('/', async (req, res) => {
                 )
             `,
       )
-      .eq('agent_clients.agent_id', req.agent.id);
+      .in('id', clientIds);
 
     if (error) {
       logger.error('Error fetching own clients in endpoints/clients.js', {
         route: '/clients/mine',
         method: 'GET',
-        requesterId: req.agent?.id,
+        requesterId: req.agent.id,
         error,
       });
       return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
-    const mapped = (clients || [])
-      .filter((c) => c.agent_clients?.[0]?.agent_id === req.agent.id)
-      .map(({ agent_clients, leads, policies, ...client }) => {
-        const ac = agent_clients?.[0];
-        const a = ac?.agents;
-        const agent_name = a
-          ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
-          : null;
-        const notes = ac?.agent_notes ?? null;
-        const gsq_source = leads?.gsq_source ?? null;
-        const policyData = (policies || []).map((p) => ({
-          id: p.id,
-          carrier: p.carriers?.name || null,
-          policyNumber: p.policy_number,
-        }));
-        return { ...client, agent_name, notes, gsq_source, policyData };
-      });
+    const mapped = (clients || []).map(({ leads, policies, ...client }) => {
+      const gsqSource = Array.isArray(leads)
+        ? (leads[0]?.gsq_source ?? null)
+        : (leads?.gsq_source ?? null);
+      const policyData = (policies || []).map((p) => ({
+        id: p.id,
+        carrier: p.carriers?.name || null,
+        policyNumber: p.policy_number,
+      }));
+      return {
+        ...client,
+        agent_name: agentData
+          ? `${agentData.first_name ?? ''} ${agentData.last_name ?? ''}`.trim() ||
+            null
+          : null,
+        notes: notesByClientId[client.id] ?? null,
+        gsq_source: gsqSource,
+        policyData,
+      };
+    });
 
     logger.log('Fetched own clients successfully', {
       route: '/clients/mine',
@@ -165,7 +189,8 @@ clientRouter.get('/', async (req, res) => {
         route: '/clients/mine',
         method: 'GET',
         requesterId: req.agent?.id,
-        error,
+        message: error?.message,
+        stack: error?.stack,
       },
     );
     return res.status(500).json({ error: 'Internal server error' });
@@ -186,8 +211,7 @@ clientRouter.post('/', async (req, res) => {
     client,
   });
 
-  // TODO - turn on before deploy
-  // await sendToGSQ(client)
+  await sendSaleToGSQ(client.phone, client.email);
 
   if (!client?.email || !client?.phone) {
     logger.warn('Missing required client fields in clients.js', {
@@ -286,7 +310,7 @@ clientRouter.post('/', async (req, res) => {
     return res.status(500).json({ error: 'Failed to create client' });
   }
 
-  const { error: agentClientError } = await req.supabase
+  const { error: agentClientError } = await supabaseService
     .from('agent_clients')
     .insert({
       agent_id: req.agent.id,
@@ -441,10 +465,11 @@ clientRouter.delete('/', async (req, res) => {
     });
 
     // Fetch policy IDs for this client so we can cascade through beneficiaries
-    const { data: clientPolicies, error: fetchPoliciesError } = await supabaseService
-      .from('policies')
-      .select('id')
-      .eq('client_id', clientId);
+    const { data: clientPolicies, error: fetchPoliciesError } =
+      await supabaseService
+        .from('policies')
+        .select('id')
+        .eq('client_id', clientId);
 
     if (fetchPoliciesError) {
       logger.error('Error fetching policies for client delete in clients.js', {
@@ -454,7 +479,9 @@ clientRouter.delete('/', async (req, res) => {
         targetClientId: clientId,
         error: fetchPoliciesError,
       });
-      return res.status(500).json({ error: 'Failed to fetch associated policies' });
+      return res
+        .status(500)
+        .json({ error: 'Failed to fetch associated policies' });
     }
 
     const policyIds = (clientPolicies || []).map((p) => p.id);
@@ -474,7 +501,9 @@ clientRouter.delete('/', async (req, res) => {
           targetClientId: clientId,
           error: beneficiariesError,
         });
-        return res.status(500).json({ error: 'Failed to delete associated beneficiaries' });
+        return res
+          .status(500)
+          .json({ error: 'Failed to delete associated beneficiaries' });
       }
     }
 
@@ -492,7 +521,9 @@ clientRouter.delete('/', async (req, res) => {
         targetClientId: clientId,
         error: policiesError,
       });
-      return res.status(500).json({ error: 'Failed to delete associated policies' });
+      return res
+        .status(500)
+        .json({ error: 'Failed to delete associated policies' });
     }
 
     const { data, error } = await supabaseService

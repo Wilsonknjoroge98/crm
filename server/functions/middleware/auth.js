@@ -1,5 +1,5 @@
 const logger = require('firebase-functions/logger');
-const { createPublicClient } = require('../services/supabase');
+const { createPublicClient, supabaseService } = require('../services/supabase');
 
 const authMiddleware = async (req, res, next) => {
   // get the url and method of the request
@@ -25,7 +25,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    let { data: profile, error: profileError } = await supabase
+    let { data: profile, error: profileError } = await supabaseService
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -36,15 +36,29 @@ const authMiddleware = async (req, res, next) => {
     if (profile == null) {
       logger.log('Creating profile for user: ', user.id);
 
-      await supabase.from('profiles').insert({ id: user.id, role: 'agent' });
-      const { data: newProfile, error: newProfileError } = await supabase
+      // Must use service role — public client will be blocked by RLS on profiles
+      // Use upsert with ignoreDuplicates to handle concurrent requests for the same user
+      // that both see a null profile and race to insert
+      const { error: insertError } = await supabaseService
+        .from('profiles')
+        .upsert({ id: user.id, role: 'agent' }, { onConflict: 'id', ignoreDuplicates: true });
+
+      if (insertError) {
+        logger.error('Auth profile insert error in auth.js', insertError);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+
+      const { data: newProfile, error: newProfileError } = await supabaseService
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (newProfileError) {
-        logger.error('Auth profile error in auth.js', newProfileError);
+      if (newProfileError || !newProfile) {
+        logger.error(
+          'Auth profile fetch after insert error in auth.js',
+          newProfileError,
+        );
         return res.status(500).json({ error: 'Internal server error' });
       }
 
@@ -56,7 +70,13 @@ const authMiddleware = async (req, res, next) => {
       return res.status(500).json({ error: 'Internal server error' });
     }
 
-    const { data: agent, error: agentError } = await supabase
+    console.log('Identified user', {
+      id: user.id,
+      email: user.email,
+      role: profile.role,
+    });
+
+    const { data: agent, error: agentError } = await supabaseService
       .from('agents')
       .select('*')
       .eq('id', user.id)

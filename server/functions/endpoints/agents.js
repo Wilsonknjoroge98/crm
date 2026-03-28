@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('firebase-functions/logger');
 // eslint-disable-next-line new-cap
 const agentRouter = express.Router();
+const { supabaseService } = require('../services/supabase.js');
 
 agentRouter.get('/', async (req, res) => {
   logger.log('Getting current agent', {
@@ -10,13 +11,16 @@ agentRouter.get('/', async (req, res) => {
   });
   res.json({ ...req.agent, role: req.user.role });
 });
+
 agentRouter.get('/all', async (req, res) => {
   logger.log('Getting all agents', {
     route: '/agents',
     requesterId: req.agent?.id,
   });
 
-  const { data: agents, error } = await req.supabase.from('agents').select('*');
+  const { data: agents, error } = await supabaseService
+    .from('agents')
+    .select('*');
 
   if (error) {
     logger.warn('Error fetching agents in endpoints/agents.js', {
@@ -55,7 +59,7 @@ agentRouter.patch('/', async (req, res) => {
     const newLevel = agent.level;
 
     // Fetch current agent to get their upline
-    const { data: current, error: currentError } = await req.supabase
+    const { data: current, error: currentError } = await supabaseService
       .from('agents')
       .select('upline_agent_id')
       .eq('id', agentId)
@@ -69,7 +73,7 @@ agentRouter.patch('/', async (req, res) => {
 
     // Check upline constraint: new level must be less than upline's level
     if (current.upline_agent_id) {
-      const { data: upline, error: uplineError } = await req.supabase
+      const { data: upline, error: uplineError } = await supabaseService
         .from('agents')
         .select('level, first_name, last_name')
         .eq('id', current.upline_agent_id)
@@ -83,7 +87,7 @@ agentRouter.patch('/', async (req, res) => {
     }
 
     // Check downline constraint: new level must be greater than all direct downlines' levels
-    const { data: downlines, error: downlineError } = await req.supabase
+    const { data: downlines, error: downlineError } = await supabaseService
       .from('agents')
       .select('level, first_name, last_name')
       .eq('upline_agent_id', agentId);
@@ -101,7 +105,7 @@ agentRouter.patch('/', async (req, res) => {
     }
   }
 
-  const { data, error } = await req.supabase
+  const { data, error } = await supabaseService
     .from('agents')
     .update(agent)
     .eq('id', agentId)
@@ -138,7 +142,7 @@ agentRouter.delete('/', async (req, res) => {
     targetAgentId: agentId,
   });
 
-  const { error } = await req.supabase
+  const { error } = await supabaseService
     .from('agents')
     .delete()
     .eq('id', agentId);

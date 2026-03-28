@@ -1,5 +1,6 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const carriersRouter = express.Router();
@@ -12,7 +13,7 @@ carriersRouter.get('/', async (req, res) => {
       requesterId: req?.agent?.id,
     });
 
-    const { data, error } = await req.supabase
+    const { data, error } = await supabaseService
       .from('carriers')
       .select('id, name, created_at, updated_at')
       .order('name', { ascending: true });
@@ -29,12 +30,15 @@ carriersRouter.get('/', async (req, res) => {
 
     return res.status(200).json(data || []);
   } catch (error) {
-    logger.error('Unexpected error fetching carriers in endpoints/carriers.js', {
-      route: '/carriers',
-      method: 'GET',
-      requesterId: req.agent?.id,
-      error,
-    });
+    logger.error(
+      'Unexpected error fetching carriers in endpoints/carriers.js',
+      {
+        route: '/carriers',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      },
+    );
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -47,7 +51,7 @@ carriersRouter.get('/products', async (req, res) => {
       requesterId: req?.agent?.id,
     });
 
-    const { data, error } = await req.supabase
+    const { data, error } = await supabaseService
       .from('products')
       .select('id, name, carrier_id, created_at')
       .order('name', { ascending: true });
@@ -64,12 +68,15 @@ carriersRouter.get('/products', async (req, res) => {
 
     return res.status(200).json(data || []);
   } catch (error) {
-    logger.error('Unexpected error fetching products in endpoints/carriers.js', {
-      route: '/carriers/products',
-      method: 'GET',
-      requesterId: req.agent?.id,
-      error,
-    });
+    logger.error(
+      'Unexpected error fetching products in endpoints/carriers.js',
+      {
+        route: '/carriers/products',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      },
+    );
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

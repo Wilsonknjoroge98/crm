@@ -25,7 +25,7 @@ const PersonalSummary = ({ startDate, endDate }) => {
   if (isLoading) {
     return (
       <Stack direction='row' spacing={1} mb={2}>
-        <Skeleton variant='rectangular' height={75} width={200} />
+        {/* <Skeleton variant='rectangular' height={75} width={200} /> */}
         <Skeleton variant='rectangular' height={75} width={200} />
         <Skeleton variant='rectangular' height={75} width={200} />
         <Skeleton variant='rectangular' height={75} width={200} />
@@ -35,11 +35,11 @@ const PersonalSummary = ({ startDate, endDate }) => {
 
   return (
     <Stack direction='row' spacing={1} mb={2}>
-      <KPIItem
+      {/* <KPIItem
         title='Clients'
         value={data.totalClients ? data.totalClients : '—'}
         icon={<PeopleAltOutlinedIcon />}
-      />
+      /> */}
       <KPIItem
         title='Policies'
         value={data.totalPolicies ? data.totalPolicies : '—'}

@@ -1,6 +1,14 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const dayjs = require('dayjs');
+const { WebClient } = require('@slack/web-api');
 const { supabaseService } = require('../services/supabase');
+const { buildPolicySlackPayload } = require('../integrations/slack');
+
+const slackTargets = [
+  process.env.SLACK_BOT_TOKEN,
+  process.env.SLACK_BOT_TOKEN_FEARLESS,
+];
 // eslint-disable-next-line new-cap
 const policyRouter = express.Router();
 
@@ -24,7 +32,7 @@ policyRouter.get('/all', async (req, res) => {
       method: 'GET',
       requesterId: req.agent?.id,
     });
-    const { data: policies, error } = await req.supabase.from('policies')
+    const { data: policies, error } = await supabaseService.from('policies')
       .select(`
         *,
         clients!policies_client_id_fkey ( first_name, last_name ),
@@ -78,15 +86,18 @@ policyRouter.get('/all', async (req, res) => {
 policyRouter.get('/', async (req, res) => {
   try {
     const targetAgentId = req.query.agentId || req.agent.id;
+    const { startDate, endDate } = req.query;
 
     logger.log('Fetching policies for agent', {
       route: '/policy',
       method: 'GET',
       requesterId: req.agent?.id,
       targetAgentId,
+      startDate,
+      endDate,
     });
 
-    const { data: policies, error } = await supabaseService
+    let query = supabaseService
       .from('policies')
       .select(
         `
@@ -99,7 +110,14 @@ policyRouter.get('/', async (req, res) => {
         beneficiaries!beneficiaries_policy_id_fkey ( id, first_name, last_name, relationship, allocation_percent, beneficiary_type, phone )
       `,
       )
-      .eq('writing_agent_id', targetAgentId);
+      .or(
+        `writing_agent_id.eq.${targetAgentId},split_agent_id.eq.${targetAgentId}`,
+      );
+
+    if (startDate) query = query.gte('sold_date', startDate);
+    if (endDate) query = query.lte('sold_date', endDate);
+
+    const { data: policies, error } = await query;
 
     if (error) {
       logger.error('Error fetching policies in endpoints/policies.js', {
@@ -239,7 +257,7 @@ policyRouter.post('/', async (req, res) => {
   }
 
   try {
-    const { data: clientData, error: clientError } = await req.supabase
+    const { data: clientData, error: clientError } = await supabaseService
       .from('clients')
       .select('phone')
       .eq('id', client_id)
@@ -269,6 +287,52 @@ policyRouter.post('/', async (req, res) => {
     requesterId: req.agent?.id,
     policyId,
   });
+
+  try {
+    const [{ data: productData }, { data: carrierData }] = await Promise.all([
+      supabaseService
+        .from('products')
+        .select('name')
+        .eq('id', product_id)
+        .single(),
+      supabaseService
+        .from('carriers')
+        .select('name')
+        .eq('id', carrier_id)
+        .single(),
+    ]);
+
+    const agentName =
+      `${req.agent?.first_name ?? ''} ${req.agent?.last_name ?? ''}`.trim();
+    const ap = Number(insertPayload.premium_amount) * 12;
+    const eft = insertPayload.effective_date
+      ? dayjs(insertPayload.effective_date).format('MM/DD')
+      : null;
+
+    const payload = buildPolicySlackPayload({
+      agentName,
+      product: productData?.name ?? 'Unknown',
+      annualPremium: ap,
+      carrier: carrierData?.name ?? 'Unknown',
+      effectiveDate: eft,
+    });
+
+    await Promise.all(
+      slackTargets
+        .filter(({ token }) => token)
+        .map(({ token }) =>
+          new WebClient(token).chat.postMessage({
+            channel: '#sales',
+            text: payload.text,
+            blocks: payload.blocks,
+          }),
+        ),
+    );
+  } catch (err) {
+    logger.error('Failed to send Slack notification in endpoints/policies.js', {
+      error: err,
+    });
+  }
 
   return res.status(201).json({ id: policyId });
 });
@@ -385,6 +449,13 @@ policyRouter.delete('/', async (req, res) => {
     return res.status(400).json({ error: 'Missing policyId' });
   }
 
+  console.log('Attempting to delete policy', {
+    route: '/policy',
+    method: 'DELETE',
+    requesterId: req.agent?.id,
+    policyId,
+  });
+
   try {
     logger.log('Deleting policy', {
       route: '/policy',
@@ -393,7 +464,7 @@ policyRouter.delete('/', async (req, res) => {
       policyId,
     });
 
-    const { error: beneficiaryError } = await req.supabase
+    const { error: beneficiaryError } = await supabaseService
       .from('beneficiaries')
       .delete()
       .eq('policy_id', policyId);
@@ -408,7 +479,7 @@ policyRouter.delete('/', async (req, res) => {
         .json({ error: 'Failed to delete policy beneficiaries' });
     }
 
-    const { error: policyError } = await req.supabase
+    const { error: policyError } = await supabaseService
       .from('policies')
       .delete()
       .eq('id', policyId);

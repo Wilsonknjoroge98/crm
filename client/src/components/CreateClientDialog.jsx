@@ -77,7 +77,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         last_name: lead.last_name || '',
         email: lead.email || '',
         phone: lead.phone || '',
-        date_of_birth: lead.dob || '',
+        date_of_birth: lead.date_of_birth || '',
         lead_vendor_id:
           lead.lead_vendor_id || '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
         marital_status: '',
