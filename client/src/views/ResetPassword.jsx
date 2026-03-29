@@ -7,39 +7,53 @@ import {
   Alert,
   Stack,
 } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 
 const ResetPassword = () => {
   const [sessionReady, setSessionReady] = useState(false);
   const [tokenError, setTokenError] = useState(false);
+  const sessionReadyRef = useRef(false);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+  const hash = window.location.hash;
+  const params = new URLSearchParams(hash.replace('#', '?'));
+  const accessToken = params.get('access_token');
+  const type = params.get('type');
 
   useEffect(() => {
-    // Supabase JS v2 automatically parses the #access_token hash on load
-    // and fires PASSWORD_RECOVERY when a valid recovery session is detected.
+    console.log('Hash on mount:', window.location.hash);
+
+    const markReady = () => {
+      sessionReadyRef.current = true;
+      setSessionReady(true);
+    };
+
+    // Supabase v2 parses the #access_token hash at client init time — before
+    // this component mounts — so PASSWORD_RECOVERY may already be gone.
+    // getSession() catches the session that was silently established.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) markReady();
+    });
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         console.log('Password recovery session detected.');
-        setSessionReady(true);
+        markReady();
       }
     });
 
-    // Fallback: if the hash is missing or malformed, show an error after a short wait
+    // If neither path sets the session within 10 s, the link is expired/invalid
     const timeout = setTimeout(() => {
-      setTokenError((prev) => {
-        if (!sessionReady) return true;
-        return prev;
-      });
-    }, 3000);
+      if (!sessionReadyRef.current) setTokenError(true);
+    }, 10000);
 
     return () => {
       subscription.unsubscribe();

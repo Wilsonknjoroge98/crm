@@ -1,6 +1,7 @@
 import {
   Stack,
   Box,
+  Button,
   Divider,
   Chip,
   Typography,
@@ -164,14 +165,15 @@ const AccountDetails = ({ data }) => {
           </Alert>
         )}
         <Stack direction='row' justifyContent='flex-end'>
-          <IconButton
+          <Button
+            endIcon={<LogoutOutlinedIcon />}
             size='small'
             color='error'
             onClick={handleSignOut}
             sx={{ mt: 1 }}
           >
-            <LogoutOutlinedIcon />
-          </IconButton>
+            Sign Out
+          </Button>
         </Stack>
       </Stack>
     </>

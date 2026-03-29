@@ -132,7 +132,7 @@ const getAccount = async ({ email }) => {
   const options = {
     method: 'GET',
     // signal: signal,
-    url: 'customer_account',
+    url: '/customer-account',
     params: {
       email: email,
       mode: import.meta.env.MODE,
@@ -151,15 +151,13 @@ const getAccount = async ({ email }) => {
 };
 
 const getPremiumLeaderboard = async ({ startDate, endDate, agency }) => {
-  // request config for compulife server
   const options = {
     method: 'GET',
-    url: 'premiums',
+    url: '/leaderboard',
     params: {
-      mode: import.meta.env.MODE,
       startDate,
       endDate,
-      agency,
+      orgId: agency,
     },
   };
 

@@ -1,22 +1,26 @@
 import {
   Box,
-  Grid,
   Typography,
-  Divider,
-  Container,
   Stack,
-  Button,
+  Container,
+  Avatar,
+  Skeleton,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getPremiumLeaderboard } from '../utils/query';
 import { useAgent } from '../hooks/useAgent';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import DateSelector from '../components/DateSelector';
+import { stringToColor } from '../utils/helpers';
 import dayjs from 'dayjs';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import { useState } from 'react';
-import { MoonLoader } from 'react-spinners';
+
+const getInitials = (name) =>
+  name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
 const Leaderboard = () => {
   const agent = useAgent();
@@ -26,107 +30,54 @@ const Leaderboard = () => {
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   const {
-    data: rows,
+    data: rows = [],
     isLoading,
-    isPending,
-    error,
-    refetch: refetchLeaderboard,
+    refetch,
   } = useQuery({
-    queryKey: ['premiumLeaderboard'],
+    queryKey: ['premiumLeaderboard', startDate, endDate, agent?.org_id],
     queryFn: () =>
-      getPremiumLeaderboard({
-        agency: agent?.org_id,
-        startDate,
-        endDate,
-      }),
+      getPremiumLeaderboard({ agency: agent?.org_id, startDate, endDate }),
+    enabled: !!agent?.org_id,
   });
 
-  console.log({ rows, isLoading, error, startDate, endDate });
-
-  const handleStartChange = (newValue) => {
-    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
-    setStartDate(formatted);
-  };
-
-  const handleEndChange = (newValue) => {
-    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
-    setEndDate(formatted);
-  };
+  const handleStartChange = (val) =>
+    setStartDate(val ? dayjs(val).format('YYYY-MM-DD') : '');
+  const handleEndChange = (val) =>
+    setEndDate(val ? dayjs(val).format('YYYY-MM-DD') : '');
 
   return (
     <>
       <Container sx={{ mt: 4 }}>
         <Stack
-          direction={'column'}
+          direction={{ xs: 'column', sm: 'row' }}
           justifyContent='space-between'
+          alignItems={{ sm: 'center' }}
           spacing={2}
           mb={2}
         >
           <Typography variant='h4'>Leaderboard</Typography>
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <Box
-              display='flex'
-              justifyContent='space-between'
-              alignItems='center'
-            >
-              <Stack direction={'row'} spacing={2} alignItems='center'>
-                <DatePicker
-                  label='Start Date'
-                  value={startDate ? dayjs(startDate) : null}
-                  onChange={handleStartChange}
-                  slotProps={{
-                    textField: {
-                      size: 'small',
-                      variant: 'outlined',
-                      sx: { minWidth: 150 },
-                    },
-                  }}
-                />
-                <DatePicker
-                  label='End Date'
-                  value={endDate ? dayjs(endDate) : null}
-                  onChange={handleEndChange}
-                  slotProps={{
-                    textField: {
-                      size: 'small',
-                      variant: 'outlined',
-                      sx: { minWidth: 150 },
-                    },
-                  }}
-                />
-              </Stack>
-              <Button
-                variant='contained'
-                color='action'
-                startIcon={<RefreshIcon />}
-                onClick={() => refetchLeaderboard()}
-                sx={isLoading ? { opacity: 0.3 } : {}}
-                disabled={isLoading}
-              >
-                Refresh
-              </Button>
-            </Box>
-          </LocalizationProvider>
+          <DateSelector
+            startDate={startDate}
+            endDate={endDate}
+            handleStartChange={handleStartChange}
+            handleEndChange={handleEndChange}
+            refetchFunction={refetch}
+            isLoading={isLoading}
+          />
         </Stack>
-        {(isLoading || isPending) && (
-          <Stack
-            sx={{
-              width: '100%',
-              height: '100%',
-              minHeight: '200px',
-              display: 'flex',
-              alignItems: 'center',
-              flexDirection: 'row',
-              justifyContent: 'center',
-            }}
-          >
-            <MoonLoader />
+
+        {isLoading && (
+          <Stack spacing={2} mt={4}>
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} variant='rounded' height={64} />
+            ))}
           </Stack>
         )}
+
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <Box sx={{ width: '100%', maxWidth: 900 }}>
             <Stack spacing={2}>
-              {rows?.map((row, index) => {
+              {rows.map((row, index) => {
                 const isTopThree = index < 3;
 
                 return (
@@ -170,14 +121,32 @@ const Leaderboard = () => {
                     </Box>
 
                     {/* Agent Info */}
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant='subtitle1' fontWeight={600}>
-                        {row.name}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        {row.count} Sales
-                      </Typography>
-                    </Box>
+                    <Stack
+                      direction='row'
+                      alignItems='center'
+                      spacing={1.5}
+                      sx={{ flexGrow: 1 }}
+                    >
+                      <Avatar
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          bgcolor: stringToColor(row.name),
+                        }}
+                      >
+                        {getInitials(row.name)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant='subtitle1' fontWeight={600}>
+                          {row.name}
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          {row.count} Sales
+                        </Typography>
+                      </Box>
+                    </Stack>
 
                     {/* Premium */}
                     <Stack alignItems='flex-end' spacing={0.5}>

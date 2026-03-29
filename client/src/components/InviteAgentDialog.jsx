@@ -61,8 +61,7 @@ const InviteAgentDialog = ({ open, setOpen }) => {
             </Typography>
             <Typography variant='body2'>
               3. Send that link to the agent you want to invite. When they open
-              it and sign up, they'll be connected to you as their upline
-              automatically.
+              it and sign up, they'll be registered as your downline in the CRM.
             </Typography>
           </Stack>
 

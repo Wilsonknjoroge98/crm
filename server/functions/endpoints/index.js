@@ -11,6 +11,7 @@ const leadVendorsRouter = require('./lead_vendors');
 const carriersRouter = require('./carriers');
 const eventsRouter = require('./events');
 const expensesRouter = require('./expenses');
+const leaderboardRouter = require('./leaderboard');
 module.exports = {
   agentRouter,
   policyRouter,
@@ -25,4 +26,5 @@ module.exports = {
   carriersRouter,
   eventsRouter,
   expensesRouter,
+  leaderboardRouter,
 };

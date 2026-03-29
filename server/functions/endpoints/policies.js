@@ -318,15 +318,13 @@ policyRouter.post('/', async (req, res) => {
     });
 
     await Promise.all(
-      slackTargets
-        .filter(({ token }) => token)
-        .map(({ token }) =>
-          new WebClient(token).chat.postMessage({
-            channel: '#sales',
-            text: payload.text,
-            blocks: payload.blocks,
-          }),
-        ),
+      slackTargets.filter(Boolean).map((token) =>
+        new WebClient(token).chat.postMessage({
+          channel: '#sales',
+          text: payload.text,
+          blocks: payload.blocks,
+        }),
+      ),
     );
   } catch (err) {
     logger.error('Failed to send Slack notification in endpoints/policies.js', {

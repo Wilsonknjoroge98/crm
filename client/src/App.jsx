@@ -21,7 +21,9 @@ import { useAgent } from './hooks/useAgent';
 const App = () => {
   // return <Maintenance />;
   const agent = useAgent();
-  const { user, isAuthenticated, authInitialized } = useSelector((state) => state.user);
+  const { user, isAuthenticated, authInitialized } = useSelector(
+    (state) => state.user,
+  );
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -41,6 +43,7 @@ const App = () => {
     // If a Supabase password recovery hash is present, redirect to reset-password
     // regardless of auth state — this must take priority
     const hash = window.location.hash;
+    console.log('Current hash:', hash);
     if (hash.includes('type=recovery')) {
       navigate('/reset-password');
       return;

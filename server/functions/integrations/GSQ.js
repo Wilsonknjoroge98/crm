@@ -64,9 +64,6 @@ const inboundGSQ = async (req, res) => {
     }
 
     const lead = { ...req.body };
-    delete lead.issuedTo;
-    // TODO DELETE FROM sendToCRM payload
-    delete lead.gsqSource;
 
     const payload = {
       first_name: firstName,

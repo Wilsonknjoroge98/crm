@@ -21,6 +21,7 @@ const {
   hierarchyRouter,
   eventsRouter,
   expensesRouter,
+  leaderboardRouter,
   publicRouter,
   inviteRouter,
   leadVendorsRouter,
@@ -57,6 +58,7 @@ app.use('/summary', summaryRouter);
 app.use('/hierarchy', hierarchyRouter);
 app.use('/events', eventsRouter);
 app.use('/expenses', expensesRouter);
+app.use('/leaderboard', leaderboardRouter);
 
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
@@ -104,7 +106,7 @@ app.use('/expenses', expensesRouter);
 //   return Array.from(result);
 // }
 
-app.get('/customer_account', async (req, res) => {
+app.get('/customer-account', async (req, res) => {
   const { email } = req.query;
 
   console.log('Getting account for', email);
@@ -1486,7 +1488,7 @@ app.post('/error', async (req, res) => {
   res.status(200).send({ message: 'Error saved successfully' });
 });
 
-app.patch('/customer_account', async (req, res) => {
+app.patch('/customer-account', async (req, res) => {
   const { account } = req.body;
 
   console.log('Updating account for', account);
@@ -1543,5 +1545,166 @@ app.patch('/customer_account', async (req, res) => {
   console.log('Account details', account);
   res.status(200).json({ message: 'Account updated' });
 });
+
+// const sendPasswordResetEmails = async () => {
+//   const { data: agents, error } = await supabaseService
+//     .from('agents')
+//     .select('email');
+
+//   const successfulEmails = [
+//     'a2hogan@comcast.net',
+//     'acipetric@gmail.com',
+//     'adamlonginsurance@gmail.com',
+//     'adampasqualefinancial@gmail.com',
+//     'alexcrawfordpersonal@gmail.com',
+//     'diegomendozafinancial@gmail.com',
+//     'dylanramirezinsurance24@gmail.com',
+//     'elibrandowfinancial@gmail.com',
+//     'eric.strasser7@gmail.com',
+//     'ethan.lopez@icloud.com',
+//     'ethanbouche12@gmail.com',
+//     'ethanlax77@gmail.com',
+//     'ethomas.insurance@gmail.com',
+//     'eva.ikonomakos@gmail.com',
+//     'famoralesffl@gmail.com',
+//     'garlandrayfielle@yahoo.com',
+//     'garrettplekenpol4life@gmail.com',
+//     'garriemannfinancial@gmail.com',
+//     'gavinjohnstonfinancial@gmail.com',
+//     'hayklein3@gmail.com',
+//     'howardinsurance15@gmail.com',
+//     'hugojeanbaptiste0@gmail.com',
+//     'indestadjacob@gmail.com',
+//     'info@finalexpensedigital.com',
+//     'hertzoginsurance@gmail.com',
+//     'marcusstepinsurance@gmail.com',
+//     'reeselefinancial@gmail.com',
+//     'wilhelmnoah@protonmail.com',
+//     'alvinsellsins@gmail.com',
+//     'andrewmerlamfinancial@gmail.com',
+//     'andrewnixoninsurance@gmail.com',
+//     'angelblib248@gmail.com',
+//     'anthonyrichinsurance@gmail.com',
+//     'austinmckoy2@gmail.com',
+//     'baron4life2@gmail.com',
+//     'bassettdeven@gmail.com',
+//     'benmjacob@icloud.com',
+//     'benmoreirafinancial@gmail.com',
+//     'bert.ramos1997@gmail.com',
+//     'ashleymysza@gmail.com',
+//     'blackevan15@gmail.com',
+//     'brayden.ricks.insurance@gmail.com',
+//     'braymoffl@gmail.com',
+//     'brianfurrerffl@gmail.com',
+//     'bryanvaval09@gmail.com',
+//     'callie.carr.98@gmail.com',
+//     'calliecarrinsurance@gmail.com',
+//     'cameron_05@icloud.com',
+//     'caulinbrownfinancial@gmail.com',
+//     'charlielacnyfinancial@gmail.com',
+//     'chuy.n.rosales@gmail.com',
+//     'cnmckenna@yahoo.com',
+//     'connortietema@gmail.com',
+//     'csullyyackel@gmail.com',
+//     'daleherrodlife@gmail.com',
+//     'davidjacobfinancial@gmail.com',
+//     'deaganreppfinancial@gmail.com',
+//     'diegomendozafinancial@gmail.com',
+//     'dylanramirezinsurance24@gmail.com',
+//     'elibrandowfinancial@gmail.com',
+//     'eric.strasser7@gmail.com',
+//     'ethan.lopez@icloud.com',
+//     'ethanbouche12@gmail.com',
+//     'ethanlax77@gmail.com',
+//     'ethomas.insurance@gmail.com',
+//     'eva.ikonomakos@gmail.com',
+//     'famoralesffl@gmail.com',
+//     'garlandrayfielle@yahoo.com',
+//     'garrettplekenpol4life@gmail.com',
+//     'garriemannfinancial@gmail.com',
+//     'gavinjohnstonfinancial@gmail.com',
+//     'hayklein3@gmail.com',
+//     'howardinsurance15@gmail.com',
+//     'hugojeanbaptiste0@gmail.com',
+//     'indestadjacob@gmail.com',
+//     'info@finalexpensedigital.com',
+//     'haldiman.insurance@gmail.com',
+//     'ddean3459@icloud.com',
+//     'jakewoodrufffinancial@gmail.com',
+//     'josiahfaucher@gmail.com',
+//     'karsonyouchfinancial@gmail.com',
+//     'kristi@kblifeandco.com',
+//     'javierjurado768@gmail.com',
+//     'keaton.artherton.insurance@gmail.com',
+//     'kyle.vassau.insurance@gmail.com',
+//     'jstrout14@yahoo.com',
+//     'jaxonlogginsfinancial@gmail.com',
+//     'julian.roberta.rodriguez@gmail.com',
+//     'kendrammejia@gmail.com',
+//     'kylecassidy4life@gmail.com',
+//     'makennapenceffl@gmail.com',
+//     'jaxson.vassau.insurance@gmail.com',
+//     'julianharrisfinancial@gmail.com',
+//     'kevinestradafinancial@gmail.com',
+//     'litryborovikov@gmail.com',
+//     'makkpence@gmail.com',
+//     'joshdeberry3@gmail.com',
+//     'karatripoli@gmail.com',
+//     'kiara7lin@gmail.com',
+//     'marcorico5656@gmail.com',
+//     'marcuststep@gmail.com',
+//     'markwallace.insurance@gmail.com',
+//     'maxbillesdon2003@gmail.com',
+//     'mcshaneffl@gmail.com',
+//     'mellojacksonfinancial@gmail.com',
+//     'meshach.nelson.insurance@gmail.com',
+//     'mitchellsmithfinancial@gmail.com',
+//     'morganjaylen6@gmail.com',
+//     'oliviacox.business1@gmail.com',
+//     'owenmclaughlinfinancial@gmail.com',
+//     'ozziegonzalez777@gmail.com',
+//     'rachelmoore2007@outlook.com',
+//     'rayshawnnicholasfinancial@gmail.com',
+//     'rightforlifewithantonio@gmail.com',
+//     'sam.harline.insurance@gmail.com',
+//     'samanthaplife@gmail.com',
+//     'simonwilkinsonlife@gmail.com',
+//     'sjbrownn15@gmail.com',
+//     'stamisonbrody@gmail.com',
+//     'stupps33@gmail.com',
+//     'tanner.mccoy303@gmail.com',
+//     'timcassidylifeinsurance@gmail.com',
+//     'tklipschfinancial@gmail.com',
+//     'wes.creer.insurance@gmail.com',
+//     'williams.blaize9@gmail.com',
+//     'westonwendt@gmail.com',
+//     'garrett.lifeinsurance@gmail.com',
+//   ];
+
+//   for (const agent of agents.filter(
+//     (a) => !successfulEmails.includes(a.email),
+//   )) {
+//     try {
+//       const { error: resetError } =
+//         await supabaseService.auth.resetPasswordForEmail(agent.email, {
+//           redirectTo: 'https://hourglass-ef3ca.web.app/reset-password',
+//         });
+
+//       if (resetError) {
+//         console.error(`Error sending to ${agent.email}:`, resetError);
+//       } else {
+//         console.log(`Sent to ${agent.email}`);
+//       }
+//     } catch (err) {
+//       console.error(`Unexpected error for ${agent.email}:`, err);
+//     }
+
+//     await new Promise((resolve) => setTimeout(resolve, 3000));
+//   }
+
+//   console.log(`Done. Processed ${agents.length} agents.`);
+// };
+
+// sendPasswordResetEmails();
 
 module.exports = app;
