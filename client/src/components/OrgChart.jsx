@@ -4,13 +4,13 @@ import { Box, Card, Typography, Stack, Avatar, Skeleton } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getHierarchy } from '../utils/query';
 
-const OrgChart = () => {
+const OrgChart = ({ startDate, endDate }) => {
   const containerRef = useRef(null);
   const [translate, setTranslate] = useState({ x: 300, y: 50 });
 
   const { data: orgData, isLoading } = useQuery({
-    queryKey: ['hierarchy'],
-    queryFn: getHierarchy,
+    queryKey: ['hierarchy', startDate, endDate],
+    queryFn: () => getHierarchy({ startDate, endDate }),
   });
 
   useEffect(() => {

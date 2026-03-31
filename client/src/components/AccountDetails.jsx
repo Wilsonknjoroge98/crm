@@ -164,7 +164,7 @@ const AccountDetails = ({ data }) => {
             </Typography>
           </Alert>
         )}
-        <Stack direction='row' justifyContent='flex-end'>
+        <Stack direction='column' spacing={0.5}>
           <Button
             endIcon={<LogoutOutlinedIcon />}
             size='small'
@@ -173,6 +173,14 @@ const AccountDetails = ({ data }) => {
             sx={{ mt: 1 }}
           >
             Sign Out
+          </Button>
+          <Button
+            size='small'
+            color='inherit'
+            onClick={() => navigate('/reset-password')}
+            sx={{ color: 'text.secondary' }}
+          >
+            Reset Password
           </Button>
         </Stack>
       </Stack>

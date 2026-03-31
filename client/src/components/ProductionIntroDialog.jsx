@@ -7,7 +7,6 @@ import {
   Typography,
   Stack,
   Box,
-  Divider,
 } from '@mui/material';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';

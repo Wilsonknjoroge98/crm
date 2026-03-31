@@ -133,7 +133,7 @@ const Production = () => {
         {value === 2 && (
           <Grid size={12}>
             <Box sx={{ width: '100%', height: 300 }}>
-              <OrgChart />
+              <OrgChart startDate={startDate} endDate={endDate} />
             </Box>
           </Grid>
         )}

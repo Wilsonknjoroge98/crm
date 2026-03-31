@@ -870,11 +870,11 @@ const getEvents = async ({ limit } = {}) => {
   }
 };
 
-const getHierarchy = async () => {
+const getHierarchy = async ({ startDate, endDate } = {}) => {
   const options = {
     method: 'GET',
     url: '/hierarchy',
-    params: { mode: import.meta.env.MODE },
+    params: { mode: import.meta.env.MODE, startDate, endDate },
   };
   try {
     const response = await apiClient.request(options);

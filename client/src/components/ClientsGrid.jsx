@@ -2,7 +2,14 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
-import { Stack, Typography, Chip } from '@mui/material';
+import {
+  Stack,
+  Typography,
+  Chip,
+  Popover,
+  Box,
+  Divider,
+} from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
@@ -23,6 +30,8 @@ export default function ClientsGrid({
   showToolbar = false, // toggle quick filter toolbar
 }) {
   const [isAdmin, setIsAdmin] = React.useState(false);
+  const [popoverAnchor, setPopoverAnchor] = useState(null);
+  const [popoverPolicies, setPopoverPolicies] = useState([]);
 
   useEffect(() => {
     if (agent && (agent['role'] === 'admin' || agent['role'] === 'owner')) {
@@ -31,6 +40,17 @@ export default function ClientsGrid({
   }, [agent]);
 
   const policyCount = (row) => row?.policyData?.length ?? 0;
+
+  const handleOverflowClick = (event, policies) => {
+    event.stopPropagation();
+    setPopoverAnchor(event.currentTarget);
+    setPopoverPolicies(policies);
+  };
+
+  const handlePopoverClose = () => {
+    setPopoverAnchor(null);
+    setPopoverPolicies([]);
+  };
 
   const rows = clients.map((client) => {
     return {
@@ -91,10 +111,8 @@ export default function ClientsGrid({
         sortable: true,
         renderCell: (params) => {
           const dob = params.value;
-          console.log('Calculating age for DOB:', dob);
           const birthDate = dob ? dayjs(dob) : null;
           const age = birthDate ? dayjs().diff(birthDate, 'year') : undefined;
-          console.log('Calculated age:', age);
           return (
             <Typography variant='caption'>
               {age !== undefined ? age : '—'}
@@ -177,73 +195,58 @@ export default function ClientsGrid({
           <Typography variant='caption'>{params.value}</Typography>
         ),
       },
-
       {
         field: 'policies',
         headerName: 'Policies',
-        width: 150,
+        width: 160,
         sortable: true,
         filterable: true,
         valueGetter: (value, row) => policyCount(row),
         renderCell: (params) => {
           const c = params.row;
           const policies = (c && c.policyData) || [];
+
           if (!policies.length) {
             return (
               <Stack
                 direction='row'
-                spacing={0}
                 alignItems='center'
-                justifyContent='center'
-                py={2}
+                sx={{ height: '100%' }}
               >
-                {/* <Chip
-                  icon={<WarningIcon color='warning' />}
-                  sx={{ color: '#000' }}
-                  color='transparent'
-                  label='Missing Policies'
-                  size='small'
-                /> */}
-
-                <WarningIcon color='error' sx={{ mr: 1 }} />
-                <Typography variant='caption' sx={{ color: 'text.primary' }}>
-                  Missing Policies
-                </Typography>
+                <WarningIcon color='error' sx={{ mr: 0.5 }} fontSize='small' />
+                <Typography variant='caption'>Missing Policies</Typography>
               </Stack>
             );
           }
+
+          const first = policies[0];
+          const overflow = policies.length - 1;
+          const carrierName =
+            (carrierMap && carrierMap[first.carrier]) || first.carrier || '—';
+
           return (
             <Stack
-              sx={{
-                py: 2,
-                width: '100%',
-                overflowX: 'auto',
-                justifyContent: 'center',
-              }}
+              direction='row'
+              alignItems='center'
+              spacing={1}
+              sx={{ height: '100%' }}
             >
-              {policies.map((p) => (
-                // <Chip
-                //   key={p.id}
-                //   size='small'
-                //   label={`${(carrierMap && carrierMap[p.carrier]) || p.carrier} | #${
-                //     p.policyNumber
-                //   }`}
-                // />
-                <>
-                  <Typography
-                    key={p.id}
-                    variant='caption'
-                    sx={{ color: 'text.primary' }}
-                  >{`${
-                    (carrierMap && carrierMap[p.carrier]) || p.carrier
-                  }`}</Typography>
-                  <Typography
-                    key={p.id}
-                    variant='caption'
-                    sx={{ color: 'text.primary' }}
-                  >{`#${p.policyNumber}`}</Typography>
-                </>
-              ))}
+              <Stack direction='column' spacing={0} justifyContent='center'>
+                <Typography variant='caption' fontWeight={500}>
+                  {carrierName}
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  #{first.policyNumber}
+                </Typography>
+              </Stack>
+              {overflow > 0 && (
+                <Chip
+                  label={`+${overflow}`}
+                  size='small'
+                  onClick={(e) => handleOverflowClick(e, policies)}
+                  sx={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}
+                />
+              )}
             </Stack>
           );
         },
@@ -291,13 +294,14 @@ export default function ClientsGrid({
     handleAddPolicies,
     handleUpdateClient,
     handleDeleteClient,
+    handleOverflowClick,
   ]);
 
   return (
     <Stack sx={{ minHeight: 600, maxHeight: 800, maxWidth: 1200 }}>
       <DataGrid
         sx={{ border: 'none', boxShadow: 'none', bgcolor: 'transparent' }}
-        rowHeight={60}
+        rowHeight={64}
         rows={rows || []}
         loading={!!clientsLoading}
         getRowId={(row) => row.id}
@@ -309,6 +313,34 @@ export default function ClientsGrid({
           pagination: { paginationModel: { pageSize: 10, page: 0 } },
         }}
       />
+
+      <Popover
+        open={Boolean(popoverAnchor)}
+        anchorEl={popoverAnchor}
+        onClose={handlePopoverClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        disableRestoreFocus
+      >
+        <Box sx={{ p: 2, minWidth: 200 }}>
+          <Typography variant='caption' color='text.secondary' fontWeight={600}>
+            ALL POLICIES
+          </Typography>
+          {popoverPolicies.map((p, idx) => (
+            <React.Fragment key={p.id}>
+              {idx > 0 && <Divider sx={{ my: 1 }} />}
+              <Box sx={{ mt: 1 }}>
+                <Typography variant='body2' fontWeight={500}>
+                  {(carrierMap && carrierMap[p.carrier]) || p.carrier || '—'}
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  #{p.policyNumber}
+                </Typography>
+              </Box>
+            </React.Fragment>
+          ))}
+        </Box>
+      </Popover>
     </Stack>
   );
 }

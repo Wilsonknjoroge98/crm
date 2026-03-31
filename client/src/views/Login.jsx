@@ -115,6 +115,15 @@ const Login = () => {
             >
               {loading ? <CircularProgress size={20} /> : 'Sign In'}
             </Button>
+            <Button
+              variant='text'
+              size='small'
+              color='inherit'
+              onClick={() => navigate('/forgot-password')}
+              sx={{ alignSelf: 'center', color: 'text.secondary' }}
+            >
+              Forgot password?
+            </Button>
           </Stack>
         </form>
 

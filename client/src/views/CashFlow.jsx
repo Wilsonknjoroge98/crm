@@ -47,6 +47,7 @@ const CashFlowSummary = () => {
     totalCommissions: 5000,
     directCommissions: 3000,
     overridingCommissions: 0,
+    splitCommissions: 0,
     leadPurchases: 2000,
   });
   const [expenses, setExpenses] = useState([
@@ -164,6 +165,7 @@ const CashFlowSummary = () => {
         totalCommissions: commissionsData?.total || 0,
         directCommissions: commissionsData?.direct || 0,
         overridingCommissions: commissionsData?.overriding || 0,
+        splitCommissions: commissionsData?.split || 0,
       }));
     }
   }, [commissionsData]);
@@ -336,6 +338,20 @@ const CashFlowSummary = () => {
                     <Typography variant='caption' color='text.secondary'>
                       $
                       {inflow?.overridingCommissions?.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{ display: 'flex', justifyContent: 'space-between' }}
+                  >
+                    <Typography variant='caption' color='text.secondary'>
+                      Split
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      $
+                      {inflow?.splitCommissions?.toLocaleString('en-US', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
