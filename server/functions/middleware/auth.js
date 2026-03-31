@@ -21,7 +21,7 @@ const authMiddleware = async (req, res, next) => {
 
     if (error || !user) {
       if (error) logger.error('Auth error in auth.js', error);
-      else logger.warn('Auth user missing in auth.js');
+      else logger.warn('Auth user missing in auth.js', { token });
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -41,7 +41,10 @@ const authMiddleware = async (req, res, next) => {
       // that both see a null profile and race to insert
       const { error: insertError } = await supabaseService
         .from('profiles')
-        .upsert({ id: user.id, role: 'agent' }, { onConflict: 'id', ignoreDuplicates: true });
+        .upsert(
+          { id: user.id, role: 'agent' },
+          { onConflict: 'id', ignoreDuplicates: true },
+        );
 
       if (insertError) {
         logger.error('Auth profile insert error in auth.js', insertError);

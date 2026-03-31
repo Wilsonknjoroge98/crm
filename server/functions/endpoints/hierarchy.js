@@ -5,6 +5,9 @@ const { supabaseService } = require('../services/supabase');
 // eslint-disable-next-line new-cap
 const hierarchyRouter = express.Router();
 
+const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+const TOP_LEVEL_AGENT_ID = '3d670459-8730-42f9-8b98-08c34f98f4a6';
+
 const formatCurrency = (amount) => {
   return `$${Number(amount || 0).toLocaleString()}`;
 };
@@ -43,10 +46,17 @@ hierarchyRouter.get('/', async (req, res) => {
 
     const agentIds = agents.map((agent) => agent.id);
 
-    const { data: policies, error: policiesError } = await supabaseService
+    const { startDate, endDate } = req.query;
+
+    let policiesQuery = supabaseService
       .from('policies')
       .select('id, writing_agent_id, premium_amount')
       .in('writing_agent_id', agentIds);
+
+    if (startDate) policiesQuery = policiesQuery.gte('sold_date', startDate);
+    if (endDate) policiesQuery = policiesQuery.lte('sold_date', endDate);
+
+    const { data: policies, error: policiesError } = await policiesQuery;
 
     if (policiesError) {
       logger.error(
@@ -113,16 +123,19 @@ hierarchyRouter.get('/', async (req, res) => {
       nodeCount: nodeMap.size,
     });
 
-    let rootNode = nodeMap.get(req.agent?.id);
+    const rootAgentId =
+      req.agent?.id === SUPERUSER_ID ? TOP_LEVEL_AGENT_ID : req.agent?.id;
+
+    let rootNode = nodeMap.get(rootAgentId);
 
     if (!rootNode && req.agent) {
-      const rootStats = policyStatsByAgentId[req.agent.id] || {
+      const rootStats = policyStatsByAgentId[rootAgentId] || {
         premium: 0,
         policies: 0,
       };
 
       rootNode = {
-        id: req.agent.id,
+        id: rootAgentId,
         upline_agent_id: null,
         name: `${req.agent.first_name} ${req.agent.last_name}`.trim(),
         attributes: {
@@ -133,7 +146,7 @@ hierarchyRouter.get('/', async (req, res) => {
         children: [],
       };
 
-      nodeMap.set(req.agent.id, rootNode);
+      nodeMap.set(rootAgentId, rootNode);
 
       logger.warn(
         'Root agent was missing from fetched hierarchy agents, added fallback node',

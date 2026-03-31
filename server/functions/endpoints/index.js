@@ -12,6 +12,7 @@ const carriersRouter = require('./carriers');
 const eventsRouter = require('./events');
 const expensesRouter = require('./expenses');
 const leaderboardRouter = require('./leaderboard');
+const insightsRouter = require('./insights');
 module.exports = {
   agentRouter,
   policyRouter,
@@ -27,4 +28,5 @@ module.exports = {
   eventsRouter,
   expensesRouter,
   leaderboardRouter,
+  insightsRouter,
 };

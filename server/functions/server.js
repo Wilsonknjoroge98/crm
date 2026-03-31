@@ -3,6 +3,10 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
 // eslint-disable-next-line no-unused-vars
@@ -26,7 +30,9 @@ const {
   inviteRouter,
   leadVendorsRouter,
   carriersRouter,
+  insightsRouter,
 } = require('./endpoints');
+const { send } = require('process');
 
 admin.initializeApp();
 app.use(
@@ -59,6 +65,7 @@ app.use('/hierarchy', hierarchyRouter);
 app.use('/events', eventsRouter);
 app.use('/expenses', expensesRouter);
 app.use('/leaderboard', leaderboardRouter);
+app.use('/insights', insightsRouter);
 
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
@@ -233,7 +240,7 @@ app.get('/premiums', async (req, res) => {
   }
 });
 
-app.get('/insights', async (req, res) => {
+app.get('/insights-legacy', async (req, res) => {
   const { mode, startDate, endDate } = req.query;
 
   if (!startDate || !endDate) {
@@ -429,8 +436,8 @@ app.get('/insights', async (req, res) => {
 });
 
 app.get('/commissions', async (req, res) => {
-  // TODO - flip to shea's id
-  const AGENT_ID = '6a1aae1d-f2be-4cd5-aad0-fa1ed43da147';
+  const AGENT_ID = '92566663-1fbb-4ffe-b835-8f33ade1bbbd';
+  const { startDate, endDate } = req.query;
 
   const getContractRate = (level, carrierName, productName) => {
     const rate = PRODUCT_RATES?.[carrierName]?.[productName]?.[String(level)];
@@ -442,6 +449,8 @@ app.get('/commissions', async (req, res) => {
       route: '/commissions',
       method: 'GET',
       targetAgentId: AGENT_ID,
+      startDate,
+      endDate,
     });
 
     const { data: allAgents, error: agentsError } = await supabaseService
@@ -472,12 +481,21 @@ app.get('/commissions', async (req, res) => {
         }
       }
     }
-    const { data: ownPolicies, error: ownPoliciesError } = await supabaseService
+
+    let ownPoliciesQuery = supabaseService
       .from('policies')
       .select(
         'id, premium_amount, split_agent_id, split_agent_share, carriers ( name ), products ( name )',
       )
       .eq('writing_agent_id', AGENT_ID);
+
+    if (startDate)
+      ownPoliciesQuery = ownPoliciesQuery.gte('effective_date', startDate);
+    if (endDate)
+      ownPoliciesQuery = ownPoliciesQuery.lte('effective_date', endDate);
+
+    const { data: ownPolicies, error: ownPoliciesError } =
+      await ownPoliciesQuery;
 
     if (ownPoliciesError) {
       logger.error('Error fetching own policies in /commissions', {
@@ -499,7 +517,6 @@ app.get('/commissions', async (req, res) => {
       const ap = Number(policy.premium_amount) * 12;
 
       if (policy.split_agent_id && policy.split_agent_share != null) {
-        // Writing agent's share is whatever the split agent doesn't take
         const writingAgentShare = (100 - policy.split_agent_share) / 100;
         directCommissions += ap * writingAgentShare * contractRate;
       } else {
@@ -510,13 +527,26 @@ app.get('/commissions', async (req, res) => {
     let overridingCommissions = 0;
 
     if (downlineIds.size > 0) {
+      let downlinePoliciesQuery = supabaseService
+        .from('policies')
+        .select(
+          'id, premium_amount, writing_agent_id, carriers ( name ), products ( name )',
+        )
+        .in('writing_agent_id', [...downlineIds]);
+
+      if (startDate)
+        downlinePoliciesQuery = downlinePoliciesQuery.gte(
+          'effective_date',
+          startDate,
+        );
+      if (endDate)
+        downlinePoliciesQuery = downlinePoliciesQuery.lte(
+          'effective_date',
+          endDate,
+        );
+
       const { data: downlinePolicies, error: downlinePoliciesError } =
-        await supabaseService
-          .from('policies')
-          .select(
-            'id, premium_amount, writing_agent_id, carriers ( name ), products ( name )',
-          )
-          .in('writing_agent_id', [...downlineIds]);
+        await downlinePoliciesQuery;
 
       if (downlinePoliciesError) {
         logger.error('Error fetching downline policies in /commissions', {
@@ -554,8 +584,45 @@ app.get('/commissions', async (req, res) => {
       }
     }
 
+    let splitPoliciesQuery = supabaseService
+      .from('policies')
+      .select(
+        'id, premium_amount, split_agent_share, carriers ( name ), products ( name )',
+      )
+      .eq('split_agent_id', AGENT_ID);
+
+    if (startDate)
+      splitPoliciesQuery = splitPoliciesQuery.gte('effective_date', startDate);
+    if (endDate)
+      splitPoliciesQuery = splitPoliciesQuery.lte('effective_date', endDate);
+
+    const { data: splitPolicies, error: splitPoliciesError } =
+      await splitPoliciesQuery;
+
+    if (splitPoliciesError) {
+      logger.error('Error fetching split policies in /commissions', {
+        error: splitPoliciesError,
+      });
+      return res.status(500).json({ error: 'Failed to fetch split policies' });
+    }
+
+    let splitCommissions = 0;
+
+    for (const policy of splitPolicies || []) {
+      if (policy.split_agent_share == null) continue;
+      const carrierName = policy.carriers?.name;
+      const productName = policy.products?.name;
+      const contractRate = getContractRate(
+        agent.level,
+        carrierName,
+        productName,
+      );
+      const ap = Number(policy.premium_amount) * 12;
+      splitCommissions += ap * (policy.split_agent_share / 100) * contractRate;
+    }
+
     const totalCommissions = Math.round(
-      directCommissions + overridingCommissions,
+      directCommissions + overridingCommissions + splitCommissions,
     );
 
     logger.log('Commissions calculated successfully', {
@@ -565,6 +632,7 @@ app.get('/commissions', async (req, res) => {
       agentName: `${agent.first_name} ${agent.last_name}`,
       directCommissions: Math.round(directCommissions),
       overridingCommissions: Math.round(overridingCommissions),
+      splitCommissions: Math.round(splitCommissions),
       totalCommissions,
     });
 
@@ -573,6 +641,7 @@ app.get('/commissions', async (req, res) => {
       agentName: `${agent.first_name} ${agent.last_name}`,
       direct: Math.round(directCommissions),
       overriding: Math.round(overridingCommissions),
+      split: Math.round(splitCommissions),
       total: Math.round(totalCommissions),
     });
   } catch (error) {
@@ -1158,8 +1227,14 @@ app.get('/stripe-charges', async (req, res) => {
     return res.status(400).send({ error: 'Missing startDate or endDate' });
   }
 
-  const startTimestamp = dayjs(startDate).startOf('day').unix();
-  const endTimestamp = dayjs(endDate).endOf('day').unix();
+  const startTimestamp = dayjs
+    .tz(startDate, 'America/Los_Angeles')
+    .startOf('day')
+    .unix();
+  const endTimestamp = dayjs
+    .tz(endDate, 'America/Los_Angeles')
+    .endOf('day')
+    .unix();
 
   console.log('Reconciliation from', startDate, 'to', endDate);
 
@@ -1207,7 +1282,7 @@ app.get('/stripe-charges', async (req, res) => {
       ).toLocaleString()}`,
     );
 
-    const total = totalRevenue / 100; // Return in dollars
+    const total = totalRevenue / 100;
     res.status(200).send({ total });
   } catch (error) {
     console.error(
@@ -1706,5 +1781,130 @@ app.patch('/customer-account', async (req, res) => {
 // };
 
 // sendPasswordResetEmails();
+
+// const func = async () => {
+//   require('dotenv').config({
+//     path: require('path').resolve(__dirname, '../.env'),
+//   });
+
+//   const db = new Firestore();
+//   const now = dayjs();
+//   const start = Timestamp.fromDate(
+//     now.subtract(180, 'days').startOf('day').toDate(),
+//   );
+//   const end = Timestamp.fromDate(
+//     now.subtract(30, 'days').endOf('day').toDate(),
+//   );
+
+//   const STATES = [
+//     'MI',
+//     'IN',
+//     'KS',
+//     'SC',
+//     'NC',
+//     'NE',
+//     'TN',
+//     'MO',
+//     'KY',
+//     'NJ',
+//     'MD',
+//     'ND',
+//     'SD',
+//   ];
+
+//   const allLeads = [];
+
+//   const snap = await db
+//     .collection('leads')
+//     .where('createdAt', '>=', start)
+//     .where('createdAt', '<=', end)
+//     .get();
+
+//   snap.docs.forEach((doc) => allLeads.push({ id: doc.id, ...doc.data() }));
+
+//   allLeads.sort((a, b) => {
+//     const ta = a.createdAt?.toMillis?.() ?? 0;
+//     const tb = b.createdAt?.toMillis?.() ?? 0;
+//     return ta - tb;
+//   });
+
+//   const leads = allLeads.filter(
+//     (lead) =>
+//       STATES.includes(lead.state) &&
+//       lead.verified &&
+//       lead.issuedTo != 'charlielacnyfinancial@gmail.com',
+//   );
+
+  // const workbook = new ExcelJS.Workbook();
+  // workbook.creator = 'life-quoter export script';
+  // workbook.created = new Date();
+
+  // const sheet = workbook.addWorksheet('Leads');
+
+  // const COLUMNS = [
+  //   { header: 'beneficiary', key: 'beneficiary', width: 18 },
+  //   { header: 'birthDay', key: 'birthDay', width: 10 },
+  //   { header: 'birthMonth', key: 'birthMonth', width: 12 },
+  //   { header: 'birthYear', key: 'birthYear', width: 12 },
+  //   { header: 'bmi', key: 'bmi', width: 14 },
+  //   {
+  //     header: 'bp.bloodPressureMedicationNow',
+  //     key: 'bp.bloodPressureMedicationNow',
+  //     width: 30,
+  //   },
+  //   { header: 'budget', key: 'budget', width: 12 },
+  //   {
+  //     header: 'cho.cholesterolMedicationNow',
+  //     key: 'cho.cholesterolMedicationNow',
+  //     width: 28,
+  //   },
+  //   { header: 'email', key: 'email', width: 30 },
+  //   { header: 'faceAmount', key: 'faceAmount', width: 14 },
+  //   { header: 'name', key: 'name', width: 22 },
+  //   { header: 'phone', key: 'phone', width: 14 },
+  //   { header: 'premium', key: 'premium', width: 14 },
+  //   { header: 'priority', key: 'priority', width: 26 },
+  //   { header: 'selectedCarrier', key: 'selectedCarrier', width: 18 },
+  //   { header: 'selectedPlan', key: 'selectedPlan', width: 18 },
+  //   { header: 'sessionId', key: 'sessionId', width: 38 },
+  //   { header: 'sex', key: 'sex', width: 8 },
+  //   { header: 'smoker', key: 'smoker', width: 8 },
+  //   { header: 'state', key: 'state', width: 16 },
+  //   { header: 'tb.doCigarettes', key: 'tb.doCigarettes', width: 16 },
+  //   {
+  //     header: 'tb.doNicotinePatchesOrGum',
+  //     key: 'tb.doNicotinePatchesOrGum',
+  //     width: 26,
+  //   },
+  //   { header: 'tb.doChewingTobacco', key: 'tb.doChewingTobacco', width: 20 },
+  //   { header: 'tb.doPipe', key: 'tb.doPipe', width: 12 },
+  //   { header: 'verified', key: 'verified', width: 10 },
+  //   { header: 'why', key: 'why', width: 36 },
+  // ];
+
+  // sheet.columns = COLUMNS;
+
+  // // Style header row
+  // const headerRow = sheet.getRow(1);
+  // headerRow.font = { bold: true };
+
+  // Add data rows
+  // for (const lead of selected) {
+  //   sheet.addRow(mapLead(lead));
+  // }
+
+  // Freeze header row
+  // sheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+  // // ── Write file ──────────────────────────────────────────────────────────────
+
+  // const timestamp = dayjs().format('YYYY-MM-DD_HH-mm-ss');
+  // const stateSlug = states.join('-').replace(/\s+/g, '_').toLowerCase();
+  // const filename = `leads_${stateSlug}_${timestamp}.xlsx`;
+  // const outputPath = path.resolve(process.cwd(), filename);
+
+  // await workbook.xlsx.writeFile(outputPath);
+  // console.log(`Leads exported to ${outputPath}`);
+// };
 
 module.exports = app;

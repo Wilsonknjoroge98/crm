@@ -18,7 +18,6 @@ leaderboardRouter.get('/', async (req, res) => {
       endDate,
     });
 
-    // Fetch all agents in the org
     const { data: agents, error: agentsError } = await supabaseService
       .from('agents')
       .select('id, first_name, last_name')

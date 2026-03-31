@@ -202,7 +202,6 @@
 
 //       const [agent1, agent2] = agents.filter((agent) => policy.agentIds.includes(agent.uid));
 
-//       // TODO: there are cases where the write-in is not 50/50
 //       const splitPremium = annualPremium / 2;
 //       console.log('Split premium:', splitPremium);
 

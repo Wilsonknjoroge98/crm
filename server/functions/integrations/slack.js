@@ -8,7 +8,7 @@ function buildPolicySlackPayload({
   effectiveDate,
 }) {
   return {
-    text: 'New Sale!',
+    text: `${agentName} - AP: $${Number(annualPremium).toLocaleString()}`,
     blocks: [
       {
         type: 'section',

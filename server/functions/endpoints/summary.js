@@ -177,30 +177,6 @@ summaryRouter.get('/personal', async (req, res) => {
       endDate,
     });
 
-    const { data: clientData, error: clientError } = await supabaseService
-      .from('clients')
-      .select(
-        'id, created_at, agent_clients!agent_clients_client_id_fkey!inner(agent_id)',
-      )
-      .in('agent_clients.agent_id', [req.agent.id])
-      .gte('created_at', `${startDate}T00:00:00`)
-      .lte('created_at', `${endDate}T23:59:59.999`);
-
-    if (clientError) {
-      logger.error(
-        'Error fetching clients for personal summary in endpoints/summary.js',
-        {
-          route: '/personal-summary',
-          method: 'GET',
-          requesterId: req.agent?.id,
-          startDate,
-          endDate,
-          error: clientError,
-        },
-      );
-      return res.status(500).json({ error: 'Failed to fetch clients' });
-    }
-
     const { data: policiesData, error: policiesError } = await supabaseService
       .from('policies')
       .select('*')
@@ -235,14 +211,14 @@ summaryRouter.get('/personal', async (req, res) => {
       requesterId: req.agent?.id,
       startDate,
       endDate,
-      totalClients: clientData?.length || 0,
+      totalClients: 0,
       totalPolicies,
       totalPremium,
       avgPremium,
     });
 
     return res.status(200).json({
-      totalClients: clientData?.length || 0,
+      totalClients: 0,
       totalPolicies,
       totalPremium: totalPremium,
       avgPremium,

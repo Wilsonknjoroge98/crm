@@ -92,8 +92,8 @@ publicRouter.post('/agent', async (req, res) => {
     }
 
     const payload = {
-      first_name: agent.name.split(' ')[0],
-      last_name: agent.name.split(' ')[1],
+      first_name: agent.first_name,
+      last_name: agent.last_name,
       npn: agent.npn,
       org_id: orgId,
       upline_agent_id: uplineAgentId,

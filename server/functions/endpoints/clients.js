@@ -2,9 +2,12 @@ const express = require('express');
 const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
 const { sendSaleToGSQ } = require('../integrations/GSQ');
+const { getHyrosSource } = require('../integrations/hyros');
 
 // eslint-disable-next-line new-cap
 const clientRouter = express.Router();
+
+const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 
 clientRouter.get('/all', async (req, res) => {
   try {
@@ -90,11 +93,67 @@ clientRouter.get('/all', async (req, res) => {
 
 clientRouter.get('/', async (req, res) => {
   try {
+    const isSuperuser = req.agent.id === SUPERUSER_ID;
+
     logger.log('Getting clients for current agent only', {
       route: '/clients/mine',
       method: 'GET',
       requesterId: req?.agent?.id,
+      isSuperuser,
     });
+
+    if (isSuperuser) {
+      const { data: clients, error } = await supabaseService
+        .from('clients')
+        .select(
+          `
+                *,
+                agent_clients!agent_clients_client_id_fkey (
+                    agent_notes,
+                    agents!agent_clients_agent_id_fkey ( first_name, last_name )
+                ),
+                leads!clients_lead_id_fkey ( gsq_source ),
+                policies!policies_client_id_fkey ( id, policy_number, carriers ( name ) )
+            `,
+        )
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (error) {
+        logger.error('Error fetching all clients (superuser) in endpoints/clients.js', {
+          route: '/clients/mine',
+          method: 'GET',
+          requesterId: req.agent.id,
+          error,
+        });
+        return res.status(500).json({ error: 'Failed to fetch clients' });
+      }
+
+      const mapped = (clients || []).map(({ agent_clients, leads, policies, ...client }) => {
+        const ac = agent_clients?.[0];
+        const a = ac?.agents;
+        const agent_name = a
+          ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
+          : null;
+        const gsqSource = Array.isArray(leads)
+          ? (leads[0]?.gsq_source ?? null)
+          : (leads?.gsq_source ?? null);
+        const policyData = (policies || []).map((p) => ({
+          id: p.id,
+          carrier: p.carriers?.name || null,
+          policyNumber: p.policy_number,
+        }));
+        return {
+          ...client,
+          agent_name,
+          notes: ac?.agent_notes ?? null,
+          gsq_source: gsqSource,
+          policyData,
+        };
+      });
+
+      return res.status(200).json(mapped);
+    }
 
     const { data: agentLinks, error: linksError } = await supabaseService
       .from('agent_clients')
@@ -141,7 +200,9 @@ clientRouter.get('/', async (req, res) => {
                 )
             `,
       )
-      .in('id', clientIds);
+      .in('id', clientIds)
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
     if (error) {
       logger.error('Error fetching own clients in endpoints/clients.js', {
@@ -245,6 +306,7 @@ clientRouter.post('/', async (req, res) => {
   }
 
   if (!existingLead) {
+    const hyrosSource = await getHyrosSource(client.email);
     const { data: newLead, error: newLeadError } = await supabaseService
       .from('leads')
       .insert({
@@ -258,6 +320,7 @@ clientRouter.post('/', async (req, res) => {
         sold: true,
         lead_vendor_id: lead_vendor_id,
         gsq_live_transfer: live_transfer || false,
+        gsq_source: hyrosSource,
       })
       .select('id')
       .maybeSingle();

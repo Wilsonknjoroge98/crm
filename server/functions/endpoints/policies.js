@@ -12,6 +12,8 @@ const slackTargets = [
 // eslint-disable-next-line new-cap
 const policyRouter = express.Router();
 
+const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+
 const mapBeneficiaries = (list, policyId, type) =>
   (list || [])
     .filter((b) => b.first_name && b.last_name)
@@ -97,6 +99,8 @@ policyRouter.get('/', async (req, res) => {
       endDate,
     });
 
+    const isSuperuser = req.agent.id === SUPERUSER_ID;
+
     let query = supabaseService
       .from('policies')
       .select(
@@ -109,13 +113,18 @@ policyRouter.get('/', async (req, res) => {
         split_agent:agents!policies_split_agent_id_fkey ( first_name, last_name ),
         beneficiaries!beneficiaries_policy_id_fkey ( id, first_name, last_name, relationship, allocation_percent, beneficiary_type, phone )
       `,
-      )
-      .or(
+      );
+
+    if (!isSuperuser) {
+      query = query.or(
         `writing_agent_id.eq.${targetAgentId},split_agent_id.eq.${targetAgentId}`,
       );
+    }
 
     if (startDate) query = query.gte('sold_date', startDate);
     if (endDate) query = query.lte('sold_date', endDate);
+
+    query = query.order('created_at', { ascending: false }).limit(1000);
 
     const { data: policies, error } = await query;
 

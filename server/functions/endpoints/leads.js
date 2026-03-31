@@ -5,6 +5,8 @@ const dayjs = require('dayjs');
 // eslint-disable-next-line new-cap
 const leadRouter = express.Router();
 
+const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+
 leadRouter.get('/', async (req, res) => {
   try {
     logger.log('Getting leads', {
@@ -15,7 +17,9 @@ leadRouter.get('/', async (req, res) => {
 
     const { data: leads, error } = await req.supabase
       .from('leads')
-      .select('*, lead_vendors ( name )');
+      .select('*, lead_vendors ( name )')
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
     if (error) {
       logger.error('Error fetching leads in endpoints/leads.js', {
@@ -34,7 +38,10 @@ leadRouter.get('/', async (req, res) => {
       count: leads?.length || 0,
     });
 
-    const agentLeads = leads.filter((lead) => lead.agent_id === req.agent?.id);
+    const isSuperuser = req.agent?.id === SUPERUSER_ID;
+    const agentLeads = isSuperuser
+      ? leads
+      : leads.filter((lead) => lead.agent_id === req.agent?.id);
 
     const formattedLeads = agentLeads.map((lead) => {
       const leadVendorName = lead.lead_vendors ? lead.lead_vendors.name : null;
