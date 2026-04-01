@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
+const { isValidDate } = require('../helpers');
 
 // eslint-disable-next-line new-cap
 const leaderboardRouter = express.Router();

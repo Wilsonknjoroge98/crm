@@ -29,7 +29,8 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [npn, setNpn] = useState('');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -104,7 +105,8 @@ export default function SignUp() {
       await createAgent({
         data: {
           userId: user.id,
-          name,
+          first_name: firstName,
+          last_name: lastName,
           email,
           npn,
           role: 'agent',
@@ -203,13 +205,22 @@ export default function SignUp() {
         <form onSubmit={handleSignUp}>
           <Stack spacing={2}>
             <TextField
-              label='Full Name'
+              label='First Name'
               type='text'
               fullWidth
               size='small'
-              value={name}
-              onChange={(e) => setName(toTitleCase(e.target.value))}
+              value={firstName}
+              onChange={(e) => setFirstName(toTitleCase(e.target.value))}
             />
+            <TextField
+              label='Last Name'
+              type='text'
+              fullWidth
+              size='small'
+              value={lastName}
+              onChange={(e) => setLastName(toTitleCase(e.target.value))}
+            />
+
             <TextField
               label='Email'
               type='email'
@@ -247,19 +258,17 @@ export default function SignUp() {
               onChange={(e) => setConfirmPass(e.target.value)}
               required
             />
-
             {errorMsg && (
               <Alert severity='error' sx={{ py: 0.5 }}>
                 {errorMsg}
               </Alert>
             )}
-
             <Button
               type='submit'
               variant='contained'
               color='primary'
               fullWidth
-              disabled={loading || npn.length !== 10}
+              disabled={loading || npn.length !== 8}
               sx={{ mt: 1 }}
             >
               {loading ? <CircularProgress size={20} /> : 'Create Account'}

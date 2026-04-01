@@ -120,37 +120,42 @@ clientRouter.get('/', async (req, res) => {
         .limit(1000);
 
       if (error) {
-        logger.error('Error fetching all clients (superuser) in endpoints/clients.js', {
-          route: '/clients/mine',
-          method: 'GET',
-          requesterId: req.agent.id,
-          error,
-        });
+        logger.error(
+          'Error fetching all clients (superuser) in endpoints/clients.js',
+          {
+            route: '/clients/mine',
+            method: 'GET',
+            requesterId: req.agent.id,
+            error,
+          },
+        );
         return res.status(500).json({ error: 'Failed to fetch clients' });
       }
 
-      const mapped = (clients || []).map(({ agent_clients, leads, policies, ...client }) => {
-        const ac = agent_clients?.[0];
-        const a = ac?.agents;
-        const agent_name = a
-          ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
-          : null;
-        const gsqSource = Array.isArray(leads)
-          ? (leads[0]?.gsq_source ?? null)
-          : (leads?.gsq_source ?? null);
-        const policyData = (policies || []).map((p) => ({
-          id: p.id,
-          carrier: p.carriers?.name || null,
-          policyNumber: p.policy_number,
-        }));
-        return {
-          ...client,
-          agent_name,
-          notes: ac?.agent_notes ?? null,
-          gsq_source: gsqSource,
-          policyData,
-        };
-      });
+      const mapped = (clients || []).map(
+        ({ agent_clients: agentClients, leads, policies, ...client }) => {
+          const ac = agentClients?.[0];
+          const a = ac?.agents;
+          const agentname = a
+            ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
+            : null;
+          const gsqSource = Array.isArray(leads)
+            ? (leads[0]?.gsq_source ?? null)
+            : (leads?.gsq_source ?? null);
+          const policyData = (policies || []).map((p) => ({
+            id: p.id,
+            carrier: p.carriers?.name || null,
+            policyNumber: p.policy_number,
+          }));
+          return {
+            ...client,
+            agent_name: agentname,
+            notes: ac?.agent_notes ?? null,
+            gsq_source: gsqSource ?? null,
+            policyData,
+          };
+        },
+      );
 
       return res.status(200).json(mapped);
     }
@@ -260,15 +265,20 @@ clientRouter.get('/', async (req, res) => {
 
 clientRouter.post('/', async (req, res) => {
   // eslint-disable-next-line camelcase,no-unused-vars
-  const { lead_vendor_id, notes, live_transfer, ...client } = req.body.client;
+  const {
+    lead_vendor_id: leadVendorId,
+    notes,
+    live_transfer: liveTransfer,
+    ...client
+  } = req.body.client;
   delete client.live_transfer;
 
   console.log('Received client creation request', {
     route: '/client',
     method: 'POST',
-    lead_vendor_id,
+    lead_vendor_id: leadVendorId,
     notes,
-    live_transfer,
+    live_transfer: liveTransfer,
     client,
   });
 
@@ -281,7 +291,7 @@ clientRouter.post('/', async (req, res) => {
       requesterId: req.agent?.id,
       hasEmail: !!client?.email,
       hasPhone: !!client?.phone,
-      liveTransfer: !!live_transfer,
+      liveTransfer: !!liveTransfer,
     });
     return res.status(400).json({ error: 'Missing required client fields' });
   }
@@ -306,7 +316,11 @@ clientRouter.post('/', async (req, res) => {
   }
 
   if (!existingLead) {
-    const hyrosSource = await getHyrosSource(client.email);
+    let hyrosSource = null;
+    if (leadVendorId === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba') {
+      hyrosSource = await getHyrosSource(client.email);
+    }
+
     const { data: newLead, error: newLeadError } = await supabaseService
       .from('leads')
       .insert({
@@ -318,8 +332,8 @@ clientRouter.post('/', async (req, res) => {
         date_of_birth: client.date_of_birth,
         agent_id: req?.agent?.id,
         sold: true,
-        lead_vendor_id: lead_vendor_id,
-        gsq_live_transfer: live_transfer || false,
+        lead_vendor_id: leadVendorId,
+        gsq_live_transfer: liveTransfer || false,
         gsq_source: hyrosSource,
       })
       .select('id')
@@ -399,7 +413,7 @@ clientRouter.post('/', async (req, res) => {
     requesterId: req.agent?.id,
     clientId: newClient.id,
     leadId,
-    liveTransfer: !!live_transfer,
+    liveTransfer: !!liveTransfer,
   });
 
   return res.status(201).json(newClient);

@@ -48,8 +48,6 @@ export default function LeadsGrid({
     return map;
   }, [agents]);
 
-  // TODO - age no longer exists on lead records, need to calculate from date_of_birth
-
   const isAdmin = agent?.role === 'admin';
 
   const rows = leads.map((lead) => ({
@@ -273,7 +271,10 @@ export default function LeadsGrid({
               icon={<AddCircleIcon />}
               label='Make Client'
               onClick={() => {
-                setLead(params.row);
+                setLead({
+                  ...params.row,
+                  lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+                });
                 setCreateClientOpen(true);
               }}
               showInMenu={true}

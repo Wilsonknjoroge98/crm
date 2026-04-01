@@ -21,25 +21,28 @@ insightsRouter.get('/', async (req, res) => {
     // Add one day for the upper bound on timestamptz columns so endDate is inclusive
     const untilExclusive = dayjs(endDate).add(1, 'day').format('YYYY-MM-DD');
 
-    // -------------------------------------------------------------------------
-    // CLIENTS — filtered by created_at, source derived from lead.gsq_source
-    // -------------------------------------------------------------------------
     const { data: clients, error: clientsError } = await supabaseService
       .from('clients')
       .select('id, leads!clients_lead_id_fkey ( gsq_source )')
       .gte('created_at', since)
-      .lt('created_at', untilExclusive);
+      .lt('created_at', untilExclusive)
+      .limit(10000);
 
     if (clientsError) {
-      logger.error('Error fetching clients in insights', { error: clientsError });
+      logger.error('Error fetching clients in insights', {
+        error: clientsError,
+      });
       return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
-    // Build source → sales count; track clients with no source separately
     const salesBySource = {};
     let unknownClients = 0;
 
     for (const client of clients || []) {
+      logger.log('Processing client for insights', {
+        clientId: client.id,
+        source: client.leads?.gsq_source || null,
+      });
       const source = client.leads?.gsq_source;
       if (source) {
         salesBySource[source] = (salesBySource[source] || 0) + 1;
@@ -65,7 +68,8 @@ insightsRouter.get('/', async (req, res) => {
       `,
       )
       .gte('sold_date', since)
-      .lte('sold_date', until);
+      .lte('sold_date', until)
+      .limit(10000);
 
     if (policiesError) {
       logger.error('Error fetching policies in insights', {
@@ -129,9 +133,6 @@ insightsRouter.get('/', async (req, res) => {
       }
     }
 
-    // -------------------------------------------------------------------------
-    // BUILD SOURCES
-    // -------------------------------------------------------------------------
     const sources = [];
 
     for (const [creative, sales] of Object.entries(salesBySource)) {
@@ -148,7 +149,11 @@ insightsRouter.get('/', async (req, res) => {
         const monthly = Number(p.premium_amount);
         return sum + (isNaN(monthly) ? 0 : monthly * 12);
       }, 0);
-      const averagePremium = matched.length > 0 ? totalAnnual / matched.length : 0;
+      const averagePremium =
+        matched.length > 0 ? totalAnnual / matched.length : 0;
+
+      const closeRate = leads > 0 ? +((sales / leads) * 100).toFixed(2) : 0;
+      const revenuePerLead = (closeRate / 100) * averagePremium;
 
       sources.push({
         id: adId || crypto.randomUUID(),
@@ -160,6 +165,7 @@ insightsRouter.get('/', async (req, res) => {
         cpl: spend > 0 && leads > 0 ? +(spend / leads).toFixed(2) : 0,
         cps: spend > 0 && sales > 0 ? +(spend / sales).toFixed(2) : 0,
         closeRate: leads > 0 ? +((sales / leads) * 100).toFixed(2) : 0,
+        revenuePerLead: +revenuePerLead.toFixed(2),
       });
     }
 

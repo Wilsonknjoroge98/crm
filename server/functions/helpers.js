@@ -104,8 +104,8 @@
 // // send sale to Hyros
 
 // const getRate = (productRates, level, defaultValue = 1) => {
-//     const raw = Number(productRates?.[String(level)]);
-//     return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
+//   const raw = Number(productRates?.[String(level)]);
+//   return Number.isFinite(raw) && raw > 0 ? raw / 100 : defaultValue;
 // };
 // const standardizeAddress = (address) => {
 
@@ -383,4 +383,14 @@
 //   }
 //   res.status(200).send(commissions);
 // });
-module.exports = { getRate };
+/**
+ * Returns true only if the value is a non-empty string that parses to a real
+ * calendar date (e.g. "2026-03-31"). Rejects "Invalid Date", nulls, etc.
+ */
+const isValidDate = (value) => {
+  if (!value || typeof value !== 'string') return false;
+  const d = new Date(value);
+  return !isNaN(d.getTime());
+};
+
+module.exports = { isValidDate };

@@ -78,8 +78,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.date_of_birth || '',
-        lead_vendor_id:
-          lead.lead_vendor_id || '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+        lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
         marital_status: '',
         address: '',
         city: '',
@@ -221,7 +220,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     console.log('Modified Form:', modifiedForm);
     delete modifiedForm.notes;
 
-    console.log('lead vendor id', form.lead_vendor_id);
     if (form.lead_vendor_id !== import.meta.env.VITE_GSQ_LEAD_VENDOR_ID) {
       delete modifiedForm.live_transfer;
     }
@@ -274,47 +272,44 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               </TextField>
             )}
           </Grid>
-          {form.lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
-            pathname.includes('client') && (
-              <Grid size={6}>
-                <FormControl error={true} fullWidth>
-                  <Alert severity='warning'>
-                    Is this a live transfer lead?
-                  </Alert>
+          {form.lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' && (
+            <Grid size={6}>
+              <FormControl error={true} fullWidth>
+                <Alert severity='warning'>Is this a live transfer lead?</Alert>
 
-                  <Stack direction='row' spacing={2}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={form.live_transfer === true}
-                          onChange={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              live_transfer: true,
-                            }))
-                          }
-                        />
-                      }
-                      label='Yes'
-                    />
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={form.live_transfer === false}
-                          onChange={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              live_transfer: false,
-                            }))
-                          }
-                        />
-                      }
-                      label='No'
-                    />
-                  </Stack>
-                </FormControl>
-              </Grid>
-            )}
+                <Stack direction='row' spacing={2}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={form.live_transfer === true}
+                        onChange={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            live_transfer: true,
+                          }))
+                        }
+                      />
+                    }
+                    label='Yes'
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={form.live_transfer === false}
+                        onChange={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            live_transfer: false,
+                          }))
+                        }
+                      />
+                    }
+                    label='No'
+                  />
+                </Stack>
+              </FormControl>
+            </Grid>
+          )}
 
           <Grid item size={12}>
             <SectionHeader title='Personal Information' />

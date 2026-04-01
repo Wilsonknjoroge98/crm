@@ -21,10 +21,6 @@ const getHyrosSource = async (email) => {
     const response = await hyrosAgent.request(HYROS_BODY);
     const hyrosData = response.data.result[0] || [];
 
-    // THIS IS ALL WE NEED FOR THIS FUNCTION
-    // return hyrosData?.lastSource?.sourceLinkAd?.name ||
-    // hyrosData?.firstSource?.sourceLinkAd?.name || 'unknown'
-
     let source = hyrosData?.lastSource?.sourceLinkAd?.name || null;
 
     if (!source) {
@@ -32,9 +28,7 @@ const getHyrosSource = async (email) => {
 
       if (!source) {
         source =
-          hyrosData.lastSource?.name ||
-          hyrosData.firstSource?.name ||
-          'unknown';
+          hyrosData.lastSource?.name || hyrosData.firstSource?.name || null;
       }
     }
 

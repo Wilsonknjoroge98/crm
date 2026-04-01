@@ -5,7 +5,6 @@ const { supabaseService } = require('../services/supabase');
 // eslint-disable-next-line new-cap
 const expensesRouter = express.Router();
 
-// GET /expenses/all — return all expenses across all agents within an optional date range
 expensesRouter.get('/all', async (req, res) => {
   const { startDate, endDate } = req.query;
 
@@ -42,17 +41,19 @@ expensesRouter.get('/all', async (req, res) => {
 
     return res.status(200).json(data);
   } catch (error) {
-    logger.error('Unexpected error fetching all expenses in endpoints/expenses.js', {
-      route: '/expenses/all',
-      method: 'GET',
-      requesterId: req.agent?.id,
-      error,
-    });
+    logger.error(
+      'Unexpected error fetching all expenses in endpoints/expenses.js',
+      {
+        route: '/expenses/all',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      },
+    );
     return res.status(500).json({ error: 'Failed to fetch expenses' });
   }
 });
 
-// GET /expenses — fetch the authenticated agent's expenses, optionally filtered by date range
 expensesRouter.get('/', async (req, res) => {
   const { startDate, endDate } = req.query;
 
@@ -90,17 +91,19 @@ expensesRouter.get('/', async (req, res) => {
 
     return res.status(200).json(data);
   } catch (error) {
-    logger.error('Unexpected error fetching expenses in endpoints/expenses.js', {
-      route: '/expenses',
-      method: 'GET',
-      requesterId: req.agent?.id,
-      error,
-    });
+    logger.error(
+      'Unexpected error fetching expenses in endpoints/expenses.js',
+      {
+        route: '/expenses',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error,
+      },
+    );
     return res.status(500).json({ error: 'Failed to fetch expenses' });
   }
 });
 
-// POST /expenses — create a new expense for the authenticated agent
 expensesRouter.post('/', async (req, res) => {
   const { name, amount } = req.body;
 
