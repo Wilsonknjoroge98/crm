@@ -15,6 +15,7 @@ const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 const { supabaseService } = require('./services/supabase');
+const { getHyrosSource } = require('./integrations/hyros');
 const {
   agentRouter,
   policyRouter,
@@ -32,7 +33,6 @@ const {
   carriersRouter,
   insightsRouter,
 } = require('./endpoints');
-const { send } = require('process');
 
 admin.initializeApp();
 app.use(
@@ -1167,10 +1167,10 @@ app.get('/commissions_legacy', async (req, res) => {
 // meta
 app.get('/ad-spend', async (req, res) => {
   const { startDate, endDate, mode } = req.query;
-  if (mode === 'development') {
-    console.log('Development mode: returning sample data');
-    return res.status(200).send({ total: Math.round(1234.56) });
-  }
+  // if (mode === 'development') {
+  //   console.log('Development mode: returning sample data');
+  //   return res.status(200).send({ total: Math.round(1234.56) });
+  // }
 
   if (!startDate || !endDate) {
     console.error('Missing startDate or endDate');
@@ -1633,6 +1633,48 @@ app.patch('/customer-account', async (req, res) => {
   console.log('Account details', account);
   res.status(200).json({ message: 'Account updated' });
 });
+
+// const updateHyrosSource = async () => {
+//   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+//   const { data: leads, error } = await supabaseService
+//     .from('leads')
+//     .select('*')
+//     .eq('lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba')
+//     .eq('gsq_source', null);
+
+//   if (error) {
+//     console.error('Error fetching leads from Supabase:', error);
+//     return;
+//   }
+
+//   for (const lead of leads) {
+//     await sleep(1000);
+//     try {
+//       const hyrosSource = await getHyrosSource(lead.email);
+
+//       if (!hyrosSource) {
+//         console.log(
+//           `No Hyros source found for lead ${lead.id} with email ${lead.email}`,
+//         );
+//         continue;
+//       }
+
+//       const { error: updateError } = await supabaseService
+//         .from('leads')
+//         .update({ gsq_source: hyrosSource ?? null })
+//         .eq('id', lead.id);
+//       if (updateError) {
+//         console.error('Error updating lead with Hyros source:', updateError);
+//         continue;
+//       }
+//       console.log(`Updated lead ${lead.id} with Hyros source: ${hyrosSource}`);
+//     } catch (error) {
+//       console.error('Error updating lead with Hyros source:', error);
+//     }
+//   }
+// };
+
+// updateHyrosSource();
 
 // const func = async () => {
 //   require('dotenv').config({

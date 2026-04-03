@@ -26,7 +26,7 @@ const Purchase = () => {
         alignItems='center'
         mb={3}
       >
-        <Typography variant='h4'>Purchase Leads</Typography>
+        <Typography variant='h4'>Marketplace</Typography>
       </Stack>
 
       <Stack direction='row' spacing={3} flexWrap='wrap'>

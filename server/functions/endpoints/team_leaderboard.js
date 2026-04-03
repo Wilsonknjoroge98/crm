@@ -5,8 +5,11 @@ const { supabaseService } = require('../services/supabase');
 // eslint-disable-next-line new-cap
 const teamLeaderboardRouter = express.Router();
 
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+
 teamLeaderboardRouter.get('/', async (req, res) => {
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, gsqOnly } = req.query;
+  const filterGsq = gsqOnly === 'true';
 
   try {
     logger.log('Getting team leaderboard', {
@@ -85,8 +88,19 @@ teamLeaderboardRouter.get('/', async (req, res) => {
 
       let policiesQuery = supabaseService
         .from('policies')
-        .select('premium_amount')
+        .select(
+          filterGsq
+            ? 'premium_amount, clients!policies_client_id_fkey!inner(leads!clients_lead_id_fkey!inner(lead_vendor_id))'
+            : 'premium_amount',
+        )
         .eq('writing_agent_id', agent.id);
+
+      if (filterGsq) {
+        policiesQuery = policiesQuery.eq(
+          'clients.leads.lead_vendor_id',
+          GSQ_LEAD_VENDOR_ID,
+        );
+      }
 
       if (startDate && endDate) {
         policiesQuery = policiesQuery

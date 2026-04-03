@@ -24,6 +24,7 @@ const Insights = () => {
   const [startDate, setStartDate] = useState(
     dayjs('2025-05-11').format('YYYY-MM-DD'),
   );
+
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   const { user } = useSelector((state) => state.user);

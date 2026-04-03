@@ -10,6 +10,8 @@ import {
   Container,
   Tab,
   Tabs,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 
 import DateSelector from '../components/DateSelector';
@@ -23,14 +25,21 @@ import Events from '../components/Events';
 import ProductionIntroDialog, {
   STORAGE_KEY,
 } from '../components/ProductionIntroDialog';
+import { useSelector } from 'react-redux';
+
+const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 
 const Production = () => {
+  const { user } = useSelector((state) => state.user);
+  const isSuperuser = user?.id === SUPERUSER_ID;
+
   const [startDate, setStartDate] = useState(
     dayjs().add(-180, 'day').format('YYYY-MM-DD'),
   );
   const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [gsqOnly, setGsqOnly] = useState(false);
   const [introOpen, setIntroOpen] = useState(
     () => localStorage.getItem(STORAGE_KEY) !== 'true',
   );
@@ -92,23 +101,41 @@ const Production = () => {
           </Grid>
         )}
 
-        {/* Search field — above leaderboard column only, leaving events column empty */}
+        {/* Search field + GSQ toggle — above leaderboard column */}
         {(value === 0 || value === 1) && (
           <Grid size={8}>
-            <TextField
-              size='small'
-              placeholder='Agent name'
-              value={nameFilter}
-              onChange={(e) => setNameFilter(e.target.value)}
-              sx={{ maxWidth: 280 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position='start'>
-                    <SearchIcon fontSize='small' />
-                  </InputAdornment>
-                ),
-              }}
-            />
+            <Stack direction='row' alignItems='center' spacing={2}>
+              <TextField
+                size='small'
+                placeholder='Agent name'
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+                sx={{ maxWidth: 280 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position='start'>
+                      <SearchIcon fontSize='small' />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {isSuperuser && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={gsqOnly}
+                      onChange={(e) => setGsqOnly(e.target.checked)}
+                      size='small'
+                    />
+                  }
+                  label={
+                    <Typography variant='body2' fontWeight={gsqOnly ? 600 : 400}>
+                      GSQ
+                    </Typography>
+                  }
+                />
+              )}
+            </Stack>
           </Grid>
         )}
 
@@ -122,6 +149,7 @@ const Production = () => {
                 endDate={endDate}
                 setSelectedAgent={setSelectedAgent}
                 setDrawerOpen={setDrawerOpen}
+                gsqOnly={gsqOnly}
               />
             </Grid>
             <Grid size={4}>

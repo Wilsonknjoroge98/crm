@@ -17,7 +17,7 @@ expensesRouter.get('/all', async (req, res) => {
 
     let query = supabaseService
       .from('expenses')
-      .select('id, agent_id, name, amount, created_at, updated_at')
+      .select('id, agent_id, name, amount, created_at, updated_at, date')
       .order('created_at', { ascending: false });
 
     if (startDate) {
@@ -105,10 +105,10 @@ expensesRouter.get('/', async (req, res) => {
 });
 
 expensesRouter.post('/', async (req, res) => {
-  const { name, amount } = req.body;
+  const { name, amount, date } = req.body;
 
-  if (!name || amount == null) {
-    return res.status(400).json({ error: 'Missing name or amount' });
+  if (!name || amount == null || !date) {
+    return res.status(400).json({ error: 'Missing name, amount, or date' });
   }
 
   try {
@@ -120,8 +120,8 @@ expensesRouter.post('/', async (req, res) => {
 
     const { data, error } = await supabaseService
       .from('expenses')
-      .insert({ agent_id: req.agent.id, name, amount: Number(amount) })
-      .select('id, agent_id, name, amount, created_at, updated_at')
+      .insert({ agent_id: req.agent.id, name, amount: Number(amount), date })
+      .select('id, agent_id, name, amount, date, created_at, updated_at')
       .single();
 
     if (error) {

@@ -1,4 +1,5 @@
 const axios = require('axios');
+const logger = require('firebase-functions/logger');
 
 const hyrosAgent = axios.create({
   baseURL: 'https://api.hyros.com/v1/api/v1.0',
@@ -34,22 +35,23 @@ const getHyrosSource = async (email) => {
 
     return source;
   } catch (error) {
-    console.error('Error fetching Hyros data:', error);
+    logger.error('Error fetching Hyros data:', error);
+    return null;
   }
 };
 const sendSaleToHyros = async (commission, client, policy) => {
   if (!client || !client.email || !client.phone) {
-    console.error('Missing client information for Hyros');
+    logger.error('Missing client information for Hyros');
     return;
   }
 
   if (!policy) {
-    console.error('Missing policy information for Hyros');
+    logger.error('Missing policy information for Hyros');
     return;
   }
 
   if (!commission || commission <= 0) {
-    console.error('Invalid commission amount for Hyros');
+    logger.error('Invalid commission amount for Hyros');
     return;
   }
 
@@ -72,7 +74,7 @@ const sendSaleToHyros = async (commission, client, policy) => {
 
   try {
     const hyrosResponse = await hyrosAgent.request(HYROS_BODY);
-    console.log('Hyros order created:', hyrosResponse.data);
+    logger.log('Hyros order created:', hyrosResponse.data);
   } catch (error) {
     console.error(
       'Error creating Hyros order:',

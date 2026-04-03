@@ -80,7 +80,7 @@ const getLeads = async ({ data }) => {
   const options = {
     method: 'GET',
     // signal: signal,
-    url: '/lead',
+    url: '/leads',
     params: {
       mode: import.meta.env.MODE,
     },
@@ -93,6 +93,8 @@ const getLeads = async ({ data }) => {
 
   try {
     const response = await apiClient.request(options);
+
+    console.log('Leads fetched:', response.data);
 
     return response.data;
   } catch (error) {
@@ -607,15 +609,17 @@ const deleteExpense = async ({ expenseId }) => {
   return response.data;
 };
 
-const postExpense = async ({ name, amount }) => {
-  if (!name || amount == null) {
-    throw new Error('Missing name or amount');
+const postExpense = async ({ name, amount, date }) => {
+  if (!name || amount == null || !date) {
+    throw new Error('Missing name, amount, or date for expense');
   }
+
+  console.log('Posting expense:', { name, amount, date });
 
   const controller = new AbortController();
   const options = {
     method: 'POST',
-    data: { name, amount },
+    data: { name, amount, date },
     signal: controller.signal,
     url: '/expenses',
   };
@@ -885,11 +889,11 @@ const getHierarchy = async ({ startDate, endDate } = {}) => {
   }
 };
 
-const getTeamLeaderboard = async ({ startDate, endDate }) => {
+const getTeamLeaderboard = async ({ startDate, endDate, gsqOnly }) => {
   const options = {
     method: 'GET',
     url: '/team-leaderboard',
-    params: { startDate, endDate, mode: import.meta.env.MODE },
+    params: { startDate, endDate, gsqOnly, mode: import.meta.env.MODE },
   };
   try {
     const response = await apiClient.request(options);
@@ -928,6 +932,11 @@ const getTeamSummary = async ({ startDate, endDate }) => {
     console.error('Error getting team summary:', error);
     throw error;
   }
+};
+
+const getInvites = async () => {
+  const response = await apiClient.request({ method: 'GET', url: '/invite' });
+  return response.data;
 };
 
 const createInvite = async () => {
@@ -976,6 +985,7 @@ export {
   getLeads,
   patchAccount,
   postError,
+  getInvites,
   createInvite,
   validateInvite,
   getLeadVendors,

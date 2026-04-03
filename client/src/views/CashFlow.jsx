@@ -53,7 +53,7 @@ const CashFlowSummary = () => {
   const [expenses, setExpenses] = useState([
     { name: 'Meta Ads', amount: 1000 },
   ]);
-  const [adSpend, setAdSpend] = useState(0);
+
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [startDate, setStartDate] = useState(
@@ -73,14 +73,14 @@ const CashFlowSummary = () => {
   };
 
   const { mutate: addExpense } = useMutation({
-    mutationFn: postExpense,
+    mutationFn: ({ name, amount, date }) => postExpense({ name, amount, date }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
   });
 
   const { mutate: destroyExpense } = useMutation({
-    mutationFn: deleteExpense,
+    mutationFn: (expenseId) => deleteExpense({ expenseId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
@@ -104,8 +104,6 @@ const CashFlowSummary = () => {
       console.error('Error fetching commissions data:', error);
     },
   });
-
-  console.log('Commissions data:', commissionsData);
 
   const {
     data: expensesData = [],
@@ -158,45 +156,24 @@ const CashFlowSummary = () => {
     isStripeLoading ||
     isAdSpendLoading;
 
-  useEffect(() => {
-    if (commissionsData) {
-      setInflow((prev) => ({
-        ...prev,
-        totalCommissions: commissionsData?.total || 0,
-        directCommissions: commissionsData?.direct || 0,
-        overridingCommissions: commissionsData?.overriding || 0,
-        splitCommissions: commissionsData?.split || 0,
-      }));
-    }
-  }, [commissionsData]);
+  const totalCommissions = commissionsData?.total || 0;
+  const directCommissions = commissionsData?.direct || 0;
+  const overridingCommissions = commissionsData?.overriding || 0;
+  const splitCommissions = commissionsData?.split || 0;
+  const stripe = stripeData?.total || 0;
+  const adSpend = adSpendData?.total || 0;
 
-  useEffect(() => {
-    if (stripeData) {
-      const stripeCharges = stripeData.total || 0;
-      console.log('Total stripe charges fetched:', stripeCharges);
-      setInflow((prev) => ({
-        ...prev,
-        leadPurchases: stripeCharges,
-      }));
-    }
-  }, [stripeData]);
+  const sortedExpenses = [...expensesData].sort(
+    (a, b) => (b?.amount || 0) - (a?.amount || 0),
+  );
 
-  useEffect(() => {
-    if (adSpendData) {
-      const totalAdSpend = adSpendData.total || 0;
-      setAdSpend(totalAdSpend);
-    }
-  }, [adSpendData]);
-
-  useEffect(() => {
-    console.log('Expenses data changed:', expensesData);
-    if (expensesData && Array.isArray(expensesData)) {
-      const sortedExpenses = [...expensesData].sort(
-        (a, b) => b?.amount - a?.amount,
-      );
-      setExpenses(sortedExpenses);
-    }
-  }, [expensesData]);
+  const totalInflow = totalCommissions + stripe;
+  const manualExpensesTotal = sortedExpenses.reduce(
+    (sum, e) => sum + (e.amount || 0),
+    0,
+  );
+  const totalExpenses = manualExpensesTotal + adSpend;
+  const netCashFlow = totalInflow - totalExpenses;
 
   const handleAddExpense = () => {
     if (expenseName && expenseAmount && expenseDate) {
@@ -212,16 +189,8 @@ const CashFlowSummary = () => {
   };
 
   const handleDeleteExpense = (expenseId) => {
-    destroyExpense({
-      expenseId,
-    });
+    destroyExpense(expenseId);
   };
-
-  const totalInflow =
-    (inflow?.totalCommissions || 0) + (inflow?.leadPurchases || 0);
-  const totalExpenses =
-    expenses.reduce((sum, e) => sum + e.amount, 0) + adSpend;
-  const netCashFlow = totalInflow - totalExpenses;
 
   return (
     <Container sx={{ mt: 4 }}>
@@ -231,59 +200,66 @@ const CashFlowSummary = () => {
         spacing={2}
         mb={2}
       >
-        <Typography variant='h4'>Cash Flow</Typography>
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <Box
-            display='flex'
-            justifyContent='space-between'
-            alignItems='center'
-          >
-            <Stack direction={'row'} spacing={2} alignItems='center'>
-              <DatePicker
-                label='Start Date'
-                value={startDate ? dayjs(startDate) : null}
-                onChange={handleStartChange}
-                slotProps={{
-                  textField: {
-                    size: 'small',
-                    variant: 'outlined',
-                    sx: { minWidth: 150 },
-                  },
-                }}
-              />
-              <DatePicker
-                label='End Date'
-                value={endDate ? dayjs(endDate) : null}
-                onChange={handleEndChange}
-                slotProps={{
-                  textField: {
-                    size: 'small',
-                    variant: 'outlined',
-                    sx: { minWidth: 150 },
-                  },
-                }}
-              />
-            </Stack>
-            <Button
-              variant='contained'
-              color='action'
-              startIcon={<RefreshIcon />}
-              onClick={() =>
-                Promise.all([
-                  refetchCommissions(),
-                  refetchStripe(),
-                  refetchAdSpend(),
-                  refetchExpenses(),
-                ])
-              }
-              sx={isLoading ? { opacity: 0.3 } : {}}
-              disabled={isLoading}
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent='space-between'
+          spacing={2}
+          mb={2}
+        >
+          <Typography variant='h4'>Cash Flow</Typography>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <Box
+              display='flex'
+              justifyContent='right'
+              alignItems='center'
+              gap={2}
             >
-              Refresh
-            </Button>
-          </Box>
-        </LocalizationProvider>
-
+              <Stack direction={'row'} spacing={1} alignItems='center'>
+                <DatePicker
+                  label='From'
+                  value={startDate ? dayjs(startDate) : null}
+                  onChange={handleStartChange}
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      variant: 'outlined',
+                      sx: { maxWidth: 175 },
+                    },
+                  }}
+                />
+                <DatePicker
+                  label='To'
+                  value={endDate ? dayjs(endDate) : null}
+                  onChange={handleEndChange}
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      variant: 'outlined',
+                      sx: { maxWidth: 175 },
+                    },
+                  }}
+                />
+              </Stack>
+              <Button
+                variant='contained'
+                color='action'
+                startIcon={<RefreshIcon />}
+                onClick={() =>
+                  Promise.all([
+                    refetchCommissions(),
+                    refetchStripe(),
+                    refetchAdSpend(),
+                    refetchExpenses(),
+                  ])
+                }
+                sx={isLoading ? { opacity: 0.3 } : {}}
+                disabled={isLoading}
+              >
+                Apply
+              </Button>
+            </Box>
+          </LocalizationProvider>
+        </Stack>
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <Card
             elevation={0}
@@ -300,13 +276,27 @@ const CashFlowSummary = () => {
                 Inflows
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography>Stripe</Typography>
+                {isStripeLoading || isStripeFetching ? (
+                  <Skeleton width={80} height={30} />
+                ) : (
+                  <Typography variant='subtitle1' fontWeight={600}>
+                    $
+                    {stripe.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Typography>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography>Commissions</Typography>
                 {isCommissionsLoading || isCommissionsFetching ? (
                   <Skeleton width={80} height={30} />
                 ) : (
                   <Typography variant='subtitle1' fontWeight={600}>
                     $
-                    {inflow?.totalCommissions?.toLocaleString('en-US', {
+                    {totalCommissions?.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
@@ -323,7 +313,7 @@ const CashFlowSummary = () => {
                     </Typography>
                     <Typography variant='caption' color='text.secondary'>
                       $
-                      {inflow?.directCommissions?.toLocaleString('en-US', {
+                      {directCommissions?.toLocaleString('en-US', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -337,7 +327,7 @@ const CashFlowSummary = () => {
                     </Typography>
                     <Typography variant='caption' color='text.secondary'>
                       $
-                      {inflow?.overridingCommissions?.toLocaleString('en-US', {
+                      {overridingCommissions?.toLocaleString('en-US', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -351,7 +341,7 @@ const CashFlowSummary = () => {
                     </Typography>
                     <Typography variant='caption' color='text.secondary'>
                       $
-                      {inflow?.splitCommissions?.toLocaleString('en-US', {
+                      {splitCommissions?.toLocaleString('en-US', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -359,21 +349,6 @@ const CashFlowSummary = () => {
                   </Box>
                 </Box>
               )}
-
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Lead Purchases</Typography>
-                {isStripeLoading || isStripeFetching ? (
-                  <Skeleton width={80} height={30} />
-                ) : (
-                  <Typography variant='subtitle1' fontWeight={600}>
-                    $
-                    {inflow?.leadPurchases?.toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </Typography>
-                )}
-              </Box>
 
               <Divider sx={{ my: 1 }} />
 
@@ -396,7 +371,7 @@ const CashFlowSummary = () => {
                 )}
               </Box>
 
-              {expenses.map((e, idx) => (
+              {sortedExpenses.map((e, idx) => (
                 <Box
                   key={idx}
                   sx={{ display: 'flex', justifyContent: 'space-between' }}
@@ -459,7 +434,7 @@ const CashFlowSummary = () => {
                   color='action'
                   onClick={handleAddExpense}
                   startIcon={<AddIcon />}
-                  disabled={!expenseName || !expenseAmount}
+                  disabled={!expenseName || !expenseAmount || !expenseDate}
                   sx={{ mt: 2, width: 'fit-content', alignSelf: 'flex-end' }}
                 >
                   Add Expense

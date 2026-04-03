@@ -96,7 +96,7 @@ clientRouter.get('/', async (req, res) => {
     const isSuperuser = req.agent.id === SUPERUSER_ID;
 
     logger.log('Getting clients for current agent only', {
-      route: '/clients/mine',
+      route: '/clients',
       method: 'GET',
       requesterId: req?.agent?.id,
       isSuperuser,
@@ -117,13 +117,20 @@ clientRouter.get('/', async (req, res) => {
             `,
         )
         .order('created_at', { ascending: false })
-        .limit(1000);
+        .limit(10000);
+
+      logger.log('Fetched clients for superuser successfully', {
+        route: '/clients',
+        method: 'GET',
+        requesterId: req.agent.id,
+        count: clients?.length || 0,
+      });
 
       if (error) {
         logger.error(
           'Error fetching all clients (superuser) in endpoints/clients.js',
           {
-            route: '/clients/mine',
+            route: '/clients',
             method: 'GET',
             requesterId: req.agent.id,
             error,
@@ -167,7 +174,7 @@ clientRouter.get('/', async (req, res) => {
 
     if (linksError) {
       logger.error('Error fetching agent_clients in endpoints/clients.js', {
-        route: '/clients/mine',
+        route: '/clients',
         method: 'GET',
         requesterId: req.agent.id,
         error: linksError,
@@ -207,7 +214,7 @@ clientRouter.get('/', async (req, res) => {
       )
       .in('id', clientIds)
       .order('created_at', { ascending: false })
-      .limit(1000);
+      .limit(10000);
 
     if (error) {
       logger.error('Error fetching own clients in endpoints/clients.js', {

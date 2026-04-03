@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
 const dayjs = require('dayjs');
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const leadRouter = express.Router();
@@ -15,11 +16,19 @@ leadRouter.get('/', async (req, res) => {
       requesterId: req.agent?.id,
     });
 
-    const { data: leads, error } = await req.supabase
+    const isSuperuser = req.agent?.id === SUPERUSER_ID;
+
+    let query = supabaseService
       .from('leads')
       .select('*, lead_vendors ( name )')
       .order('created_at', { ascending: false })
-      .limit(1000);
+      .limit(10000);
+
+    if (!isSuperuser) {
+      query = query.eq('agent_id', req.agent?.id);
+    }
+
+    const { data: leads, error } = await query;
 
     if (error) {
       logger.error('Error fetching leads in endpoints/leads.js', {
@@ -38,10 +47,7 @@ leadRouter.get('/', async (req, res) => {
       count: leads?.length || 0,
     });
 
-    const isSuperuser = req.agent?.id === SUPERUSER_ID;
-    const agentLeads = isSuperuser
-      ? leads
-      : leads.filter((lead) => lead.agent_id === req.agent?.id);
+    const agentLeads = leads ?? [];
 
     const formattedLeads = agentLeads.map((lead) => {
       const leadVendorName = lead.lead_vendors ? lead.lead_vendors.name : null;
