@@ -6,6 +6,8 @@ const { supabaseService } = require('../services/supabase');
 const teamLeaderboardRouter = express.Router();
 
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+const TOP_LEVEL_AGENT_ID = '3d670459-8730-42f9-8b98-08c34f98f4a6';
 
 teamLeaderboardRouter.get('/', async (req, res) => {
   const { startDate, endDate, gsqOnly } = req.query;
@@ -36,8 +38,11 @@ teamLeaderboardRouter.get('/', async (req, res) => {
         .json({ error: 'Failed to fetch agents for team leaderboard' });
     }
 
+    const rootAgentId =
+      req.agent?.id === SUPERUSER_ID ? TOP_LEVEL_AGENT_ID : req.agent?.id;
+
     const downlineIds = new Set();
-    const queue = [req.agent.id];
+    const queue = [rootAgentId];
     while (queue.length > 0) {
       const currentId = queue.shift();
       if (downlineIds.has(currentId)) continue;
@@ -47,97 +52,75 @@ teamLeaderboardRouter.get('/', async (req, res) => {
       }
     }
     const downlineAgents = allAgents.filter((a) => downlineIds.has(a.id));
+    logger.log(`Found ${downlineAgents.length} downline agents`, {
+      route: '/team-leaderboard',
+      method: 'GET',
+      requesterId: req.agent?.id,
+    });
 
-    const teamLeaderboard = [];
+    const downlineIdList = [...downlineIds];
 
-    for (const agent of downlineAgents) {
+    // Single bulk policies query for the entire downline
+    let policiesQuery = supabaseService
+      .from('policies')
+      .select(
+        filterGsq
+          ? 'writing_agent_id, premium_amount, clients!policies_client_id_fkey!inner(leads!clients_lead_id_fkey!inner(lead_vendor_id))'
+          : 'writing_agent_id, premium_amount',
+      )
+      .in('writing_agent_id', downlineIdList)
+      .limit(50000);
+
+    if (filterGsq) {
+      policiesQuery = policiesQuery.eq(
+        'clients.leads.lead_vendor_id',
+        GSQ_LEAD_VENDOR_ID,
+      );
+    }
+
+    if (startDate && endDate) {
+      policiesQuery = policiesQuery
+        .gte('sold_date', startDate)
+        .lte('sold_date', endDate);
+    }
+
+    const { data: allPolicies, error: policiesError } = await policiesQuery;
+
+    if (policiesError) {
+      logger.error('Error fetching policies in endpoints/team_leaderboard.js', {
+        route: '/team-leaderboard',
+        method: 'GET',
+        requesterId: req.agent?.id,
+        error: policiesError,
+      });
+      return res.status(500).json({ error: 'Failed to fetch policies' });
+    }
+
+    // Group policies by agent in JS
+    const policiesByAgent = {};
+    for (const policy of allPolicies || []) {
+      const aid = policy.writing_agent_id;
+      if (!policiesByAgent[aid]) policiesByAgent[aid] = [];
+      policiesByAgent[aid].push(policy);
+    }
+
+    const teamLeaderboard = downlineAgents.map((agent) => {
       const agentName =
         `${agent.first_name || ''} ${agent.last_name || ''}`.trim();
-
-      let clientsQuery = supabaseService
-        .from('clients')
-        .select(
-          'id, agent_clients!agent_clients_client_id_fkey!inner(agent_id)',
-          { count: 'exact', head: true },
-        )
-        .eq('agent_clients.agent_id', agent.id);
-
-      if (startDate && endDate) {
-        clientsQuery = clientsQuery
-          .gte('created_at', `${startDate}T00:00:00`)
-          .lte('created_at', `${endDate}T23:59:59.999`);
-      }
-
-      const { error: clientsError } = await clientsQuery;
-
-      if (clientsError) {
-        logger.error(
-          'Error fetching clients count in endpoints/team_leaderboard.js',
-          {
-            route: '/team-leaderboard',
-            method: 'GET',
-            requesterId: req.agent?.id,
-            targetAgentId: agent.id,
-            error: clientsError,
-          },
-        );
-        return res
-          .status(500)
-          .json({ error: 'Failed to fetch clients for team leaderboard' });
-      }
-
-      let policiesQuery = supabaseService
-        .from('policies')
-        .select(
-          filterGsq
-            ? 'premium_amount, clients!policies_client_id_fkey!inner(leads!clients_lead_id_fkey!inner(lead_vendor_id))'
-            : 'premium_amount',
-        )
-        .eq('writing_agent_id', agent.id);
-
-      if (filterGsq) {
-        policiesQuery = policiesQuery.eq(
-          'clients.leads.lead_vendor_id',
-          GSQ_LEAD_VENDOR_ID,
-        );
-      }
-
-      if (startDate && endDate) {
-        policiesQuery = policiesQuery
-          .gte('sold_date', startDate)
-          .lte('sold_date', endDate);
-      }
-
-      const { data: agentPolicies, error: policiesError } = await policiesQuery;
-
-      if (policiesError) {
-        logger.error(
-          'Error fetching policies in endpoints/team_leaderboard.js',
-          {
-            route: '/team-leaderboard',
-            method: 'GET',
-            requesterId: req.agent?.id,
-            targetAgentId: agent.id,
-            error: policiesError,
-          },
-        );
-        return res.status(500).json({ error: 'Failed to fetch policies' });
-      }
-
-      const totalPolicies = agentPolicies?.length || 0;
-      const totalPremium = (agentPolicies || []).reduce((sum, policy) => {
-        return sum + (Number(policy.premium_amount) || 0);
-      }, 0);
-
-      teamLeaderboard.push({
+      const agentPolicies = policiesByAgent[agent.id] || [];
+      const totalPolicies = agentPolicies.length;
+      const totalPremium = agentPolicies.reduce(
+        (sum, p) => sum + (Number(p.premium_amount) || 0),
+        0,
+      );
+      return {
         agentId: agent.id,
         name: agentName,
-        // clients: clientsCount || 0,
         policies: totalPolicies,
         premium: totalPremium * 12,
         avgPremium: totalPolicies > 0 ? (totalPremium * 12) / totalPolicies : 0,
-      });
-    }
+      };
+    });
 
     teamLeaderboard.sort((a, b) => b.premium - a.premium);
 

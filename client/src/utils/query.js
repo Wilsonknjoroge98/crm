@@ -919,11 +919,11 @@ const getPersonalSummary = async ({ startDate, endDate }) => {
   }
 };
 
-const getTeamSummary = async ({ startDate, endDate }) => {
+const getTeamSummary = async ({ startDate, endDate, gsqOnly }) => {
   const options = {
     method: 'GET',
     url: '/summary/team',
-    params: { startDate, endDate, mode: import.meta.env.MODE },
+    params: { startDate, endDate, gsqOnly, mode: import.meta.env.MODE },
   };
   try {
     const response = await apiClient.request(options);

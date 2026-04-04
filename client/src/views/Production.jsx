@@ -92,7 +92,7 @@ const Production = () => {
         {/* Summary stats — full-width top row */}
         {value === 0 && (
           <Grid size={12}>
-            <TeamSummary startDate={startDate} endDate={endDate} />
+            <TeamSummary startDate={startDate} endDate={endDate} gsqOnly={gsqOnly} />
           </Grid>
         )}
         {value === 1 && (

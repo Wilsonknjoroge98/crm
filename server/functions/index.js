@@ -6,7 +6,11 @@ const { updatePolicyStatus } = require('./jobs/update_policy_status');
 
 const expressApp = require('./server.js');
 
-exports.app = functions.https.onRequest(expressApp);
+exports.app = functions.https.onRequest(
+  { timeoutSeconds: 120, memory: '512MiB' },
+  expressApp,
+);
+
 exports.newLead = functions.https.onRequest(inboundGSQ);
 
 exports.updatePolicyStatus = onSchedule(
