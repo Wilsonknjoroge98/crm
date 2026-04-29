@@ -56,6 +56,44 @@ const App = () => {
     }
   }, [authInitialized, isAuthenticated]);
 
+  console.log('Agent status:', agent);
+
+  useEffect(() => {
+    if (!authInitialized) return;
+
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [agent]);
+
+  if (agent && agent?.active === false) {
+    return (
+      <ThemeProvider theme={theme}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh',
+            gap: 2,
+            px: 3,
+            textAlign: 'center',
+            backgroundColor: theme.palette.background.default,
+          }}
+        >
+          <Typography variant='h5' fontWeight={700}>
+            Account Deactivated
+          </Typography>
+          <Typography variant='body1' color='text.secondary' maxWidth={400}>
+            Your account has been deactivated. Please contact your upline for
+            assistance.
+          </Typography>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
       {user && !isPublicRoute && <NavBar />}

@@ -10,6 +10,7 @@ const useAgent = () => {
     queryFn: () => getAgent({ data: { id } }),
   });
   if (!agent) return agent;
+  if (agent.active === false) return agent;
   return {
     ...agent,
     name: [agent.first_name, agent.last_name].filter(Boolean).join(' '),

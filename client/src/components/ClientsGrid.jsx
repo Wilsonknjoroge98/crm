@@ -2,14 +2,7 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
-import {
-  Stack,
-  Typography,
-  Chip,
-  Popover,
-  Box,
-  Divider,
-} from '@mui/material';
+import { Stack, Typography, Chip, Popover, Box, Divider } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
@@ -52,48 +45,64 @@ export default function ClientsGrid({
     setPopoverPolicies([]);
   };
 
-  const rows = clients.map((client) => {
-    return {
-      ...client,
-      fullName: `${client.first_name || ''} ${client.last_name || ''}`.trim(),
-    };
-  });
+  const rows = Array.isArray(clients)
+    ? clients.map((client) => {
+        return {
+          ...client,
+          fullName:
+            `${client.first_name || ''} ${client.last_name || ''}`.trim(),
+        };
+      })
+    : [];
 
   const columns = React.useMemo(() => {
     const cols = [];
 
+    cols.push({
+      field: 'created_at',
+      headerName: 'Created',
+      filterable: true,
+      sortable: true,
+      width: 170,
+      renderCell: (params) => {
+        return params.value
+          ? new Date(params.value).toLocaleString()
+          : 'unknown';
+      },
+      sortComparator: (v1, v2) => {
+        const a = v1 ? new Date(v1).getTime() : 0;
+        const b = v2 ? new Date(v2).getTime() : 0;
+        return a - b;
+      },
+    });
+
     if (isAdmin) {
-      cols.push({
-        field: 'agent_name',
-        headerName: 'Agent',
-        flex: 1,
-        width: 100,
-        sortable: true,
-        filterable: true,
-        renderCell: (params) => (
-          <Typography variant='caption'>{params.value}</Typography>
-        ),
-      });
+      cols.push(
+        {
+          field: 'agent_name',
+          headerName: 'Agent',
+
+          width: 100,
+          sortable: true,
+          filterable: true,
+          renderCell: (params) => (
+            <Typography variant='caption'>{params.value}</Typography>
+          ),
+        },
+        {
+          field: 'gsq_source',
+          headerName: 'Ad Source',
+          width: 150,
+          sortable: true,
+          filterable: true,
+          renderCell: (params) => (
+            <Typography variant='caption'>{params.value || '—'}</Typography>
+          ),
+        },
+      );
     }
 
     cols.push(
-      {
-        field: 'created_at',
-        headerName: 'Created',
-        filterable: true,
-        sortable: true,
-        width: 170,
-        renderCell: (params) => {
-          return params.value
-            ? new Date(params.value).toLocaleString()
-            : 'unknown';
-        },
-        sortComparator: (v1, v2) => {
-          const a = v1 ? new Date(v1).getTime() : 0;
-          const b = v2 ? new Date(v2).getTime() : 0;
-          return a - b;
-        },
-      },
       {
         field: 'fullName',
         headerName: 'Name',
@@ -123,8 +132,8 @@ export default function ClientsGrid({
       {
         field: 'contact',
         headerName: 'Contact',
-        flex: 1,
-        width: 225,
+
+        width: 200,
         sortable: true,
         filterable: true,
         valueGetter: (value, row) => {
@@ -244,7 +253,11 @@ export default function ClientsGrid({
                   label={`+${overflow}`}
                   size='small'
                   onClick={(e) => handleOverflowClick(e, policies)}
-                  sx={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}
+                  sx={{
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                  }}
                 />
               )}
             </Stack>

@@ -22,17 +22,10 @@ const inboundGSQ = async (req, res) => {
 
     logger.info('Received GSQ lead:', req.body);
 
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      state,
-      dob,
-      gsqId,
-      issuedTo,
-      sold,
-    } = req.body;
+    const { firstName, lastName, phone, state, email, dob, gsqId, sold } =
+      req.body;
+
+    let issuedTo = req.body.issuedTo;
 
     if (
       !firstName ||
@@ -56,22 +49,26 @@ const inboundGSQ = async (req, res) => {
       .single();
 
     const GSQ_PLATFORM_EMAIL = 'hello@getseniorquotes.com';
+
+    // If the lead is issued to the GSQ platform email, override the email to match company
+    if (issuedTo === GSQ_PLATFORM_EMAIL) {
+      issuedTo = 'info@finalexpensedigital.com';
+    }
+
     let agentId = null;
 
-    if (issuedTo !== GSQ_PLATFORM_EMAIL) {
-      const { data: agent, error: agentError } = await supabaseService
-        .from('agents')
-        .select('id')
-        .eq('email', issuedTo)
-        .single();
+    const { data: agent, error: agentError } = await supabaseService
+      .from('agents')
+      .select('id')
+      .eq('email', issuedTo)
+      .single();
 
-      if (agentError || !agent) {
-        logger.error('Invalid agent email:', { issuedTo, error: agentError });
-        return res.status(400).send({ message: 'Invalid agent email' });
-      }
-
-      agentId = agent.id;
+    if (agentError || !agent) {
+      logger.error('Invalid agent email:', { issuedTo, error: agentError });
+      return res.status(422).send({ message: 'Invalid agent email' });
     }
+
+    agentId = agent.id;
 
     const lead = { ...req.body };
 

@@ -7,8 +7,10 @@ import {
   Typography,
   Switch,
   IconButton,
-  Alert,
+  Link,
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -37,13 +39,13 @@ const AccountDetails = ({ data }) => {
     : 'N/A';
 
   const agent = useAgent();
-  console.log('Agent from AccountDetails:', agent);
+  // console.log('Agent from AccountDetails:', agent);
   const queryClient = useQueryClient();
 
   const [deliver, setDeliver] = useState(data?.deliver);
   const [states, setStates] = useState(data?.states || []);
 
-  const { mutate, isPending } = useMutation({
+  const { mutate, isPending, isError, isSuccess } = useMutation({
     mutationFn: patchAccount,
     onSuccess: () => {
       enqueueSnackbar('Account updated!', SNACKBAR_SUCCESS_OPTIONS);
@@ -58,6 +60,8 @@ const AccountDetails = ({ data }) => {
     },
   });
 
+  const isSettled = isError || isSuccess;
+
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -68,6 +72,73 @@ const AccountDetails = ({ data }) => {
       console.error('Sign-out error:', error);
     }
   };
+  const crmStatuses = [
+    {
+      label: 'Ringy',
+      connected:
+        data?.ringyEnabled === true &&
+        typeof data?.ringySid === 'string' &&
+        data.ringySid.length > 0 &&
+        typeof data?.ringyToken === 'string' &&
+        data.ringyToken.length > 0,
+    },
+    { label: 'Sendblue', connected: data?.sendBlueEnabled === true },
+    // { label: 'GHL', connected: data?.ghlEnabled === true },
+    // { label: 'InsurDial', connected: data?.insurDialEnabled === true },
+  ];
+
+  if (!data && isSettled) {
+    return (
+      <Stack spacing={1.5} minWidth={250}>
+        <Typography variant='body2' fontWeight='bold'>
+          No Account Found
+        </Typography>
+        <Typography variant='caption' color='text.secondary'>
+          It looks like you haven&apos;t purchased leads yet. Once you complete
+          your purchase, your account will be created and you can configure your
+          states and control your lead flow.{' '}
+          <strong>Make sure to use the same email for your purchase.</strong>
+        </Typography>
+        <Button
+          variant='contained'
+          onClick={() =>
+            window.open(
+              'https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p',
+              '_blank',
+            )
+          }
+          sx={{ mt: 1 }}
+          // href='https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p'
+          // target='_blank'
+          // rel='noopener noreferrer'
+          // variant='body2'
+          // underline='always'
+        >
+          Purchase Leads
+        </Button>
+        <Divider flexItem />
+        <Stack direction='column' spacing={0.1}>
+          <Button
+            // endIcon={<LogoutOutlinedIcon />}
+            size='small'
+            color='error'
+            onClick={handleSignOut}
+          >
+            Sign Out
+          </Button>
+          <Button
+            size='small'
+            color='inherit'
+            onClick={() => navigate('/reset-password')}
+            sx={{ color: 'text.secondary' }}
+          >
+            Reset Password
+          </Button>
+        </Stack>
+      </Stack>
+    );
+  }
+
   return (
     <>
       <UpdateStatesDialog
@@ -77,6 +148,9 @@ const AccountDetails = ({ data }) => {
         mutate={mutate}
       />
       <Stack spacing={1} minWidth={250}>
+        <Typography variant='caption' color='text.secondary' fontWeight='bold'>
+          Leads
+        </Typography>
         <Stack direction='row' spacing={1} justifyContent='space-between'>
           <Typography variant='body2'>Outstanding Leads:</Typography>
           <Typography variant='body2' fontWeight='bold'>
@@ -98,13 +172,54 @@ const AccountDetails = ({ data }) => {
 
         <Divider flexItem />
 
-        <Stack spacing={1} py={1}>
+        <Typography variant='caption' color='text.secondary' fontWeight='bold'>
+          Integrations
+        </Typography>
+        {crmStatuses.map(({ label, connected }) => (
+          <Stack
+            key={label}
+            direction='row'
+            spacing={1}
+            justifyContent='space-between'
+            alignItems='center'
+          >
+            <Typography variant='body2'>{label}:</Typography>
+            <Box display='flex' alignItems='center' gap={0.5}>
+              {connected ? (
+                <CheckCircleIcon
+                  sx={{ fontSize: '1rem', color: 'success.main' }}
+                />
+              ) : (
+                <CancelIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />
+              )}
+              <Typography
+                variant='caption'
+                color={connected ? 'success.main' : 'text.disabled'}
+              >
+                {connected ? 'Connected' : 'Not Connected'}
+              </Typography>
+            </Box>
+          </Stack>
+        ))}
+
+        <Divider flexItem />
+        <Stack
+          direction='row'
+          justifyContent='space-between'
+          alignItems='center'
+        >
+          <Typography
+            variant='caption'
+            color='text.secondary'
+            fontWeight='bold'
+          >
+            States
+          </Typography>
           <Box
             display='flex'
             alignItems='center'
             justifyContent='space-between'
           >
-            <Typography variant='body2'>States:</Typography>
             <IconButton
               size='small'
               color='primary'
@@ -113,7 +228,8 @@ const AccountDetails = ({ data }) => {
               <EditIcon sx={{ fontSize: '1.5rem' }} />
             </IconButton>
           </Box>
-
+        </Stack>
+        <Stack spacing={1} py={1}>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
             {data?.states?.map((state) => (
               <Chip key={state} size='small' label={state} />
@@ -142,7 +258,7 @@ const AccountDetails = ({ data }) => {
               },
             }}
             checked={deliver}
-            disabled={!data || isPending}
+            disabled={isPending}
             onChange={(e) => {
               const newValue = e.target.checked;
               setDeliver(newValue);
@@ -157,13 +273,7 @@ const AccountDetails = ({ data }) => {
           <Typography variant='body2'>{formattedDate}</Typography>
         </Stack>
         <Divider flexItem />
-        {!data && (
-          <Alert severity='error'>
-            <Typography variant='caption'>
-              Unable to load account details
-            </Typography>
-          </Alert>
-        )}
+
         <Stack direction='column' spacing={0.5}>
           <Button
             endIcon={<LogoutOutlinedIcon />}

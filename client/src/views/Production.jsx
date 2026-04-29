@@ -92,7 +92,11 @@ const Production = () => {
         {/* Summary stats — full-width top row */}
         {value === 0 && (
           <Grid size={12}>
-            <TeamSummary startDate={startDate} endDate={endDate} gsqOnly={gsqOnly} />
+            <TeamSummary
+              startDate={startDate}
+              endDate={endDate}
+              gsqOnly={gsqOnly}
+            />
           </Grid>
         )}
         {value === 1 && (
@@ -129,7 +133,10 @@ const Production = () => {
                     />
                   }
                   label={
-                    <Typography variant='body2' fontWeight={gsqOnly ? 600 : 400}>
+                    <Typography
+                      variant='body2'
+                      fontWeight={gsqOnly ? 600 : 400}
+                    >
                       GSQ
                     </Typography>
                   }

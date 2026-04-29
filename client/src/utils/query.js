@@ -117,7 +117,7 @@ const patchAccount = async ({ data }) => {
   const options = {
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
-    url: '/customer-account',
+    url: '/gsq-account',
   };
   try {
     const response = await apiClient.request(options);
@@ -134,7 +134,7 @@ const getAccount = async ({ email }) => {
   const options = {
     method: 'GET',
     // signal: signal,
-    url: '/customer-account',
+    url: '/gsq-account',
     params: {
       email: email,
       mode: import.meta.env.MODE,
@@ -544,10 +544,14 @@ const getAgent = async ({ data }) => {
 
     return response.data;
   } catch (error) {
-    // Rethrow for React Query to recognize it
     if (axios.isAxiosError(error)) {
-      // Optional: normalize structure
       const status = error.response?.status ?? 500;
+      if (
+        status === 403 &&
+        error.response?.data?.error === 'Account deactivated'
+      ) {
+        return { active: false };
+      }
       const message = error.response?.data?.message || error.message;
       const err = new Error(message);
       err.status = status;

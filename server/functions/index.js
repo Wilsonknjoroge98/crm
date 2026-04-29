@@ -3,6 +3,7 @@ const { onSchedule } = require('firebase-functions/scheduler');
 
 const { inboundGSQ } = require('./integrations/GSQ');
 const { updatePolicyStatus } = require('./jobs/update_policy_status');
+const { weeklyLeaderboard } = require('./jobs/leaderboard_slack');
 
 const expressApp = require('./server.js');
 
@@ -15,8 +16,16 @@ exports.newLead = functions.https.onRequest(inboundGSQ);
 
 exports.updatePolicyStatus = onSchedule(
   {
-    schedule: '0 * * * *',
+    schedule: '0 0 * * *',
     timeZone: 'America/Los_Angeles',
   },
   updatePolicyStatus,
+);
+
+exports.weeklyLeaderboard = onSchedule(
+  {
+    schedule: '0 8 * * 1',
+    timeZone: 'America/New_York',
+  },
+  weeklyLeaderboard,
 );

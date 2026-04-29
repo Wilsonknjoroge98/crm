@@ -33,7 +33,7 @@ import {
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 
-const LEVELS = Array.from({ length: 13 }, (_, i) => 80 + i * 5); // 80–140
+const LEVELS = Array.from({ length: 13 }, (_, i) => 65 + i * 5); // 65–125
 
 const Agents = () => {
   const [page, setPage] = useState(0);

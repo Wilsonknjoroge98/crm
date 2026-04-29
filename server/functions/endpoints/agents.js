@@ -18,9 +18,15 @@ agentRouter.get('/all', async (req, res) => {
     requesterId: req.agent?.id,
   });
 
-  const { data: agents, error } = await supabaseService
+  const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+
+  let { data: agents, error } = await supabaseService
     .from('agents')
     .select('*');
+
+  if (req.agent?.id !== SUPERUSER_ID) {
+    agents = agents.filter((a) => a.org_id === req.agent?.org_id);
+  }
 
   if (error) {
     logger.warn('Error fetching agents in endpoints/agents.js', {

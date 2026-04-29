@@ -91,6 +91,11 @@ const authMiddleware = async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    if (agent && agent.active === false) {
+      logger.warn('Blocked deactivated agent', { id: user.id });
+      return res.status(403).json({ error: 'Account deactivated' });
+    }
+
     req.user = {
       id: user.id,
       role: profile.role,

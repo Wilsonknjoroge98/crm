@@ -1,11 +1,17 @@
 const { supabaseService } = require('../services/supabase');
+const dayjs = require('dayjs');
+const logger = require('firebase-functions/logger');
 
 const updatePolicyStatus = async () => {
-    // get all policies that are not sold and effective_date lte today and set to sold
-    const todaysDate = new Date().toISOString().split('T')[0];
-    const { error } = await supabaseService.from('policies')
-        .update({ policy_status: 'effective' })
-        .lte('effective_date', todaysDate);
+  const todaysDate = dayjs().format('YYYY-MM-DD');
+  const { error } = await supabaseService
+    .from('policies')
+    .update({ policy_status: 'active' })
+    .eq('effective_date', todaysDate);
+
+  if (error) {
+    logger.error('Error updating policy status:', error);
+  }
 };
 
 module.exports = { updatePolicyStatus };

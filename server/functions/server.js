@@ -15,7 +15,6 @@ const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 const { supabaseService } = require('./services/supabase');
-const { getHyrosSource } = require('./integrations/hyros');
 const {
   agentRouter,
   policyRouter,
@@ -32,6 +31,7 @@ const {
   leadVendorsRouter,
   carriersRouter,
   insightsRouter,
+  gsqRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -55,7 +55,7 @@ app.use(authMiddleware);
 app.use('/agent', agentRouter);
 app.use('/invite', inviteRouter);
 app.use('/policy', policyRouter);
-app.use('/lead', leadRouter);
+app.use('/leads', leadRouter);
 app.use('/client', clientRouter);
 app.use('/lead-vendors', leadVendorsRouter);
 app.use('/carriers', carriersRouter);
@@ -66,6 +66,7 @@ app.use('/events', eventsRouter);
 app.use('/expenses', expensesRouter);
 app.use('/leaderboard', leaderboardRouter);
 app.use('/insights', insightsRouter);
+app.use('/gsq-account', gsqRouter);
 
 // const isEmulator =
 //   !!process.env.FIRESTORE_EMULATOR_HOST ||
@@ -1306,126 +1307,6 @@ app.get('/stripe-charges', async (req, res) => {
   }
 });
 
-// webhook to receive leads from GetSeniorQuotes.com
-app.post('/gsq-lead', async (req, res) => {
-  const auth = req.headers['authorization']?.split(' ')[1];
-
-  if (auth !== process.env.GSQ_TOKEN) {
-    return res.status(401).send({ message: 'Unauthorized' });
-  }
-
-  const {
-    firstName,
-    lastName,
-    email,
-    phone,
-    dob,
-    leadSource,
-    issuedTo,
-    state,
-    sold,
-  } = req.body;
-
-  if (
-    !firstName ||
-    !lastName ||
-    !email ||
-    !phone ||
-    !dob ||
-    !leadSource ||
-    !issuedTo ||
-    !state ||
-    sold === undefined
-  ) {
-    return res.status(400).send({ message: 'Missing required fields' });
-  }
-
-  const getHyrosSource = async (email) => {
-    const HYROS_BODY = {
-      method: 'GET',
-      url: 'https://api.hyros.com/v1/api/v1.0/leads',
-      headers: {
-        'Content-Type': 'application/json',
-        'API-Key': process.env.HYROS_SECRET_KEY,
-      },
-      params: {
-        emails: email,
-      },
-    };
-
-    try {
-      const response = await axios.request(HYROS_BODY);
-      const hyrosData = response.data.result[0] || [];
-
-      let source = hyrosData?.lastSource?.sourceLinkAd?.name || null;
-
-      if (!source) {
-        source = hyrosData?.firstSource?.sourceLinkAd?.name || null;
-
-        if (!source) {
-          source =
-            hyrosData.lastSource?.name ||
-            hyrosData.firstSource?.name ||
-            'unknown';
-        }
-      }
-
-      return source;
-    } catch (error) {
-      console.error('Error fetching Hyros data:', error);
-    }
-  };
-
-  try {
-    const db = new Firestore();
-    const leadsRef = db.collection('leads');
-
-    const leadPhoneSnap = await db
-      .collection('leads')
-      .where('phone', '==', phone)
-      .get();
-
-    if (!leadPhoneSnap.empty) {
-      await leadPhoneSnap.docs[0].ref.update({ issuedTo });
-      return res
-        .status(409)
-        .send({ message: 'Lead with this phone number already exists' });
-    }
-
-    const leadEmailSnap = await db
-      .collection('leads')
-      .where('email', '==', email)
-      .get();
-
-    if (!leadEmailSnap.empty) {
-      await leadEmailSnap.docs[0].ref.update({ issuedTo });
-      return res
-        .status(409)
-        .send({ message: 'Lead with this email already exists' });
-    }
-
-    const hyrosSource = await getHyrosSource(email);
-
-    await leadsRef.add({
-      firstName,
-      lastName,
-      email,
-      phone,
-      dob,
-      issuedTo,
-      leadSource,
-      source: hyrosSource,
-      sold,
-      createdAt: Timestamp.now(),
-    });
-
-    res.status(201).send({ message: 'Lead saved successfully' });
-  } catch (error) {
-    console.error('Error saving lead:', error);
-    res.status(500).send({ message: 'Failed to save lead' });
-  }
-});
-
 // const sendPasswordResetEmail = async (email) => {
 //   const { error } = await supabaseService.auth.resetPasswordForEmail(email, {
 //     redirectTo: 'https://crm-dev-dde35.web.app/reset-password',
@@ -1540,6 +1421,7 @@ app.post('/expense', async (req, res) => {
     res.status(500).json({ error: 'Failed to create expense' });
   }
 });
+
 app.post('/error', async (req, res) => {
   const { message, stack, route, uid } = req.body;
 
@@ -1634,187 +1516,42 @@ app.patch('/customer-account', async (req, res) => {
   res.status(200).json({ message: 'Account updated' });
 });
 
-// const updateHyrosSource = async () => {
-//   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-//   const { data: leads, error } = await supabaseService
-//     .from('leads')
-//     .select('*')
-//     .eq('lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba')
-//     .eq('gsq_source', null);
+// const genMagicLink = async (email) => {
+//   try {
+//     const { data, error } = await supabaseService.auth.admin.generateLink({
+//       type: 'magiclink',
+//       email,
+//     });
+
+//     console.log('Magic link generated:', data);
+//     if (error) {
+//       console.error('Error generating magic link:', error);
+//       throw error;
+//     }
+//   } catch (error) {
+//     console.error('Error in genMagicLink:', error);
+//     throw error;
+//   }
+// };
+
+// genMagicLink('samanthaplife@gmail.com').finally(() => {
+//   console.log('Magic link generation complete');
+// });
+
+// const updatePassword = async (uuid, newPassword) => {
+//   const { data, error } = await supabaseService.auth.admin.updateUserById(
+//     uuid,
+//     { password: newPassword },
+//   );
+
+//   console.log('Password update response:', data);
 
 //   if (error) {
-//     console.error('Error fetching leads from Supabase:', error);
-//     return;
-//   }
-
-//   for (const lead of leads) {
-//     await sleep(1000);
-//     try {
-//       const hyrosSource = await getHyrosSource(lead.email);
-
-//       if (!hyrosSource) {
-//         console.log(
-//           `No Hyros source found for lead ${lead.id} with email ${lead.email}`,
-//         );
-//         continue;
-//       }
-
-//       const { error: updateError } = await supabaseService
-//         .from('leads')
-//         .update({ gsq_source: hyrosSource ?? null })
-//         .eq('id', lead.id);
-//       if (updateError) {
-//         console.error('Error updating lead with Hyros source:', updateError);
-//         continue;
-//       }
-//       console.log(`Updated lead ${lead.id} with Hyros source: ${hyrosSource}`);
-//     } catch (error) {
-//       console.error('Error updating lead with Hyros source:', error);
-//     }
+//     console.error('Error updating password:', error);
+//     throw error;
 //   }
 // };
 
-// updateHyrosSource();
-
-// const func = async () => {
-//   require('dotenv').config({
-//     path: require('path').resolve(__dirname, '../.env'),
-//   });
-
-//   const db = new Firestore();
-//   const now = dayjs();
-//   const start = Timestamp.fromDate(
-//     now.subtract(180, 'days').startOf('day').toDate(),
-//   );
-//   const end = Timestamp.fromDate(
-//     now.subtract(30, 'days').endOf('day').toDate(),
-//   );
-
-//   const STATES = [
-//     'MI',
-//     'IN',
-//     'KS',
-//     'SC',
-//     'NC',
-//     'NE',
-//     'TN',
-//     'MO',
-//     'KY',
-//     'NJ',
-//     'MD',
-//     'ND',
-//     'SD',
-//   ];
-
-//   const allLeads = [];
-
-//   const snap = await db
-//     .collection('leads')
-//     .where('createdAt', '>=', start)
-//     .where('createdAt', '<=', end)
-//     .get();
-
-//   snap.docs.forEach((doc) => allLeads.push({ id: doc.id, ...doc.data() }));
-
-//   allLeads.sort((a, b) => {
-//     const ta = a.createdAt?.toMillis?.() ?? 0;
-//     const tb = b.createdAt?.toMillis?.() ?? 0;
-//     return ta - tb;
-//   });
-
-//   const leads = allLeads.filter(
-//     (lead) =>
-//       STATES.includes(lead.state) &&
-//       lead.verified &&
-//       lead.issuedTo != 'charlielacnyfinancial@gmail.com',
-//   );
-
-// const workbook = new ExcelJS.Workbook();
-// workbook.creator = 'life-quoter export script';
-// workbook.created = new Date();
-
-// const sheet = workbook.addWorksheet('Leads');
-
-// const COLUMNS = [
-//   { header: 'beneficiary', key: 'beneficiary', width: 18 },
-//   { header: 'birthDay', key: 'birthDay', width: 10 },
-//   { header: 'birthMonth', key: 'birthMonth', width: 12 },
-//   { header: 'birthYear', key: 'birthYear', width: 12 },
-//   { header: 'bmi', key: 'bmi', width: 14 },
-//   {
-//     header: 'bp.bloodPressureMedicationNow',
-//     key: 'bp.bloodPressureMedicationNow',
-//     width: 30,
-//   },
-//   { header: 'budget', key: 'budget', width: 12 },
-//   {
-//     header: 'cho.cholesterolMedicationNow',
-//     key: 'cho.cholesterolMedicationNow',
-//     width: 28,
-//   },
-//   { header: 'email', key: 'email', width: 30 },
-//   { header: 'faceAmount', key: 'faceAmount', width: 14 },
-//   { header: 'name', key: 'name', width: 22 },
-//   { header: 'phone', key: 'phone', width: 14 },
-//   { header: 'premium', key: 'premium', width: 14 },
-//   { header: 'priority', key: 'priority', width: 26 },
-//   { header: 'selectedCarrier', key: 'selectedCarrier', width: 18 },
-//   { header: 'selectedPlan', key: 'selectedPlan', width: 18 },
-//   { header: 'sessionId', key: 'sessionId', width: 38 },
-//   { header: 'sex', key: 'sex', width: 8 },
-//   { header: 'smoker', key: 'smoker', width: 8 },
-//   { header: 'state', key: 'state', width: 16 },
-//   { header: 'tb.doCigarettes', key: 'tb.doCigarettes', width: 16 },
-//   {
-//     header: 'tb.doNicotinePatchesOrGum',
-//     key: 'tb.doNicotinePatchesOrGum',
-//     width: 26,
-//   },
-//   { header: 'tb.doChewingTobacco', key: 'tb.doChewingTobacco', width: 20 },
-//   { header: 'tb.doPipe', key: 'tb.doPipe', width: 12 },
-//   { header: 'verified', key: 'verified', width: 10 },
-//   { header: 'why', key: 'why', width: 36 },
-// ];
-
-// sheet.columns = COLUMNS;
-
-// // Style header row
-// const headerRow = sheet.getRow(1);
-// headerRow.font = { bold: true };
-
-// Add data rows
-// for (const lead of selected) {
-//   sheet.addRow(mapLead(lead));
-// }
-
-// Freeze header row
-// sheet.views = [{ state: 'frozen', ySplit: 1 }];
-
-// // ── Write file ──────────────────────────────────────────────────────────────
-
-// const timestamp = dayjs().format('YYYY-MM-DD_HH-mm-ss');
-// const stateSlug = states.join('-').replace(/\s+/g, '_').toLowerCase();
-// const filename = `leads_${stateSlug}_${timestamp}.xlsx`;
-// const outputPath = path.resolve(process.cwd(), filename);
-
-// await workbook.xlsx.writeFile(outputPath);
-// console.log(`Leads exported to ${outputPath}`);
-// };
-
-// const genMagicLink = async () => {
-//   const { data } = await supabaseService.auth.admin.generateLink({
-//     type: 'magiclink',
-//     email: 'marcusstepinsurance@gmail.com',
-//   });
-
-//   console.log('Magic link:', data);
-// };
-
-// genMagicLink();
-
-// const updateSource = async () => {
-//   const {data, error} = await supabaseService.from('leads').is('gsq_source', 'unkown').update({ gsq_source: null });
-//   const {data, error} = await supabaseService.from('leads').is('gsq_source', 'non_gsq').update({ gsq_source: null });
-// }
+// updatePassword('3381b2e5-f4f8-49b6-b60d-d5de7d9d8948', 'samantha123');
 
 module.exports = app;

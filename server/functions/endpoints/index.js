@@ -13,6 +13,8 @@ const eventsRouter = require('./events');
 const expensesRouter = require('./expenses');
 const leaderboardRouter = require('./leaderboard');
 const insightsRouter = require('./insights');
+const gsqRouter = require('./gsq');
+
 module.exports = {
   agentRouter,
   policyRouter,
@@ -29,4 +31,5 @@ module.exports = {
   expensesRouter,
   leaderboardRouter,
   insightsRouter,
+  gsqRouter,
 };

@@ -65,15 +65,17 @@ const Clients = () => {
   ];
 
   const csvData = useMemo(() => {
-    return clients.filter((c) => {
-      if (!c.created_at) return true;
-      const createdMs = new Date(c.created_at).getTime();
-      const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
-      const toMs = dateTo ? new Date(dateTo).getTime() + 86399999 : null;
-      if (fromMs && createdMs < fromMs) return false;
-      if (toMs && createdMs > toMs) return false;
-      return true;
-    });
+    return Array.isArray(clients)
+      ? clients.filter((c) => {
+          if (!c.created_at) return true;
+          const createdMs = new Date(c.created_at).getTime();
+          const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
+          const toMs = dateTo ? new Date(dateTo).getTime() + 86399999 : null;
+          if (fromMs && createdMs < fromMs) return false;
+          if (toMs && createdMs > toMs) return false;
+          return true;
+        })
+      : [];
   }, [clients, dateFrom, dateTo]);
 
   const csvFilename = `clients${dateFrom ? `_from_${dateFrom}` : ''}${dateTo ? `_to_${dateTo}` : `_${new Date().toISOString().slice(0, 10)}`}.csv`;

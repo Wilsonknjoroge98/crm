@@ -18,13 +18,13 @@ expensesRouter.get('/all', async (req, res) => {
     let query = supabaseService
       .from('expenses')
       .select('id, agent_id, name, amount, created_at, updated_at, date')
-      .order('created_at', { ascending: false });
+      .order('date', { ascending: false });
 
     if (startDate) {
-      query = query.gte('created_at', `${startDate}T00:00:00`);
+      query = query.gte('date', `${startDate}T00:00:00`);
     }
     if (endDate) {
-      query = query.lte('created_at', `${endDate}T23:59:59.999`);
+      query = query.lte('date', `${endDate}T23:59:59.999`);
     }
 
     const { data, error } = await query;
@@ -66,15 +66,15 @@ expensesRouter.get('/', async (req, res) => {
 
     let query = supabaseService
       .from('expenses')
-      .select('id, agent_id, name, amount, created_at, updated_at')
+      .select('id, agent_id, name, amount, created_at, updated_at, date')
       .eq('agent_id', req.agent.id)
-      .order('created_at', { ascending: false });
+      .order('date', { ascending: false });
 
     if (startDate) {
-      query = query.gte('created_at', `${startDate}T00:00:00`);
+      query = query.gte('date', `${startDate}T00:00:00`);
     }
     if (endDate) {
-      query = query.lte('created_at', `${endDate}T23:59:59.999`);
+      query = query.lte('date', `${endDate}T23:59:59.999`);
     }
 
     const { data, error } = await query;
@@ -146,7 +146,6 @@ expensesRouter.post('/', async (req, res) => {
   }
 });
 
-// DELETE /expenses/:id — delete an expense owned by the authenticated agent
 expensesRouter.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -161,8 +160,7 @@ expensesRouter.delete('/:id', async (req, res) => {
     const { error } = await supabaseService
       .from('expenses')
       .delete()
-      .eq('id', id)
-      .eq('agent_id', req.agent.id);
+      .eq('id', id);
 
     if (error) {
       logger.error('Error deleting expense in endpoints/expenses.js', {
