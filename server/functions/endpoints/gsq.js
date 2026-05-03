@@ -13,10 +13,10 @@ gsqRouter.get('/', async (req, res) => {
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
-  const ref = db.doc(`ringy/${email}`);
+  const ref = db.doc(`agents/${email}`);
   const snapshot = await ref.get();
 
-  const liveTransfersRef = db.collection('liveTransfer').doc(email);
+  const liveTransfersRef = db.collection('live_transfers').doc(email);
   const liveTransfersSnapshot = await liveTransfersRef.get();
 
   const liveTransfers =
@@ -26,7 +26,7 @@ gsqRouter.get('/', async (req, res) => {
 
   if (!snapshot.exists) {
     if (email === 'info@finalexpensedigital.com') {
-      const col = db.collection('ringy');
+      const col = db.collection('agents');
 
       const snap = await col.get();
       const docs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -77,11 +77,13 @@ gsqRouter.get('/', async (req, res) => {
   res.status(200).send(data);
 });
 
-gsqRouter.post('/', async (req, res) => {
-  console.log('Body received for agent account update:', req.body);
-  const { email, deliver, states } = req.body;
+gsqRouter.patch('/', async (req, res) => {
+  logger.log('Body received for agent account update:', req.body);
+  const {
+    account: { email, deliver, states },
+  } = req.body;
 
-  console.log('Agent account update request received:', {
+  logger.log('Agent account update request received:', {
     email,
     deliver,
     states,
@@ -92,7 +94,7 @@ gsqRouter.post('/', async (req, res) => {
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
-  const ref = db.doc(`ringy/${email}`);
+  const ref = db.doc(`agents/${email}`);
   const snapshot = await ref.get();
   if (!snapshot.exists) {
     return res.status(404).send({ message: 'Agent not found' });

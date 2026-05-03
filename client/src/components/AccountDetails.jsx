@@ -64,12 +64,7 @@ const AccountDetails = ({ data }) => {
   const crmStatuses = [
     {
       label: 'Ringy',
-      connected:
-        data?.ringyEnabled === true &&
-        typeof data?.ringySid === 'string' &&
-        data.ringySid.length > 0 &&
-        typeof data?.ringyToken === 'string' &&
-        data.ringyToken.length > 0,
+      connected: data?.ringyEnabled === true,
     },
     { label: 'GHL', connected: data?.ghlEnabled === true },
     { label: 'Sendblue', connected: data?.sendBlueEnabled === true },
