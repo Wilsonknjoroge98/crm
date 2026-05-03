@@ -97,6 +97,7 @@ export const CARRIER_PRODUCTS = {
     'Graded Final Expense',
   ],
   Corebridge: ['GIWL', 'SIWL'],
+  'Columbus Life': ['IUL'],
   Ethos: [
     'Ameritas IUL',
     'Ameritas SI Term',
@@ -116,6 +117,7 @@ export const CARRIER_PRODUCTS = {
     'Your Term',
   ],
   'Illinois Mutual': ['Final Expense'],
+  InstaBrain: ['Term Life', 'Whole Life'],
   'Kansas City Life': ['SIGNATURE TERM', 'SIGNATURE TERM ROP'],
   Ladder: ['TERM'],
   LGA: ['Quility Term'],
