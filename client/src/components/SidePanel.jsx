@@ -18,12 +18,15 @@ import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 
 import { useTheme } from '@mui/material/styles';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent';
+import { supabase } from '../utils/supabase';
 
 const drawerWidth = 220;
 
@@ -48,6 +51,18 @@ const SidePanel = () => {
     navigate(path);
   };
 
+  const handleSignOut = async () => {
+    try {
+      console.log('Signing out user...');
+      await supabase.auth.signOut();
+
+      navigate('/login');
+      console.log('User signed out successfully');
+    } catch (error) {
+      console.error('Sign-out error:', error);
+    }
+  };
+
   const salesItems = [
     { text: 'Leads', icon: <StorageOutlinedIcon />, path: '/leads' },
     { text: 'Clients', icon: <PeopleAltOutlinedIcon />, path: '/clients' },
@@ -55,15 +70,41 @@ const SidePanel = () => {
   ];
 
   const managementItems = [
-    { text: 'Production', icon: <QueryStatsOutlinedIcon />, path: '/team-production' },
-    { text: 'Marketplace', icon: <ShoppingCartOutlinedIcon />, path: '/purchase-leads' },
-    { text: 'Billing', icon: <SettingsOutlinedIcon />, path: 'https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00' },
+    {
+      text: 'Production',
+      icon: <QueryStatsOutlinedIcon />,
+      path: '/team-production',
+    },
+    {
+      text: 'Marketplace',
+      icon: <ShoppingCartOutlinedIcon />,
+      path: '/purchase-leads',
+    },
+    {
+      text: 'Billing',
+      icon: <SettingsOutlinedIcon />,
+      path: 'https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00',
+    },
   ];
 
   const adminItems = [
     { text: 'Agents', icon: <BadgeOutlinedIcon />, path: '/agents' },
     { text: 'Insights', icon: <InsightsIcon />, path: '/insights' },
     { text: 'Cash Flow', icon: <BusinessOutlinedIcon />, path: '/cashflow' },
+  ];
+
+  const authItems = [
+    {
+      text: 'Sign Out',
+      icon: <LogoutOutlinedIcon />,
+      path: '/login',
+      onClick: handleSignOut,
+    },
+    {
+      text: 'Reset Password',
+      icon: <LockOpenOutlinedIcon />,
+      path: '/reset-password',
+    },
   ];
 
   const navItemSx = (isActive, hasPath = true) => ({
@@ -149,7 +190,9 @@ const SidePanel = () => {
                 onClick={() => handleItemClick('/leaderboard')}
                 sx={navItemSx(location.pathname === '/leaderboard')}
               >
-                <ListItemIcon sx={navIconSx(location.pathname === '/leaderboard')}>
+                <ListItemIcon
+                  sx={navIconSx(location.pathname === '/leaderboard')}
+                >
                   <LeaderboardOutlinedIcon />
                 </ListItemIcon>
                 <ListItemText
@@ -168,9 +211,15 @@ const SidePanel = () => {
               {salesItems.map(({ text, icon, path }) => {
                 const isActive = location.pathname === path;
                 return (
-                  <ListItem key={text} onClick={() => handleItemClick(path)} sx={navItemSx(isActive)}>
+                  <ListItem
+                    key={text}
+                    onClick={() => handleItemClick(path)}
+                    sx={navItemSx(isActive)}
+                  >
                     <ListItemIcon sx={navIconSx(isActive)}>{icon}</ListItemIcon>
-                    <ListItemText primary={<NavLabel isActive={isActive}>{text}</NavLabel>} />
+                    <ListItemText
+                      primary={<NavLabel isActive={isActive}>{text}</NavLabel>}
+                    />
                   </ListItem>
                 );
               })}
@@ -182,9 +231,35 @@ const SidePanel = () => {
               {managementItems.map(({ text, icon, path }) => {
                 const isActive = location.pathname === path;
                 return (
-                  <ListItem key={text} onClick={() => handleItemClick(path)} sx={navItemSx(isActive, !!path)}>
+                  <ListItem
+                    key={text}
+                    onClick={() => handleItemClick(path)}
+                    sx={navItemSx(isActive, !!path)}
+                  >
                     <ListItemIcon sx={navIconSx(isActive)}>{icon}</ListItemIcon>
-                    <ListItemText primary={<NavLabel isActive={isActive}>{text}</NavLabel>} />
+                    <ListItemText
+                      primary={<NavLabel isActive={isActive}>{text}</NavLabel>}
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+
+            {/* AUTH SECTION */}
+            <List disablePadding>
+              <SectionLabel>ACCOUNT</SectionLabel>
+              {authItems.map(({ text, icon, path, onClick }) => {
+                const isActive = location.pathname === path;
+                return (
+                  <ListItem
+                    key={text}
+                    onClick={onClick ? onClick : () => handleItemClick(path)}
+                    sx={navItemSx(isActive, !!path)}
+                  >
+                    <ListItemIcon sx={navIconSx(isActive)}>{icon}</ListItemIcon>
+                    <ListItemText
+                      primary={<NavLabel isActive={isActive}>{text}</NavLabel>}
+                    />
                   </ListItem>
                 );
               })}
@@ -197,9 +272,19 @@ const SidePanel = () => {
                 {adminItems.map(({ text, icon, path }) => {
                   const isActive = location.pathname === path;
                   return (
-                    <ListItem key={text} onClick={() => handleItemClick(path)} sx={navItemSx(isActive)}>
-                      <ListItemIcon sx={navIconSx(isActive)}>{icon}</ListItemIcon>
-                      <ListItemText primary={<NavLabel isActive={isActive}>{text}</NavLabel>} />
+                    <ListItem
+                      key={text}
+                      onClick={() => handleItemClick(path)}
+                      sx={navItemSx(isActive)}
+                    >
+                      <ListItemIcon sx={navIconSx(isActive)}>
+                        {icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <NavLabel isActive={isActive}>{text}</NavLabel>
+                        }
+                      />
                     </ListItem>
                   );
                 })}

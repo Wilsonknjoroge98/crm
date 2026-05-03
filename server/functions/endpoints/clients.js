@@ -1,7 +1,7 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
-const { sendSaleToGSQ } = require('../integrations/GSQ');
+const { markSoldInGSQ } = require('../integrations/GSQ');
 const { getHyrosSource } = require('../integrations/hyros');
 
 // eslint-disable-next-line new-cap
@@ -289,7 +289,7 @@ clientRouter.post('/', async (req, res) => {
     client,
   });
 
-  await sendSaleToGSQ(client.phone, client.email);
+  await markSoldInGSQ(client.phone, client.email);
 
   if (!client?.email || !client?.phone) {
     logger.warn('Missing required client fields in clients.js', {

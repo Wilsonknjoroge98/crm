@@ -8,7 +8,16 @@ const { weeklyLeaderboard } = require('./jobs/leaderboard_slack');
 const expressApp = require('./server.js');
 
 exports.app = functions.https.onRequest(
-  { timeoutSeconds: 120, memory: '512MiB' },
+  {
+    timeoutSeconds: 120,
+    memory: '512MiB',
+    secrets: [
+      'GSQ_SERVICE_ACCOUNT_KEY',
+      'STRIPE_SECRET_KEY',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'SUPABASE_PUBLISHABLE_KEY',
+    ],
+  },
   expressApp,
 );
 

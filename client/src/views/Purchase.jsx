@@ -87,20 +87,9 @@ const Purchase = () => {
 
       <Stack spacing={0.5} mt={4}>
         <Typography variant='body2' color='text.secondary'>
-          Get <strong>1 free lead</strong> when your clients leave a review{' '}
+          Get <strong>2 free leads</strong> when your clients leave a review{' '}
           <Link
             href='https://g.page/r/Cae_g-5KWKUtEAI/review'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            here
-          </Link>
-          .
-        </Typography>
-        <Typography variant='body2' color='text.secondary'>
-          Manage your subscription{' '}
-          <Link
-            href='https://billing.stripe.com/p/login/14AdR909SfQz0KedGJ6Ri00'
             target='_blank'
             rel='noopener noreferrer'
           >

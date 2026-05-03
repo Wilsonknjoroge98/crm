@@ -14,6 +14,7 @@ const expensesRouter = require('./expenses');
 const leaderboardRouter = require('./leaderboard');
 const insightsRouter = require('./insights');
 const gsqRouter = require('./gsq');
+const commissionsRouter = require('./commissions');
 
 module.exports = {
   agentRouter,
@@ -32,4 +33,5 @@ module.exports = {
   leaderboardRouter,
   insightsRouter,
   gsqRouter,
+  commissionsRouter,
 };

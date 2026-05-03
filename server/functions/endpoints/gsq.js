@@ -16,7 +16,13 @@ gsqRouter.get('/', async (req, res) => {
   const ref = db.doc(`ringy/${email}`);
   const snapshot = await ref.get();
 
-  const data = snapshot.data();
+  const liveTransfersRef = db.collection('liveTransfer').doc(email);
+  const liveTransfersSnapshot = await liveTransfersRef.get();
+
+  const liveTransfers =
+    liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
+
+  const data = { ...snapshot.data(), liveTransfers };
 
   if (!snapshot.exists) {
     if (email === 'info@finalexpensedigital.com') {
@@ -61,6 +67,7 @@ gsqRouter.get('/', async (req, res) => {
         outstandingLeads,
         verified,
         unverified,
+        liveTransfers,
       });
     }
 

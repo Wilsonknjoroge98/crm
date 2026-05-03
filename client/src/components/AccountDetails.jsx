@@ -28,14 +28,13 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import UpdateStatesDialog from './UpdateStatesDialog';
 import EditIcon from '@mui/icons-material/Edit';
-import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 
 const AccountDetails = ({ data }) => {
   const [openStatesDlg, setOpenStatesDlg] = useState(false);
   const navigate = useNavigate();
 
   const formattedDate = data?.lastIssuedDate?._seconds
-    ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY HH:mm:ss')
+    ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY h:mm A')
     : 'N/A';
 
   const agent = useAgent();
@@ -62,16 +61,6 @@ const AccountDetails = ({ data }) => {
 
   const isSettled = isError || isSuccess;
 
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-
-      navigate('/login');
-      console.log('User signed out successfully');
-    } catch (error) {
-      console.error('Sign-out error:', error);
-    }
-  };
   const crmStatuses = [
     {
       label: 'Ringy',
@@ -82,9 +71,9 @@ const AccountDetails = ({ data }) => {
         typeof data?.ringyToken === 'string' &&
         data.ringyToken.length > 0,
     },
+    { label: 'GHL', connected: data?.ghlEnabled === true },
     { label: 'Sendblue', connected: data?.sendBlueEnabled === true },
-    // { label: 'GHL', connected: data?.ghlEnabled === true },
-    // { label: 'InsurDial', connected: data?.insurDialEnabled === true },
+    { label: 'InsurDial', connected: data?.insurDialEnabled === true },
   ];
 
   if (!data && isSettled) {
@@ -152,21 +141,28 @@ const AccountDetails = ({ data }) => {
           Leads
         </Typography>
         <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2'>Outstanding Leads:</Typography>
+          <Typography variant='body2'>Outstanding Leads</Typography>
           <Typography variant='body2' fontWeight='bold'>
             {data?.outstandingLeads || '—'}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2'>Verified Leads:</Typography>
+          <Typography variant='body2'>Verified Leads</Typography>
           <Typography variant='body2' fontWeight='bold'>
             {data?.verified || '—'}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2'>Unverified Leads:</Typography>
+          <Typography variant='body2'>Unverified Leads</Typography>
           <Typography variant='body2' fontWeight='bold'>
             {data?.unverified || '—'}
+          </Typography>
+        </Stack>
+
+        <Stack direction='row' spacing={1} justifyContent='space-between'>
+          <Typography variant='body2'>Live Transfers</Typography>
+          <Typography variant='body2' fontWeight='bold'>
+            {data?.liveTransfers || '—'}
           </Typography>
         </Stack>
 
@@ -175,32 +171,36 @@ const AccountDetails = ({ data }) => {
         <Typography variant='caption' color='text.secondary' fontWeight='bold'>
           Integrations
         </Typography>
-        {crmStatuses.map(({ label, connected }) => (
-          <Stack
-            key={label}
-            direction='row'
-            spacing={1}
-            justifyContent='space-between'
-            alignItems='center'
-          >
-            <Typography variant='body2'>{label}:</Typography>
-            <Box display='flex' alignItems='center' gap={0.5}>
-              {connected ? (
-                <CheckCircleIcon
-                  sx={{ fontSize: '1rem', color: 'success.main' }}
-                />
-              ) : (
-                <CancelIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />
-              )}
-              <Typography
-                variant='caption'
-                color={connected ? 'success.main' : 'text.disabled'}
-              >
-                {connected ? 'Connected' : 'Not Connected'}
-              </Typography>
-            </Box>
-          </Stack>
-        ))}
+        {crmStatuses
+          .sort((a, b) => b.connected - a.connected)
+          .map(({ label, connected }) => (
+            <Stack
+              key={label}
+              direction='row'
+              spacing={1}
+              justifyContent='space-between'
+              alignItems='center'
+            >
+              <Typography variant='body2'>{label}</Typography>
+              <Box display='flex' alignItems='center' gap={0.5}>
+                {connected ? (
+                  <CheckCircleIcon
+                    sx={{ fontSize: '1rem', color: 'success.main' }}
+                  />
+                ) : (
+                  <CancelIcon
+                    sx={{ fontSize: '1rem', color: 'text.disabled' }}
+                  />
+                )}
+                <Typography
+                  variant='caption'
+                  color={connected ? 'success.main' : 'text.disabled'}
+                >
+                  {connected ? 'Connected' : 'Not Connected'}
+                </Typography>
+              </Box>
+            </Stack>
+          ))}
 
         <Divider flexItem />
         <Stack
@@ -245,7 +245,7 @@ const AccountDetails = ({ data }) => {
           justifyContent='space-between'
           alignItems='center'
         >
-          <Typography variant='body2'>Lead Flow:</Typography>
+          <Typography variant='body2'>Lead Flow</Typography>
 
           <Switch
             variant='body2'
@@ -269,29 +269,8 @@ const AccountDetails = ({ data }) => {
         <Divider flexItem />
 
         <Stack direction='row' justifyContent='space-between'>
-          <Typography variant='body2'>Last Issued:</Typography>
+          <Typography variant='body2'>Last Issued</Typography>
           <Typography variant='body2'>{formattedDate}</Typography>
-        </Stack>
-        <Divider flexItem />
-
-        <Stack direction='column' spacing={0.5}>
-          <Button
-            endIcon={<LogoutOutlinedIcon />}
-            size='small'
-            color='error'
-            onClick={handleSignOut}
-            sx={{ mt: 1 }}
-          >
-            Sign Out
-          </Button>
-          <Button
-            size='small'
-            color='inherit'
-            onClick={() => navigate('/reset-password')}
-            sx={{ color: 'text.secondary' }}
-          >
-            Reset Password
-          </Button>
         </Stack>
       </Stack>
     </>

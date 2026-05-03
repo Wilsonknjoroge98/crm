@@ -27,5 +27,6 @@ dist-ssr
 *.sw?
 
 *.env
+.secret.local
 
 server/public/

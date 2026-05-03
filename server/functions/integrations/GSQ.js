@@ -1,15 +1,7 @@
-const axios = require('axios');
-
+const { Firestore } = require('firebase-admin/firestore');
 const { getHyrosSource } = require('./hyros');
 const { supabaseService } = require('../services/supabase');
 const logger = require('firebase-functions/logger');
-
-const gsqClient = axios.create({
-  baseURL: process.env.GSQ_BASE_URL,
-  headers: {
-    Authorization: `Bearer ${process.env.GSQ_TOKEN}`,
-  },
-});
 
 const inboundGSQ = async (req, res) => {
   try {
@@ -114,7 +106,7 @@ const inboundGSQ = async (req, res) => {
         const { data: existingLead, error: leadError } = await supabaseService
           .from('leads')
           .select('id, created_at, agent_id')
-          .eq('email', payload.email)
+          .eq('phone', payload.phone)
           .single();
 
         if (existingLead?.agent_id === agentId) {
@@ -163,23 +155,37 @@ const inboundGSQ = async (req, res) => {
   }
 };
 
-const sendSaleToGSQ = async (phone, email) => {
-  try {
-    const BODY = {
-      url: `/sold`,
-      method: 'POST',
-      data: {
-        phone: phone,
-        email: email,
-      },
-    };
-    const response = await gsqClient.request(BODY);
-    logger.info('GSQ response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error sending mark lead sold:', error);
-    throw error;
+const markSoldInGSQ = async (phone, email) => {
+  const db = new Firestore({
+    projectId: 'life-quoter',
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT),
+  });
+
+  const leadPhoneSnapshot = await db
+    .collection('leads')
+    .where('phone', '==', phone)
+    .get();
+
+  if (!leadPhoneSnapshot.empty) {
+    leadPhoneSnapshot.forEach(async (doc) => {
+      await doc.ref.update({ sold: true });
+    });
+
+    return;
+  }
+
+  const leadByEmailSnapshot = await db
+    .collection('leads')
+    .where('email', '==', email)
+    .get();
+
+  if (!leadByEmailSnapshot.empty) {
+    leadByEmailSnapshot.forEach(async (doc) => {
+      await doc.ref.update({ sold: true });
+    });
+
+    return;
   }
 };
 
-module.exports = { inboundGSQ, sendSaleToGSQ };
+module.exports = { inboundGSQ, markSoldInGSQ };
