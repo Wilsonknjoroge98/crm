@@ -132,7 +132,6 @@ const Insights = () => {
         return `$${Number(value).toLocaleString()}`;
       },
     },
-
     {
       field: 'closeRate',
       headerName: 'Close %',
@@ -154,51 +153,6 @@ const Insights = () => {
       align: 'left',
       flex: 1,
       minWidth: 150,
-      sortable: true,
-      renderCell: (params) => {
-        const value = params.value;
-        if (isNaN(value) || value === '0' || value === 0) {
-          return '—';
-        }
-        return `$${Number(value).toLocaleString()}`;
-      },
-    },
-    {
-      field: 'averagePremium',
-      headerName: 'Avg. Premium',
-      align: 'left',
-      flex: 1,
-      minWidth: 100,
-      sortable: true,
-      renderCell: (params) => {
-        const value = params.value;
-        if (isNaN(value) || value === '0' || value === 0) {
-          return '—';
-        }
-        return `$${Number(value).toLocaleString()}`;
-      },
-    },
-    {
-      field: 'closeRate',
-      headerName: 'Close %',
-      align: 'left',
-      flex: 1,
-      minWidth: 100,
-      sortable: true,
-      renderCell: (params) => {
-        const value = params.value;
-        if (isNaN(value) || value === '0' || value === 0) {
-          return '—';
-        }
-        return `${Number(value).toLocaleString()}%`;
-      },
-    },
-    {
-      field: 'rpl',
-      headerName: 'RPL',
-      align: 'left',
-      flex: 1,
-      minWidth: 100,
       sortable: true,
       renderCell: (params) => {
         const value = params.value;
