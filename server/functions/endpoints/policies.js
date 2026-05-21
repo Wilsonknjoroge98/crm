@@ -4,15 +4,20 @@ const dayjs = require('dayjs');
 const { WebClient } = require('@slack/web-api');
 const { supabaseService } = require('../services/supabase');
 const { buildPolicySlackPayload } = require('../integrations/slack');
+const {
+  buildPolicyDiscordPayload,
+  sendDiscordNotification,
+} = require('../integrations/discord');
 
 const slackTargets = [
   process.env.SLACK_BOT_TOKEN,
-  process.env.SLACK_BOT_TOKEN_FEARLESS,
+  // process.env.SLACK_BOT_TOKEN_FEARLESS,
 ];
 // eslint-disable-next-line new-cap
 const policyRouter = express.Router();
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+const FEARLESS_ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
 
 const mapBeneficiaries = (list, policyId, type) =>
   (list || [])
@@ -101,10 +106,8 @@ policyRouter.get('/', async (req, res) => {
 
     const isSuperuser = req.agent.id === SUPERUSER_ID;
 
-    let query = supabaseService
-      .from('policies')
-      .select(
-        `
+    let query = supabaseService.from('policies').select(
+      `
         *,
         clients!policies_client_id_fkey ( first_name, last_name ),
         carriers ( name ),
@@ -113,7 +116,7 @@ policyRouter.get('/', async (req, res) => {
         split_agent:agents!policies_split_agent_id_fkey ( first_name, last_name ),
         beneficiaries!beneficiaries_policy_id_fkey ( id, first_name, last_name, relationship, allocation_percent, beneficiary_type, phone )
       `,
-      );
+    );
 
     if (!isSuperuser) {
       query = query.or(
@@ -326,19 +329,32 @@ policyRouter.post('/', async (req, res) => {
       effectiveDate: eft,
     });
 
-    await Promise.all(
-      slackTargets.filter(Boolean).map((token) =>
+    const discordPayload = buildPolicyDiscordPayload({
+      agentName,
+      product: productData?.name ?? 'Unknown',
+      annualPremium: ap,
+      carrier: carrierData?.name ?? 'Unknown',
+      effectiveDate: eft,
+    });
+
+    await Promise.all([
+      ...slackTargets.filter(Boolean).map((token) =>
         new WebClient(token).chat.postMessage({
           channel: '#sales',
           text: payload.text,
           blocks: payload.blocks,
         }),
       ),
-    );
+      req.agent.org_id === FEARLESS_ORG_ID &&
+        sendDiscordNotification(discordPayload),
+    ]);
   } catch (err) {
-    logger.error('Failed to send Slack notification in endpoints/policies.js', {
-      error: err,
-    });
+    logger.error(
+      'Failed to send Slack/Discord notification in endpoints/policies.js',
+      {
+        error: err,
+      },
+    );
   }
 
   return res.status(201).json({ id: policyId });

@@ -55,6 +55,8 @@ const inboundGSQ = async (req, res) => {
       .eq('email', issuedTo)
       .single();
 
+    logger.info('Agent lookup result', { issuedTo, agent, agentError });
+
     if (agentError || !agent) {
       logger.error('Invalid agent email:', { issuedTo, error: agentError });
       return res.status(422).send({ message: 'Invalid agent email' });
@@ -158,7 +160,7 @@ const inboundGSQ = async (req, res) => {
 const markSoldInGSQ = async (phone, email) => {
   const db = new Firestore({
     projectId: 'life-quoter',
-    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT),
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
   const leadPhoneSnapshot = await db

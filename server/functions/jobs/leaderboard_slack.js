@@ -1,15 +1,18 @@
 const dayjs = require('dayjs');
-const { WebClient } = require('@slack/web-api');
+// const { WebClient } = require('@slack/web-api');
 const { supabaseService } = require('../services/supabase');
+const {
+  buildLeaderboardDiscordPayload,
+  sendDiscordNotification,
+} = require('../integrations/discord');
 
-const ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
-const SLACK_CHANNEL = '#general';
+// const ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
+// const SLACK_CHANNEL = '#general';
 
 async function buildLeaderboard(startDate, endDate) {
   const { data: agents, error: agentsError } = await supabaseService
     .from('agents')
-    .select('id, first_name, last_name')
-    .eq('org_id', ORG_ID);
+    .select('id, first_name, last_name');
 
   if (agentsError) throw agentsError;
   if (!agents || agents.length === 0) return [];
@@ -56,19 +59,27 @@ const weeklyLeaderboard = async () => {
     return `${i + 1}. ${agent.name} - $${agent.premiumAmount.toLocaleString()}`;
   });
 
-  const header = `:clipboard: *WEEKLY RESULTS*\n${dayjs(startDate).format('MMM DD')} – ${dayjs(endDate).format('MMM DD')}`;
-  const body = lines.join('\n');
+  // const header = `:clipboard: *WEEKLY RESULTS*\n${dayjs(startDate).format('MMM DD')} – ${dayjs(endDate).format('MMM DD')}`;
+  // const body = lines.join('\n');
 
-  await new WebClient(process.env.SLACK_BOT_TOKEN_FEARLESS).chat.postMessage({
-    channel: SLACK_CHANNEL,
-    text: `Weekly Leaderboard Results: ${dayjs(startDate).format('MMM DD')} – ${dayjs(endDate).format('MMM DD')}`,
-    blocks: [
-      {
-        type: 'section',
-        text: { type: 'mrkdwn', text: `${header}\n\n${body}` },
-      },
-    ],
-  });
+  // const dateRange = `${dayjs(startDate).format('MMM DD')} – ${dayjs(endDate).format('MMM DD')}`;
+
+  await Promise.all([
+    // new WebClient(process.env.SLACK_BOT_TOKEN_FEARLESS).chat.postMessage({
+    //   channel: SLACK_CHANNEL,
+    //   text: `Weekly Leaderboard Results: ${dateRange}`,
+    //   blocks: [
+    //     {
+    //       type: 'section',
+    //       text: { type: 'mrkdwn', text: `${header}\n\n${body}` },
+    //     },
+    //   ],
+    // }),
+    sendDiscordNotification(
+      buildLeaderboardDiscordPayload(startDate, endDate, lines),
+      process.env.DISCORD_LEADERBOARD_WEBHOOK_URL,
+    ),
+  ]);
 };
 
 module.exports = { weeklyLeaderboard };

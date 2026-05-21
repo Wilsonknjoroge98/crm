@@ -110,7 +110,7 @@ export default function SignUp() {
           email,
           npn,
           role: 'agent',
-          level: 105,
+          level: 80,
           token,
         },
       });

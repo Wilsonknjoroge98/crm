@@ -20,12 +20,18 @@ exports.app = functions.https.onRequest(
   expressApp,
 );
 
-exports.newLead = functions.https.onRequest(inboundGSQ);
+exports.newLead = functions.https.onRequest(
+  {
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
+  },
+  inboundGSQ,
+);
 
 exports.updatePolicyStatus = onSchedule(
   {
     schedule: '0 0 * * *',
     timeZone: 'America/Los_Angeles',
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
   },
   updatePolicyStatus,
 );
@@ -34,6 +40,7 @@ exports.weeklyLeaderboard = onSchedule(
   {
     schedule: '0 8 * * 1',
     timeZone: 'America/New_York',
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
   },
   weeklyLeaderboard,
 );
