@@ -37,12 +37,25 @@ async function sendDiscordNotification(
 }
 
 function buildLeaderboardDiscordPayload(startDate, endDate, lines) {
-  const dateRange = `${dayjs(startDate).format('MMM DD')} – ${dayjs(endDate).format('MMM DD')}`;
+  const dateRange = `${dayjs(startDate).format('MMM DD')} - ${dayjs(endDate).format('MMM DD')}`;
   return {
-    content: `Weekly Leaderboard Results: ${dateRange}`,
+    content: `Weekly Sales Results: ${dateRange}`,
     embeds: [
       {
-        title: `WEEKLY RESULTS — ${dateRange}`,
+        title: `WEEKLY RESULTS - ${dateRange}`,
+        description: lines.join('\n'),
+      },
+    ],
+  };
+}
+
+function buildDailyLeaderboardDiscordPayload(date, lines) {
+  const label = dayjs(date).format('MMM DD');
+  return {
+    content: `Daily Sales Results: ${label}`,
+    embeds: [
+      {
+        title: `DAILY RESULTS - ${label}`,
         description: lines.join('\n'),
       },
     ],
@@ -52,5 +65,6 @@ function buildLeaderboardDiscordPayload(startDate, endDate, lines) {
 module.exports = {
   buildPolicyDiscordPayload,
   buildLeaderboardDiscordPayload,
+  buildDailyLeaderboardDiscordPayload,
   sendDiscordNotification,
 };

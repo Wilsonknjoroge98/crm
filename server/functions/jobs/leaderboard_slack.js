@@ -3,6 +3,7 @@ const dayjs = require('dayjs');
 const { supabaseService } = require('../services/supabase');
 const {
   buildLeaderboardDiscordPayload,
+  buildDailyLeaderboardDiscordPayload,
   sendDiscordNotification,
 } = require('../integrations/discord');
 
@@ -59,22 +60,7 @@ const weeklyLeaderboard = async () => {
     return `${i + 1}. ${agent.name} - $${agent.premiumAmount.toLocaleString()}`;
   });
 
-  // const header = `:clipboard: *WEEKLY RESULTS*\n${dayjs(startDate).format('MMM DD')} – ${dayjs(endDate).format('MMM DD')}`;
-  // const body = lines.join('\n');
-
-  // const dateRange = `${dayjs(startDate).format('MMM DD')} – ${dayjs(endDate).format('MMM DD')}`;
-
   await Promise.all([
-    // new WebClient(process.env.SLACK_BOT_TOKEN_FEARLESS).chat.postMessage({
-    //   channel: SLACK_CHANNEL,
-    //   text: `Weekly Leaderboard Results: ${dateRange}`,
-    //   blocks: [
-    //     {
-    //       type: 'section',
-    //       text: { type: 'mrkdwn', text: `${header}\n\n${body}` },
-    //     },
-    //   ],
-    // }),
     sendDiscordNotification(
       buildLeaderboardDiscordPayload(startDate, endDate, lines),
       process.env.DISCORD_LEADERBOARD_WEBHOOK_URL,
@@ -82,4 +68,21 @@ const weeklyLeaderboard = async () => {
   ]);
 };
 
-module.exports = { weeklyLeaderboard };
+const dailyLeaderboard = async () => {
+  const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+
+  const leaderboard = await buildLeaderboard(yesterday, yesterday);
+
+  if (leaderboard.length === 0) return;
+
+  const lines = leaderboard.map((agent, i) => {
+    return `${i + 1}. ${agent.name} - $${agent.premiumAmount.toLocaleString()}`;
+  });
+
+  await sendDiscordNotification(
+    buildDailyLeaderboardDiscordPayload(yesterday, lines),
+    process.env.DISCORD_LEADERBOARD_WEBHOOK_URL,
+  );
+};
+
+module.exports = { weeklyLeaderboard, dailyLeaderboard };
