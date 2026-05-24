@@ -3,7 +3,10 @@ const { onSchedule } = require('firebase-functions/scheduler');
 
 const { inboundGSQ } = require('./integrations/GSQ');
 const { updatePolicyStatus } = require('./jobs/update_policy_status');
-const { weeklyLeaderboard, dailyLeaderboard } = require('./jobs/leaderboard_slack');
+const {
+  weeklyLeaderboard,
+  dailyLeaderboard,
+} = require('./jobs/leaderboard_slack');
 
 const expressApp = require('./server.js');
 
@@ -40,7 +43,10 @@ exports.weeklyLeaderboard = onSchedule(
   {
     schedule: '0 8 * * 1',
     timeZone: 'America/New_York',
-    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
+    secrets: [
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'DISCORD_WEEKLY_LEADERBOARD_WEBHOOK_URL',
+    ],
   },
   weeklyLeaderboard,
 );
@@ -49,7 +55,10 @@ exports.dailyLeaderboard = onSchedule(
   {
     schedule: '0 0 * * *',
     timeZone: 'America/New_York',
-    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
+    secrets: [
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'DISCORD_DAILY_LEADERBOARD_WEBHOOK_URL',
+    ],
   },
   dailyLeaderboard,
 );

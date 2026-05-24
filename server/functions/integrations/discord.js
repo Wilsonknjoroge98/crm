@@ -30,7 +30,7 @@ function buildPolicyDiscordPayload({
 
 async function sendDiscordNotification(
   payload,
-  webhookUrl = process.env.DISCORD_WEBHOOK_URL,
+  webhookUrl = process.env.DISCORD_SALE_WEBHOOK_URL,
 ) {
   if (!webhookUrl) return;
   await axios.post(webhookUrl, payload);
