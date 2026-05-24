@@ -22,7 +22,7 @@ async function buildLeaderboard(startDate, endDate) {
 
   const { data: policies, error: policiesError } = await supabaseService
     .from('policies')
-    .select('writing_agent_id, premium_amount')
+    .select('writing_agent_id, premium_amount, split_agent_id, split_agent_share')
     .in('writing_agent_id', agentIds)
     .gte('sold_date', startDate)
     .lte('sold_date', endDate);
@@ -38,9 +38,18 @@ async function buildLeaderboard(startDate, endDate) {
   }
 
   for (const policy of policies || []) {
-    const agentId = policy.writing_agent_id;
-    if (!agentMap[agentId]) continue;
-    agentMap[agentId].premiumAmount += Number(policy.premium_amount || 0) * 12;
+    const writingAgentId = policy.writing_agent_id;
+    if (!agentMap[writingAgentId]) continue;
+
+    const annualPremium = Number(policy.premium_amount || 0) * 12;
+    const splitShare = policy.split_agent_id ? Number(policy.split_agent_share || 0) : 0;
+    const writingShare = 100 - splitShare;
+
+    agentMap[writingAgentId].premiumAmount += annualPremium * (writingShare / 100);
+
+    if (splitShare > 0 && policy.split_agent_id && agentMap[policy.split_agent_id]) {
+      agentMap[policy.split_agent_id].premiumAmount += annualPremium * (splitShare / 100);
+    }
   }
 
   return Object.values(agentMap)
