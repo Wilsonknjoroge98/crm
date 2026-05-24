@@ -63,7 +63,7 @@ const weeklyLeaderboard = async () => {
   await Promise.all([
     sendDiscordNotification(
       buildLeaderboardDiscordPayload(startDate, endDate, lines),
-      process.env.DISCORD_LEADERBOARD_WEBHOOK_URL,
+      process.env.DISCORD_WEEKLY_LEADERBOARD_WEBHOOK_URL,
     ),
   ]);
 };
@@ -81,7 +81,7 @@ const dailyLeaderboard = async () => {
 
   await sendDiscordNotification(
     buildDailyLeaderboardDiscordPayload(yesterday, lines),
-    process.env.DISCORD_LEADERBOARD_WEBHOOK_URL,
+    process.env.DISCORD_DAILY_LEADERBOARD_WEBHOOK_URL,
   );
 };
 
