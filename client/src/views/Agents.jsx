@@ -25,7 +25,7 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAgents, patchAgent } from '../utils/query';
+import { getAgents, getOrganizations, patchAgent } from '../utils/query';
 import { stringToColor } from '../utils/helpers';
 import { enqueueSnackbar } from 'notistack';
 import {
@@ -49,6 +49,11 @@ const Agents = () => {
   } = useQuery({
     queryKey: ['agents'],
     queryFn: getAgents,
+  });
+
+  const { data: orgs = [] } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: getOrganizations,
   });
 
   const { mutate: updateAgent } = useMutation({
@@ -163,7 +168,7 @@ const Agents = () => {
                   AGENT
                 </TableSortLabel>
               </TableCell>
-              {['NPN', 'LEVEL', 'UPLINE', 'STATUS'].map((col) => (
+              {['ORG', 'NPN', 'LEVEL', 'UPLINE', 'STATUS'].map((col) => (
                 <TableCell
                   key={col}
                   sx={{
@@ -216,6 +221,23 @@ const Agents = () => {
                           </Typography>
                         </Stack>
                       </Stack>
+                    </TableCell>
+
+                    <TableCell>
+                      <Select
+                        size='small'
+                        value={agent.org_id}
+                        onChange={(e) =>
+                          handleUpdate(agent.id, 'org_id', e.target.value)
+                        }
+                        sx={{ minWidth: 100 }}
+                      >
+                        {orgs.map((o) => (
+                          <MenuItem key={o.id} value={o.id}>
+                            <Typography variant='caption'>{o.name}</Typography>
+                          </MenuItem>
+                        ))}
+                      </Select>
                     </TableCell>
 
                     {/* NPN */}
