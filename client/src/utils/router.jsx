@@ -12,6 +12,7 @@ const Premiums = lazy(() => import('../views/Premiums'));
 const Commissions = lazy(() => import('../views/Commissions'));
 const CashFlow = lazy(() => import('../views/CashFlow'));
 const Leads = lazy(() => import('../views/Leads'));
+const BulkUpload = lazy(() => import('../views/BulkUpload'));
 const Purchase = lazy(() => import('../views/Purchase'));
 const Leaderboard = lazy(() => import('../views/Leaderboard'));
 const Production = lazy(() => import('../views/Production'));
@@ -172,6 +173,27 @@ const router = createBrowserRouter([
             }
           >
             <Leads />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/bulk-upload',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <BulkUpload />
           </Suspense>
         ),
       },

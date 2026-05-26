@@ -20,6 +20,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 
 import { useTheme } from '@mui/material/styles';
 
@@ -67,6 +68,7 @@ const SidePanel = () => {
     { text: 'Leads', icon: <StorageOutlinedIcon />, path: '/leads' },
     { text: 'Clients', icon: <PeopleAltOutlinedIcon />, path: '/clients' },
     { text: 'Policies', icon: <ArticleOutlinedIcon />, path: '/policies' },
+    { text: 'Bulk Upload', icon: <UploadFileOutlinedIcon />, path: '/bulk-upload' },
   ];
 
   const managementItems = [
