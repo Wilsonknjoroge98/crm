@@ -7,13 +7,14 @@ const {
   sendDiscordNotification,
 } = require('../integrations/discord');
 
-// const ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
+const ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
 // const SLACK_CHANNEL = '#general';
 
 async function buildLeaderboard(startDate, endDate) {
   const { data: agents, error: agentsError } = await supabaseService
     .from('agents')
-    .select('id, first_name, last_name');
+    .select('id, first_name, last_name')
+    .eq('org_id', ORG_ID);
 
   if (agentsError) throw agentsError;
   if (!agents || agents.length === 0) return [];
@@ -22,7 +23,9 @@ async function buildLeaderboard(startDate, endDate) {
 
   const { data: policies, error: policiesError } = await supabaseService
     .from('policies')
-    .select('writing_agent_id, premium_amount, split_agent_id, split_agent_share')
+    .select(
+      'writing_agent_id, premium_amount, split_agent_id, split_agent_share',
+    )
     .in('writing_agent_id', agentIds)
     .gte('sold_date', startDate)
     .lte('sold_date', endDate);
@@ -42,13 +45,21 @@ async function buildLeaderboard(startDate, endDate) {
     if (!agentMap[writingAgentId]) continue;
 
     const annualPremium = Number(policy.premium_amount || 0) * 12;
-    const splitShare = policy.split_agent_id ? Number(policy.split_agent_share || 0) : 0;
+    const splitShare = policy.split_agent_id
+      ? Number(policy.split_agent_share || 0)
+      : 0;
     const writingShare = 100 - splitShare;
 
-    agentMap[writingAgentId].premiumAmount += annualPremium * (writingShare / 100);
+    agentMap[writingAgentId].premiumAmount +=
+      annualPremium * (writingShare / 100);
 
-    if (splitShare > 0 && policy.split_agent_id && agentMap[policy.split_agent_id]) {
-      agentMap[policy.split_agent_id].premiumAmount += annualPremium * (splitShare / 100);
+    if (
+      splitShare > 0 &&
+      policy.split_agent_id &&
+      agentMap[policy.split_agent_id]
+    ) {
+      agentMap[policy.split_agent_id].premiumAmount +=
+        annualPremium * (splitShare / 100);
     }
   }
 

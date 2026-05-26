@@ -1,5 +1,6 @@
 const axios = require('axios');
 const dayjs = require('dayjs');
+const logger = require('firebase-functions/logger');
 
 function buildPolicyDiscordPayload({
   agentName,
@@ -32,14 +33,32 @@ async function sendDiscordNotification(
   payload,
   webhookUrl = process.env.DISCORD_SALE_WEBHOOK_URL,
 ) {
-  if (!webhookUrl) return;
-  await axios.post(webhookUrl, payload);
+  try {
+    if (!webhookUrl) {
+      logger.warn('Discord webhook URL not set — skipping notification', {
+        route: 'sendDiscordNotification',
+      });
+      return;
+    }
+    const res = await axios.post(webhookUrl, payload);
+    logger.log('Sent Discord notification', {
+      route: 'sendDiscordNotification',
+      status: res.status,
+      data: payload,
+    });
+  } catch (error) {
+    logger.error('Error sending Discord notification', {
+      route: 'sendDiscordNotification',
+      error: error.response?.data || error.message,
+      data: payload,
+    });
+  }
 }
 
 function buildLeaderboardDiscordPayload(startDate, endDate, lines) {
   const dateRange = `${dayjs(startDate).format('MMM DD')} - ${dayjs(endDate).format('MMM DD')}`;
   return {
-    content: `Weekly Sales Results: ${dateRange}`,
+    content: `Weekly Results: ${dateRange}`,
     embeds: [
       {
         title: `WEEKLY RESULTS - ${dateRange}`,
@@ -52,7 +71,7 @@ function buildLeaderboardDiscordPayload(startDate, endDate, lines) {
 function buildDailyLeaderboardDiscordPayload(date, lines) {
   const label = dayjs(date).format('MMM DD');
   return {
-    content: `Daily Sales Results: ${label}`,
+    content: `Daily Results: ${label}`,
     embeds: [
       {
         title: `DAILY RESULTS - ${label}`,

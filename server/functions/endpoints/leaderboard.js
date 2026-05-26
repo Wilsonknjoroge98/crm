@@ -40,7 +40,9 @@ leaderboardRouter.get('/', async (req, res) => {
     // Fetch policies for all agents in the org filtered by sold_date
     let query = supabaseService
       .from('policies')
-      .select('writing_agent_id, premium_amount, split_agent_id, split_agent_share')
+      .select(
+        'writing_agent_id, premium_amount, split_agent_id, split_agent_share',
+      )
       .in('writing_agent_id', agentIds);
 
     if (startDate) query = query.gte('sold_date', startDate);
@@ -71,15 +73,23 @@ leaderboardRouter.get('/', async (req, res) => {
       if (!agentMap[writingAgentId]) continue;
 
       const annualPremium = Number(policy.premium_amount || 0) * 12;
-      const splitShare = policy.split_agent_id ? Number(policy.split_agent_share || 0) : 0;
+      const splitShare = policy.split_agent_id
+        ? Number(policy.split_agent_share || 0)
+        : 0;
       const writingShare = 100 - splitShare;
 
       agentMap[writingAgentId].count += 1;
-      agentMap[writingAgentId].premiumAmount += annualPremium * (writingShare / 100);
+      agentMap[writingAgentId].premiumAmount +=
+        annualPremium * (writingShare / 100);
 
-      if (splitShare > 0 && policy.split_agent_id && agentMap[policy.split_agent_id]) {
+      if (
+        splitShare > 0 &&
+        policy.split_agent_id &&
+        agentMap[policy.split_agent_id]
+      ) {
         agentMap[policy.split_agent_id].count += 1;
-        agentMap[policy.split_agent_id].premiumAmount += annualPremium * (splitShare / 100);
+        agentMap[policy.split_agent_id].premiumAmount +=
+          annualPremium * (splitShare / 100);
       }
     }
 

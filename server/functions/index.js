@@ -18,6 +18,7 @@ exports.app = functions.https.onRequest(
       'GSQ_SERVICE_ACCOUNT_KEY',
       'STRIPE_SECRET_KEY',
       'SUPABASE_SERVICE_ROLE_KEY',
+      'DISCORD_SALE_WEBHOOK_URL',
     ],
   },
   expressApp,
