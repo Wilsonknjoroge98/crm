@@ -167,7 +167,7 @@ const uploadBeneficiaries = async (req, res, rows) => {
         const { policyNumber, beneficiaryType } = allocationLabels.get(key);
         allocationErrors.push({
           row: '-',
-          message: `${beneficiaryType} beneficiary allocation for policy ${policyNumber} must total 100 including existing beneficiaries. Existing: ${existingTotal}%, Uploaded: ${uploadedTotal}%, Total: ${total}%.`,
+          message: `${beneficiaryType} beneficiary allocation for policy ${policyNumber} must total 100 including existing beneficiaries.`,
         });
       }
     });
