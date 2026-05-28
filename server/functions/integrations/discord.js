@@ -16,7 +16,6 @@ function buildPolicyDiscordPayload({
     content: `${agentName} - AP: ${ap}`,
     embeds: [
       {
-        title: 'New Policy',
         description: [
           `**Agent:** ${agentName}`,
           `**Product:** ${product}`,
@@ -58,10 +57,9 @@ async function sendDiscordNotification(
 function buildLeaderboardDiscordPayload(startDate, endDate, lines) {
   const dateRange = `${dayjs(startDate).format('MMM DD')} - ${dayjs(endDate).format('MMM DD')}`;
   return {
-    content: `Weekly Results: ${dateRange}`,
+    content: `${dateRange}`,
     embeds: [
       {
-        title: `WEEKLY RESULTS - ${dateRange}`,
         description: lines.join('\n'),
       },
     ],
@@ -71,10 +69,9 @@ function buildLeaderboardDiscordPayload(startDate, endDate, lines) {
 function buildDailyLeaderboardDiscordPayload(date, lines) {
   const label = dayjs(date).format('MMM DD');
   return {
-    content: `Daily Results: ${label}`,
+    content: `${label}`,
     embeds: [
       {
-        title: `DAILY RESULTS - ${label}`,
         description: lines.join('\n'),
       },
     ],

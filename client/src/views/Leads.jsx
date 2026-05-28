@@ -26,6 +26,7 @@ const CSV_HEADERS = [
   { label: 'Selected Carrier', key: 'selected_carrier' },
   { label: 'Selected Plan', key: 'selected_plan' },
   { label: 'Beneficiary', key: 'beneficiary' },
+  { label: 'Marital Status', key: 'marital_status' },
   { label: 'Priority', key: 'priority' },
   { label: 'Reason', key: 'why' },
   { label: 'BMI', key: 'bmi' },
