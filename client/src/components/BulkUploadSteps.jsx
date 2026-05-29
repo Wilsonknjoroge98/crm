@@ -545,7 +545,7 @@ export const ReviewImportStep = ({
         <Typography variant='h5'>3. Review and Import</Typography>
         <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
           Review the policies detected in your CSV before importing them into your
-          book of business. If a client already exists in your business, we will default to existing client data.
+          book of business. If a client already exists in your account, we will default to existing client data.
         </Typography>
       </Box>
 
