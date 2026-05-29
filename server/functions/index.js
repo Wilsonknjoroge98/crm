@@ -19,6 +19,7 @@ exports.app = functions.https.onRequest(
       'STRIPE_SECRET_KEY',
       'SUPABASE_PUBLISHABLE_KEY',
       'SUPABASE_SERVICE_ROLE_KEY',
+      'DISCORD_SALE_WEBHOOK_URL',
     ],
   },
   expressApp,
