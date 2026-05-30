@@ -378,13 +378,13 @@ export const createBulkUploadTemplateXlsx = async ({
 
     if (header === 'Other Agent Commission Share') {
       applyValidation(uploadSheet, index, () => ({
-        type: 'whole',
+        type: 'decimal',
         operator: 'between',
         allowBlank: true,
         showErrorMessage: true,
         errorStyle: 'error',
         errorTitle: 'Invalid commission share',
-        error: 'Enter a whole number from 0 to 100.',
+        error: 'Enter a percentage from 0 to 100.',
         formulae: [0, 100],
       }));
       return;

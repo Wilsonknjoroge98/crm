@@ -1,16 +1,12 @@
 import { Box, Container, Stack, Typography } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  BulkUploadStepper,
-  PrepareCsvStep,
   ReviewImportStep,
   UploadCsvStep,
 } from '../components/BulkUploadSteps';
 import { apiClient, getCarriers, getLeadVendors, getProducts } from '../utils/query';
 import {
-  FIELD_COLUMN_LAYOUT,
-  MORE_OPTIONAL_COLUMNS,
   TEMPLATE_COLUMNS,
   normalizeOptions,
   parseUploadFile,
@@ -25,20 +21,16 @@ const BulkUpload = () => {
   const [uploadSummary, setUploadSummary] = useState(null);
   const [previewRows, setPreviewRows] = useState([]);
   const [validatedRows, setValidatedRows] = useState([]);
-  const [selectedLeadVendor, setSelectedLeadVendor] = useState('Self Generated');
-  const [selectedCarrier, setSelectedCarrier] = useState('Mutual of Omaha');
-  const [selectedProduct, setSelectedProduct] = useState('Accidental Death');
-  const [showMoreOptionalFields, setShowMoreOptionalFields] = useState(false);
 
-  const { data: leadVendors = [] } = useQuery({
+  const { data: leadVendors = [], isLoading: isLeadVendorsLoading } = useQuery({
     queryKey: ['leadVendors'],
     queryFn: getLeadVendors,
   });
-  const { data: carriers = [] } = useQuery({
+  const { data: carriers = [], isLoading: isCarriersLoading } = useQuery({
     queryKey: ['carriers'],
     queryFn: getCarriers,
   });
-  const { data: products = [] } = useQuery({
+  const { data: products = [], isLoading: isProductsLoading } = useQuery({
     queryKey: ['products'],
     queryFn: getProducts,
   });
@@ -46,41 +38,10 @@ const BulkUpload = () => {
   const leadVendorOptions = normalizeOptions(leadVendors);
   const carrierOptions = normalizeOptions(carriers);
   const productOptions = normalizeOptions(products);
-  const filteredProductOptions = useMemo(() => {
-    const selectedCarrierRecord = carrierOptions.find(
-      (carrier) => carrier.name === selectedCarrier,
-    );
-    if (!selectedCarrierRecord) return productOptions;
-    return productOptions.filter(
-      (product) => product.carrier_id === selectedCarrierRecord.id,
-    );
-  }, [carrierOptions, productOptions, selectedCarrier]);
-
-  useEffect(() => {
-    if (!filteredProductOptions.length) return;
-    if (filteredProductOptions.some((product) => product.name === selectedProduct)) {
-      return;
-    }
-    setSelectedProduct(filteredProductOptions[0].name);
-  }, [filteredProductOptions, selectedProduct]);
-
-  const handleCarrierChange = (carrierName) => {
-    setSelectedCarrier(carrierName);
-    const carrier = carrierOptions.find((option) => option.name === carrierName);
-    const matchingProducts = carrier
-      ? productOptions.filter((product) => product.carrier_id === carrier.id)
-      : productOptions;
-    if (matchingProducts.length) {
-      setSelectedProduct(matchingProducts[0].name);
-    }
-  };
-
-  const csvHeaders = [
-    ...FIELD_COLUMN_LAYOUT[0],
-    ...(showMoreOptionalFields ? MORE_OPTIONAL_COLUMNS : []),
-    ...FIELD_COLUMN_LAYOUT[1],
-    ...FIELD_COLUMN_LAYOUT[2],
-  ].map(({ field }) => field);
+  const isTemplateLoading =
+    isLeadVendorsLoading ||
+    isCarriersLoading ||
+    isProductsLoading;
 
   const rowErrorCount = new Set(
     (uploadSummary?.errors || [])
@@ -128,8 +89,7 @@ const BulkUpload = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleCsvUpload = async (event) => {
-    const file = event.target.files?.[0];
+  const handleUploadFile = async (file) => {
     if (!file) return;
 
     setIsUploading(true);
@@ -143,13 +103,13 @@ const BulkUpload = () => {
       if (rows.length === 0) {
         setUploadSummary({
           error: true,
-          message: 'CSV has no data rows.',
+          message: 'File has no data rows.',
           total: 0,
           inserted: 0,
           failed: 0,
           errors: [],
         });
-        setCurrentStep(2);
+        setCurrentStep(1);
         return;
       }
 
@@ -164,7 +124,7 @@ const BulkUpload = () => {
         setValidatedRows(rows);
       }
       setUploadSummary(response.data);
-      setCurrentStep(2);
+      setCurrentStep(1);
     } catch (error) {
       setUploadSummary({
         error: true,
@@ -174,9 +134,16 @@ const BulkUpload = () => {
         failed: 0,
         errors: [],
       });
-      setCurrentStep(2);
+      setCurrentStep(1);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleCsvUpload = async (event) => {
+    try {
+      await handleUploadFile(event.target.files?.[0]);
+    } finally {
       event.target.value = '';
     }
   };
@@ -212,19 +179,7 @@ const BulkUpload = () => {
       setPreviewRows([]);
       setValidatedRows([]);
     }
-    setCurrentStep(1);
-  };
-
-  const lookupProps = {
-    leadVendorOptions,
-    carrierOptions,
-    filteredProductOptions,
-    selectedLeadVendor,
-    setSelectedLeadVendor,
-    selectedCarrier,
-    setSelectedCarrier: handleCarrierChange,
-    selectedProduct,
-    setSelectedProduct,
+    setCurrentStep(0);
   };
 
   return (
@@ -239,32 +194,22 @@ const BulkUpload = () => {
           <Box>
             <Typography variant='h4'>Bulk Upload</Typography>
             <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-              Import your entire book of business by uploading a CSV file.
+              Import your entire book of business by uploading an XLSX file.
             </Typography>
           </Box>
         </Stack>
 
-        <BulkUploadStepper currentStep={currentStep} />
-
         {currentStep === 0 && (
-          <PrepareCsvStep
+          <UploadCsvStep
+            isUploading={isUploading}
+            onUpload={handleCsvUpload}
+            onDropUpload={handleUploadFile}
             onDownloadTemplate={handleDownloadTemplate}
-            onNext={() => setCurrentStep(1)}
-            showMoreOptionalFields={showMoreOptionalFields}
-            setShowMoreOptionalFields={setShowMoreOptionalFields}
-            lookupProps={lookupProps}
+            isTemplateLoading={isTemplateLoading}
           />
         )}
 
         {currentStep === 1 && (
-          <UploadCsvStep
-            isUploading={isUploading}
-            onUpload={handleCsvUpload}
-            onBack={() => setCurrentStep(0)}
-          />
-        )}
-
-        {currentStep === 2 && (
           <ReviewImportStep
             uploadSummary={uploadSummary}
             isReadyToImport={isReadyToImport}

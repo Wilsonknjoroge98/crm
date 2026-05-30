@@ -2,198 +2,33 @@ import {
   Alert,
   Box,
   Button,
-  Divider,
   List,
   ListItem,
   ListItemText,
-  MenuItem,
   Paper,
   Stack,
-  Step,
-  StepLabel,
-  Stepper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
-import {
-  FIELD_COLUMN_LAYOUT,
-  FIELD_HELP,
-  MORE_OPTIONAL_COLUMNS,
-  OPTIONAL_BENEFICIARY_COLUMNS,
-  REQUIRED_COLUMNS,
-  optionValue,
-} from '../utils/bulkUpload';
 
-const selectSx = {
-  ml: 1,
-  minWidth: 160,
-  flexShrink: 0,
-  '& .MuiInputBase-input': { py: 0 },
-  '& .MuiInputBase-root': {
-    height: 24,
-    fontSize: '0.875rem',
-    color: 'text.secondary',
-    alignItems: 'center',
-  },
-};
-
-const LookupSelect = ({ value, onChange, options, fallbackValue }) => (
-  <TextField
-    select
-    size='small'
-    value={value}
-    onChange={onChange}
-    variant='standard'
-    sx={selectSx}
-  >
-    {options.length === 0 ? (
-      <MenuItem value={fallbackValue}>{fallbackValue}</MenuItem>
-    ) : (
-      options.map((option) => (
-        <MenuItem key={option.id || option} value={optionValue(option)}>
-          {optionValue(option)}
-        </MenuItem>
-      ))
-    )}
-  </TextField>
-);
-
-const FieldRow = ({
-  fieldConfig,
-  isRequired,
-  shouldTruncate = false,
-  lookupProps,
-}) => {
-  const { field, example } = fieldConfig;
-  const isLeadVendor = field === 'Lead Vendor';
-  const isCarrier = field === 'Carrier';
-  const isProduct = field === 'Product';
-
-  return (
-    <Box
-      key={field}
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        fontSize: '0.875rem',
-        lineHeight: 1.5,
-        minHeight: 28,
-        minWidth: 0,
-      }}
-    >
-      <Typography
-        variant='body2'
-        component='span'
-        sx={{ flexShrink: 0, lineHeight: 1.5, whiteSpace: 'nowrap' }}
-      >
-        {field}
-        {isRequired && (
-          <Typography
-            component='span'
-            sx={{ color: '#e53935', ml: 0.15, fontWeight: 700 }}
-          >
-            *
-          </Typography>
-        )}
-      </Typography>
-
-      {isLeadVendor && (
-        <LookupSelect
-          value={lookupProps.selectedLeadVendor}
-          onChange={(e) => lookupProps.setSelectedLeadVendor(e.target.value)}
-          options={lookupProps.leadVendorOptions}
-          fallbackValue='Self Generated'
-        />
-      )}
-      {isCarrier && (
-        <LookupSelect
-          value={lookupProps.selectedCarrier}
-          onChange={(e) => lookupProps.setSelectedCarrier(e.target.value)}
-          options={lookupProps.carrierOptions}
-          fallbackValue='Mutual of Omaha'
-        />
-      )}
-      {isProduct && (
-        <LookupSelect
-          value={lookupProps.selectedProduct}
-          onChange={(e) => lookupProps.setSelectedProduct(e.target.value)}
-          options={lookupProps.filteredProductOptions}
-          fallbackValue='Accidental Death'
-        />
-      )}
-
-      {!isLeadVendor && !isCarrier && !isProduct && (
-        <Typography
-          component='span'
-          variant='body2'
-          color='text.secondary'
-          sx={{
-            lineHeight: 1.5,
-            minWidth: 0,
-            whiteSpace: 'nowrap',
-            ...(shouldTruncate
-              ? {
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }
-              : {}),
-          }}
-        >
-          {` - ${example}`}
-        </Typography>
-      )}
-
-      <Tooltip title={FIELD_HELP[field] || `Example: ${example}`} arrow>
-        <HelpOutlineIcon
-          sx={{
-            ml: 0.5,
-            fontSize: '0.95rem',
-            color: 'text.secondary',
-            flexShrink: 0,
-          }}
-        />
-      </Tooltip>
-    </Box>
-  );
-};
-
-export const BulkUploadStepper = ({ currentStep }) => (
-  <Paper variant='outlined' sx={{ p: 3, borderRadius: 1 }}>
-    <Stepper activeStep={currentStep} alternativeLabel>
-      <Step>
-        <StepLabel>Prepare CSV File</StepLabel>
-      </Step>
-      <Step>
-        <StepLabel>Upload CSV File</StepLabel>
-      </Step>
-      <Step>
-        <StepLabel>Review and Import</StepLabel>
-      </Step>
-    </Stepper>
-  </Paper>
-);
-
-export const PrepareCsvStep = ({
+export const UploadCsvStep = ({
+  isUploading,
+  onUpload,
+  onDropUpload,
   onDownloadTemplate,
-  onNext,
-  showMoreOptionalFields,
-  setShowMoreOptionalFields,
-  lookupProps,
+  isTemplateLoading,
 }) => (
-  <Paper variant='outlined' sx={{ p: 3, borderRadius: 1, position: 'relative' }}>
-    <Stack spacing={2.5}>
+  <Paper variant='outlined' sx={{ p: 3, borderRadius: 1 }}>
+    <Stack spacing={3}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         justifyContent='space-between'
@@ -201,111 +36,35 @@ export const PrepareCsvStep = ({
         spacing={2}
       >
         <Box>
-          <Typography variant='h5'>1. Prepare CSV File</Typography>
+          <Typography variant='h5'>Upload File</Typography>
           <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-            Create a CSV file with the following columns or download our template.
-            <br />
-            Each row of the CSV should specify a policy with the following columns
-            and values:
+            Download and complete the template in Excel or Google Sheets then upload the finished file.
           </Typography>
         </Box>
-        <Button variant='contained' color='action' onClick={onDownloadTemplate}>
-          Download Template
+        <Button
+          variant='contained'
+          color='action'
+          disabled={isTemplateLoading}
+          onClick={onDownloadTemplate}
+        >
+          {isTemplateLoading ? 'Loading Template...' : 'Download Template'}
         </Button>
       </Stack>
-
-      <Divider />
-
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-          columnGap: 2.5,
-          rowGap: 2,
-          alignItems: 'stretch',
-        }}
-      >
-        {FIELD_COLUMN_LAYOUT.map((column, columnIndex) => (
-          <Stack key={columnIndex} spacing={0.75}>
-            {column.map((fieldConfig) => (
-              <FieldRow
-                key={fieldConfig.field}
-                fieldConfig={fieldConfig}
-                isRequired={
-                  REQUIRED_COLUMNS.some(({ field }) => field === fieldConfig.field) &&
-                  !OPTIONAL_BENEFICIARY_COLUMNS.some(
-                    ({ field }) => field === fieldConfig.field,
-                  )
-                }
-                shouldTruncate={columnIndex === 2}
-                lookupProps={lookupProps}
-              />
-            ))}
-            {columnIndex === 0 &&
-              showMoreOptionalFields &&
-              MORE_OPTIONAL_COLUMNS.map((fieldConfig) => (
-                <FieldRow
-                  key={fieldConfig.field}
-                  fieldConfig={fieldConfig}
-                  isRequired={false}
-                  lookupProps={lookupProps}
-                />
-              ))}
-            {columnIndex === 0 && (
-              <Button
-                variant='text'
-                size='small'
-                onClick={() => setShowMoreOptionalFields((current) => !current)}
-                sx={{
-                  alignSelf: 'flex-start',
-                  px: 0,
-                  minWidth: 0,
-                  color: 'text.secondary',
-                }}
-              >
-                {showMoreOptionalFields
-                  ? 'Hide optional fields'
-                  : 'View more optional fields...'}
-              </Button>
-            )}
-          </Stack>
-        ))}
-      </Box>
-    </Stack>
-    <Button
-      variant='outlined'
-      sx={{
-        position: 'absolute',
-        right: 24,
-        bottom: 24,
-        bgcolor: '#FFFFFF',
-        color: '#1A1A1A',
-        borderColor: '#1A1A1A',
-        '&:hover': {
-          bgcolor: '#F7F7F7',
-          borderColor: '#1A1A1A',
-        },
-      }}
-      onClick={onNext}
-    >
-      Next Step
-    </Button>
-  </Paper>
-);
-
-export const UploadCsvStep = ({ isUploading, onUpload, onBack }) => (
-  <Paper variant='outlined' sx={{ p: 3, borderRadius: 1 }}>
-    <Stack spacing={4}>
-      <Box>
-        <Typography variant='h5'>2. Upload CSV File</Typography>
-        <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-          Select the prepared CSV file when you are ready to upload.
-        </Typography>
-      </Box>
 
       <Paper
         component='label'
         variant='outlined'
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (isUploading) return;
+          const file = event.dataTransfer.files?.[0];
+          if (file) onDropUpload(file);
+        }}
         sx={{
           minHeight: 340,
           borderRadius: 1,
@@ -328,7 +87,7 @@ export const UploadCsvStep = ({ isUploading, onUpload, onBack }) => (
       >
         <input
           type='file'
-          accept='.csv,.xlsx'
+          accept='.xlsx'
           hidden
           disabled={isUploading}
           onChange={onUpload}
@@ -351,7 +110,7 @@ export const UploadCsvStep = ({ isUploading, onUpload, onBack }) => (
           </Box>
 
           <Typography variant='body2' color='text.secondary'>
-            Drag and drop your completed CSV
+            Drag and drop your completed file
             <br />
             or click anywhere in this box to choose a file.
           </Typography>
@@ -371,16 +130,10 @@ export const UploadCsvStep = ({ isUploading, onUpload, onBack }) => (
               },
             }}
           >
-            Choose CSV File
+            Choose File
           </Button>
         </Stack>
       </Paper>
-
-      <Stack direction='row' justifyContent='flex-start'>
-        <Button variant='outlined' onClick={onBack}>
-          Back
-        </Button>
-      </Stack>
     </Stack>
   </Paper>
 );
@@ -470,7 +223,7 @@ const ReviewRowsTable = ({ rows, uploadSummary }) => {
             <TableRow>
               <TableCell colSpan={7}>
                 <Typography variant='body2' color='text.secondary'>
-                  Upload a CSV to preview rows.
+                  Upload a file to preview rows.
                 </Typography>
               </TableCell>
             </TableRow>
@@ -581,9 +334,9 @@ export const ReviewImportStep = ({
   <Paper variant='outlined' sx={{ p: 3, borderRadius: 1 }}>
     <Stack spacing={2.5}>
       <Box>
-        <Typography variant='h5'>3. Review and Import</Typography>
+        <Typography variant='h5'>Review and Import</Typography>
         <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-          Review the policies detected in your CSV before importing them into your
+          Review the policies detected in your file before importing them into your
           book of business. If a client already exists in your account, we will default to existing client data.
         </Typography>
       </Box>

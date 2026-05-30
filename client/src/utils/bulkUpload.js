@@ -151,6 +151,10 @@ const parseCsvLine = (line) => {
   return values.map((v) => v.trim());
 };
 
+const isPercentColumn = (header) =>
+  /^(Primary|Contingent) Beneficiary \d+ Allocation %$/.test(header) ||
+  header === 'Other Agent Commission Share';
+
 export const parseCsvText = (text) => {
   const lines = text
     .replace(/\r\n/g, '\n')
@@ -205,7 +209,7 @@ export const parseUploadFile = async (file) => {
         ? value.text
         : value;
       const shouldScalePercent =
-        /^(Primary|Contingent) Beneficiary \d+ Allocation %$/.test(header) &&
+        isPercentColumn(header) &&
         typeof value === 'number' &&
         String(cell.numFmt || '').includes('%');
       parsedRow[header] = String(shouldScalePercent ? value * 100 : text ?? '').trim();
