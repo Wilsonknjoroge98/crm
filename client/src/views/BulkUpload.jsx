@@ -1,4 +1,5 @@
-import { Box, Container, Stack, Typography } from '@mui/material';
+import { Box, Container, Paper, Stack, Typography } from '@mui/material';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -182,9 +183,27 @@ const BulkUpload = () => {
     setCurrentStep(0);
   };
 
+  const faqs = [
+    {
+      question: "What if I don't have some information?",
+      answer:
+        'That is fine, most fields are optional. Just leave the cell blank and we will skip it. Do not put "N/A" or "unknown" in cells, just leave them empty.',
+    },
+    {
+      question: 'Can I upload clients without policies yet?',
+      answer:
+        'Yes. Leave the policy columns blank. We will create the client without a policy and you can add it later from their profile.',
+    },
+    {
+      question: 'What if a client has multiple policies?',
+      answer:
+        "Add a separate row for each policy. Use the same client info (name, phone, DOB) in each row; we will automatically group them under the same client's record.",
+    },
+  ];
+
   return (
-    <Container sx={{ mt: 4 }}>
-      <Stack spacing={3}>
+    <Container sx={{ mt: 4, minHeight: 'calc(100vh - 96px)', display: 'flex' }}>
+      <Stack spacing={3} sx={{ flex: 1 }}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent='space-between'
@@ -219,6 +238,66 @@ const BulkUpload = () => {
             onImport={handleImportBook}
           />
         )}
+
+        <Box
+          sx={{
+            mt: 'auto',
+            pt: 3,
+            pb: 4,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Stack direction='row' spacing={1} alignItems='center'>
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: '#FFFFFF',
+                color: 'primary.main',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <HelpOutlineIcon fontSize='small' />
+            </Box>
+            <Typography variant='h6'>Frequently Asked Questions</Typography>
+          </Stack>
+
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1.5}
+            sx={{ mt: 2 }}
+          >
+            {faqs.map((faq) => (
+              <Paper
+                key={faq.question}
+                variant='outlined'
+                sx={{
+                  flex: 1,
+                  p: 2,
+                  borderRadius: 1,
+                  bgcolor: '#FAFAFA',
+                  borderColor: 'rgba(26, 26, 26, 0.1)',
+                }}
+              >
+                <Typography variant='subtitle2' sx={{ lineHeight: 1.35 }}>
+                  {faq.question}
+                </Typography>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  sx={{ mt: 0.75, lineHeight: 1.55 }}
+                >
+                  {faq.answer}
+                </Typography>
+              </Paper>
+            ))}
+          </Stack>
+        </Box>
       </Stack>
     </Container>
   );
