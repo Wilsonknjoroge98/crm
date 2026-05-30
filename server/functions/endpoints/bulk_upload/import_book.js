@@ -100,7 +100,7 @@ function buildPolicy(rowWithLookups, clientId, agentId) {
 
 function getBeneficiaries(row, type) {
   const label = type === 'primary' ? 'Primary' : 'Contingent';
-  const pattern = new RegExp(`^${label} Beneficiary (\\d+) (Name|Relationship|%)$`);
+  const pattern = new RegExp(`^${label} Beneficiary (\\d+) (Name|Relationship|Allocation %)$`);
   const byIndex = new Map();
 
   Object.keys(row).forEach((field) => {
@@ -116,7 +116,7 @@ function getBeneficiaries(row, type) {
     const beneficiary = byIndex.get(index);
     if (part === 'Name') beneficiary.name = value(row, field);
     if (part === 'Relationship') beneficiary.relationship = value(row, field);
-    if (part === '%') beneficiary.allocation = value(row, field);
+    if (part === 'Allocation %') beneficiary.allocation = value(row, field);
   });
 
   return [...byIndex.values()]

@@ -328,7 +328,7 @@ export const UploadCsvStep = ({ isUploading, onUpload, onBack }) => (
       >
         <input
           type='file'
-          accept='.csv'
+          accept='.csv,.xlsx'
           hidden
           disabled={isUploading}
           onChange={onUpload}

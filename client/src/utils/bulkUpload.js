@@ -20,7 +20,7 @@ export const REQUIRED_COLUMNS = [
   { field: 'Premium Frequency', example: 'monthly' },
   { field: 'Primary Beneficiary 1 Name', example: 'Mary Smith' },
   { field: 'Primary Beneficiary 1 Relationship', example: 'Spouse' },
-  { field: 'Primary Beneficiary 1 %', example: '100' },
+  { field: 'Primary Beneficiary 1 Allocation %', example: '100' },
 ];
 
 const REQUIRED_COLUMN_LAYOUT = [
@@ -32,13 +32,13 @@ const REQUIRED_COLUMN_LAYOUT = [
 export const OPTIONAL_BENEFICIARY_COLUMNS = [
   { field: 'Primary Beneficiary 2 Name', example: 'John Smith' },
   { field: 'Primary Beneficiary 2 Relationship', example: 'Child' },
-  { field: 'Primary Beneficiary 2 %', example: '50' },
+  { field: 'Primary Beneficiary 2 Allocation %', example: '50' },
   { field: 'Contingent Beneficiary 1 Name', example: 'Sam Smith' },
   { field: 'Contingent Beneficiary 1 Relationship', example: 'Sibling' },
-  { field: 'Contingent Beneficiary 1 %', example: '100' },
+  { field: 'Contingent Beneficiary 1 Allocation %', example: '100' },
   { field: 'Contingent Beneficiary 2 Name', example: 'Alex Smith' },
   { field: 'Contingent Beneficiary 2 Relationship', example: 'Parent' },
-  { field: 'Contingent Beneficiary 2 %', example: '50' },
+  { field: 'Contingent Beneficiary 2 Allocation %', example: '50' },
 ];
 
 export const OPTIONAL_COLUMNS = [
@@ -68,10 +68,23 @@ export const FIELD_COLUMN_LAYOUT = [
   [...REQUIRED_COLUMN_LAYOUT[2], ...OPTIONAL_BENEFICIARY_COLUMNS],
 ];
 
+const TEMPLATE_BENEFICIARY_COLUMNS = [
+  ...REQUIRED_COLUMN_LAYOUT[2],
+  ...OPTIONAL_BENEFICIARY_COLUMNS.filter(({ field }) =>
+    /^Contingent Beneficiary 1 /.test(field)),
+];
+
+export const TEMPLATE_COLUMNS = [
+  ...FIELD_COLUMN_LAYOUT[0],
+  ...MORE_OPTIONAL_COLUMNS,
+  ...FIELD_COLUMN_LAYOUT[1],
+  ...TEMPLATE_BENEFICIARY_COLUMNS,
+];
+
 export const FIELD_HELP = {
   'Full Name': 'Enter first and last name in one cell.',
   Email: 'Use a valid email address.',
-  Phone: 'Use exactly 10 digits. Do not include dashes, spaces, or parentheses.',
+  Phone: 'Use a 10-digit phone number. Common punctuation is okay.',
   'Date of Birth': 'Use YYYY-MM-DD format.',
   Address: 'Use the street address only.',
   City: 'Use the client city.',
@@ -88,18 +101,6 @@ export const FIELD_HELP = {
   'Sold Date': 'Use YYYY-MM-DD format.',
   'Draft Day': 'Use a whole number from 1 to 31.',
   'Premium Frequency': 'Use weekly, monthly, quarterly, semi-annually, or annually.',
-  'Primary Beneficiaries':
-    'Use comma-separated names when there is more than one primary beneficiary.',
-  'Primary Relationships':
-    'Options: Spouse, Child, Parent, Sibling, Grandparent, Grandchild, Fiancé/Fiancée, Domestic Partner, Cousin, Aunt, Uncle, Niece, Nephew, Friend, Legal Guardian, Business Partner, Trust, Estate, Charity, Other.',
-  'Primary Allocations':
-    'Use comma-separated percentages that total 100 for primary beneficiaries.',
-  'Contingent Beneficiaries':
-    'Use comma-separated names when there is more than one contingent beneficiary.',
-  'Contingent Allocations':
-    'Use comma-separated percentages that total 100 for contingent beneficiaries.',
-  'Contingent Relationships':
-    'Options: Spouse, Child, Parent, Sibling, Grandparent, Grandchild, Fiancé/Fiancée, Domestic Partner, Cousin, Aunt, Uncle, Niece, Nephew, Friend, Legal Guardian, Business Partner, Trust, Estate, Charity, Other.',
   'Lead Vendor': 'Will default to Self Generated if missing or invalid.',
   Smoker: 'Use true or false.',
   'Height (Feet)': 'Use feet only as a whole number.',
@@ -169,5 +170,50 @@ export const parseCsvText = (text) => {
     });
     rows.push(row);
   }
+  return rows;
+};
+
+export const parseUploadFile = async (file) => {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (extension !== 'xlsx') return parseCsvText(await file.text());
+
+  const ExcelJSModule = await import('exceljs');
+  const ExcelJS = ExcelJSModule.default || ExcelJSModule;
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(await file.arrayBuffer());
+
+  const sheet = workbook.getWorksheet('Bulk Upload') || workbook.worksheets[0];
+  if (!sheet) return [];
+
+  const headerRow = sheet.getRow(1);
+  const headers = [];
+  headerRow.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+    headers[columnNumber - 1] = String(cell.value ?? '').trim();
+  });
+
+  const rows = [];
+  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return;
+
+    const parsedRow = {};
+    let hasValue = false;
+    headers.forEach((header, index) => {
+      if (!header) return;
+      const cell = row.getCell(index + 1);
+      const value = cell.value;
+      const text = value && typeof value === 'object' && 'text' in value
+        ? value.text
+        : value;
+      const shouldScalePercent =
+        /^(Primary|Contingent) Beneficiary \d+ Allocation %$/.test(header) &&
+        typeof value === 'number' &&
+        String(cell.numFmt || '').includes('%');
+      parsedRow[header] = String(shouldScalePercent ? value * 100 : text ?? '').trim();
+      if (parsedRow[header]) hasValue = true;
+    });
+
+    if (hasValue) rows.push(parsedRow);
+  });
+
   return rows;
 };

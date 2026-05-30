@@ -21,7 +21,7 @@ const REQUIRED_FIELDS = [
   'Premium Frequency',
   'Primary Beneficiary 1 Name',
   'Primary Beneficiary 1 Relationship',
-  'Primary Beneficiary 1 %',
+  'Primary Beneficiary 1 Allocation %',
 ];
 
 const PERSON_FIELDS = [
@@ -151,7 +151,7 @@ const normalizePersonValue = (field, raw) => {
 
 const getBeneficiaries = (row, type) => {
   const label = type === 'primary' ? 'Primary' : 'Contingent';
-  const pattern = new RegExp(`^${label} Beneficiary (\\d+) (Name|Relationship|%)$`);
+  const pattern = new RegExp(`^${label} Beneficiary (\\d+) (Name|Relationship|Allocation %)$`);
   const byIndex = new Map();
 
   Object.keys(row).forEach((field) => {
@@ -167,7 +167,7 @@ const getBeneficiaries = (row, type) => {
     const beneficiary = byIndex.get(index);
     if (part === 'Name') beneficiary.name = value(row, field);
     if (part === 'Relationship') beneficiary.relationship = value(row, field);
-    if (part === '%') beneficiary.allocation = value(row, field);
+    if (part === 'Allocation %') beneficiary.allocation = value(row, field);
   });
 
   return [...byIndex.values()].sort((a, b) => a.index - b.index);
@@ -195,7 +195,7 @@ const validateBeneficiarySet = (row, rowNumber, type) => {
       errors.push({
         row: rowNumber,
         message:
-          `${prefix} Beneficiary ${beneficiary.index} must include name, relationship, and %`,
+          `${prefix} Beneficiary ${beneficiary.index} must include name, relationship, and allocation %`,
       });
     }
   });
@@ -255,10 +255,6 @@ const validateRowFormat = (row, rowNumber) => {
       row: rowNumber,
       message: `Missing required field(s): ${missing.join(', ')}`,
     });
-  }
-
-  if (value(row, 'Full Name').replace(/\s+/g, ' ').split(' ').length < 2) {
-    errors.push({ row: rowNumber, message: 'Full Name must include first and last name' });
   }
 
   if (value(row, 'Email') && !EMAIL_REGEX.test(value(row, 'Email').toLowerCase())) {

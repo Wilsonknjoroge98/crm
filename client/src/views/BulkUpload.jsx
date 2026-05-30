@@ -11,9 +11,11 @@ import { apiClient, getCarriers, getLeadVendors, getProducts } from '../utils/qu
 import {
   FIELD_COLUMN_LAYOUT,
   MORE_OPTIONAL_COLUMNS,
+  TEMPLATE_COLUMNS,
   normalizeOptions,
-  parseCsvText,
+  parseUploadFile,
 } from '../utils/bulkUpload';
+import { createBulkUploadTemplateXlsx } from '../utils/bulkUploadTemplate';
 
 const BulkUpload = () => {
   const queryClient = useQueryClient();
@@ -108,15 +110,18 @@ const BulkUpload = () => {
     queryClient.invalidateQueries({ queryKey: ['premiumLeaderboard'] });
   };
 
-  const handleDownloadTemplate = () => {
-    const escapedHeaders = csvHeaders.map((header) => `"${header}"`);
-    const csvContent = `${escapedHeaders.join(',')}\n`;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const handleDownloadTemplate = async () => {
+    const blob = await createBulkUploadTemplateXlsx({
+      columns: TEMPLATE_COLUMNS,
+      leadVendorOptions,
+      carrierOptions,
+      productOptions,
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
     link.href = url;
-    link.setAttribute('download', 'book-of-business-template.csv');
+    link.setAttribute('download', 'book-of-business-template.xlsx');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -133,7 +138,7 @@ const BulkUpload = () => {
     setValidatedRows([]);
 
     try {
-      const rows = parseCsvText(await file.text());
+      const rows = await parseUploadFile(file);
       setPreviewRows(rows);
       if (rows.length === 0) {
         setUploadSummary({
