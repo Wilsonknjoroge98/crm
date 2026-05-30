@@ -1,4 +1,5 @@
 const express = require('express');
+const dayjs = require('dayjs');
 const { validateFormat } = require('./bulk_upload/format_validation');
 const {
   validateDatabaseConflicts,
@@ -10,6 +11,28 @@ const {
 
 // eslint-disable-next-line new-cap
 const bulkUploadRouter = express.Router();
+
+const normalizePhone = (raw) => {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return digits;
+};
+
+const normalizeDate = (raw) => {
+  const input = String(raw ?? '').trim();
+  if (!input) return input;
+  const parsed = dayjs(input);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : input;
+};
+
+const normalizeRows = (rows) =>
+  rows.map((row) => ({
+    ...row,
+    Phone: normalizePhone(row.Phone),
+    'Date of Birth': normalizeDate(row['Date of Birth']),
+    'Effective Date': normalizeDate(row['Effective Date']),
+    'Sold Date': normalizeDate(row['Sold Date']),
+  }));
 
 // Shared validator for both validate and import, so import cannot bypass fresh checks.
 const validateRows = async ({ rows, agentId }) => {
@@ -48,7 +71,7 @@ const parseRowsRequest = (req, res) => {
     return null;
   }
 
-  return { rows, agentId: req.agent.id };
+  return { rows: normalizeRows(rows), agentId: req.agent.id };
 };
 
 bulkUploadRouter.post('/validate', async (req, res) => {

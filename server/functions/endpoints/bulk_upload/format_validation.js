@@ -250,7 +250,7 @@ const validateRowFormat = (row, rowNumber) => {
 
   ['Date of Birth', 'Effective Date', 'Sold Date'].forEach((field) => {
     if (value(row, field) && !parseDate(value(row, field))) {
-      errors.push({ row: rowNumber, message: `${field} must be a valid YYYY-MM-DD date` });
+      errors.push({ row: rowNumber, message: `${field} must be a valid date` });
     }
   });
 
