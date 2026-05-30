@@ -37,18 +37,39 @@ const normalizeRows = (rows) =>
 // Shared validator for both validate and import, so import cannot bypass fresh checks.
 const validateRows = async ({ rows, agentId }) => {
   const formatResult = validateFormat(rows);
-  if (formatResult.error) {
-    return formatResult;
-  }
-
   const conflictResult = await validateDatabaseConflicts({ rows, agentId });
-  if (conflictResult.error) {
+  if (conflictResult.error && hasSystemError(conflictResult)) {
     return conflictResult;
   }
 
   const referenceResult = await validateImportReferences(rows);
-  if (referenceResult.error) {
+  if (referenceResult.error && hasSystemError(referenceResult)) {
     return referenceResult;
+  }
+
+  const errors = [
+    ...(formatResult.errors || []),
+    ...(conflictResult.errors || []),
+    ...(referenceResult.errors || []),
+  ];
+
+  if (errors.length > 0) {
+    return {
+      ...conflictResult,
+      error: true,
+      message: 'CSV has ineligible rows.',
+      total: rows.length,
+      inserted: 0,
+      failed: new Set(
+        errors
+          .map((error) => error.row)
+          .filter((row) => Number.isInteger(row)),
+      ).size || rows.length,
+      errors,
+      warnings: referenceResult.warnings || [],
+      stage: 'database_conflict_validation',
+      plan: null,
+    };
   }
 
   return {
@@ -56,6 +77,12 @@ const validateRows = async ({ rows, agentId }) => {
     warnings: referenceResult.warnings,
   };
 };
+
+const getRowLevelErrors = (result) =>
+  (result.errors || []).filter((error) => Number.isInteger(error.row));
+
+const hasSystemError = (result) =>
+  (result.errors || []).some((error) => error.row === '-');
 
 // Normalizes route request validation before stage-specific work begins.
 const parseRowsRequest = (req, res) => {
@@ -86,18 +113,59 @@ bulkUploadRouter.post('/import', async (req, res) => {
   const parsed = parseRowsRequest(req, res);
   if (!parsed) return undefined;
 
-  const conflictResult = await validateRows(parsed);
-  if (conflictResult.error) {
-    return res.status(200).json(conflictResult);
+  const validationResult = await validateRows(parsed);
+  if (validationResult.error && hasSystemError(validationResult)) {
+    return res.status(200).json(validationResult);
+  }
+
+  const skippedErrors = getRowLevelErrors(validationResult);
+  const skippedRowNumbers = [
+    ...new Set(skippedErrors.map((error) => error.row)),
+  ].sort((a, b) => a - b);
+  const skippedRowSet = new Set(skippedRowNumbers);
+  const eligibleRows = parsed.rows.filter(
+    (_, index) => !skippedRowSet.has(index + 2),
+  );
+
+  if (eligibleRows.length === 0) {
+    return res.status(200).json({
+      ...validationResult,
+      eligible: 0,
+      skippedRowNumbers,
+      skippedErrors,
+      partial: false,
+    });
+  }
+
+  const eligibleValidationResult = await validateRows({
+    rows: eligibleRows,
+    agentId: parsed.agentId,
+  });
+
+  if (eligibleValidationResult.error) {
+    return res.status(200).json({
+      ...eligibleValidationResult,
+      skippedRowNumbers,
+      skippedErrors,
+      partial: skippedRowNumbers.length > 0,
+    });
   }
 
   const importResult = await importBook({
-    rows: parsed.rows,
+    rows: eligibleRows,
     agentId: parsed.agentId,
-    plan: conflictResult.plan,
+    plan: eligibleValidationResult.plan,
   });
 
-  return res.status(200).json(importResult);
+  return res.status(200).json({
+    ...importResult,
+    total: parsed.rows.length,
+    eligible: eligibleRows.length,
+    failed: skippedRowNumbers.length,
+    skippedRowNumbers,
+    skippedErrors,
+    partial: skippedRowNumbers.length > 0,
+  });
 });
 
 bulkUploadRouter.post('/', async (req, res) => {

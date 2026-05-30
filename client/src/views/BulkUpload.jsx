@@ -80,11 +80,22 @@ const BulkUpload = () => {
     ...FIELD_COLUMN_LAYOUT[2],
   ].map(({ field }) => field);
 
+  const rowErrorCount = new Set(
+    (uploadSummary?.errors || [])
+      .map((error) => error.row)
+      .filter((row) => Number.isInteger(row)),
+  ).size;
+  const importableRowCount = Math.max(validatedRows.length - rowErrorCount, 0);
+
   const isReadyToImport =
     uploadSummary &&
-    !uploadSummary.error &&
-    uploadSummary.stage === 'database_conflict_validation' &&
-    validatedRows.length > 0;
+    uploadSummary.stage !== 'import' &&
+    (!uploadSummary.error ||
+      (uploadSummary.errors || []).some((error) =>
+        Number.isInteger(error.row),
+      )) &&
+    !(uploadSummary.errors || []).some((error) => error.row === '-') &&
+    importableRowCount > 0;
 
   const invalidateBulkUploadQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['leads'] });
@@ -138,7 +149,15 @@ const BulkUpload = () => {
       }
 
       const response = await apiClient.post('/bulk-upload/validate', { rows });
-      if (!response.data?.error) setValidatedRows(rows);
+      const hasRowErrors = (response.data?.errors || []).some((error) =>
+        Number.isInteger(error.row),
+      );
+      const hasSystemErrors = (response.data?.errors || []).some(
+        (error) => error.row === '-',
+      );
+      if (!response.data?.error || (hasRowErrors && !hasSystemErrors)) {
+        setValidatedRows(rows);
+      }
       setUploadSummary(response.data);
       setCurrentStep(2);
     } catch (error) {

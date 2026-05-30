@@ -392,6 +392,7 @@ const ReviewRowsTable = ({ rows, uploadSummary }) => {
   const previewRows = rows.slice(0, 5);
   const hiddenRowCount = Math.max(rows.length - previewRows.length, 0);
   const isImported = uploadSummary && !uploadSummary.error && uploadSummary.stage === 'import';
+  const skippedRows = new Set(uploadSummary?.skippedRowNumbers || []);
 
   return (
     <TableContainer component={Paper} variant='outlined'>
@@ -411,7 +412,14 @@ const ReviewRowsTable = ({ rows, uploadSummary }) => {
           {previewRows.map((row, index) => {
             const rowNumber = index + 2;
             const hasIssue = rowHasIssue(uploadSummary, rowNumber);
-            const status = isImported ? 'Imported' : hasIssue ? 'Review' : 'Ready';
+            const wasSkipped = skippedRows.has(rowNumber);
+            const status = wasSkipped
+              ? 'Skipped'
+              : isImported
+                ? 'Imported'
+                : hasIssue
+                  ? 'Review'
+                  : 'Ready';
             return (
               <TableRow key={`${rowNumber}-${row['Policy Number']}`} hover>
                 <TableCell>{rowNumber}</TableCell>
@@ -422,7 +430,7 @@ const ReviewRowsTable = ({ rows, uploadSummary }) => {
                 <TableCell>{row['Primary Beneficiaries'] || '-'}</TableCell>
                 <TableCell>
                   <Stack direction='row' spacing={0.75} alignItems='center'>
-                    {hasIssue ? (
+                    {wasSkipped || hasIssue ? (
                       <WarningAmberOutlinedIcon
                         color='warning'
                         sx={{ fontSize: '1rem' }}
@@ -497,10 +505,23 @@ const UploadSummaryAlert = ({ uploadSummary }) => {
 
   const hasImportSummary = !!uploadSummary.summary;
   const hasWarnings = (uploadSummary.warnings || []).length > 0;
+  const skippedRows =
+    uploadSummary.skippedRowNumbers ||
+    [
+      ...new Set(
+        (uploadSummary.errors || [])
+          .map((error) => error.row)
+          .filter((row) => Number.isInteger(row)),
+      ),
+    ];
+  const hasSkippableRows =
+    uploadSummary.stage !== 'import' &&
+    skippedRows.length > 0 &&
+    !(uploadSummary.errors || []).some((error) => error.row === '-');
 
   return (
     <Alert
-      severity={uploadSummary.error ? 'error' : 'success'}
+      severity={hasSkippableRows ? 'warning' : uploadSummary.error ? 'error' : 'success'}
       icon={
         !uploadSummary.error && !hasImportSummary ? (
           <CheckCircleOutlineIcon sx={{ color: 'text.secondary' }} />
@@ -510,6 +531,9 @@ const UploadSummaryAlert = ({ uploadSummary }) => {
     >
       <Typography variant='body2' sx={{ mb: 0.5 }}>
         {uploadSummary.error && (uploadSummary.message || 'Upload failed')}
+        {!hasImportSummary &&
+          hasSkippableRows &&
+          ` Rows ${skippedRows.join(', ')} will be skipped.`}
         {!uploadSummary.error &&
           hasImportSummary &&
           `${uploadSummary.summary?.policiesCreated ?? uploadSummary.inserted} policies imported.`}
