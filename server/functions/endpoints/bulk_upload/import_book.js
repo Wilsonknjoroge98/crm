@@ -36,13 +36,6 @@ function parseBoolean(raw) {
   return null;
 }
 
-function parseList(raw) {
-  return String(raw ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 // Builders translate CSV column names into database column names.
 function buildLead(row, agentId, leadVendorId) {
   const { firstName, lastName } = splitName(value(row, 'Full Name'));
@@ -105,20 +98,42 @@ function buildPolicy(rowWithLookups, clientId, agentId) {
   };
 }
 
-function buildBeneficiaries(row, policyId, type) {
-  const prefix = type === 'primary' ? 'Primary' : 'Contingent';
-  const names = parseList(value(row, `${prefix} Beneficiaries`));
-  const relationships = parseList(value(row, `${prefix} Relationships`));
-  const allocations = parseList(value(row, `${prefix} Allocations`));
+function getBeneficiaries(row, type) {
+  const label = type === 'primary' ? 'Primary' : 'Contingent';
+  const pattern = new RegExp(`^${label} Beneficiary (\\d+) (Name|Relationship|%)$`);
+  const byIndex = new Map();
 
-  return names.map((name, index) => {
-    const { firstName, lastName } = splitName(name);
+  Object.keys(row).forEach((field) => {
+    const match = field.match(pattern);
+    if (!match) return;
+
+    const index = Number(match[1]);
+    const part = match[2];
+    if (!byIndex.has(index)) {
+      byIndex.set(index, { index, name: '', relationship: '', allocation: '' });
+    }
+
+    const beneficiary = byIndex.get(index);
+    if (part === 'Name') beneficiary.name = value(row, field);
+    if (part === 'Relationship') beneficiary.relationship = value(row, field);
+    if (part === '%') beneficiary.allocation = value(row, field);
+  });
+
+  return [...byIndex.values()]
+    .sort((a, b) => a.index - b.index)
+    .filter((beneficiary) =>
+      beneficiary.name || beneficiary.relationship || beneficiary.allocation);
+}
+
+function buildBeneficiaries(row, policyId, type) {
+  return getBeneficiaries(row, type).map((beneficiary) => {
+    const { firstName, lastName } = splitName(beneficiary.name);
     return {
       'policy_id': policyId,
       'first_name': firstName,
       'last_name': lastName,
-      'relationship': relationships[index],
-      'allocation_percent': parseNumber(allocations[index]),
+      'relationship': beneficiary.relationship,
+      'allocation_percent': parseNumber(beneficiary.allocation),
       'beneficiary_type': type,
     };
   });
@@ -237,7 +252,7 @@ async function insertPolicies({ rowsWithLookups, clientIdByPhone, agentId }) {
   return { policyIdByNumber, created: data?.length || 0 };
 }
 
-// Beneficiary columns are comma-separated lists mapped forward from each policy row.
+// Beneficiary columns are numbered groups mapped forward from each policy row.
 async function insertBeneficiaries({ rowsWithLookups, policyIdByNumber }) {
   const beneficiaries = rowsWithLookups.flatMap((rowWithLookups) => {
     const row = rowWithLookups.row;

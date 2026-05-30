@@ -19,9 +19,9 @@ const REQUIRED_FIELDS = [
   'Sold Date',
   'Draft Day',
   'Premium Frequency',
-  'Primary Beneficiaries',
-  'Primary Relationships',
-  'Primary Allocations',
+  'Primary Beneficiary 1 Name',
+  'Primary Beneficiary 1 Relationship',
+  'Primary Beneficiary 1 %',
 ];
 
 const PERSON_FIELDS = [
@@ -128,12 +128,6 @@ const parseBoolean = (raw) => {
   return undefined;
 };
 
-const parseList = (raw) =>
-  String(raw ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 const normalizePersonValue = (field, raw) => {
   const trimmed = value({ [field]: raw }, field);
 
@@ -155,34 +149,60 @@ const normalizePersonValue = (field, raw) => {
   return normalizeString(trimmed);
 };
 
+const getBeneficiaries = (row, type) => {
+  const label = type === 'primary' ? 'Primary' : 'Contingent';
+  const pattern = new RegExp(`^${label} Beneficiary (\\d+) (Name|Relationship|%)$`);
+  const byIndex = new Map();
+
+  Object.keys(row).forEach((field) => {
+    const match = field.match(pattern);
+    if (!match) return;
+
+    const index = Number(match[1]);
+    const part = match[2];
+    if (!byIndex.has(index)) {
+      byIndex.set(index, { index, name: '', relationship: '', allocation: '' });
+    }
+
+    const beneficiary = byIndex.get(index);
+    if (part === 'Name') beneficiary.name = value(row, field);
+    if (part === 'Relationship') beneficiary.relationship = value(row, field);
+    if (part === '%') beneficiary.allocation = value(row, field);
+  });
+
+  return [...byIndex.values()].sort((a, b) => a.index - b.index);
+};
+
 const validateBeneficiarySet = (row, rowNumber, type) => {
   const prefix = type === 'primary' ? 'Primary' : 'Contingent';
-  const beneficiaries = parseList(value(row, `${prefix} Beneficiaries`));
-  const relationships = parseList(value(row, `${prefix} Relationships`));
-  const allocationValues = parseList(value(row, `${prefix} Allocations`));
+  const beneficiaries = getBeneficiaries(row, type);
   const errors = [];
 
-  if (!beneficiaries.length && type === 'contingent') return errors;
+  const populated = beneficiaries.filter(
+    (beneficiary) =>
+      beneficiary.name || beneficiary.relationship || beneficiary.allocation,
+  );
 
-  if (!beneficiaries.length) {
+  if (!populated.length && type === 'contingent') return errors;
+
+  if (!populated.length) {
     errors.push({ row: rowNumber, message: `${prefix} Beneficiaries is required` });
     return errors;
   }
 
-  if (
-    beneficiaries.length !== relationships.length ||
-    beneficiaries.length !== allocationValues.length
-  ) {
-    errors.push({
-      row: rowNumber,
-      message:
-        `${prefix} beneficiary names, relationships, and allocations must ` +
-        'have the same number of comma-separated values',
-    });
-    return errors;
-  }
+  populated.forEach((beneficiary) => {
+    if (!beneficiary.name || !beneficiary.relationship || !beneficiary.allocation) {
+      errors.push({
+        row: rowNumber,
+        message:
+          `${prefix} Beneficiary ${beneficiary.index} must include name, relationship, and %`,
+      });
+    }
+  });
 
-  const allocations = allocationValues.map(parseNumber);
+  const allocations = populated.map((beneficiary) =>
+    parseNumber(beneficiary.allocation),
+  );
   const invalidAllocationIndex = allocations.findIndex(
     (allocation) => allocation === null || allocation === undefined,
   );
@@ -203,11 +223,12 @@ const validateBeneficiarySet = (row, rowNumber, type) => {
     });
   }
 
-  relationships.forEach((relationship) => {
-    if (!RELATIONSHIPS.has(relationship)) {
+  populated.forEach((beneficiary) => {
+    if (beneficiary.relationship && !RELATIONSHIPS.has(beneficiary.relationship)) {
       errors.push({
         row: rowNumber,
-        message: `${prefix} Relationships contains invalid option "${relationship}"`,
+        message:
+          `${prefix} Beneficiary ${beneficiary.index} Relationship contains invalid option "${beneficiary.relationship}"`,
       });
     }
   });

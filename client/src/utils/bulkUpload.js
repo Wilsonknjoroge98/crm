@@ -18,12 +18,9 @@ export const REQUIRED_COLUMNS = [
   { field: 'Sold Date', example: '2026-05-25' },
   { field: 'Draft Day', example: '14' },
   { field: 'Premium Frequency', example: 'monthly' },
-  { field: 'Primary Beneficiaries', example: 'Mary Smith, John Smith' },
-  { field: 'Primary Relationships', example: 'Spouse, Child' },
-  { field: 'Primary Allocations', example: '75, 25' },
-  { field: 'Contingent Beneficiaries', example: 'Sam Smith, Alex Smith' },
-  { field: 'Contingent Relationships', example: 'Sibling, Parent' },
-  { field: 'Contingent Allocations', example: '50, 50' },
+  { field: 'Primary Beneficiary 1 Name', example: 'Mary Smith' },
+  { field: 'Primary Beneficiary 1 Relationship', example: 'Spouse' },
+  { field: 'Primary Beneficiary 1 %', example: '100' },
 ];
 
 const REQUIRED_COLUMN_LAYOUT = [
@@ -32,7 +29,17 @@ const REQUIRED_COLUMN_LAYOUT = [
   REQUIRED_COLUMNS.slice(19, 22),
 ];
 
-export const OPTIONAL_BENEFICIARY_COLUMNS = REQUIRED_COLUMNS.slice(22);
+export const OPTIONAL_BENEFICIARY_COLUMNS = [
+  { field: 'Primary Beneficiary 2 Name', example: 'John Smith' },
+  { field: 'Primary Beneficiary 2 Relationship', example: 'Child' },
+  { field: 'Primary Beneficiary 2 %', example: '50' },
+  { field: 'Contingent Beneficiary 1 Name', example: 'Sam Smith' },
+  { field: 'Contingent Beneficiary 1 Relationship', example: 'Sibling' },
+  { field: 'Contingent Beneficiary 1 %', example: '100' },
+  { field: 'Contingent Beneficiary 2 Name', example: 'Alex Smith' },
+  { field: 'Contingent Beneficiary 2 Relationship', example: 'Parent' },
+  { field: 'Contingent Beneficiary 2 %', example: '50' },
+];
 
 export const OPTIONAL_COLUMNS = [
   { field: 'Lead Vendor', example: 'Self Generated' },

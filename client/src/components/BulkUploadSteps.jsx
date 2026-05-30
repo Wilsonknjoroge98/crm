@@ -388,6 +388,21 @@ export const UploadCsvStep = ({ isUploading, onUpload, onBack }) => (
 const rowHasIssue = (uploadSummary, rowNumber) =>
   (uploadSummary?.errors || []).some((error) => error.row === rowNumber);
 
+const beneficiaryPreview = (row) => {
+  const primaryNames = Object.keys(row)
+    .map((field) => field.match(/^Primary Beneficiary (\d+) Name$/))
+    .filter(Boolean)
+    .map((match) => ({
+      index: Number(match[1]),
+      name: String(row[`Primary Beneficiary ${match[1]} Name`] || '').trim(),
+    }))
+    .filter(({ name }) => name)
+    .sort((a, b) => a.index - b.index)
+    .map(({ name }) => name);
+
+  return primaryNames.length ? primaryNames.join(', ') : '-';
+};
+
 const ReviewRowsTable = ({ rows, uploadSummary }) => {
   const previewRows = rows.slice(0, 5);
   const hiddenRowCount = Math.max(rows.length - previewRows.length, 0);
@@ -427,7 +442,7 @@ const ReviewRowsTable = ({ rows, uploadSummary }) => {
                 <TableCell>{row['Full Name'] || '-'}</TableCell>
                 <TableCell>{row.Carrier || 'MIGRATION//INVALID REFERENCE'}</TableCell>
                 <TableCell>{row['Premium Amount'] || '-'}</TableCell>
-                <TableCell>{row['Primary Beneficiaries'] || '-'}</TableCell>
+                <TableCell>{beneficiaryPreview(row)}</TableCell>
                 <TableCell>
                   <Stack direction='row' spacing={0.75} alignItems='center'>
                     {wasSkipped || hasIssue ? (
