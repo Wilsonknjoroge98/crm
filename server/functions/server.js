@@ -31,6 +31,7 @@ const {
   insightsRouter,
   gsqRouter,
   commissionsRouter,
+  bulkUploadRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -48,7 +49,7 @@ app.use(
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(publicRouter);
 app.use(authMiddleware);
 app.use('/agent', agentRouter);
@@ -67,6 +68,7 @@ app.use('/leaderboard', leaderboardRouter);
 app.use('/insights', insightsRouter);
 app.use('/gsq-account', gsqRouter);
 app.use('/commissions', commissionsRouter);
+app.use('/bulk-upload', bulkUploadRouter);
 
 app.get('/ad-spend', async (req, res) => {
   const { startDate, endDate, mode } = req.query;
