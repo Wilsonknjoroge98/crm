@@ -1,9 +1,33 @@
 const { supabaseService } = require('../../services/supabase');
 const { resolveImportRows } = require('./database_conflict_validation');
+const POLICY_FIELDS = [
+  'Policy Number',
+  'Premium Amount',
+  'Coverage Amount',
+  'Status',
+  'Effective Date',
+  'Sold Date',
+  'Draft Day',
+  'Premium Frequency',
+  'Carrier',
+  'Product',
+  'Other Agent Email',
+  'Other Agent Commission Share',
+];
 
 // Import assumes format and conflict validation already passed.
 function value(row, field) {
   return String(row[field] ?? '').trim();
+}
+
+function isBeneficiaryField(field) {
+  return /^(Primary|Contingent) Beneficiary \d+ (Name|Relationship|Allocation %)$/.test(field);
+}
+
+function rowHasPolicyData(row) {
+  return Object.keys(row).some((field) =>
+    (POLICY_FIELDS.includes(field) || isBeneficiaryField(field)) &&
+    value(row, field));
 }
 
 function splitName(raw) {
@@ -233,10 +257,16 @@ async function insertClients({ plan, rowsWithLookups, leadIdByPhone, agentId }) 
 
 // Policies are row-level records, so repeated clients still create multiple policies.
 async function insertPolicies({ rowsWithLookups, clientIdByPhone, agentId }) {
-  const policiesToCreate = rowsWithLookups.map((rowWithLookups) => {
+  const policyRowsWithLookups = rowsWithLookups.filter((rowWithLookups) =>
+    rowWithLookups.hasPolicyData || rowHasPolicyData(rowWithLookups.row));
+  const policiesToCreate = policyRowsWithLookups.map((rowWithLookups) => {
     const phone = value(rowWithLookups.row, 'Phone');
     return buildPolicy(rowWithLookups, clientIdByPhone.get(phone), agentId);
   });
+
+  if (!policiesToCreate.length) {
+    return { policyIdByNumber: new Map(), created: 0 };
+  }
 
   const { data, error } = await supabaseService
     .from('policies')
@@ -254,7 +284,9 @@ async function insertPolicies({ rowsWithLookups, clientIdByPhone, agentId }) {
 
 // Beneficiary columns are numbered groups mapped forward from each policy row.
 async function insertBeneficiaries({ rowsWithLookups, policyIdByNumber }) {
-  const beneficiaries = rowsWithLookups.flatMap((rowWithLookups) => {
+  const policyRowsWithLookups = rowsWithLookups.filter((rowWithLookups) =>
+    rowWithLookups.hasPolicyData || rowHasPolicyData(rowWithLookups.row));
+  const beneficiaries = policyRowsWithLookups.flatMap((rowWithLookups) => {
     const row = rowWithLookups.row;
     const policyId = policyIdByNumber.get(value(row, 'Policy Number'));
     return [
@@ -332,12 +364,13 @@ async function importBook({ rows, agentId, plan }) {
     error: false,
     message: 'Book imported successfully',
     total: rows.length,
-    inserted: policyResult.created,
+    inserted: clientResult.created + policyResult.created,
     failed: 0,
     errors: [],
     warnings: resolved.warnings,
     stage: 'import',
     summary: {
+      clientsCreated: clientResult.created,
       policiesCreated: policyResult.created,
     },
   };

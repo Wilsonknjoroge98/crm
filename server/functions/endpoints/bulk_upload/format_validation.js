@@ -1,4 +1,4 @@
-// User-facing CSV columns that must exist before any database checks run.
+// User-facing columns that must exist before any database checks run.
 const REQUIRED_FIELDS = [
   'Full Name',
   'Email',
@@ -11,6 +11,10 @@ const REQUIRED_FIELDS = [
   'Occupation',
   'Marital Status',
   'Annual Income',
+  'Lead Vendor',
+];
+
+const POLICY_REQUIRED_FIELDS = [
   'Policy Number',
   'Premium Amount',
   'Coverage Amount',
@@ -22,6 +26,14 @@ const REQUIRED_FIELDS = [
   'Primary Beneficiary 1 Name',
   'Primary Beneficiary 1 Relationship',
   'Primary Beneficiary 1 Allocation %',
+];
+
+const POLICY_FIELDS = [
+  ...POLICY_REQUIRED_FIELDS,
+  'Carrier',
+  'Product',
+  'Other Agent Email',
+  'Other Agent Commission Share',
 ];
 
 const PERSON_FIELDS = [
@@ -92,6 +104,14 @@ const INTEGER_REGEX = /^\d+$/;
 const value = (row, field) => String(row[field] ?? '').trim();
 
 const normalizeString = (raw) => String(raw ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+const isBeneficiaryField = (field) =>
+  /^(Primary|Contingent) Beneficiary \d+ (Name|Relationship|Allocation %)$/.test(field);
+
+const rowHasPolicyData = (row) =>
+  Object.keys(row).some((field) =>
+    (POLICY_FIELDS.includes(field) || isBeneficiaryField(field)) &&
+    value(row, field));
 
 const parsePhone = (raw) => {
   const phone = String(raw ?? '').trim();
@@ -249,7 +269,11 @@ const validateBeneficiarySet = (row, rowNumber, type) => {
 // Per-row validation only checks CSV shape and primitive formats.
 const validateRowFormat = (row, rowNumber) => {
   const errors = [];
+  const hasPolicyData = rowHasPolicyData(row);
   const missing = REQUIRED_FIELDS.filter((field) => !value(row, field));
+  if (hasPolicyData) {
+    missing.push(...POLICY_REQUIRED_FIELDS.filter((field) => !value(row, field)));
+  }
   if (missing.length) {
     errors.push({
       row: rowNumber,
@@ -265,13 +289,19 @@ const validateRowFormat = (row, rowNumber) => {
     errors.push({ row: rowNumber, message: 'Phone must contain 10 digits' });
   }
 
-  ['Date of Birth', 'Effective Date', 'Sold Date'].forEach((field) => {
+  [
+    'Date of Birth',
+    ...(hasPolicyData ? ['Effective Date', 'Sold Date'] : []),
+  ].forEach((field) => {
     if (value(row, field) && !parseDate(value(row, field))) {
       errors.push({ row: rowNumber, message: `${field} must be a valid date` });
     }
   });
 
-  ['Annual Income', 'Premium Amount', 'Coverage Amount'].forEach((field) => {
+  [
+    'Annual Income',
+    ...(hasPolicyData ? ['Premium Amount', 'Coverage Amount'] : []),
+  ].forEach((field) => {
     if (value(row, field)) {
       const parsed = parseNumber(value(row, field));
       if (parsed === undefined || parsed === null) {
@@ -280,9 +310,11 @@ const validateRowFormat = (row, rowNumber) => {
     }
   });
 
-  const draftDay = parseInteger(value(row, 'Draft Day'));
-  if (value(row, 'Draft Day') && (!draftDay || draftDay < 1 || draftDay > 31)) {
-    errors.push({ row: rowNumber, message: 'Draft Day must be a whole number from 1 to 31' });
+  if (hasPolicyData) {
+    const draftDay = parseInteger(value(row, 'Draft Day'));
+    if (value(row, 'Draft Day') && (!draftDay || draftDay < 1 || draftDay > 31)) {
+      errors.push({ row: rowNumber, message: 'Draft Day must be a whole number from 1 to 31' });
+    }
   }
 
   const maritalStatus = value(row, 'Marital Status').toLowerCase();
@@ -293,20 +325,22 @@ const validateRowFormat = (row, rowNumber) => {
     });
   }
 
-  const policyStatus = value(row, 'Status').toLowerCase();
-  if (policyStatus && !POLICY_STATUSES.has(policyStatus)) {
-    errors.push({
-      row: rowNumber,
-      message: 'Status must be active, pending, lapsed, cancelled, or insufficient funds',
-    });
-  }
+  if (hasPolicyData) {
+    const policyStatus = value(row, 'Status').toLowerCase();
+    if (policyStatus && !POLICY_STATUSES.has(policyStatus)) {
+      errors.push({
+        row: rowNumber,
+        message: 'Status must be active, pending, lapsed, cancelled, or insufficient funds',
+      });
+    }
 
-  const premiumFrequency = value(row, 'Premium Frequency').toLowerCase();
-  if (premiumFrequency && !PREMIUM_FREQUENCIES.has(premiumFrequency)) {
-    errors.push({
-      row: rowNumber,
-      message: 'Premium Frequency must be weekly, monthly, quarterly, semi-annually, or annually',
-    });
+    const premiumFrequency = value(row, 'Premium Frequency').toLowerCase();
+    if (premiumFrequency && !PREMIUM_FREQUENCIES.has(premiumFrequency)) {
+      errors.push({
+        row: rowNumber,
+        message: 'Premium Frequency must be weekly, monthly, quarterly, semi-annually, or annually',
+      });
+    }
   }
 
   ['Smoker', 'Cholesterol Medication', 'Blood Pressure Medication'].forEach((field) => {
@@ -335,6 +369,8 @@ const validateRowFormat = (row, rowNumber) => {
       message: 'Other Agent Commission Share must be a whole number from 0 to 100',
     });
   }
+
+  if (!hasPolicyData) return errors;
 
   return [
     ...errors,

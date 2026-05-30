@@ -1,5 +1,4 @@
 import {
-  REQUIRED_COLUMNS,
   optionValue,
 } from './bulkUpload';
 
@@ -84,10 +83,18 @@ const POLICY_STATUSES = ['active', 'pending', 'lapsed', 'cancelled', 'insufficie
 const PREMIUM_FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'semi-annually', 'annually'];
 const BOOLEAN_VALUES = ['true', 'false'];
 const REQUIRED_TEMPLATE_FIELDS = new Set([
-  ...REQUIRED_COLUMNS.map(({ field }) => field),
+  'Full Name',
+  'Email',
+  'Phone',
+  'Date of Birth',
+  'Address',
+  'City',
+  'State',
+  'Zip Code',
+  'Occupation',
+  'Marital Status',
+  'Annual Income',
   'Lead Vendor',
-  'Carrier',
-  'Product',
 ]);
 
 const columnName = (index) => {
@@ -180,8 +187,8 @@ export const createBulkUploadTemplateXlsx = async ({
     { name: 'Relationships', values: RELATIONSHIPS },
     { name: 'Boolean Values', values: BOOLEAN_VALUES },
     { name: 'Lead Vendors', values: listValues(leadVendorOptions, ['Self Generated']) },
-    { name: 'Carriers', values: listValues(carrierOptions, ['Mutual of Omaha']) },
-    { name: 'Products', values: listValues(productOptions, ['Accidental Death']) },
+    { name: 'Carriers', values: listValues(carrierOptions, ['MIGRATION//INVALID REFERENCE']) },
+    { name: 'Products', values: listValues(productOptions, ['MIGRATION/INVALID REFERENCE']) },
   ];
 
   uploadSheet.addRow(headers);
@@ -310,7 +317,7 @@ export const createBulkUploadTemplateXlsx = async ({
       applyValidation(uploadSheet, index, () => ({
         type: 'date',
         operator: 'between',
-        allowBlank: false,
+        allowBlank: !required,
         showErrorMessage: true,
         errorStyle: 'error',
         errorTitle: 'Invalid date',
@@ -324,7 +331,7 @@ export const createBulkUploadTemplateXlsx = async ({
       applyValidation(uploadSheet, index, () => ({
         type: 'decimal',
         operator: 'greaterThanOrEqual',
-        allowBlank: false,
+        allowBlank: !required,
         showErrorMessage: true,
         errorStyle: 'error',
         errorTitle: 'Invalid number',
@@ -352,7 +359,7 @@ export const createBulkUploadTemplateXlsx = async ({
       applyValidation(uploadSheet, index, () => ({
         type: 'whole',
         operator: 'between',
-        allowBlank: false,
+        allowBlank: !required,
         showErrorMessage: true,
         errorStyle: 'error',
         errorTitle: 'Invalid draft day',

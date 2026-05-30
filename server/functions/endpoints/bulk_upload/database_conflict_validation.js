@@ -3,6 +3,20 @@ const { supabaseService } = require('../../services/supabase');
 const DEFAULT_LEAD_VENDOR = 'Self Generated';
 const DEFAULT_CARRIER = 'MIGRATION//INVALID REFERENCE';
 const DEFAULT_PRODUCT = 'MIGRATION/INVALID REFERENCE';
+const POLICY_FIELDS = [
+  'Policy Number',
+  'Premium Amount',
+  'Coverage Amount',
+  'Status',
+  'Effective Date',
+  'Sold Date',
+  'Draft Day',
+  'Premium Frequency',
+  'Carrier',
+  'Product',
+  'Other Agent Email',
+  'Other Agent Commission Share',
+];
 
 function value(row, field) {
   return String(row[field] ?? '').trim();
@@ -14,6 +28,16 @@ function normalizeString(raw) {
 
 function normalizeLookup(raw) {
   return normalizeString(raw);
+}
+
+function isBeneficiaryField(field) {
+  return /^(Primary|Contingent) Beneficiary \d+ (Name|Relationship|Allocation %)$/.test(field);
+}
+
+function rowHasPolicyData(row) {
+  return Object.keys(row).some((field) =>
+    (POLICY_FIELDS.includes(field) || isBeneficiaryField(field)) &&
+    value(row, field));
 }
 
 const unique = (items) => [...new Set(items.filter(Boolean))];
@@ -112,22 +136,24 @@ const resolveImportReferences = (rows, references) => {
   );
   const defaultCarrier = references.carriersByName.get(normalizeLookup(DEFAULT_CARRIER));
   const defaultProduct = references.productsByName.get(normalizeLookup(DEFAULT_PRODUCT));
+  const hasPolicyRows = rows.some(rowHasPolicyData);
 
   if (!defaultLeadVendor) {
     errors.push({ row: '-', message: `Default lead vendor "${DEFAULT_LEAD_VENDOR}" not found` });
   }
-  if (!defaultCarrier) {
+  if (hasPolicyRows && !defaultCarrier) {
     errors.push({ row: '-', message: `Default carrier "${DEFAULT_CARRIER}" not found` });
   }
-  if (!defaultProduct) {
+  if (hasPolicyRows && !defaultProduct) {
     errors.push({ row: '-', message: `Default product "${DEFAULT_PRODUCT}" not found` });
   }
 
   const rowsWithLookups = rows.map((row, index) => {
     const rowNumber = index + 2;
+    const hasPolicyData = rowHasPolicyData(row);
     const leadVendorName = value(row, 'Lead Vendor') || DEFAULT_LEAD_VENDOR;
-    const carrierName = value(row, 'Carrier') || DEFAULT_CARRIER;
-    const productName = value(row, 'Product') || DEFAULT_PRODUCT;
+    const carrierName = hasPolicyData ? value(row, 'Carrier') || DEFAULT_CARRIER : '';
+    const productName = hasPolicyData ? value(row, 'Product') || DEFAULT_PRODUCT : '';
     const splitAgentEmail = value(row, 'Other Agent Email').toLowerCase();
     const splitAgentShare = value(row, 'Other Agent Commission Share');
 
@@ -158,19 +184,19 @@ const resolveImportReferences = (rows, references) => {
         message: `Lead Vendor defaulted to ${DEFAULT_LEAD_VENDOR}`,
       });
     }
-    if (carrierName && !hasValidCarrier) {
+    if (hasPolicyData && carrierName && !hasValidCarrier) {
       warnings.push({
         row: rowNumber,
         message: `Carrier defaulted to ${DEFAULT_CARRIER}`,
       });
     }
-    if (productName && !hasValidProduct) {
+    if (hasPolicyData && productName && !hasValidProduct) {
       warnings.push({
         row: rowNumber,
         message: `Product defaulted to ${DEFAULT_PRODUCT}`,
       });
     }
-    if (hasValidCarrier && hasValidProduct && product.carrier_id !== carrier.id) {
+    if (hasPolicyData && hasValidCarrier && hasValidProduct && product.carrier_id !== carrier.id) {
       errors.push({
         row: rowNumber,
         field: 'Product',
@@ -202,9 +228,10 @@ const resolveImportReferences = (rows, references) => {
     return {
       row,
       leadVendorId: leadVendor?.id,
-      carrierId: carrier?.id,
-      productId: product?.id,
+      carrierId: hasPolicyData ? carrier?.id : null,
+      productId: hasPolicyData ? product?.id : null,
       splitAgentId: splitAgent?.id || null,
+      hasPolicyData,
     };
   });
 

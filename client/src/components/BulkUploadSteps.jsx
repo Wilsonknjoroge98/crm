@@ -268,6 +268,23 @@ const SummaryList = ({ items, kind }) => {
   );
 };
 
+const formatImportSummary = (uploadSummary) => {
+  const clientsCreated = uploadSummary.summary?.clientsCreated ?? 0;
+  const policiesCreated =
+    uploadSummary.summary?.policiesCreated ?? uploadSummary.inserted ?? 0;
+  const parts = [];
+
+  if (clientsCreated > 0) {
+    parts.push(`${clientsCreated} client${clientsCreated === 1 ? '' : 's'}`);
+  }
+  if (policiesCreated > 0) {
+    parts.push(`${policiesCreated} polic${policiesCreated === 1 ? 'y' : 'ies'}`);
+  }
+  if (!parts.length) return 'Import completed.';
+
+  return `${parts.join(' and ')} imported.`;
+};
+
 const UploadSummaryAlert = ({ uploadSummary }) => {
   if (!uploadSummary) return null;
 
@@ -304,12 +321,12 @@ const UploadSummaryAlert = ({ uploadSummary }) => {
           ` Rows ${skippedRows.join(', ')} will be skipped.`}
         {!uploadSummary.error &&
           hasImportSummary &&
-          `${uploadSummary.summary?.policiesCreated ?? uploadSummary.inserted} policies imported.`}
+          formatImportSummary(uploadSummary)}
         {!uploadSummary.error &&
           !hasImportSummary &&
           (hasWarnings
-            ? `${uploadSummary.total} policies ready to import with warnings.`
-            : `${uploadSummary.total} policies ready to import. No issues found.`)}
+            ? `${uploadSummary.total} records ready to import with warnings.`
+            : `${uploadSummary.total} records ready to import. No issues found.`)}
       </Typography>
       {!uploadSummary.error &&
         uploadSummary.stage === 'database_conflict_validation' && (
@@ -336,7 +353,7 @@ export const ReviewImportStep = ({
       <Box>
         <Typography variant='h5'>Review and Import</Typography>
         <Typography variant='body2' color='text.secondary' sx={{ mt: 0.75 }}>
-          Review the policies detected in your file before importing them into your
+          Review the data detected in your file before importing it into your
           book of business. If a client already exists in your account, we will default to existing client data.
         </Typography>
       </Box>
