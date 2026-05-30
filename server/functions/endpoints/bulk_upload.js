@@ -25,14 +25,41 @@ const normalizeDate = (raw) => {
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : input;
 };
 
+const normalizeNumber = (raw) =>
+  String(raw ?? '')
+    .trim()
+    .replace(/[$,%\s]/g, '');
+
+const normalizeNumberFields = (row) =>
+  Object.fromEntries(
+    Object.entries(row).map(([field, raw]) => {
+      const isMoneyField = [
+        'Annual Income',
+        'Premium Amount',
+        'Coverage Amount',
+        'Other Agent Commission Share',
+      ].includes(field);
+      const isBeneficiaryAllocation =
+        /^(Primary|Contingent) Beneficiary \d+ Allocation %$/.test(field);
+
+      if (!isMoneyField && !isBeneficiaryAllocation) {
+        return [field, raw];
+      }
+      return [field, normalizeNumber(raw)];
+    }),
+  );
+
 const normalizeRows = (rows) =>
-  rows.map((row) => ({
-    ...row,
-    Phone: normalizePhone(row.Phone),
-    'Date of Birth': normalizeDate(row['Date of Birth']),
-    'Effective Date': normalizeDate(row['Effective Date']),
-    'Sold Date': normalizeDate(row['Sold Date']),
-  }));
+  rows.map((rawRow) => {
+    const row = normalizeNumberFields(rawRow);
+    return {
+      ...row,
+      Phone: normalizePhone(row.Phone),
+      'Date of Birth': normalizeDate(row['Date of Birth']),
+      'Effective Date': normalizeDate(row['Effective Date']),
+      'Sold Date': normalizeDate(row['Sold Date']),
+    };
+  });
 
 // Shared validator for both validate and import, so import cannot bypass fresh checks.
 const validateRows = async ({ rows, agentId }) => {
@@ -57,7 +84,7 @@ const validateRows = async ({ rows, agentId }) => {
     return {
       ...conflictResult,
       error: true,
-      message: 'CSV has ineligible rows.',
+      message: 'File has ineligible rows.',
       total: rows.length,
       inserted: 0,
       failed: new Set(
@@ -94,7 +121,7 @@ const parseRowsRequest = (req, res) => {
   }
 
   if (!Array.isArray(rows) || rows.length === 0) {
-    res.status(400).json({ error: 'CSV has no data rows' });
+    res.status(400).json({ error: 'File has no data rows' });
     return null;
   }
 

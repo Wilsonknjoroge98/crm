@@ -288,7 +288,7 @@ async function importBook({ rows, agentId, plan }) {
   if (resolved.errors.length) {
     return {
       error: true,
-      message: 'CSV failed import reference validation',
+      message: 'File failed import reference validation',
       total: rows.length,
       inserted: 0,
       failed: rows.length,

@@ -402,8 +402,8 @@ const validateFormat = (rows) => {
   return {
     error: errors.length > 0,
     message: errors.length
-      ? 'CSV failed format validation'
-      : 'CSV passed format validation',
+      ? 'File failed format validation'
+      : 'File passed format validation',
     total: rows.length,
     inserted: 0,
     failed: errors.length ? rows.length : 0,

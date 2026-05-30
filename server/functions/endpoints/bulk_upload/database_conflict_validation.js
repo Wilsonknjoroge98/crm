@@ -236,8 +236,8 @@ const validateImportReferences = async (rows) => {
   return {
     error: resolved.errors.length > 0,
     message: resolved.errors.length
-      ? 'CSV failed conflict validation'
-      : 'CSV passed conflict validation',
+      ? 'File failed conflict validation'
+      : 'File passed conflict validation',
     total: rows.length,
     inserted: 0,
     failed: resolved.errors.length ? rows.length : 0,
@@ -441,8 +441,8 @@ const validateDatabaseConflicts = async ({ rows, agentId }) => {
   return {
     error: errors.length > 0,
     message: errors.length
-      ? 'CSV failed conflict validation'
-      : 'CSV passed conflict validation',
+      ? 'File failed conflict validation'
+      : 'File passed conflict validation',
     total: rows.length,
     inserted: 0,
     failed: errors.length ? rows.length : 0,
