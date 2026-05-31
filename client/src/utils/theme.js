@@ -81,7 +81,7 @@ export const createAppTheme = ({ agency }) => {
       MuiPaper: {
         styleOverrides: {
           root: {
-            boxShadow: '0px 10px 25px rgba(0,0,0,0.05)',
+            boxShadow: 'none',
           },
         },
       },

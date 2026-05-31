@@ -256,7 +256,7 @@ const BulkUpload = () => {
                 borderRadius: '50%',
                 display: 'grid',
                 placeItems: 'center',
-                bgcolor: '#FFFFFF',
+                bgcolor: 'background.paper',
                 color: 'primary.main',
                 border: '1px solid',
                 borderColor: 'divider',
@@ -280,8 +280,7 @@ const BulkUpload = () => {
                   flex: 1,
                   p: 2,
                   borderRadius: 1,
-                  bgcolor: '#FAFAFA',
-                  borderColor: 'rgba(26, 26, 26, 0.1)',
+                  bgcolor: 'background.default',
                 }}
               >
                 <Typography variant='subtitle2' sx={{ lineHeight: 1.35 }}>
