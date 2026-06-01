@@ -108,6 +108,9 @@ const normalizeString = (raw) => String(raw ?? '').trim().replace(/\s+/g, ' ').t
 const isBeneficiaryField = (field) =>
   /^(Primary|Contingent) Beneficiary \d+ (Name|Relationship|Allocation %)$/.test(field);
 
+const clientIdentityKey = (row) =>
+  `${parsePhone(value(row, 'Phone')) || value(row, 'Phone')}|${normalizeString(value(row, 'Full Name'))}`;
+
 const rowHasPolicyData = (row) =>
   Object.keys(row).some((field) =>
     (POLICY_FIELDS.includes(field) || isBeneficiaryField(field)) &&
@@ -379,16 +382,17 @@ const validateRowFormat = (row, rowNumber) => {
   ];
 };
 
-// Same phone can appear on multiple policy rows only when person fields match exactly.
+// Same client can appear on multiple policy rows only when person fields match exactly.
 const validateInternalDuplicates = (rows) => {
   const errors = [];
   const policiesByNumber = new Map();
-  const peopleByPhone = new Map();
+  const peopleByIdentity = new Map();
 
   rows.forEach((row, index) => {
     const rowNumber = index + 2;
     const policyNumber = value(row, 'Policy Number');
     const phone = parsePhone(value(row, 'Phone'));
+    const identityKey = clientIdentityKey(row);
 
     if (policyNumber) {
       const normalizedPolicyNumber = normalizeString(policyNumber);
@@ -404,8 +408,8 @@ const validateInternalDuplicates = (rows) => {
 
     if (!phone) return;
 
-    if (!peopleByPhone.has(phone)) {
-      peopleByPhone.set(phone, {
+    if (!peopleByIdentity.has(identityKey)) {
+      peopleByIdentity.set(identityKey, {
         rowNumber,
         values: Object.fromEntries(
           PERSON_FIELDS.map((field) => [field, normalizePersonValue(field, row[field])]),
@@ -414,7 +418,7 @@ const validateInternalDuplicates = (rows) => {
       return;
     }
 
-    const existing = peopleByPhone.get(phone);
+    const existing = peopleByIdentity.get(identityKey);
     PERSON_FIELDS.forEach((field) => {
       const current = normalizePersonValue(field, row[field]);
       if (existing.values[field] !== current) {
