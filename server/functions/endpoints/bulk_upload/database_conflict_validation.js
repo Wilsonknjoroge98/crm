@@ -66,6 +66,37 @@ const rowsByPhone = (rows) => {
   return map;
 };
 
+const clientIdentityKeyFromParts = ({ phone, fullName }) =>
+  `${phone}|${normalizeString(fullName)}`;
+
+const clientIdentityKey = (row) =>
+  clientIdentityKeyFromParts({
+    phone: value(row, 'Phone'),
+    fullName: value(row, 'Full Name'),
+  });
+
+const clientFullName = (client) =>
+  [client.first_name, client.last_name].filter(Boolean).join(' ');
+
+const rowsByClientIdentity = (rows) => {
+  const map = new Map();
+  rows.forEach((row, index) => {
+    const phone = value(row, 'Phone');
+    if (!phone) return;
+    const key = clientIdentityKey(row);
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        phone,
+        row,
+        rowNumbers: [],
+      });
+    }
+    map.get(key).rowNumbers.push(index + 2);
+  });
+  return map;
+};
+
 const groupByPhone = (records) => {
   const map = new Map();
   (records || []).forEach((record) => {
@@ -346,15 +377,15 @@ const validateLeadConflicts = async ({ phoneGroups }) => {
   return { errors, leadsByPhone };
 };
 
-// Client phone reuses an owned client and ignores clients owned by other agents.
-const validateClientConflicts = async ({ phoneGroups, agentId }) => {
+// Client phone + full name reuses an owned client and ignores clients owned by other agents.
+const validateClientConflicts = async ({ phoneGroups, clientGroups, agentId }) => {
   const errors = [];
   const phones = [...phoneGroups.keys()];
-  if (!phones.length) return { errors, clientsByPhone: new Map() };
+  if (!phones.length) return { errors, clientsByKey: new Map() };
 
   const { data: clients, error } = await queryInChunks({
     table: 'clients',
-    select: 'id, phone, agent_clients!agent_clients_client_id_fkey ( agent_id )',
+    select: 'id, phone, first_name, last_name, agent_clients!agent_clients_client_id_fkey ( agent_id )',
     column: 'phone',
     values: phones,
   });
@@ -363,13 +394,10 @@ const validateClientConflicts = async ({ phoneGroups, agentId }) => {
     return { queryError: error };
   }
 
-  const clientsByPhone = new Map();
+  const clientsByKey = new Map();
   const clientGroupsByPhone = groupByPhone(clients);
 
   clientGroupsByPhone.forEach((matchingClients, phone) => {
-    const group = phoneGroups.get(phone);
-    if (!group) return;
-
     const ownedClients = matchingClients
       .filter((client) => (client.agent_clients || []).some(
         (agentClient) => agentClient.agent_id === agentId,
@@ -377,25 +405,41 @@ const validateClientConflicts = async ({ phoneGroups, agentId }) => {
 
     if (!ownedClients.length) return;
 
-    if (ownedClients.length > 1) {
-      group.rowNumbers.forEach((rowNumber) => {
-        errors.push({
-          row: rowNumber,
-          field: 'Phone',
-          message: 'Client phone already exists more than once in your business.',
-        });
+    const ownedClientsByKey = new Map();
+    ownedClients.forEach((client) => {
+      const key = clientIdentityKeyFromParts({
+        phone,
+        fullName: clientFullName(client),
       });
-      return;
-    }
+      if (!ownedClientsByKey.has(key)) ownedClientsByKey.set(key, []);
+      ownedClientsByKey.get(key).push(client);
+    });
 
-    clientsByPhone.set(phone, ownedClients[0]);
+    ownedClientsByKey.forEach((matchingOwnedClients, key) => {
+      const group = clientGroups.get(key);
+      if (!group) return;
+
+      if (matchingOwnedClients.length > 1) {
+        group.rowNumbers.forEach((rowNumber) => {
+          errors.push({
+            row: rowNumber,
+            field: 'Phone',
+            message:
+              'Client already exists more than once in your business with this phone and name.',
+          });
+        });
+        return;
+      }
+
+      clientsByKey.set(key, matchingOwnedClients[0]);
+    });
   });
 
-  return { errors, clientsByPhone };
+  return { errors, clientsByKey };
 };
 
-// The importer consumes this plan to create only one lead/client per phone.
-const buildPlan = ({ phoneGroups, leadsByPhone, clientsByPhone }) => {
+// The importer consumes this plan to create only one lead per phone and one client per phone + name.
+const buildPlan = ({ phoneGroups, clientGroups, leadsByPhone, clientsByKey }) => {
   const useExistingLeads = [];
   const useExistingClients = [];
   const createLeads = [];
@@ -403,18 +447,30 @@ const buildPlan = ({ phoneGroups, leadsByPhone, clientsByPhone }) => {
 
   phoneGroups.forEach((group, phone) => {
     const lead = leadsByPhone.get(phone);
-    const client = clientsByPhone.get(phone);
 
     if (lead) {
       useExistingLeads.push({ phone, leadId: lead.id, rows: group.rowNumbers });
     } else {
       createLeads.push({ phone, rows: group.rowNumbers });
     }
+  });
+
+  clientGroups.forEach((group, key) => {
+    const client = clientsByKey.get(key);
 
     if (client) {
-      useExistingClients.push({ phone, clientId: client.id, rows: group.rowNumbers });
+      useExistingClients.push({
+        key,
+        phone: group.phone,
+        clientId: client.id,
+        rows: group.rowNumbers,
+      });
     } else {
-      createClients.push({ phone, rows: group.rowNumbers });
+      createClients.push({
+        key,
+        phone: group.phone,
+        rows: group.rowNumbers,
+      });
     }
   });
 
@@ -429,6 +485,7 @@ const buildPlan = ({ phoneGroups, leadsByPhone, clientsByPhone }) => {
 // Module entrypoint for stage 2.
 const validateDatabaseConflicts = async ({ rows, agentId }) => {
   const phoneGroups = rowsByPhone(rows);
+  const clientGroups = rowsByClientIdentity(rows);
   const policyResult = await validatePolicyConflicts({ rows, agentId });
   if (policyResult.queryError) {
     return {
@@ -449,7 +506,11 @@ const validateDatabaseConflicts = async ({ rows, agentId }) => {
     };
   }
 
-  const clientResult = await validateClientConflicts({ phoneGroups, agentId });
+  const clientResult = await validateClientConflicts({
+    phoneGroups,
+    clientGroups,
+    agentId,
+  });
   if (clientResult.queryError) {
     return {
       error: true,
@@ -480,8 +541,9 @@ const validateDatabaseConflicts = async ({ rows, agentId }) => {
       ? null
       : buildPlan({
         phoneGroups,
+        clientGroups,
         leadsByPhone: leadResult.leadsByPhone,
-        clientsByPhone: clientResult.clientsByPhone,
+        clientsByKey: clientResult.clientsByKey,
       }),
   };
 };

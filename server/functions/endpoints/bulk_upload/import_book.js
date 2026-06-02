@@ -38,6 +38,14 @@ function splitName(raw) {
   };
 }
 
+function normalizeString(raw) {
+  return String(raw ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function clientIdentityKey(row) {
+  return `${value(row, 'Phone')}|${normalizeString(value(row, 'Full Name'))}`;
+}
+
 function parseNumber(raw) {
   const trimmed = value({ raw }, 'raw');
   if (!trimmed) return null;
@@ -168,12 +176,11 @@ async function insertLeads({ plan, rowsWithLookups, agentId }) {
   const leadIdByPhone = new Map(
     plan.useExistingLeads.map((lead) => [lead.phone, lead.leadId]),
   );
-  const lookupByPhone = new Map(
-    rowsWithLookups.map((rowWithLookups) => [
-      value(rowWithLookups.row, 'Phone'),
-      rowWithLookups,
-    ]),
-  );
+  const lookupByPhone = new Map();
+  rowsWithLookups.forEach((rowWithLookups) => {
+    const phone = value(rowWithLookups.row, 'Phone');
+    if (!lookupByPhone.has(phone)) lookupByPhone.set(phone, rowWithLookups);
+  });
 
   const leadsToCreate = plan.createLeads.map(({ phone }) => {
     const rowWithLookups = lookupByPhone.get(phone);
@@ -207,38 +214,45 @@ async function insertLeads({ plan, rowsWithLookups, agentId }) {
   return { leadIdByPhone, created };
 }
 
-// Creates missing clients once per phone and links them to the current agent.
+// Creates missing clients once per phone + full name and links them to the current agent.
 async function insertClients({ plan, rowsWithLookups, leadIdByPhone, agentId }) {
-  const clientIdByPhone = new Map(
-    plan.useExistingClients.map((client) => [client.phone, client.clientId]),
+  const clientIdByKey = new Map(
+    plan.useExistingClients.map((client) => [client.key, client.clientId]),
   );
-  const lookupByPhone = new Map(
-    rowsWithLookups.map((rowWithLookups) => [
-      value(rowWithLookups.row, 'Phone'),
-      rowWithLookups,
-    ]),
-  );
+  const lookupByKey = new Map();
+  rowsWithLookups.forEach((rowWithLookups) => {
+    const key = clientIdentityKey(rowWithLookups.row);
+    if (!lookupByKey.has(key)) lookupByKey.set(key, rowWithLookups);
+  });
 
-  const clientsToCreate = plan.createClients.map(({ phone }) => {
-    const rowWithLookups = lookupByPhone.get(phone);
+  const clientsToCreate = plan.createClients.map(({ key, phone }) => {
+    const rowWithLookups = lookupByKey.get(key);
     return buildClient(rowWithLookups.row, leadIdByPhone.get(phone));
   });
 
   if (!clientsToCreate.length) {
-    return { clientIdByPhone, created: 0 };
+    return { clientIdByKey, created: 0 };
   }
 
   const { data, error } = await supabaseService
     .from('clients')
     .insert(clientsToCreate)
-    .select('id, phone');
+    .select('id, phone, first_name, last_name');
 
   if (error) return { error };
 
-  (data || []).forEach((client) => clientIdByPhone.set(client.phone, client.id));
+  (data || []).forEach((client) => {
+    const key = `${client.phone}|${normalizeString(
+      [client.first_name, client.last_name].filter(Boolean).join(' '),
+    )}`;
+    clientIdByKey.set(key, client.id);
+  });
 
   const agentClientRows = (data || []).map((client) => {
-    const row = lookupByPhone.get(client.phone).row;
+    const key = `${client.phone}|${normalizeString(
+      [client.first_name, client.last_name].filter(Boolean).join(' '),
+    )}`;
+    const row = lookupByKey.get(key).row;
     return {
       'agent_id': agentId,
       'client_id': client.id,
@@ -252,16 +266,19 @@ async function insertClients({ plan, rowsWithLookups, leadIdByPhone, agentId }) 
 
   if (agentClientError) return { error: agentClientError };
 
-  return { clientIdByPhone, created: data?.length || 0 };
+  return { clientIdByKey, created: data?.length || 0 };
 }
 
 // Policies are row-level records, so repeated clients still create multiple policies.
-async function insertPolicies({ rowsWithLookups, clientIdByPhone, agentId }) {
+async function insertPolicies({ rowsWithLookups, clientIdByKey, agentId }) {
   const policyRowsWithLookups = rowsWithLookups.filter((rowWithLookups) =>
     rowWithLookups.hasPolicyData || rowHasPolicyData(rowWithLookups.row));
   const policiesToCreate = policyRowsWithLookups.map((rowWithLookups) => {
-    const phone = value(rowWithLookups.row, 'Phone');
-    return buildPolicy(rowWithLookups, clientIdByPhone.get(phone), agentId);
+    return buildPolicy(
+      rowWithLookups,
+      clientIdByKey.get(clientIdentityKey(rowWithLookups.row)),
+      agentId,
+    );
   });
 
   if (!policiesToCreate.length) {
@@ -347,7 +364,7 @@ async function importBook({ rows, agentId, plan }) {
 
   const policyResult = await insertPolicies({
     rowsWithLookups: resolved.rowsWithLookups,
-    clientIdByPhone: clientResult.clientIdByPhone,
+    clientIdByKey: clientResult.clientIdByKey,
     agentId,
   });
   if (policyResult.error) return importError('Failed to create policies', policyResult.error);

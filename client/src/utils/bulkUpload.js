@@ -155,6 +155,21 @@ const isPercentColumn = (header) =>
   /^(Primary|Contingent) Beneficiary \d+ Allocation %$/.test(header) ||
   header === 'Other Agent Commission Share';
 
+const getCellText = (value) => {
+  if (value == null) return '';
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value !== 'object') return String(value);
+  if (Array.isArray(value.richText)) {
+    return value.richText.map((part) => getCellText(part.text)).join('');
+  }
+  if ('text' in value) return getCellText(value.text);
+  if ('result' in value) return getCellText(value.result);
+  if (typeof value.hyperlink === 'string') {
+    return value.hyperlink.replace(/^mailto:/i, '');
+  }
+  return '';
+};
+
 export const parseCsvText = (text) => {
   const lines = text
     .replace(/\r\n/g, '\n')
@@ -205,9 +220,7 @@ export const parseUploadFile = async (file) => {
       if (!header) return;
       const cell = row.getCell(index + 1);
       const value = cell.value;
-      const text = value && typeof value === 'object' && 'text' in value
-        ? value.text
-        : value;
+      const text = getCellText(value);
       const shouldScalePercent =
         isPercentColumn(header) &&
         typeof value === 'number' &&
