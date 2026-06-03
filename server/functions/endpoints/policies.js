@@ -2,12 +2,14 @@ const express = require('express');
 const logger = require('firebase-functions/logger');
 const dayjs = require('dayjs');
 const { WebClient } = require('@slack/web-api');
+const { Firestore } = require('firebase-admin/firestore');
 const { supabaseService } = require('../services/supabase');
 const { buildPolicySlackPayload } = require('../integrations/slack');
 const {
   buildPolicyDiscordPayload,
   sendDiscordNotification,
 } = require('../integrations/discord');
+const { sendPurchaseToMeta } = require('../integrations/pixel');
 
 const slackTargets = [
   process.env.SLACK_BOT_TOKEN,
@@ -300,8 +302,11 @@ policyRouter.post('/', async (req, res) => {
     policyId,
   });
 
+  let productData = null;
+  let carrierData = null;
+
   try {
-    const [{ data: productData }, { data: carrierData }] = await Promise.all([
+    [{ data: productData }, { data: carrierData }] = await Promise.all([
       supabaseService
         .from('products')
         .select('name')
@@ -353,6 +358,45 @@ policyRouter.post('/', async (req, res) => {
       'Failed to send Slack/Discord notification in endpoints/policies.js',
       {
         error: err,
+      },
+    );
+  }
+
+  try {
+    const { data: clientData } = await supabaseService
+      .from('clients')
+      .select('phone')
+      .eq('id', client_id)
+      .single();
+
+    const ap = Number(insertPayload.premium_amount) * 12;
+
+    if (clientData?.phone) {
+      const gsqDb = new Firestore({
+        projectId: 'life-quoter',
+        credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+      });
+
+      const gsqSnapshot = await gsqDb
+        .collection('leads')
+        .where('phone', '==', clientData.phone)
+        .limit(1)
+        .get();
+
+      if (!gsqSnapshot.empty) {
+        const gsqLead = gsqSnapshot.docs[0].data();
+        await sendPurchaseToMeta(ap, gsqLead, {
+          premiumAmount: Number(insertPayload.premium_amount),
+          carrier: carrierData?.name,
+          policyType: productData?.name,
+        });
+      }
+    }
+  } catch (error) {
+    logger.error(
+      'Error sending purchase event to Meta in endpoints/policies.js',
+      {
+        error,
       },
     );
   }
