@@ -20,6 +20,8 @@ exports.app = functions.https.onRequest(
       'SUPABASE_PUBLISHABLE_KEY',
       'SUPABASE_SERVICE_ROLE_KEY',
       'DISCORD_SALE_WEBHOOK_URL',
+      'META_CONVERSIONS_TOKEN',
+      'META_CONVERSIONS_URL',
     ],
   },
   expressApp,
