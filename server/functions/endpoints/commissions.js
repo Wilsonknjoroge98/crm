@@ -8,6 +8,7 @@ const commissionsRouter = express.Router();
 
 commissionsRouter.get('/', async (req, res) => {
   const AGENT_ID = '92566663-1fbb-4ffe-b835-8f33ade1bbbd';
+  const LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
   const { startDate, endDate } = req.query;
 
   const getContractRate = (level, carrierName, productName) => {
@@ -55,7 +56,7 @@ commissionsRouter.get('/', async (req, res) => {
     let ownPoliciesQuery = supabaseService
       .from('policies')
       .select(
-        'id, premium_amount, split_agent_id, split_agent_share, carriers ( name ), products ( name )',
+        'id, premium_amount, split_agent_id, split_agent_share, carriers ( name ), products ( name ), clients!policies_client_id_fkey ( leads!clients_lead_id_fkey ( lead_vendor_id ) )',
       )
       .eq('writing_agent_id', AGENT_ID);
 
@@ -79,7 +80,9 @@ commissionsRouter.get('/', async (req, res) => {
 
     let directCommissions = 0;
 
-    for (const policy of ownPolicies || []) {
+    for (const policy of (ownPolicies || []).filter(
+      (p) => p.clients?.leads?.lead_vendor_id === LEAD_VENDOR_ID,
+    )) {
       const carrierName = policy.carriers?.name;
       const productName = policy.products?.name;
       const contractRate = getContractRate(
@@ -103,7 +106,7 @@ commissionsRouter.get('/', async (req, res) => {
       let downlinePoliciesQuery = supabaseService
         .from('policies')
         .select(
-          'id, premium_amount, writing_agent_id, carriers ( name ), products ( name )',
+          'id, premium_amount, writing_agent_id, carriers ( name ), products ( name ), clients!policies_client_id_fkey ( leads!clients_lead_id_fkey ( lead_vendor_id ) )',
         )
         .in('writing_agent_id', [...downlineIds]);
 
@@ -132,7 +135,9 @@ commissionsRouter.get('/', async (req, res) => {
 
       const agentMap = new Map(allAgents.map((a) => [a.id, a]));
 
-      for (const policy of downlinePolicies || []) {
+      for (const policy of (downlinePolicies || []).filter(
+        (p) => p.clients?.leads?.lead_vendor_id === LEAD_VENDOR_ID,
+      )) {
         const downlineAgent = agentMap.get(policy.writing_agent_id);
         if (!downlineAgent) continue;
 
@@ -160,7 +165,7 @@ commissionsRouter.get('/', async (req, res) => {
     let splitPoliciesQuery = supabaseService
       .from('policies')
       .select(
-        'id, premium_amount, split_agent_share, carriers ( name ), products ( name )',
+        'id, premium_amount, split_agent_share, carriers ( name ), products ( name ), clients!policies_client_id_fkey ( leads!clients_lead_id_fkey ( lead_vendor_id ) )',
       )
       .eq('split_agent_id', AGENT_ID);
 
@@ -181,7 +186,9 @@ commissionsRouter.get('/', async (req, res) => {
 
     let splitCommissions = 0;
 
-    for (const policy of splitPolicies || []) {
+    for (const policy of (splitPolicies || []).filter(
+      (p) => p.clients?.leads?.lead_vendor_id === LEAD_VENDOR_ID,
+    )) {
       if (policy.split_agent_share == null) continue;
       const carrierName = policy.carriers?.name;
       const productName = policy.products?.name;
