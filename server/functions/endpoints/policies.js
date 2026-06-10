@@ -20,6 +20,7 @@ const policyRouter = express.Router();
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 const FEARLESS_ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 const mapBeneficiaries = (list, policyId, type) =>
   (list || [])
@@ -343,13 +344,13 @@ policyRouter.post('/', async (req, res) => {
     });
 
     await Promise.all([
-      ...slackTargets.filter(Boolean).map((token) =>
-        new WebClient(token).chat.postMessage({
+      lead_vendor_id == GSQ_LEAD_VENDOR_ID &&
+        new WebClient(process.env.SLACK_BOT_TOKEN).chat.postMessage({
           channel: '#sales',
           text: payload.text,
           blocks: payload.blocks,
         }),
-      ),
+
       req.agent.org_id === FEARLESS_ORG_ID &&
         sendDiscordNotification(discordPayload),
     ]);
