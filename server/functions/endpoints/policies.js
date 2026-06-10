@@ -343,17 +343,21 @@ policyRouter.post('/', async (req, res) => {
       effectiveDate: eft,
     });
 
-    await Promise.all([
-      lead_vendor_id == GSQ_LEAD_VENDOR_ID &&
-        new WebClient(process.env.SLACK_BOT_TOKEN).chat.postMessage({
-          channel: '#sales',
-          text: payload.text,
-          blocks: payload.blocks,
-        }),
+    const slackPromise =
+      lead_vendor_id === GSQ_LEAD_VENDOR_ID
+        ? new WebClient(process.env.SLACK_BOT_TOKEN).chat.postMessage({
+            channel: '#sales',
+            text: payload.text,
+            blocks: payload.blocks,
+          })
+        : Promise.resolve();
 
-      req.agent.org_id === FEARLESS_ORG_ID &&
-        sendDiscordNotification(discordPayload),
-    ]);
+    const discordPromise =
+      req.agent.org_id === FEARLESS_ORG_ID
+        ? sendDiscordNotification(discordPayload)
+        : Promise.resolve();
+
+    await Promise.all([slackPromise, discordPromise]);
   } catch (err) {
     logger.error(
       'Failed to send Slack/Discord notification in endpoints/policies.js',
