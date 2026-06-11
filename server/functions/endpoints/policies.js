@@ -275,7 +275,7 @@ policyRouter.post('/', async (req, res) => {
   try {
     const { data: clientData, error: clientError } = await supabaseService
       .from('clients')
-      .select('phone')
+      .select('phone, lead_id')
       .eq('id', client_id)
       .single();
 
@@ -286,13 +286,15 @@ policyRouter.post('/', async (req, res) => {
       });
     }
 
-    const { data: leadData } = await supabaseService
-      .from('leads')
-      .select('lead_vendor_id')
-      .eq('phone', clientData.phone)
-      .single();
+    if (clientData?.lead_id) {
+      const { data: leadData } = await supabaseService
+        .from('leads')
+        .select('lead_vendor_id')
+        .eq('id', clientData.lead_id)
+        .single();
 
-    lead_vendor_id = leadData?.lead_vendor_id ?? null;
+      lead_vendor_id = leadData?.lead_vendor_id ?? null;
+    }
 
     await supabaseService
       .from('leads')
