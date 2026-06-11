@@ -208,12 +208,13 @@ policyRouter.post('/', async (req, res) => {
     contingent_beneficiaries,
     clientName,
     split_policy,
-    lead_vendor_id,
     carrier,
     notes,
     product,
     ...policyFields
   } = policy;
+
+  let lead_vendor_id = null;
 
   const insertPayload = {
     ...policyFields,
@@ -284,6 +285,14 @@ policyRouter.post('/', async (req, res) => {
         client_id,
       });
     }
+
+    const { data: leadData } = await supabaseService
+      .from('leads')
+      .select('lead_vendor_id')
+      .eq('phone', clientData.phone)
+      .single();
+
+    lead_vendor_id = leadData?.lead_vendor_id ?? null;
 
     await supabaseService
       .from('leads')
