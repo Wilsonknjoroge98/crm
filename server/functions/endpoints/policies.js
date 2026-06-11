@@ -208,6 +208,7 @@ policyRouter.post('/', async (req, res) => {
     contingent_beneficiaries,
     clientName,
     split_policy,
+    lead_vendor_id: _,
     carrier,
     notes,
     product,
