@@ -41,9 +41,9 @@ const Leaderboard = () => {
   });
 
   const handleStartChange = (val) =>
-    setStartDate(val ? dayjs(val).format('YYYY-MM-DD') : '');
+    setStartDate(val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD') : '');
   const handleEndChange = (val) =>
-    setEndDate(val ? dayjs(val).format('YYYY-MM-DD') : '');
+    setEndDate(val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD') : '');
 
   return (
     <>

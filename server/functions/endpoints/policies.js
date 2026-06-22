@@ -402,7 +402,7 @@ policyRouter.post('/', async (req, res) => {
 
       if (!gsqSnapshot.empty) {
         const gsqLead = gsqSnapshot.docs[0].data();
-        await sendPurchaseToMeta(ap, gsqLead, {
+        await sendPurchaseToMeta(ap, gsqLead, clientData, {
           premiumAmount: Number(insertPayload.premium_amount),
           carrier: carrierData?.name,
           policyType: productData?.name,
