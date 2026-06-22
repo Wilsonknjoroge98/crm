@@ -57,12 +57,12 @@ const Commissions = () => {
   });
 
   const handleStartChange = (newValue) => {
-    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
+    const formatted = newValue && dayjs(newValue).isValid() ? dayjs(newValue).format('YYYY-MM-DD') : '';
     setStartDate(formatted);
   };
 
   const handleEndChange = (newValue) => {
-    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
+    const formatted = newValue && dayjs(newValue).isValid() ? dayjs(newValue).format('YYYY-MM-DD') : '';
     setEndDate(formatted);
   };
 

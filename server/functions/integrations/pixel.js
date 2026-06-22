@@ -16,9 +16,14 @@ const hash = (data) => {
   return `${crypto.createHash('sha256').update(data).digest('hex')}`;
 };
 
-const sendPurchaseToMeta = async (ap, lead, policy) => {
+const sendPurchaseToMeta = async (ap, lead, client, policy) => {
   if (!lead || !lead.email || !lead.name || !lead.phone || !lead.state) {
     console.error('Missing lead information');
+    return;
+  }
+
+  if (!client) {
+    console.error('Missing client information');
     return;
   }
 
@@ -56,8 +61,10 @@ const sendPurchaseToMeta = async (ap, lead, policy) => {
           ph: hash(lead.phone),
           db: hash(`${lead.birthYear}${lead.birthMonth}${lead.birthDay}`),
           country: hash('US'),
+          zp: hash(client.zip),
+          ct: hash(client.city),
+          st: hash(client.state),
           ge: lead.sex === 'Male' ? hash('m') : hash('f'),
-          st: hash(STATE_ABBREV_MAP[lead.state]),
         },
         custom_data: {
           currency: 'USD',
