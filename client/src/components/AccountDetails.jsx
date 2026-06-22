@@ -72,6 +72,33 @@ const AccountDetails = ({ data }) => {
     },
   });
 
+  const { mutate: updateCrm, isPending: isCrmPending } = useMutation({
+    mutationFn: patchAccount,
+    onSuccess: (_, variables) => {
+      enqueueSnackbar('Account updated!', SNACKBAR_SUCCESS_OPTIONS);
+      queryClient.setQueriesData({ queryKey: ['account'] }, (account) => {
+        if (!account) return account;
+        return { ...account, [variables.field]: variables.value };
+      });
+      setCrmOverrides((current) => {
+        const next = { ...current };
+        delete next[variables.crmKey];
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ['account'] });
+    },
+    onError: (error, variables) => {
+      const message =
+        error?.response?.data?.message || 'Failed to update account.';
+      enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
+      setCrmOverrides((current) => {
+        const next = { ...current };
+        delete next[variables.crmKey];
+        return next;
+      });
+    },
+  });
+
   const isSettled = isError || isSuccess;
 
   if (!data && isSettled) {
@@ -171,6 +198,7 @@ const AccountDetails = ({ data }) => {
         </Typography>
         {CRM_INTEGRATIONS.map(({ key, label, field, informational }) => {
           const connected = (crmOverrides[key] ?? data?.[field]) === true;
+          const updatePending = isCrmPending;
 
           return (
             <Stack
@@ -208,12 +236,24 @@ const AccountDetails = ({ data }) => {
                     size='small'
                     checked={connected}
                     onChange={(event) => {
+                      if (updatePending) return;
+                      const nextConnected = event.target.checked;
                       setCrmOverrides((current) => ({
                         ...current,
-                        [key]: event.target.checked,
+                        [key]: nextConnected,
                       }));
+                      updateCrm({
+                        data: {
+                          email: agent?.email,
+                          [field]: nextConnected,
+                        },
+                        crmKey: key,
+                        field,
+                        value: nextConnected,
+                      });
                     }}
                     sx={{
+                      pointerEvents: updatePending ? 'none' : 'auto',
                       '& .MuiSwitch-track': {
                         backgroundColor: '#bdbdbd !important',
                         opacity: '0.5 !important',
@@ -225,6 +265,7 @@ const AccountDetails = ({ data }) => {
                     }}
                     inputProps={{
                       'aria-label': `${label} integration status`,
+                      'aria-disabled': updatePending,
                     }}
                   />
                 )}

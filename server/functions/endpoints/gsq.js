@@ -80,13 +80,23 @@ gsqRouter.get('/', async (req, res) => {
 gsqRouter.patch('/', async (req, res) => {
   logger.log('Body received for agent account update:', req.body);
   const {
-    account: { email, deliver, states },
+    account: {
+      email,
+      deliver,
+      states,
+      ringyEnabled,
+      ghlEnabled,
+      insurDialEnabled,
+    },
   } = req.body;
 
   logger.log('Agent account update request received:', {
     email,
     deliver,
     states,
+    ringyEnabled,
+    ghlEnabled,
+    insurDialEnabled,
   });
 
   const db = new Firestore({
@@ -100,6 +110,51 @@ gsqRouter.patch('/', async (req, res) => {
     return res.status(404).send({ message: 'Agent not found' });
   }
 
+  const integrationUpdates = [
+    {
+      field: 'ringyEnabled',
+      value: ringyEnabled,
+      configCollection: 'ringy_config',
+      label: 'Ringy',
+    },
+    {
+      field: 'ghlEnabled',
+      value: ghlEnabled,
+      configCollection: 'ghl_config',
+      label: 'GHL',
+    },
+    {
+      field: 'insurDialEnabled',
+      value: insurDialEnabled,
+      configCollection: 'id_config',
+      label: 'InsurDial',
+    },
+  ];
+
+  for (const integration of integrationUpdates) {
+    if (
+      integration.value !== undefined &&
+      typeof integration.value !== 'boolean'
+    ) {
+      return res.status(400).send({
+        message: `${integration.field} must be a boolean`,
+      });
+    }
+
+    if (integration.value === true) {
+      const configSnapshot = await db
+        .collection(integration.configCollection)
+        .doc(email)
+        .get();
+
+      if (!configSnapshot.exists) {
+        return res.status(422).send({
+          message: `${integration.label} integration is not configured`,
+        });
+      }
+    }
+  }
+
   const updateObject = {};
 
   if (deliver !== undefined) {
@@ -108,6 +163,12 @@ gsqRouter.patch('/', async (req, res) => {
 
   if (states !== undefined) {
     updateObject.states = states;
+  }
+
+  for (const integration of integrationUpdates) {
+    if (integration.value !== undefined) {
+      updateObject[integration.field] = integration.value;
+    }
   }
 
   await ref.update(updateObject);
