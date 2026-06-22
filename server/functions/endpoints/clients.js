@@ -307,7 +307,7 @@ clientRouter.post('/', async (req, res) => {
 
   const { data: existingLead, error: existingLeadError } = await supabaseService
     .from('leads')
-    .select('id')
+    .select('id, gsq_source')
     .eq('phone', client.phone)
     .maybeSingle();
 
@@ -360,6 +360,20 @@ clientRouter.post('/', async (req, res) => {
     leadId = newLead?.id || null;
   } else {
     leadId = existingLead?.id || null;
+
+    if (
+      leadId &&
+      leadVendorId === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
+      !existingLead.gsq_source
+    ) {
+      const hyrosSource = await getHyrosSource(client.email);
+      if (hyrosSource) {
+        await supabaseService
+          .from('leads')
+          .update({ gsq_source: hyrosSource })
+          .eq('id', leadId);
+      }
+    }
   }
 
   const { data: newClient, error: newClientError } = await supabaseService
