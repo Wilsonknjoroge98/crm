@@ -126,9 +126,11 @@ export default function NavBar() {
           onClose={handleMenuClose}
           PaperProps={{
             sx: {
-              width: 300,
+              width: 330,
               height: 'fit-content',
               borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
               p: 0,
             },
           }}

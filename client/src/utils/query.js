@@ -113,7 +113,7 @@ const getLeads = async ({ data }) => {
 };
 
 const patchAccount = async ({ data }) => {
-  console.log('Updating client account', data);
+  // Don't log data here since account updates can include API keys.
   const options = {
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
@@ -123,9 +123,20 @@ const patchAccount = async ({ data }) => {
     const response = await apiClient.request(options);
     return response.data;
   } catch (error) {
-    console.error('Error updating account:', error);
+    console.error('Account update failed', {
+      status: error?.response?.status,
+      message: error?.response?.data?.message || error?.message,
+    });
     throw error;
   }
+};
+
+const getInsurDialConfig = async () => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/gsq-account/insurdial-config',
+  });
+  return response.data;
 };
 
 const getAccount = async ({ email }) => {
@@ -988,6 +999,7 @@ export {
   getCommissions,
   getLeads,
   patchAccount,
+  getInsurDialConfig,
   postError,
   getInvites,
   createInvite,

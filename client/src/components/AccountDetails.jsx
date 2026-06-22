@@ -9,11 +9,16 @@ import {
   Tooltip,
   IconButton,
   Link,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { patchAccount } from '../utils/query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getInsurDialConfig, patchAccount } from '../utils/query';
 
 import { useAgent } from '../hooks/useAgent';
 import { supabase } from '../utils/supabase';
@@ -23,11 +28,10 @@ import {
   SNACKBAR_SUCCESS_OPTIONS,
   SNACKBAR_ERROR_OPTIONS,
 } from '../utils/constants';
-import { useQueryClient } from '@tanstack/react-query';
-
 import UpdateStatesDialog from './UpdateStatesDialog';
 import EditIcon from '@mui/icons-material/Edit';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined';
 
 const CRM_INTEGRATIONS = [
   { key: 'ringy', label: 'Ringy', field: 'ringyEnabled' },
@@ -43,7 +47,16 @@ const CRM_INTEGRATIONS = [
 
 const AccountDetails = ({ data }) => {
   const [openStatesDlg, setOpenStatesDlg] = useState(false);
+  const [openApiKeyDialog, setOpenApiKeyDialog] = useState(false);
+  const [token, setToken] = useState('');
+  const [tokenEdited, setTokenEdited] = useState(false);
   const navigate = useNavigate();
+
+  const closeApiKeyDialog = () => {
+    setToken('');
+    setTokenEdited(false);
+    setOpenApiKeyDialog(false);
+  };
 
   const formattedDate = data?.lastIssuedDate?._seconds
     ? dayjs.unix(data?.lastIssuedDate._seconds).format('MMM D, YYYY h:mm A')
@@ -56,6 +69,22 @@ const AccountDetails = ({ data }) => {
   const [deliver, setDeliver] = useState(data?.deliver);
   const [states, setStates] = useState(data?.states || []);
   const [crmOverrides, setCrmOverrides] = useState({});
+
+  const {
+    data: insurDialConfig,
+    isLoading: isConfigLoading,
+    isError: isConfigError,
+  } = useQuery({
+    queryKey: ['insurDialConfig'],
+    queryFn: getInsurDialConfig,
+    enabled: openApiKeyDialog,
+  });
+
+  useEffect(() => {
+    if (!openApiKeyDialog || !insurDialConfig) return;
+    setToken('x'.repeat(insurDialConfig.tokenLength));
+    setTokenEdited(false);
+  }, [insurDialConfig, openApiKeyDialog]);
 
   const { mutate, isPending, isError, isSuccess } = useMutation({
     mutationFn: patchAccount,
@@ -96,6 +125,30 @@ const AccountDetails = ({ data }) => {
         delete next[variables.crmKey];
         return next;
       });
+    },
+  });
+
+  const { mutate: saveToken, isPending: isTokenPending } = useMutation({
+    mutationFn: patchAccount,
+    onSuccess: () => {
+      enqueueSnackbar('InsurDial API key saved!', SNACKBAR_SUCCESS_OPTIONS);
+      queryClient.setQueriesData({ queryKey: ['account'] }, (account) => {
+        if (!account) return account;
+        return { ...account, insurDialEnabled: true };
+      });
+      queryClient.setQueryData(['insurDialConfig'], {
+        configured: true,
+        tokenLength: token.trim().length,
+      });
+      setToken('');
+      setTokenEdited(false);
+      setOpenApiKeyDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['account'] });
+    },
+    onError: (error) => {
+      const message =
+        error?.response?.data?.message || 'Failed to save API key.';
+      enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
     },
   });
 
@@ -161,6 +214,76 @@ const AccountDetails = ({ data }) => {
         states={states}
         mutate={mutate}
       />
+      <Dialog
+        open={openApiKeyDialog}
+        onClose={() => {
+          if (!isTokenPending) closeApiKeyDialog();
+        }}
+        fullWidth
+        maxWidth='xs'
+      >
+        <DialogTitle>Configure InsurDial API Key</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label='API key'
+            placeholder='Paste your API key'
+            type='password'
+            value={token}
+            disabled={isConfigLoading || isConfigError}
+            error={isConfigError}
+            helperText={
+              isConfigLoading
+                ? 'Checking for an existing API key...'
+                : isConfigError
+                  ? 'Could not check the existing API key.'
+                  : undefined
+            }
+            onFocus={() => {
+              if (!tokenEdited) {
+                setToken('');
+                setTokenEdited(true);
+              }
+            }}
+            onChange={(event) => {
+              setTokenEdited(true);
+              setToken(event.target.value);
+            }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            disabled={isTokenPending}
+            onClick={closeApiKeyDialog}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant='contained'
+            disabled={
+              isConfigLoading ||
+              isConfigError ||
+              isTokenPending ||
+              (tokenEdited && !token.trim())
+            }
+            onClick={() => {
+              if (!tokenEdited) {
+                closeApiKeyDialog();
+                return;
+              }
+              saveToken({
+                data: {
+                  email: agent?.email,
+                  token: token.trim(),
+                },
+              });
+            }}
+          >
+            {isTokenPending ? 'Saving...' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Stack spacing={1} minWidth={250}>
         <Typography variant='caption' color='text.secondary' fontWeight='bold'>
           Leads
@@ -208,7 +331,36 @@ const AccountDetails = ({ data }) => {
               justifyContent='space-between'
               alignItems='center'
             >
-              <Typography variant='body2'>{label}</Typography>
+              <Box display='flex' alignItems='center' position='relative'>
+                {key === 'insurDial' && (
+                  <Tooltip title='Set API key' arrow>
+                    <IconButton
+                      aria-label='Set InsurDial API key'
+                      size='small'
+                      onClick={() => setOpenApiKeyDialog(true)}
+                      sx={{
+                        position: 'absolute',
+                        left: -25,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        p: 0.5,
+                        '&:hover': {
+                          backgroundColor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <KeyOutlinedIcon
+                        sx={{
+                          fontSize: '1rem',
+                          color: 'text.secondary',
+                          transform: 'rotate(45deg)',
+                        }}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <Typography variant='body2'>{label}</Typography>
+              </Box>
               <Box display='flex' alignItems='center' gap={0.5}>
                 <Typography
                   variant='caption'

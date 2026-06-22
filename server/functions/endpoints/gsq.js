@@ -5,6 +5,25 @@ const { Firestore } = require('firebase-admin/firestore');
 // eslint-disable-next-line new-cap
 const gsqRouter = express.Router();
 
+gsqRouter.get('/insurdial-config', async (req, res) => {
+  const email = req.agent?.email;
+  if (!email) {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
+
+  const db = new Firestore({
+    projectId: 'life-quoter',
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+  const snapshot = await db.collection('id_config').doc(email).get();
+  const token = snapshot.data()?.token;
+
+  res.status(200).send({
+    configured: snapshot.exists && typeof token === 'string' && token.length > 0,
+    tokenLength: typeof token === 'string' ? token.length : 0,
+  });
+});
+
 gsqRouter.get('/', async (req, res) => {
   const { email } = req.query;
 
@@ -78,7 +97,6 @@ gsqRouter.get('/', async (req, res) => {
 });
 
 gsqRouter.patch('/', async (req, res) => {
-  logger.log('Body received for agent account update:', req.body);
   const {
     account: {
       email,
@@ -87,17 +105,30 @@ gsqRouter.patch('/', async (req, res) => {
       ringyEnabled,
       ghlEnabled,
       insurDialEnabled,
+      token,
     },
   } = req.body;
 
+  // Don't log API keys
   logger.log('Agent account update request received:', {
     email,
-    deliver,
-    states,
-    ringyEnabled,
-    ghlEnabled,
-    insurDialEnabled,
+    fields: Object.keys(req.body.account).filter((field) => field !== 'token'),
+    includesToken: token !== undefined,
   });
+
+  if (token !== undefined) {
+    if (typeof token !== 'string' || !token.trim()) {
+      return res.status(400).send({ message: 'API key is required' });
+    }
+
+    if (token.length > 4096) {
+      return res.status(400).send({ message: 'API key is too long' });
+    }
+
+    if (!req.agent?.email || req.agent.email !== email) {
+      return res.status(403).send({ message: 'Forbidden' });
+    }
+  }
 
   const db = new Firestore({
     projectId: 'life-quoter',
@@ -141,7 +172,10 @@ gsqRouter.patch('/', async (req, res) => {
       });
     }
 
-    if (integration.value === true) {
+    const tokenWillConfigureInsurDial =
+      integration.field === 'insurDialEnabled' && token !== undefined;
+
+    if (integration.value === true && !tokenWillConfigureInsurDial) {
       const configSnapshot = await db
         .collection(integration.configCollection)
         .doc(email)
@@ -171,7 +205,16 @@ gsqRouter.patch('/', async (req, res) => {
     }
   }
 
-  await ref.update(updateObject);
+  const batch = db.batch();
+
+  if (token !== undefined) {
+    const configRef = db.collection('id_config').doc(email);
+    batch.set(configRef, { token: token.trim() }, { merge: true });
+    updateObject.insurDialEnabled = true;
+  }
+
+  batch.update(ref, updateObject);
+  await batch.commit();
   res.status(200).send({ message: 'Agent account updated successfully' });
 });
 
