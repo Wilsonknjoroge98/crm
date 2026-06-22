@@ -6,8 +6,10 @@ const { Firestore } = require('firebase-admin/firestore');
 const gsqRouter = express.Router();
 
 gsqRouter.get('/insurdial-config', async (req, res) => {
-  const email = req.agent?.email;
-  if (!email) {
+  const { data: authData, error: authError } =
+    await req.supabase.auth.getUser();
+  const email = authData?.user?.email;
+  if (authError || !email) {
     return res.status(403).send({ message: 'Forbidden' });
   }
 
@@ -25,7 +27,14 @@ gsqRouter.get('/insurdial-config', async (req, res) => {
 });
 
 gsqRouter.get('/', async (req, res) => {
+  const { data: authData, error: authError } =
+    await req.supabase.auth.getUser();
+  const authenticatedEmail = authData?.user?.email;
   const { email } = req.query;
+
+  if (authError || !authenticatedEmail || email !== authenticatedEmail) {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
 
   const db = new Firestore({
     projectId: 'life-quoter',
@@ -109,6 +118,14 @@ gsqRouter.patch('/', async (req, res) => {
     },
   } = req.body;
 
+  const { data: authData, error: authError } =
+    await req.supabase.auth.getUser();
+  const authenticatedEmail = authData?.user?.email;
+
+  if (authError || !authenticatedEmail || email !== authenticatedEmail) {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
+
   // Don't log API keys
   logger.log('Agent account update request received:', {
     email,
@@ -123,10 +140,6 @@ gsqRouter.patch('/', async (req, res) => {
 
     if (token.length > 4096) {
       return res.status(400).send({ message: 'API key is too long' });
-    }
-
-    if (!req.agent?.email || req.agent.email !== email) {
-      return res.status(403).send({ message: 'Forbidden' });
     }
   }
 
