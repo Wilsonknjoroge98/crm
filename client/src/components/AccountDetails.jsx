@@ -6,11 +6,10 @@ import {
   Chip,
   Typography,
   Switch,
+  Tooltip,
   IconButton,
   Link,
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -28,6 +27,19 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import UpdateStatesDialog from './UpdateStatesDialog';
 import EditIcon from '@mui/icons-material/Edit';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+
+const CRM_INTEGRATIONS = [
+  { key: 'ringy', label: 'Ringy', field: 'ringyEnabled' },
+  { key: 'ghl', label: 'GHL', field: 'ghlEnabled' },
+  { key: 'insurDial', label: 'InsurDial', field: 'insurDialEnabled' },
+  {
+    key: 'sendblue',
+    label: 'Sendblue',
+    field: 'sendBlueEnabled',
+    informational: true,
+  },
+];
 
 const AccountDetails = ({ data }) => {
   const [openStatesDlg, setOpenStatesDlg] = useState(false);
@@ -43,6 +55,7 @@ const AccountDetails = ({ data }) => {
 
   const [deliver, setDeliver] = useState(data?.deliver);
   const [states, setStates] = useState(data?.states || []);
+  const [crmOverrides, setCrmOverrides] = useState({});
 
   const { mutate, isPending, isError, isSuccess } = useMutation({
     mutationFn: patchAccount,
@@ -60,16 +73,6 @@ const AccountDetails = ({ data }) => {
   });
 
   const isSettled = isError || isSuccess;
-
-  const crmStatuses = [
-    {
-      label: 'Ringy',
-      connected: data?.ringyEnabled === true,
-    },
-    { label: 'GHL', connected: data?.ghlEnabled === true },
-    { label: 'Sendblue', connected: data?.sendBlueEnabled === true },
-    { label: 'InsurDial', connected: data?.insurDialEnabled === true },
-  ];
 
   if (!data && isSettled) {
     return (
@@ -166,11 +169,12 @@ const AccountDetails = ({ data }) => {
         <Typography variant='caption' color='text.secondary' fontWeight='bold'>
           Integrations
         </Typography>
-        {crmStatuses
-          .sort((a, b) => b.connected - a.connected)
-          .map(({ label, connected }) => (
+        {CRM_INTEGRATIONS.map(({ key, label, field, informational }) => {
+          const connected = (crmOverrides[key] ?? data?.[field]) === true;
+
+          return (
             <Stack
-              key={label}
+              key={key}
               direction='row'
               spacing={1}
               justifyContent='space-between'
@@ -178,24 +182,56 @@ const AccountDetails = ({ data }) => {
             >
               <Typography variant='body2'>{label}</Typography>
               <Box display='flex' alignItems='center' gap={0.5}>
-                {connected ? (
-                  <CheckCircleIcon
-                    sx={{ fontSize: '1rem', color: 'success.main' }}
-                  />
-                ) : (
-                  <CancelIcon
-                    sx={{ fontSize: '1rem', color: 'text.disabled' }}
-                  />
-                )}
                 <Typography
                   variant='caption'
                   color={connected ? 'success.main' : 'text.disabled'}
                 >
                   {connected ? 'Connected' : 'Not Connected'}
                 </Typography>
+                {informational ? (
+                  <Tooltip title='Talk to administrators' arrow>
+                    <Box
+                      width={40}
+                      height={24}
+                      display='flex'
+                      alignItems='center'
+                      justifyContent='center'
+                    >
+                      <HelpOutlineIcon
+                        aria-label={`${label} integration information`}
+                        sx={{ fontSize: '1.25rem', color: 'text.disabled' }}
+                      />
+                    </Box>
+                  </Tooltip>
+                ) : (
+                  <Switch
+                    size='small'
+                    checked={connected}
+                    onChange={(event) => {
+                      setCrmOverrides((current) => ({
+                        ...current,
+                        [key]: event.target.checked,
+                      }));
+                    }}
+                    sx={{
+                      '& .MuiSwitch-track': {
+                        backgroundColor: '#bdbdbd !important',
+                        opacity: '0.5 !important',
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: 'success.main',
+                        opacity: 1,
+                      },
+                    }}
+                    inputProps={{
+                      'aria-label': `${label} integration status`,
+                    }}
+                  />
+                )}
               </Box>
             </Stack>
-          ))}
+          );
+        })}
 
         <Divider flexItem />
         <Stack
