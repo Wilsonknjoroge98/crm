@@ -227,6 +227,7 @@ gsqRouter.patch('/', async (req, res) => {
       if (!configSnapshot.exists) {
         return res.status(422).send({
           message: `${integration.label} integration is not configured`,
+          crm: integration.field,
         });
       }
     }

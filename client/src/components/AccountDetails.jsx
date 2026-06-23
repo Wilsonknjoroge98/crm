@@ -15,6 +15,7 @@ import {
   TextField,
   Tab,
   Tabs,
+  Link,
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
@@ -120,7 +121,27 @@ const AccountDetails = ({ data }) => {
       queryClient.invalidateQueries({ queryKey: ['account'] });
     },
     onError: (error, variables) => {
+      const crm = error?.response?.data?.crm;
       const message =
+        crm === 'insurDialEnabled' ? (
+          'Set InsurDial API key before enabling.'
+        ) : crm === 'ringyEnabled' || crm === 'ghlEnabled' ? (
+          <>
+            <Link
+              href={
+                crm === 'ringyEnabled'
+                  ? 'https://docs.google.com/document/d/120EYPFnRJczO79oIkzEU7uARHvHJzFCFswnElkdxx9A/edit?tab=t.0'
+                  : 'https://docs.google.com/document/d/1rtzU2BLKzsZnedzcLOvHWQAqS1nUMR85Iep3y1B53GY/edit?usp=sharing'
+              }
+              target='_blank'
+              rel='noopener noreferrer'
+              sx={{ mr: 0.5 }}
+            >
+              Set up {crm === 'ringyEnabled' ? 'Ringy' : 'GHL'}
+            </Link>
+            before enabling.
+          </>
+        ) :
         error?.response?.data?.message || 'Failed to update account.';
       enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
       setCrmOverrides((current) => {
