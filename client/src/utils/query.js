@@ -131,9 +131,21 @@ const patchAccount = async ({ data }) => {
   }
 };
 
-const getInsurDialConfig = async () => {
+const getInsurDialConfig = async ({ email }) => {
   const response = await apiClient.request({
     method: 'GET',
+    url: '/gsq-account/insurdial-config',
+    params: {
+      email,
+    },
+  });
+  return response.data;
+};
+
+const patchInsurDialConfig = async ({ data }) => {
+  const response = await apiClient.request({
+    method: 'PATCH',
+    data: { account: data, mode: import.meta.env.MODE },
     url: '/gsq-account/insurdial-config',
   });
   return response.data;
@@ -1000,6 +1012,7 @@ export {
   getLeads,
   patchAccount,
   getInsurDialConfig,
+  patchInsurDialConfig,
   postError,
   getInvites,
   createInvite,

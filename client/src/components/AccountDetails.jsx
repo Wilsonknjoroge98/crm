@@ -19,7 +19,11 @@ import {
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getInsurDialConfig, patchAccount } from '../utils/query';
+import {
+  getInsurDialConfig,
+  patchAccount,
+  patchInsurDialConfig,
+} from '../utils/query';
 
 import { useAgent } from '../hooks/useAgent';
 import { enqueueSnackbar } from 'notistack';
@@ -74,9 +78,9 @@ const AccountDetails = ({ data }) => {
     isLoading: isConfigLoading,
     isError: isConfigError,
   } = useQuery({
-    queryKey: ['insurDialConfig'],
-    queryFn: getInsurDialConfig,
-    enabled: openApiKeyDialog,
+    queryKey: ['insurDialConfig', agent?.email],
+    queryFn: () => getInsurDialConfig({ email: agent?.email }),
+    enabled: openApiKeyDialog && !!agent?.email,
   });
 
   useEffect(() => {
@@ -128,14 +132,14 @@ const AccountDetails = ({ data }) => {
   });
 
   const { mutate: saveToken, isPending: isTokenPending } = useMutation({
-    mutationFn: patchAccount,
+    mutationFn: patchInsurDialConfig,
     onSuccess: () => {
       enqueueSnackbar('InsurDial API key saved!', SNACKBAR_SUCCESS_OPTIONS);
       queryClient.setQueriesData({ queryKey: ['account'] }, (account) => {
         if (!account) return account;
         return { ...account, insurDialEnabled: true };
       });
-      queryClient.setQueryData(['insurDialConfig'], {
+      queryClient.setQueryData(['insurDialConfig', agent?.email], {
         configured: true,
         tokenLength: token.trim().length,
       });

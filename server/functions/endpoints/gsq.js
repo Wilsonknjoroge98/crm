@@ -26,6 +26,52 @@ gsqRouter.get('/insurdial-config', async (req, res) => {
   });
 });
 
+gsqRouter.patch('/insurdial-config', async (req, res) => {
+  const {
+    account: { email, token },
+  } = req.body;
+
+  const { data: authData, error: authError } =
+    await req.supabase.auth.getUser();
+  const authenticatedEmail = authData?.user?.email;
+
+  if (authError || !authenticatedEmail || email !== authenticatedEmail) {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
+
+  if (typeof token !== 'string' || !token.trim()) {
+    return res.status(400).send({ message: 'API key is required' });
+  }
+
+  if (token.length > 4096) {
+    return res.status(400).send({ message: 'API key is too long' });
+  }
+
+  logger.log('InsurDial config update request received:', { email });
+
+  const db = new Firestore({
+    projectId: 'life-quoter',
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+
+  const ref = db.doc(`agents/${email}`);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) {
+    return res.status(404).send({ message: 'Agent not found' });
+  }
+
+  const batch = db.batch();
+  batch.set(
+    db.collection('id_config').doc(email),
+    { token: token.trim() },
+    { merge: true },
+  );
+  batch.update(ref, { insurDialEnabled: true });
+  await batch.commit();
+
+  res.status(200).send({ message: 'InsurDial API key saved successfully' });
+});
+
 gsqRouter.get('/', async (req, res) => {
   const { data: authData, error: authError } =
     await req.supabase.auth.getUser();
@@ -114,7 +160,6 @@ gsqRouter.patch('/', async (req, res) => {
       ringyEnabled,
       ghlEnabled,
       insurDialEnabled,
-      token,
     },
   } = req.body;
 
@@ -126,22 +171,10 @@ gsqRouter.patch('/', async (req, res) => {
     return res.status(403).send({ message: 'Forbidden' });
   }
 
-  // Don't log API keys
   logger.log('Agent account update request received:', {
     email,
-    fields: Object.keys(req.body.account).filter((field) => field !== 'token'),
-    includesToken: token !== undefined,
+    fields: Object.keys(req.body.account),
   });
-
-  if (token !== undefined) {
-    if (typeof token !== 'string' || !token.trim()) {
-      return res.status(400).send({ message: 'API key is required' });
-    }
-
-    if (token.length > 4096) {
-      return res.status(400).send({ message: 'API key is too long' });
-    }
-  }
 
   const db = new Firestore({
     projectId: 'life-quoter',
@@ -185,10 +218,7 @@ gsqRouter.patch('/', async (req, res) => {
       });
     }
 
-    const tokenWillConfigureInsurDial =
-      integration.field === 'insurDialEnabled' && token !== undefined;
-
-    if (integration.value === true && !tokenWillConfigureInsurDial) {
+    if (integration.value === true) {
       const configSnapshot = await db
         .collection(integration.configCollection)
         .doc(email)
@@ -218,16 +248,7 @@ gsqRouter.patch('/', async (req, res) => {
     }
   }
 
-  const batch = db.batch();
-
-  if (token !== undefined) {
-    const configRef = db.collection('id_config').doc(email);
-    batch.set(configRef, { token: token.trim() }, { merge: true });
-    updateObject.insurDialEnabled = true;
-  }
-
-  batch.update(ref, updateObject);
-  await batch.commit();
+  await ref.update(updateObject);
   res.status(200).send({ message: 'Agent account updated successfully' });
 });
 
