@@ -8,12 +8,13 @@ import {
   Switch,
   Tooltip,
   IconButton,
-  Link,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
+  Tab,
+  Tabs,
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
@@ -21,8 +22,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getInsurDialConfig, patchAccount } from '../utils/query';
 
 import { useAgent } from '../hooks/useAgent';
-import { supabase } from '../utils/supabase';
-import { useNavigate } from 'react-router-dom';
 import { enqueueSnackbar } from 'notistack';
 import {
   SNACKBAR_SUCCESS_OPTIONS,
@@ -50,7 +49,7 @@ const AccountDetails = ({ data }) => {
   const [openApiKeyDialog, setOpenApiKeyDialog] = useState(false);
   const [token, setToken] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(0);
 
   const closeApiKeyDialog = () => {
     setToken('');
@@ -86,7 +85,7 @@ const AccountDetails = ({ data }) => {
     setTokenEdited(false);
   }, [insurDialConfig, openApiKeyDialog]);
 
-  const { mutate, isPending, isError, isSuccess } = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: patchAccount,
     onSuccess: () => {
       enqueueSnackbar('Account updated!', SNACKBAR_SUCCESS_OPTIONS);
@@ -152,15 +151,13 @@ const AccountDetails = ({ data }) => {
     },
   });
 
-  const isSettled = isError || isSuccess;
-
-  if (!data && isSettled) {
+  if (!data) {
     return (
-      <Stack spacing={1.5} minWidth={250}>
-        <Typography variant='body2' fontWeight='bold'>
+      <Stack spacing={2} sx={{ maxWidth: 560 }}>
+        <Typography variant='h6' fontWeight='bold'>
           No Account Found
         </Typography>
-        <Typography variant='caption' color='text.secondary'>
+        <Typography variant='body2' color='text.secondary'>
           It looks like you haven&apos;t purchased leads yet. Once you complete
           your purchase, your account will be created and you can configure your
           states and control your lead flow.{' '}
@@ -183,25 +180,6 @@ const AccountDetails = ({ data }) => {
         >
           Purchase Leads
         </Button>
-        <Divider flexItem />
-        <Stack direction='column' spacing={0.1}>
-          <Button
-            // endIcon={<LogoutOutlinedIcon />}
-            size='small'
-            color='error'
-            onClick={handleSignOut}
-          >
-            Sign Out
-          </Button>
-          <Button
-            size='small'
-            color='inherit'
-            onClick={() => navigate('/reset-password')}
-            sx={{ color: 'text.secondary' }}
-          >
-            Reset Password
-          </Button>
-        </Stack>
       </Stack>
     );
   }
@@ -220,7 +198,7 @@ const AccountDetails = ({ data }) => {
           if (!isTokenPending) closeApiKeyDialog();
         }}
         fullWidth
-        maxWidth='xs'
+        maxWidth='sm'
       >
         <DialogTitle>Configure InsurDial API Key</DialogTitle>
         <DialogContent>
@@ -284,219 +262,264 @@ const AccountDetails = ({ data }) => {
           </Button>
         </DialogActions>
       </Dialog>
-      <Stack spacing={1} minWidth={250}>
-        <Typography variant='caption' color='text.secondary' fontWeight='bold'>
-          Leads
-        </Typography>
-        <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2'>Outstanding Leads</Typography>
-          <Typography variant='body2' fontWeight='bold'>
-            {data?.outstandingLeads || '—'}
-          </Typography>
-        </Stack>
-        <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2'>Verified Leads</Typography>
-          <Typography variant='body2' fontWeight='bold'>
-            {data?.verified || '—'}
-          </Typography>
-        </Stack>
-        <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2'>Unverified Leads</Typography>
-          <Typography variant='body2' fontWeight='bold'>
-            {data?.unverified || '—'}
-          </Typography>
-        </Stack>
+      <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)}>
+        <Tab label='Leads' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab
+          label='Integrations'
+          sx={{ letterSpacing: 1, fontSize: '.875rem' }}
+        />
+        <Tab label='States' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+      </Tabs>
 
-        <Stack direction='row' spacing={1} justifyContent='space-between'>
-          <Typography variant='body2'>Live Transfers</Typography>
-          <Typography variant='body2' fontWeight='bold'>
-            {data?.liveTransfers || '—'}
-          </Typography>
-        </Stack>
+      <Box sx={{ mt: 4 }}>
+        {activeTab === 1 && (
+          <Box sx={{ maxWidth: 525 }}>
+            <Typography variant='h6' fontWeight={600} mb={1}>
+              CRM Integrations
+            </Typography>
+            <Stack divider={<Divider flexItem />}>
+              {CRM_INTEGRATIONS.map(
+                ({ key, label, field, informational }) => {
+                  const connected =
+                    (crmOverrides[key] ?? data?.[field]) === true;
+                  const updatePending = isCrmPending;
 
-        <Divider flexItem />
-
-        <Typography variant='caption' color='text.secondary' fontWeight='bold'>
-          Integrations
-        </Typography>
-        {CRM_INTEGRATIONS.map(({ key, label, field, informational }) => {
-          const connected = (crmOverrides[key] ?? data?.[field]) === true;
-          const updatePending = isCrmPending;
-
-          return (
-            <Stack
-              key={key}
-              direction='row'
-              spacing={1}
-              justifyContent='space-between'
-              alignItems='center'
-            >
-              <Box display='flex' alignItems='center' position='relative'>
-                {key === 'insurDial' && (
-                  <Tooltip title='Set API key' arrow>
-                    <IconButton
-                      aria-label='Set InsurDial API key'
-                      size='small'
-                      onClick={() => setOpenApiKeyDialog(true)}
-                      sx={{
-                        position: 'absolute',
-                        left: -25,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        p: 0.5,
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        },
-                      }}
+                  return (
+                    <Stack
+                      key={key}
+                      direction={{ xs: 'column', sm: 'row' }}
+                      justifyContent='space-between'
+                      alignItems={{ xs: 'stretch', sm: 'center' }}
+                      spacing={2}
+                      sx={{ py: 1 }}
                     >
-                      <KeyOutlinedIcon
-                        sx={{
-                          fontSize: '1rem',
-                          color: 'text.secondary',
-                          transform: 'rotate(45deg)',
-                        }}
-                      />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Typography variant='body2'>{label}</Typography>
-              </Box>
-              <Box display='flex' alignItems='center' gap={0.5}>
-                <Typography
-                  variant='caption'
-                  color={connected ? 'success.main' : 'text.disabled'}
-                >
-                  {connected ? 'Connected' : 'Not Connected'}
-                </Typography>
-                {informational ? (
-                  <Tooltip title='Talk to administrators' arrow>
-                    <Box
-                      width={40}
-                      height={24}
-                      display='flex'
-                      alignItems='center'
-                      justifyContent='center'
-                    >
-                      <HelpOutlineIcon
-                        aria-label={`${label} integration information`}
-                        sx={{ fontSize: '1.25rem', color: 'text.disabled' }}
-                      />
-                    </Box>
-                  </Tooltip>
-                ) : (
-                  <Switch
-                    size='small'
-                    checked={connected}
-                    onChange={(event) => {
-                      if (updatePending) return;
-                      const nextConnected = event.target.checked;
-                      setCrmOverrides((current) => ({
-                        ...current,
-                        [key]: nextConnected,
-                      }));
-                      updateCrm({
-                        data: {
-                          email: agent?.email,
-                          [field]: nextConnected,
-                        },
-                        crmKey: key,
-                        field,
-                        value: nextConnected,
-                      });
-                    }}
-                    sx={{
-                      pointerEvents: updatePending ? 'none' : 'auto',
-                      '& .MuiSwitch-track': {
-                        backgroundColor: '#bdbdbd !important',
-                        opacity: '0.5 !important',
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: 'success.main',
-                        opacity: 1,
-                      },
-                    }}
-                    inputProps={{
-                      'aria-label': `${label} integration status`,
-                      'aria-disabled': updatePending,
-                    }}
-                  />
-                )}
-              </Box>
+                      <Stack
+                        direction='row'
+                        alignItems='center'
+                        sx={{ position: 'relative' }}
+                      >
+                        {key === 'insurDial' && (
+                          <Tooltip title='Set API key' arrow>
+                            <IconButton
+                              size='small'
+                              aria-label='Set InsurDial API key'
+                              onClick={() => setOpenApiKeyDialog(true)}
+                              sx={{
+                                position: 'absolute',
+                                right: 'calc(100% + 2px)',
+                                p: 0.5,
+                              }}
+                            >
+                              <KeyOutlinedIcon
+                                sx={{
+                                  fontSize: '1.1rem',
+                                  transform: 'rotate(45deg)',
+                                }}
+                              />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Typography variant='subtitle2'>{label}</Typography>
+                      </Stack>
+
+                      {informational ? (
+                        <Stack direction='row' spacing={1} alignItems='center'>
+                          <Typography
+                            variant='caption'
+                            color={connected ? 'success.main' : 'text.secondary'}
+                          >
+                            {connected ? 'Connected' : 'Not Connected'}
+                          </Typography>
+                          <Box
+                            sx={{
+                              width: 38,
+                              display: 'flex',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Tooltip title='Talk to administrators' arrow>
+                              <IconButton
+                                size='small'
+                                aria-label={`${label} integration information`}
+                              >
+                                <HelpOutlineIcon
+                                  sx={{
+                                    fontSize: '1.25rem',
+                                    color: 'text.secondary',
+                                  }}
+                                />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </Stack>
+                      ) : (
+                        <Stack
+                          direction='row'
+                          alignItems='center'
+                          justifyContent={{ xs: 'space-between', sm: 'flex-end' }}
+                          spacing={1}
+                          sx={{ flexShrink: 0 }}
+                        >
+                          <Typography
+                            variant='caption'
+                            color={connected ? 'success.main' : 'text.secondary'}
+                          >
+                            {connected ? 'Connected' : 'Not Connected'}
+                          </Typography>
+                          <Switch
+                            size='small'
+                            checked={connected}
+                            sx={{
+                              pointerEvents: updatePending ? 'none' : 'auto',
+                              '& .MuiSwitch-switchBase.Mui-checked': {
+                                color: 'success.main',
+                              },
+                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                backgroundColor: 'success.main',
+                              },
+                            }}
+                            onChange={(event) => {
+                              if (updatePending) return;
+                              const nextConnected = event.target.checked;
+                              setCrmOverrides((current) => ({
+                                ...current,
+                                [key]: nextConnected,
+                              }));
+                              updateCrm({
+                                data: {
+                                  email: agent?.email,
+                                  [field]: nextConnected,
+                                },
+                                crmKey: key,
+                                field,
+                                value: nextConnected,
+                              });
+                            }}
+                            inputProps={{
+                              'aria-label': `${label} integration status`,
+                              'aria-disabled': updatePending,
+                            }}
+                          />
+                        </Stack>
+                      )}
+                    </Stack>
+                  );
+                },
+              )}
             </Stack>
-          );
-        })}
-
-        <Divider flexItem />
-        <Stack
-          direction='row'
-          justifyContent='space-between'
-          alignItems='center'
-        >
-          <Typography
-            variant='caption'
-            color='text.secondary'
-            fontWeight='bold'
-          >
-            States
-          </Typography>
-          <Box
-            display='flex'
-            alignItems='center'
-            justifyContent='space-between'
-          >
-            <IconButton
-              size='small'
-              color='primary'
-              onClick={() => setOpenStatesDlg(true)}
-            >
-              <EditIcon sx={{ fontSize: '1.5rem' }} />
-            </IconButton>
           </Box>
-        </Stack>
-        <Stack spacing={1} py={1}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {data?.states?.map((state) => (
-              <Chip key={state} size='small' label={state} />
-            ))}
+        )}
+
+        {activeTab === 0 && (
+          <Box sx={{ maxWidth: 600 }}>
+            <Typography variant='h6' fontWeight={600} mb={2}>
+              Leads Summary
+            </Typography>
+            <Stack spacing={0.75}>
+              {[
+                ['Outstanding Leads', data?.outstandingLeads ?? 0],
+                ['Verified Leads', data?.verified ?? 0],
+                ['Unverified Leads', data?.unverified ?? 0],
+                ['Live Transfers', data?.liveTransfers ?? 0],
+              ].map(([label, value]) => (
+                <Stack
+                  key={label}
+                  direction='row'
+                  spacing={2}
+                  alignItems='baseline'
+                >
+                  <Typography
+                    variant='body1'
+                    color='text.secondary'
+                    sx={{ width: 180, whiteSpace: 'nowrap' }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    variant='body1'
+                    fontWeight={600}
+                    sx={{ fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {value}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+            <Divider sx={{ my: 2 }} />
+
+            <Stack spacing={0.75} alignItems='flex-start'>
+              <Stack direction='row' spacing={2} alignItems='center'>
+                <Typography
+                  variant='body1'
+                  color='text.secondary'
+                  sx={{ width: 180 }}
+                >
+                  Lead Flow
+                </Typography>
+                <Switch
+                  size='small'
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: '#CA9837',
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: '#CA9837',
+                    },
+                  }}
+                  checked={deliver}
+                  disabled={isPending}
+                  onChange={(e) => {
+                    const newValue = e.target.checked;
+                    setDeliver(newValue);
+                    mutate({ data: { deliver: newValue, email: agent?.email } });
+                  }}
+                />
+              </Stack>
+              <Stack direction='row' spacing={2} alignItems='baseline'>
+                <Typography
+                  variant='body1'
+                  color='text.secondary'
+                  sx={{ width: 180, whiteSpace: 'nowrap' }}
+                >
+                  Last Issued
+                </Typography>
+                <Typography variant='body1'>{formattedDate}</Typography>
+              </Stack>
+            </Stack>
           </Box>
-        </Stack>
+        )}
 
-        <Divider flexItem />
-
-        <Stack
-          direction='row'
-          spacing={1}
-          justifyContent='space-between'
-          alignItems='center'
-        >
-          <Typography variant='body2'>Lead Flow</Typography>
-
-          <Switch
-            variant='body2'
-            sx={{
-              '& .MuiSwitch-switchBase.Mui-checked': {
-                color: '#CA9837',
-              },
-              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                backgroundColor: '#CA9837',
-              },
-            }}
-            checked={deliver}
-            disabled={isPending}
-            onChange={(e) => {
-              const newValue = e.target.checked;
-              setDeliver(newValue);
-              mutate({ data: { deliver: newValue, email: agent?.email } });
-            }}
-          />
-        </Stack>
-        <Divider flexItem />
-
-        <Stack direction='row' justifyContent='space-between'>
-          <Typography variant='body2'>Last Issued</Typography>
-          <Typography variant='body2'>{formattedDate}</Typography>
-        </Stack>
-      </Stack>
+        {activeTab === 2 && (
+          <Box>
+            <Stack spacing={3} alignItems='flex-start'>
+              <Box>
+                <Typography variant='h6' fontWeight={600} mb={1}>
+                  Licensed States
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  {data?.states?.length ? (
+                    data.states.map((state) => (
+                      <Chip key={state} size='small' label={state} />
+                    ))
+                  ) : (
+                    <Typography variant='body2' color='text.secondary'>
+                      No states selected
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+              <Button
+                variant='outlined'
+                startIcon={<EditIcon />}
+                onClick={() => setOpenStatesDlg(true)}
+              >
+                Edit States
+              </Button>
+            </Stack>
+          </Box>
+        )}
+      </Box>
     </>
   );
 };

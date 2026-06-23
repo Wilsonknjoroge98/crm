@@ -8,20 +8,24 @@ import {
   Box,
   Stack,
   Menu,
+  MenuItem,
+  ListItemIcon,
+  Divider,
   Button,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
-import AccountDetails from './AccountDetails';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import InviteAgentDialog from './InviteAgentDialog';
-import { getAccount } from '../utils/query';
-import { useQuery } from '@tanstack/react-query';
 
 import { useNavigate } from 'react-router-dom';
 
 import { stringToColor } from '../utils/helpers';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent.jsx';
+import { supabase } from '../utils/supabase';
 
 const drawerWidth = 220;
 
@@ -29,18 +33,10 @@ export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [inviteOpen, setInviteOpen] = React.useState(false);
 
-  const { user, userToken, isAuthenticated } = useSelector(
-    (state) => state.user,
-  );
+  const { user } = useSelector((state) => state.user);
+  const navigate = useNavigate();
 
   const agentData = useAgent();
-  const { data: accountData } = useQuery({
-    queryKey: ['account', user?.email, isAuthenticated],
-    queryFn: () => getAccount({ email: user?.email, token: userToken }),
-    staleTime: 1000 * 60 * 5,
-    refetchOnMount: false,
-    enabled: !!user?.email && isAuthenticated,
-  });
 
   const getInitials = (name) => {
     if (!name) return '?';
@@ -55,6 +51,17 @@ export default function NavBar() {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleNavigate = (path) => {
+    handleMenuClose();
+    navigate(path);
+  };
+
+  const handleSignOut = async () => {
+    handleMenuClose();
+    await supabase.auth.signOut();
+    navigate('/login');
   };
 
   return (
@@ -126,24 +133,38 @@ export default function NavBar() {
           onClose={handleMenuClose}
           PaperProps={{
             sx: {
-              width: 330,
+              width: 300,
               height: 'fit-content',
               borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
               p: 0,
             },
           }}
         >
-          <Stack
-            direction='column'
-            justifyContent='space-between'
-            alignItems='center'
-            p={2}
-            spacing={2}
-          >
-            <AccountDetails data={accountData} />
-          </Stack>
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography variant='caption' color='text.secondary'>
+              {user?.email}
+            </Typography>
+          </Box>
+          <Divider />
+          <MenuItem onClick={() => handleNavigate('/profile')}>
+            <ListItemIcon>
+              <AccountCircleOutlinedIcon fontSize='small' />
+            </ListItemIcon>
+            Profile
+          </MenuItem>
+          <MenuItem onClick={() => handleNavigate('/reset-password')}>
+            <ListItemIcon>
+              <LockOpenOutlinedIcon fontSize='small' />
+            </ListItemIcon>
+            Reset Password
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={handleSignOut} sx={{ color: 'error.main' }}>
+            <ListItemIcon>
+              <LogoutOutlinedIcon fontSize='small' color='error' />
+            </ListItemIcon>
+            Sign Out
+          </MenuItem>
         </Menu>
       </Toolbar>
     </AppBar>
