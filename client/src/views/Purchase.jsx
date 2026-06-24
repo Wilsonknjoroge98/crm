@@ -6,18 +6,10 @@ import {
   Typography,
   CardContent,
   Stack,
+  Button,
 } from '@mui/material';
-import { useEffect } from 'react';
 
 const Purchase = () => {
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://js.stripe.com/v3/buy-button.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => document.body.removeChild(script);
-  }, []);
-
   return (
     <Container sx={{ mt: 4 }}>
       <Stack
@@ -29,60 +21,215 @@ const Purchase = () => {
         <Typography variant='h4'>Marketplace</Typography>
       </Stack>
 
-      <Stack direction='row' spacing={3} flexWrap='wrap'>
-        <Card variant='outlined' sx={{ width: 320, boxShadow: 0, padding: 1 }}>
-          <CardContent>
-            <Stack spacing={0.5} mb={3}>
-              <Typography variant='subtitle1' fontWeight={600}>
-                Weekly Lead Pack
-              </Typography>
-              <Typography variant='caption' color='text.secondary'>
-                FEX web leads delivered daily
-              </Typography>
-            </Stack>
+      <Stack direction='column' spacing={3}>
+        <Stack direction='row' spacing={3} flexWrap='wrap' useFlexGap>
+          <Card
+            variant='outlined'
+            sx={{ width: 320, boxShadow: 0, padding: 1 }}
+          >
+            <CardContent>
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='subtitle1' fontWeight={600}>
+                  Fresh Leads
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  FEX web leads delivered daily
+                </Typography>
+              </Stack>
 
-            <Stack spacing={0.5} mb={3}>
-              <Typography variant='h4'>$39</Typography>
-              <Typography variant='caption' color='text.secondary'>
-                per qualified lead
-              </Typography>
-            </Stack>
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='h4'>$39</Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  per qualified lead
+                </Typography>
+              </Stack>
 
-            <Divider sx={{ mb: 3 }} />
+              <Divider sx={{ mb: 3 }} />
 
-            <stripe-buy-button
-              buy-button-id='buy_btn_1Stg0ZDVQvSJ0t4H3fOuyl2W'
-              publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
-            ></stripe-buy-button>
-          </CardContent>
-        </Card>
+              <Button
+                variant='contained'
+                fullWidth
+                href='https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p'
+                target='_blank'
+                rel='noopener noreferrer'
+                sx={{
+                  backgroundColor: '#000',
+                  color: '#fff',
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#222' },
+                }}
+              >
+                Buy
+              </Button>
+            </CardContent>
+          </Card>
 
-        <Card variant='outlined' sx={{ width: 320, boxShadow: 0, padding: 1 }}>
-          <CardContent>
-            <Stack spacing={0.5} mb={3}>
-              <Typography variant='subtitle1' fontWeight={600}>
-                Live Transfer Leads
-              </Typography>
-              <Typography variant='caption' color='text.secondary'>
-                Charged only if call lasts 90+ seconds
-              </Typography>
-            </Stack>
+          <Card
+            variant='outlined'
+            sx={{ width: 320, boxShadow: 0, padding: 1 }}
+          >
+            <CardContent>
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='subtitle1' fontWeight={600}>
+                  Fresh Leads Subscription
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  FEX web leads delivered daily
+                </Typography>
+              </Stack>
 
-            <Stack spacing={0.5} mb={3}>
-              <Typography variant='h4'>$60</Typography>
-              <Typography variant='caption' color='text.secondary'>
-                per qualified transfer
-              </Typography>
-            </Stack>
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='h4'>$390 </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  per week
+                </Typography>
+              </Stack>
 
-            <Divider sx={{ mb: 3 }} />
+              <Divider sx={{ mb: 3 }} />
 
-            <stripe-buy-button
-              buy-button-id='buy_btn_1Stg5mDVQvSJ0t4HJzlmDNPd'
-              publishable-key='pk_live_51RpmeeDVQvSJ0t4HVg9ghYU26STvozS3ERYrTZ9t026K6n08q1tX0ofLLr9WMa1W409qibMZqc2tDMaVjB4pwmPT001zoitAkW'
-            ></stripe-buy-button>
-          </CardContent>
-        </Card>
+              <Button
+                variant='contained'
+                fullWidth
+                href='https://buy.stripe.com/8x24gzg8Q9sb64y7il6Ri0e'
+                target='_blank'
+                rel='noopener noreferrer'
+                sx={{
+                  backgroundColor: '#000',
+                  color: '#fff',
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#222' },
+                }}
+              >
+                Subscribe
+              </Button>
+            </CardContent>
+          </Card>
+        </Stack>
+
+        <Stack direction='row' spacing={3} flexWrap='wrap' useFlexGap>
+          <Card
+            variant='outlined'
+            sx={{ width: 320, boxShadow: 0, padding: 1 }}
+          >
+            <CardContent>
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='subtitle1' fontWeight={600}>
+                  Live Transfer Leads
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  Charged only if call lasts 90+ seconds
+                </Typography>
+              </Stack>
+
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='h4'>$60</Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  per qualified transfer
+                </Typography>
+              </Stack>
+
+              <Divider sx={{ mb: 3 }} />
+
+              <Button
+                variant='contained'
+                fullWidth
+                href='https://buy.stripe.com/dRm00j7CkgUDdx01Y16Ri0b'
+                target='_blank'
+                rel='noopener noreferrer'
+                sx={{
+                  backgroundColor: '#000',
+                  color: '#fff',
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#222' },
+                }}
+              >
+                Buy
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            variant='outlined'
+            sx={{ width: 320, boxShadow: 0, padding: 1 }}
+          >
+            <CardContent>
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='subtitle1' fontWeight={600}>
+                  Banked Leads
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  Submitted within the last 72 Hours
+                </Typography>
+              </Stack>
+
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='h4'>$15–$40</Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  per qualified lead
+                </Typography>
+              </Stack>
+
+              <Divider sx={{ mb: 3 }} />
+
+              <Button
+                variant='contained'
+                fullWidth
+                href='https://fexdigital.com/fresh/store'
+                target='_blank'
+                rel='noopener noreferrer'
+                sx={{
+                  backgroundColor: '#000',
+                  color: '#fff',
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#222' },
+                }}
+              >
+                Shop
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            variant='outlined'
+            sx={{ width: 320, boxShadow: 0, padding: 1 }}
+          >
+            <CardContent>
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='subtitle1' fontWeight={600}>
+                  Aged Leads
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  Submitted 30–180 Days Ago
+                </Typography>
+              </Stack>
+
+              <Stack spacing={0.5} mb={3}>
+                <Typography variant='h4'>$2–$6</Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  per lead
+                </Typography>
+              </Stack>
+
+              <Divider sx={{ mb: 3 }} />
+
+              <Button
+                variant='contained'
+                fullWidth
+                href='https://fexdigital.com/aged/store'
+                target='_blank'
+                rel='noopener noreferrer'
+                sx={{
+                  backgroundColor: '#000',
+                  color: '#fff',
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#222' },
+                }}
+              >
+                Shop
+              </Button>
+            </CardContent>
+          </Card>
+        </Stack>
       </Stack>
 
       <Stack spacing={0.5} mt={4}>
