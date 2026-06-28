@@ -95,8 +95,8 @@ gsqRouter.get('/', async (req, res) => {
   const liveTransfersRef = db.collection('live_transfers').doc(email);
   const liveTransfersSnapshot = await liveTransfersRef.get();
 
-  const liveTransfers =
-    liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
+  let liveTransfers = 0;
+  liveTransfers = liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
 
   const data = { ...snapshot.data(), liveTransfers };
 
@@ -105,13 +105,22 @@ gsqRouter.get('/', async (req, res) => {
   }
 
   if (email === SUPER_ADMIN_EMAIL) {
-    const col = db.collection('agents');
+    const liveTransfersRef = db.collection('live_transfers');
+    const liveTransfersSnap = await liveTransfersRef.get();
+    const liveTransfersDocs = liveTransfersSnap.docs.map((doc) => doc.data());
 
-    const snap = await col.get();
-    const docs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    const data = docs.filter((doc) => doc.id !== 'hello@getseniorquotes.com');
+    const agentCollection = db.collection('agents');
 
-    for (const doc of data) {
+    const agentSnap = await agentCollection.get();
+    const agentDocs = agentSnap.docs.map((doc) => ({
+      ...doc.data(),
+      id: doc.id,
+    }));
+    const agents = agentDocs.filter(
+      (doc) => doc.id !== 'hello@getseniorquotes.com',
+    );
+
+    for (const doc of agents) {
       const outstandingLeads = doc.outstandingLeads || 0;
       const verified = doc.verified || 0;
       const unverified = doc.unverified || 0;
@@ -127,13 +136,21 @@ gsqRouter.get('/', async (req, res) => {
       }
     }
 
-    const outstandingLeads = data.reduce(
+    const outstandingLeads = agents.reduce(
       (acc, curr) => acc + (curr.outstandingLeads || 0),
       0,
     );
-    const verified = data.reduce((acc, curr) => acc + (curr.verified || 0), 0);
-    const unverified = data.reduce(
+    const verified = agents.reduce(
+      (acc, curr) => acc + (curr.verified || 0),
+      0,
+    );
+    const unverified = agents.reduce(
       (acc, curr) => acc + (curr.unverified || 0),
+      0,
+    );
+
+    liveTransfers = liveTransfersDocs.reduce(
+      (acc, curr) => acc + (curr.outstandingLiveTransfers || 0),
       0,
     );
 
