@@ -74,21 +74,13 @@ gsqRouter.patch('/insurdial-config', async (req, res) => {
 });
 
 gsqRouter.get('/', async (req, res) => {
+  const SUPER_ADMIN_EMAIL = 'info@finalexpensedigital.com';
   const { data: authData, error: authError } =
     await req.supabase.auth.getUser();
   const authenticatedEmail = authData?.user?.email;
   const { email } = req.query;
 
-  logger.log('Agent account retrieval request received:', {
-    requestedEmail: email,
-    authenticatedEmail,
-  });
-
   if (authError || !authenticatedEmail || email !== authenticatedEmail) {
-    logger.warn('Unauthorized access attempt to /gsq endpoint', {
-      authenticatedEmail,
-      requestedEmail: email,
-    });
     return res.status(403).send({ message: 'Forbidden' });
   }
 
@@ -103,30 +95,16 @@ gsqRouter.get('/', async (req, res) => {
   const liveTransfersRef = db.collection('live_transfers').doc(email);
   const liveTransfersSnapshot = await liveTransfersRef.get();
 
-  let liveTransfers = 0;
-
-  liveTransfers = liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
+  const liveTransfers =
+    liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
 
   const data = { ...snapshot.data(), liveTransfers };
 
-  if (!snapshot.exists) {
+  if (!snapshot.exists && email !== SUPER_ADMIN_EMAIL) {
     return res.status(404).send({ message: 'Agent not found' });
   }
 
-  if (email === 'info@finalexpensedigital.com') {
-    const liveTransfersRef = db.collection('live_transfers');
-
-    const liveTransfersSnap = await liveTransfersRef.get();
-    const liveTransfersDocs = liveTransfersSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    liveTransfers = liveTransfersDocs.reduce(
-      (acc, curr) => acc + (curr.outstandingLiveTransfers || 0),
-      0,
-    );
-
+  if (email === SUPER_ADMIN_EMAIL) {
     const col = db.collection('agents');
 
     const snap = await col.get();
@@ -141,7 +119,7 @@ gsqRouter.get('/', async (req, res) => {
       const sum = verified + unverified;
       if (outstandingLeads !== sum) {
         logger.warn('Data inconsistency found for agent:', {
-          email: doc.id,
+          email: doc.email,
           outstandingLeads,
           verified,
           unverified,
