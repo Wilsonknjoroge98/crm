@@ -21,7 +21,8 @@ gsqRouter.get('/insurdial-config', async (req, res) => {
   const token = snapshot.data()?.token;
 
   res.status(200).send({
-    configured: snapshot.exists && typeof token === 'string' && token.length > 0,
+    configured:
+      snapshot.exists && typeof token === 'string' && token.length > 0,
     tokenLength: typeof token === 'string' ? token.length : 0,
   });
 });
@@ -78,7 +79,16 @@ gsqRouter.get('/', async (req, res) => {
   const authenticatedEmail = authData?.user?.email;
   const { email } = req.query;
 
+  logger.log('Agent account retrieval request received:', {
+    requestedEmail: email,
+    authenticatedEmail,
+  });
+
   if (authError || !authenticatedEmail || email !== authenticatedEmail) {
+    logger.warn('Unauthorized access attempt to /gsq endpoint', {
+      authenticatedEmail,
+      requestedEmail: email,
+    });
     return res.status(403).send({ message: 'Forbidden' });
   }
 
@@ -93,59 +103,70 @@ gsqRouter.get('/', async (req, res) => {
   const liveTransfersRef = db.collection('live_transfers').doc(email);
   const liveTransfersSnapshot = await liveTransfersRef.get();
 
-  const liveTransfers =
-    liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
+  let liveTransfers = 0;
+
+  liveTransfers = liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
 
   const data = { ...snapshot.data(), liveTransfers };
 
   if (!snapshot.exists) {
-    if (email === 'info@finalexpensedigital.com') {
-      const col = db.collection('agents');
+    return res.status(404).send({ message: 'Agent not found' });
+  }
 
-      const snap = await col.get();
-      const docs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      const data = docs.filter((doc) => doc.id !== 'hello@getseniorquotes.com');
+  if (email === 'info@finalexpensedigital.com') {
+    const liveTransfersRef = db.collection('live_transfers');
 
-      for (const doc of data) {
-        const outstandingLeads = doc.outstandingLeads || 0;
-        const verified = doc.verified || 0;
-        const unverified = doc.unverified || 0;
+    const liveTransfersSnap = await liveTransfersRef.get();
+    const liveTransfersDocs = liveTransfersSnap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-        const sum = verified + unverified;
-        if (outstandingLeads !== sum) {
-          logger.warn('Data inconsistency found for agent:', {
-            email: doc.email,
-            outstandingLeads,
-            verified,
-            unverified,
-          });
-        }
+    liveTransfers = liveTransfersDocs.reduce(
+      (acc, curr) => acc + (curr.outstandingLiveTransfers || 0),
+      0,
+    );
+
+    const col = db.collection('agents');
+
+    const snap = await col.get();
+    const docs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const data = docs.filter((doc) => doc.id !== 'hello@getseniorquotes.com');
+
+    for (const doc of data) {
+      const outstandingLeads = doc.outstandingLeads || 0;
+      const verified = doc.verified || 0;
+      const unverified = doc.unverified || 0;
+
+      const sum = verified + unverified;
+      if (outstandingLeads !== sum) {
+        logger.warn('Data inconsistency found for agent:', {
+          email: doc.id,
+          outstandingLeads,
+          verified,
+          unverified,
+        });
       }
-
-      const outstandingLeads = data.reduce(
-        (acc, curr) => acc + (curr.outstandingLeads || 0),
-        0,
-      );
-      const verified = data.reduce(
-        (acc, curr) => acc + (curr.verified || 0),
-        0,
-      );
-      const unverified = data.reduce(
-        (acc, curr) => acc + (curr.unverified || 0),
-        0,
-      );
-
-      return res.status(200).send({
-        name: 'Admin',
-        email: 'info@finalexpensedigital.com',
-        outstandingLeads,
-        verified,
-        unverified,
-        liveTransfers,
-      });
     }
 
-    return res.status(404).send({ message: 'Agent not found' });
+    const outstandingLeads = data.reduce(
+      (acc, curr) => acc + (curr.outstandingLeads || 0),
+      0,
+    );
+    const verified = data.reduce((acc, curr) => acc + (curr.verified || 0), 0);
+    const unverified = data.reduce(
+      (acc, curr) => acc + (curr.unverified || 0),
+      0,
+    );
+
+    return res.status(200).send({
+      name: 'Admin',
+      email: 'info@finalexpensedigital.com',
+      outstandingLeads,
+      verified,
+      unverified,
+      liveTransfers,
+    });
   }
 
   res.status(200).send(data);
