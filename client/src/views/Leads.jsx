@@ -27,6 +27,7 @@ const CSV_HEADERS = [
   { label: 'Selected Plan', key: 'selected_plan' },
   { label: 'Beneficiary', key: 'beneficiary' },
   { label: 'Priority', key: 'priority' },
+  { label: 'Availability', key: 'availability' },
   { label: 'Reason', key: 'why' },
   { label: 'BMI', key: 'bmi' },
   { label: 'Cholesterol Medication', key: 'cholesterol_medication' },
