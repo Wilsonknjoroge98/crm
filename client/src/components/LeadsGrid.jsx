@@ -143,6 +143,16 @@ export default function LeadsGrid({
         ),
       },
       {
+        field: 'availability',
+        headerName: 'Availability',
+        flex: 1,
+        renderCell: (params) => (
+          <Typography variant='caption'>
+            {params.row.availability || '—'}
+          </Typography>
+        ),
+      },
+      {
         field: 'face_amount',
         headerName: 'Face Amount',
         flex: 1,
@@ -159,7 +169,6 @@ export default function LeadsGrid({
         field: 'premium',
         headerName: 'Premium',
         flex: 1,
-
         sortable: true,
         filterable: true,
         renderCell: (params) => (
@@ -172,7 +181,6 @@ export default function LeadsGrid({
         field: 'smoker',
         headerName: 'Smoker',
         flex: 1,
-
         sortable: true,
         filterable: true,
         renderCell: (params) => {
@@ -194,7 +202,6 @@ export default function LeadsGrid({
         field: 'selected_carrier',
         headerName: 'Carrier / Plan',
         flex: 1,
-
         sortable: false,
         filterable: false,
         renderCell: (params) => {
