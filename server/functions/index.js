@@ -22,6 +22,7 @@ exports.app = functions.https.onRequest(
       'DISCORD_SALE_WEBHOOK_URL',
       'META_CONVERSIONS_TOKEN',
       'META_CONVERSIONS_URL',
+      'META_AD_ACCOUNT_IDS',
     ],
   },
   expressApp,
