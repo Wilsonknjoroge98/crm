@@ -93,7 +93,7 @@ app.get('/ad-spend', async (req, res) => {
       .map((id) => id.trim())
       .filter(Boolean);
 
-    const responses = await Promise.all(
+    const results = await Promise.allSettled(
       adAccountIds.map((accountId) =>
         axios.request({
           method: 'GET',
@@ -107,19 +107,24 @@ app.get('/ad-spend', async (req, res) => {
       ),
     );
 
-    // Sum spend across all ad accounts (each response may have multiple rows)
-    console.log(
-      'Meta response data:',
-      responses.map((r) => r.data),
-    );
-    const totalSpend = responses.reduce((sum, response) => {
-      const rows = response.data['data'] || [];
-      const accountSpend = rows.reduce(
+    // Sum spend across ad accounts that succeeded; log accounts that failed
+    // (e.g. missing permissions) without failing the whole request
+    let totalSpend = 0;
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        console.error(
+          `Error fetching spend for account ${adAccountIds[i]}:`,
+          result.reason.response?.data || result.reason.message,
+        );
+        return;
+      }
+      console.log('Meta response data:', result.value.data);
+      const rows = result.value.data['data'] || [];
+      totalSpend += rows.reduce(
         (rowSum, row) => rowSum + Number(row.spend || 0),
         0,
       );
-      return sum + accountSpend;
-    }, 0);
+    });
 
     console.log(
       `Total spend from ${startDate} to ${endDate}: $${totalSpend.toFixed(2)}`,
