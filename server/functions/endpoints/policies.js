@@ -382,7 +382,7 @@ policyRouter.post('/', async (req, res) => {
   try {
     const { data: clientData } = await supabaseService
       .from('clients')
-      .select('phone')
+      .select('phone, zip, city, state')
       .eq('id', client_id)
       .single();
 
