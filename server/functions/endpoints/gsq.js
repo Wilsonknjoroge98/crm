@@ -1,9 +1,42 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const { randomUUID } = require('crypto');
+const { Storage } = require('@google-cloud/storage');
 const { Firestore } = require('firebase-admin/firestore');
 
 // eslint-disable-next-line new-cap
 const gsqRouter = express.Router();
+
+const getImageDimensions = (buffer, contentType) => {
+  if (contentType === 'image/png') {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+
+  if (contentType === 'image/jpeg') {
+    let offset = 2;
+    while (offset < buffer.length) {
+      if (buffer[offset] !== 0xff) break;
+      const marker = buffer[offset + 1];
+      const length = buffer.readUInt16BE(offset + 2);
+      if (marker >= 0xc0 && marker <= 0xc3) {
+        return {
+          height: buffer.readUInt16BE(offset + 5),
+          width: buffer.readUInt16BE(offset + 7),
+        };
+      }
+      offset += 2 + length;
+    }
+  }
+
+  if (contentType === 'image/webp' && buffer.toString('ascii', 12, 16) === 'VP8X') {
+    return {
+      width: buffer.readUIntLE(24, 3) + 1,
+      height: buffer.readUIntLE(27, 3) + 1,
+    };
+  }
+
+  return null;
+};
 
 gsqRouter.get('/insurdial-config', async (req, res) => {
   const { data: authData, error: authError } =
@@ -178,6 +211,7 @@ gsqRouter.patch('/', async (req, res) => {
       insurDialEnabled,
       bio,
       imageUrl,
+      image,
       specialties,
     },
   } = req.body;
@@ -276,6 +310,55 @@ gsqRouter.patch('/', async (req, res) => {
       return res.status(400).send({ message: 'Image URL must be text' });
     }
     updateObject.imageUrl = imageUrl.trim();
+  }
+
+  if (image !== undefined) {
+    const imageTypes = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+    const { data, contentType } = image || {};
+    if (!imageTypes[contentType] || typeof data !== 'string') {
+      return res.status(400).send({ message: 'Invalid image' });
+    }
+    const buffer = Buffer.from(data.split(',').pop(), 'base64');
+    if (!buffer.length || buffer.length > 2 * 1024 * 1024) {
+      return res.status(400).send({ message: 'Image must be 2MB or smaller' });
+    }
+    let dimensions;
+    try {
+      dimensions = getImageDimensions(buffer, contentType);
+    } catch {
+      dimensions = null;
+    }
+    if (
+      !dimensions ||
+      dimensions.width !== dimensions.height ||
+      dimensions.width > 400
+    ) {
+      return res
+        .status(400)
+        .send({ message: 'Image must be square and 400x400 or smaller' });
+    }
+    const credentials = JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY);
+    const projectId = credentials.project_id;
+    const bucketName = `${projectId}.firebasestorage.app`;
+    const token = randomUUID();
+    const filePath =
+      `agent-profile-images/${email}/profile.${imageTypes[contentType]}`;
+    const storage = new Storage({
+      projectId,
+      credentials,
+    });
+    await storage.bucket(bucketName).file(filePath).save(buffer, {
+      resumable: false,
+      contentType,
+      metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+    });
+    updateObject.imageUrl =
+      `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/` +
+      `${encodeURIComponent(filePath)}?alt=media&token=${token}`;
   }
 
   if (specialties !== undefined) {
