@@ -91,14 +91,23 @@ insightsRouter.get('/', async (req, res) => {
     // META — fetch all ads, then pull spend/leads per matched ad
     // -------------------------------------------------------------------------
     const accessToken = process.env.META_MARKETING_ACCESS_TOKEN;
+    const adAccountIds = (process.env.META_AD_ACCOUNT_IDS || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
     const adsByName = {};
 
     try {
-      const adsResp = await axios.get(process.env.META_MARKETING_ADS_URL, {
-        params: { fields: 'name', limit: 5000, access_token: accessToken },
-      });
-      for (const ad of adsResp.data.data || []) {
-        if (ad.name) adsByName[ad.name.trim()] = ad.id;
+      for (const accountId of adAccountIds) {
+        const adsResp = await axios.get(
+          `https://graph.facebook.com/v20.0/act_${accountId}/ads`,
+          {
+            params: { fields: 'name', limit: 5000, access_token: accessToken },
+          },
+        );
+        for (const ad of adsResp.data.data || []) {
+          if (ad.name) adsByName[ad.name.trim()] = ad.id;
+        }
       }
     } catch (err) {
       logger.error('Error fetching Meta ads in insights', {

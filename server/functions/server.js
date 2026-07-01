@@ -88,21 +88,38 @@ app.get('/ad-spend', async (req, res) => {
   console.log('Ad spend from', startDate, 'to', endDate);
 
   try {
-    const response = await axios.request({
-      method: 'GET',
-      url: process.env.META_MARKETING_INSIGHTS_URL,
-      params: {
-        fields: 'spend',
-        time_range: JSON.stringify({ since, until }),
-        access_token: process.env.META_MARKETING_ACCESS_TOKEN,
-      },
-    });
+    const adAccountIds = (process.env.META_AD_ACCOUNT_IDS || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
 
-    // Extract spend (if multiple rows, sum them)
-    console.log('Meta response data:', response.data);
-    const spend = Number(response.data['data'][0].spend);
+    const responses = await Promise.all(
+      adAccountIds.map((accountId) =>
+        axios.request({
+          method: 'GET',
+          url: `https://graph.facebook.com/v20.0/act_${accountId}/insights`,
+          params: {
+            fields: 'spend',
+            time_range: JSON.stringify({ since, until }),
+            access_token: process.env.META_MARKETING_ACCESS_TOKEN,
+          },
+        }),
+      ),
+    );
 
-    const totalSpend = spend || 0;
+    // Sum spend across all ad accounts (each response may have multiple rows)
+    console.log(
+      'Meta response data:',
+      responses.map((r) => r.data),
+    );
+    const totalSpend = responses.reduce((sum, response) => {
+      const rows = response.data['data'] || [];
+      const accountSpend = rows.reduce(
+        (rowSum, row) => rowSum + Number(row.spend || 0),
+        0,
+      );
+      return sum + accountSpend;
+    }, 0);
 
     console.log(
       `Total spend from ${startDate} to ${endDate}: $${totalSpend.toFixed(2)}`,
