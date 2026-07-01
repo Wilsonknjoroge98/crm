@@ -176,6 +176,9 @@ gsqRouter.patch('/', async (req, res) => {
       ringyEnabled,
       ghlEnabled,
       insurDialEnabled,
+      bio,
+      imageUrl,
+      specialties,
     },
   } = req.body;
 
@@ -257,6 +260,38 @@ gsqRouter.patch('/', async (req, res) => {
 
   if (states !== undefined) {
     updateObject.states = states;
+  }
+
+  if (bio !== undefined) {
+    if (typeof bio !== 'string' || bio.trim().length > 200) {
+      return res
+        .status(400)
+        .send({ message: 'Bio must be 200 characters or fewer' });
+    }
+    updateObject.bio = bio.trim();
+  }
+
+  if (imageUrl !== undefined) {
+    if (typeof imageUrl !== 'string') {
+      return res.status(400).send({ message: 'Image URL must be text' });
+    }
+    updateObject.imageUrl = imageUrl.trim();
+  }
+
+  if (specialties !== undefined) {
+    const allowedSpecialties = [
+      'Final Expense',
+      'Whole Life',
+      'Term Life',
+      'Indexed Universal Life',
+    ];
+    if (
+      !Array.isArray(specialties) ||
+      specialties.some((specialty) => !allowedSpecialties.includes(specialty))
+    ) {
+      return res.status(400).send({ message: 'Invalid specialties' });
+    }
+    updateObject.specialties = [...new Set(specialties)];
   }
 
   for (const integration of integrationUpdates) {
