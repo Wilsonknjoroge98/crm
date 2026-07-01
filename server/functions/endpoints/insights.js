@@ -97,8 +97,8 @@ insightsRouter.get('/', async (req, res) => {
       .filter(Boolean);
     const adsByName = {};
 
-    try {
-      for (const accountId of adAccountIds) {
+    for (const accountId of adAccountIds) {
+      try {
         const adsResp = await axios.get(
           `https://graph.facebook.com/v20.0/act_${accountId}/ads`,
           {
@@ -108,12 +108,12 @@ insightsRouter.get('/', async (req, res) => {
         for (const ad of adsResp.data.data || []) {
           if (ad.name) adsByName[ad.name.trim()] = ad.id;
         }
+      } catch (err) {
+        logger.error('Error fetching Meta ads for account in insights', {
+          accountId,
+          error: err.response?.data || err,
+        });
       }
-    } catch (err) {
-      logger.error('Error fetching Meta ads in insights', {
-        error: err.response?.data || err,
-      });
-      return res.status(500).json({ error: 'Meta ads fetch failed' });
     }
 
     async function getInsightsForAd(adId) {
