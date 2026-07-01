@@ -34,7 +34,11 @@ const DateSelector = ({
             <DatePicker
               label='From'
               value={startDate ? dayjs(startDate) : null}
-              onChange={handleStartChange}
+              onChange={(newValue) => {
+                if (newValue && newValue.isValid()) {
+                  handleStartChange(newValue.format('YYYY-MM-DD'));
+                }
+              }}
               slotProps={{
                 textField: {
                   size: 'small',
@@ -47,7 +51,11 @@ const DateSelector = ({
             <DatePicker
               label='To'
               value={endDate ? dayjs(endDate) : null}
-              onChange={handleEndChange}
+              onChange={(newValue) => {
+                if (newValue && newValue.isValid()) {
+                  handleEndChange(newValue.format('YYYY-MM-DD'));
+                }
+              }}
               slotProps={{
                 textField: {
                   size: 'small',
