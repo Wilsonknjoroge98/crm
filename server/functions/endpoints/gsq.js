@@ -305,6 +305,12 @@ gsqRouter.patch('/', async (req, res) => {
     updateObject.bio = bio.trim();
   }
 
+  updateObject.name = [req.agent?.first_name, req.agent?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  updateObject.npn = req.agent?.npn || '';
+
   if (imageUrl !== undefined) {
     if (typeof imageUrl !== 'string') {
       return res.status(400).send({ message: 'Image URL must be text' });
