@@ -31,6 +31,7 @@ import { enqueueSnackbar } from 'notistack';
 
 import { patchAccount } from '../utils/query';
 import { stringToColor } from '../utils/helpers';
+import AgentCardPreview from './AgentCardPreview';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
@@ -57,6 +58,7 @@ export default function ProfilePopover({
   const [bioOpen, setBioOpen] = React.useState(false);
   const [tagsOpen, setTagsOpen] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
   const [imageSrc, setImageSrc] = React.useState('');
   const [imageScale, setImageScale] = React.useState(1);
   const [imageOffset, setImageOffset] = React.useState({ x: 0, y: 0 });
@@ -183,6 +185,11 @@ export default function ProfilePopover({
         },
       },
     });
+  };
+
+  const openPreview = () => {
+    onClose?.();
+    setPreviewOpen(true);
   };
 
   return (
@@ -313,7 +320,7 @@ export default function ProfilePopover({
 
             <Button
               size='small'
-              onClick={() => {}}
+              onClick={openPreview}
               sx={{
                 px: 0,
                 py: 0,
@@ -537,6 +544,13 @@ export default function ProfilePopover({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <AgentCardPreview
+        accountData={accountData}
+        agentData={agentData}
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+      />
 
       <Dialog open={tagsOpen} onClose={() => setTagsOpen(false)} fullWidth>
         <DialogTitle>Edit Specialties</DialogTitle>
