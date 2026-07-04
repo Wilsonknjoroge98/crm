@@ -418,7 +418,10 @@ gsqRouter.patch('/', async (req, res) => {
   }
 
   await ref.update(updateObject);
-  res.status(200).send({ message: 'Agent account updated successfully' });
+  res.status(200).send({
+    message: 'Agent account updated successfully',
+    slug: updateObject.slug,
+  });
 });
 
 module.exports = gsqRouter;

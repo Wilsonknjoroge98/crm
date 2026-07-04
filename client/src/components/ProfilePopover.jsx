@@ -60,6 +60,8 @@ export default function ProfilePopover({
   const [tagsOpen, setTagsOpen] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewSlug, setPreviewSlug] = React.useState('');
+  const [previewPending, setPreviewPending] = React.useState(false);
   const [imageSrc, setImageSrc] = React.useState('');
   const [imageScale, setImageScale] = React.useState(1);
   const [imageOffset, setImageOffset] = React.useState({ x: 0, y: 0 });
@@ -188,9 +190,30 @@ export default function ProfilePopover({
     });
   };
 
-  const openPreview = () => {
-    onClose?.();
-    setPreviewOpen(true);
+  const openPreview = async () => {
+    if (previewPending) return;
+
+    if (accountData?.slug) {
+      setPreviewSlug(accountData.slug);
+      onClose?.();
+      setPreviewOpen(true);
+      return;
+    }
+
+    setPreviewPending(true);
+    try {
+      const updatedAccount = await patchAccount({ data: { email: user?.email } });
+      setPreviewSlug(updatedAccount.slug);
+      queryClient.invalidateQueries({ queryKey: ['account'] });
+      onClose?.();
+      setPreviewOpen(true);
+    } catch (error) {
+      const message =
+        error?.userMessage || 'Failed to prepare agent card preview.';
+      enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
+    } finally {
+      setPreviewPending(false);
+    }
   };
 
   return (
@@ -322,6 +345,7 @@ export default function ProfilePopover({
             <Button
               size='small'
               onClick={openPreview}
+              disabled={previewPending}
               sx={{
                 px: 0,
                 py: 0,
@@ -330,7 +354,7 @@ export default function ProfilePopover({
                 alignSelf: 'flex-start',
               }}
             >
-              Preview agent card
+              {previewPending ? 'Preparing preview...' : 'Preview agent card'}
             </Button>
           </Stack>
         </Box>
@@ -547,9 +571,8 @@ export default function ProfilePopover({
       </Dialog>
 
       <AgentCardPreview
-        accountData={accountData}
-        agentData={agentData}
         open={previewOpen}
+        slug={previewSlug || accountData?.slug}
         onClose={() => setPreviewOpen(false)}
       />
 
