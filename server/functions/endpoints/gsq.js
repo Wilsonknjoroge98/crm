@@ -370,7 +370,8 @@ gsqRouter.patch('/', async (req, res) => {
   if (specialties !== undefined) {
     const allowedSpecialties = [
       'Final Expense',
-      'Whole Life',
+      'Annuities',
+      'Mortgage Protection',
       'Term Life',
       'Indexed Universal Life',
     ];

@@ -39,7 +39,8 @@ import {
 
 const SPECIALTIES = [
   'Final Expense',
-  'Whole Life',
+  'Annuities',
+  'Mortgage Protection',
   'Term Life',
   'Indexed Universal Life',
 ];
