@@ -38,6 +38,31 @@ const getImageDimensions = (buffer, contentType) => {
   return null;
 };
 
+const toSlug = (value) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const getUniqueAgentSlug = async (db, email, name) => {
+  const baseSlug = toSlug(name);
+  if (!baseSlug) return '';
+
+  for (let suffix = 1; ; suffix += 1) {
+    const slug = suffix === 1 ? baseSlug : `${baseSlug}-${suffix}`;
+    const snapshot = await db
+      .collection('agents')
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty || snapshot.docs[0].id === email) {
+      return slug;
+    }
+  }
+};
+
 gsqRouter.get('/insurdial-config', async (req, res) => {
   const { data: authData, error: authError } =
     await req.supabase.auth.getUser();
@@ -305,11 +330,13 @@ gsqRouter.patch('/', async (req, res) => {
     updateObject.bio = bio.trim();
   }
 
-  updateObject.name = [req.agent?.first_name, req.agent?.last_name]
+  const agentName = [req.agent?.first_name, req.agent?.last_name]
     .filter(Boolean)
     .join(' ')
     .trim();
+  updateObject.name = agentName;
   updateObject.npn = req.agent?.npn || '';
+  updateObject.slug = await getUniqueAgentSlug(db, email, agentName);
 
   if (imageUrl !== undefined) {
     if (typeof imageUrl !== 'string') {
