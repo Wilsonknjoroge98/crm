@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -19,13 +20,13 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
 
-import AgentCardPreview from './AgentCardPreview';
 import { patchAccount } from '../utils/query';
 import { stringToColor } from '../utils/helpers';
 import {
@@ -48,6 +49,8 @@ export default function AgentCardSettings({ accountData, agentData }) {
   const [tagsOpen, setTagsOpen] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewLoaded, setPreviewLoaded] = React.useState(false);
+  const [previewVersion, setPreviewVersion] = React.useState(0);
   const [previewSlug, setPreviewSlug] = React.useState('');
   const [previewPending, setPreviewPending] = React.useState(false);
   const [imageSrc, setImageSrc] = React.useState('');
@@ -70,6 +73,8 @@ export default function AgentCardSettings({ accountData, agentData }) {
       setTagsOpen(false);
       setImageOpen(false);
       setImageSrc('');
+      setPreviewLoaded(false);
+      setPreviewVersion((version) => version + 1);
     },
     onError: (error) => {
       const message = error?.userMessage || 'Failed to update profile.';
@@ -194,6 +199,8 @@ export default function AgentCardSettings({ accountData, agentData }) {
       });
       setPreviewSlug(updatedAccount.slug);
       queryClient.invalidateQueries({ queryKey: ['account'] });
+      setPreviewLoaded(false);
+      setPreviewVersion((version) => version + 1);
       setPreviewOpen(true);
     } catch (error) {
       const message =
@@ -204,11 +211,88 @@ export default function AgentCardSettings({ accountData, agentData }) {
     }
   };
 
+  const previewBaseUrl = previewSlug || accountData?.slug
+    ? `${import.meta.env.DEV ? 'http://localhost:5173' : 'https://getseniorquotes.com'}/agents/${previewSlug || accountData?.slug}`
+    : '';
+  const previewUrl = previewBaseUrl
+    ? `${previewBaseUrl}?preview=${previewVersion}`
+    : '';
+
   return (
-    <>
+    <Box sx={{ position: 'relative', width: '100%' }}>
       <Paper
         variant='outlined'
         sx={{
+          width: '100%',
+          p: { xs: 2, md: 3 },
+          borderRadius: 1,
+          bgcolor: 'background.paper',
+          ...(previewOpen
+            ? {}
+            : {
+                position: 'absolute',
+                inset: 0,
+                visibility: 'hidden',
+                pointerEvents: 'none',
+              }),
+        }}
+      >
+        <Stack spacing={2}>
+          <Button
+            size='small'
+            startIcon={<ArrowBackIcon />}
+            onClick={() => setPreviewOpen(false)}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Back
+          </Button>
+          <Box
+            sx={{
+              position: 'relative',
+              width: '100%',
+              height: { xs: '70vh', md: '78vh' },
+            }}
+          >
+            {!previewLoaded && (
+              <Stack
+                alignItems='center'
+                justifyContent='center'
+                spacing={1}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  bgcolor: 'background.paper',
+                  zIndex: 1,
+                }}
+              >
+                <CircularProgress size={28} />
+                <Typography variant='body2' color='text.secondary'>
+                  Loading preview...
+                </Typography>
+              </Stack>
+            )}
+            {previewUrl && (
+              <Box
+                component='iframe'
+                src={previewUrl}
+                title='Agent card preview'
+                onLoad={() => setPreviewLoaded(true)}
+                sx={{
+                  display: previewLoaded || !previewOpen ? 'block' : 'none',
+                  width: '100%',
+                  height: '100%',
+                  border: 0,
+                }}
+              />
+            )}
+          </Box>
+        </Stack>
+      </Paper>
+
+      <Paper
+        variant='outlined'
+        sx={{
+          display: previewOpen ? 'none' : 'block',
           width: '100%',
           p: { xs: 3, md: 4 },
           borderRadius: 1,
@@ -562,12 +646,6 @@ export default function AgentCardSettings({ accountData, agentData }) {
         </DialogActions>
       </Dialog>
 
-      <AgentCardPreview
-        open={previewOpen}
-        slug={previewSlug || accountData?.slug}
-        onClose={() => setPreviewOpen(false)}
-      />
-
       <Dialog open={tagsOpen} onClose={() => setTagsOpen(false)} fullWidth>
         <DialogTitle>Edit Specialties</DialogTitle>
         <DialogContent>
@@ -621,6 +699,6 @@ export default function AgentCardSettings({ accountData, agentData }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 }
