@@ -36,6 +36,7 @@ import UpdateStatesDialog from './UpdateStatesDialog';
 import EditIcon from '@mui/icons-material/Edit';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined';
+import AgentCardSettings from './AgentCardSettings';
 
 const CRM_INTEGRATIONS = [
   { key: 'ringy', label: 'Ringy', field: 'ringyEnabled' },
@@ -294,6 +295,7 @@ const AccountDetails = ({ data }) => {
           sx={{ letterSpacing: 1, fontSize: '.875rem' }}
         />
         <Tab label='States' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab label='Card' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
       </Tabs>
 
       <Box sx={{ mt: 4 }}>
@@ -543,6 +545,10 @@ const AccountDetails = ({ data }) => {
               </Button>
             </Stack>
           </Box>
+        )}
+
+        {activeTab === 3 && (
+          <AgentCardSettings accountData={data} agentData={agent} />
         )}
       </Box>
     </>

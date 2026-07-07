@@ -19,8 +19,6 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent.jsx';
 import { supabase } from '../utils/supabase';
-import { useQuery } from '@tanstack/react-query';
-import { getAccount } from '../utils/query';
 
 const drawerWidth = 220;
 
@@ -32,12 +30,6 @@ export default function NavBar() {
   const navigate = useNavigate();
 
   const agentData = useAgent();
-  const { data: accountData } = useQuery({
-    queryKey: ['account', user?.email],
-    queryFn: () => getAccount({ email: user?.email }),
-    enabled: !!user?.email,
-    staleTime: 1000 * 60 * 5,
-  });
 
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -98,7 +90,7 @@ export default function NavBar() {
               <>
                 <Avatar
                   alt={agentData?.name}
-                  src={accountData?.imageUrl || agentData?.avatar}
+                  src={agentData?.avatar}
                   sx={{
                     width: 36,
                     height: 36,
@@ -117,7 +109,6 @@ export default function NavBar() {
 
           <ProfilePopover
             anchorEl={anchorEl}
-            accountData={accountData}
             agentData={agentData}
             onClose={handleMenuClose}
             onNavigate={handleNavigate}
