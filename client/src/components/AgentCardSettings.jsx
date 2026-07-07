@@ -311,43 +311,17 @@ export default function AgentCardSettings({ accountData, agentData }) {
             alignItems='center'
             sx={{ flex: { sm: '0 0 42%' } }}
           >
-            <Box
-              onClick={() => setImageOpen(true)}
+            <Avatar
+              src={accountData?.imageUrl || agentData?.avatar}
               sx={{
-                position: 'relative',
-                cursor: 'pointer',
-                '&:hover .profile-upload-overlay': { opacity: 1 },
+                width: 148,
+                height: 148,
+                bgcolor: stringToColor(agentData?.name || ''),
+                fontSize: 44,
               }}
             >
-              <Avatar
-                src={accountData?.imageUrl || agentData?.avatar}
-                sx={{
-                  width: 148,
-                  height: 148,
-                  bgcolor: stringToColor(agentData?.name || ''),
-                  fontSize: 44,
-                }}
-              >
-                {getInitials(agentData?.name)}
-              </Avatar>
-              <Box
-                className='profile-upload-overlay'
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  opacity: 0,
-                  borderRadius: '50%',
-                  bgcolor: 'rgba(0,0,0,0.55)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'opacity 120ms ease',
-                }}
-              >
-                <EditOutlinedIcon sx={{ fontSize: 42 }} />
-              </Box>
-            </Box>
+              {getInitials(agentData?.name)}
+            </Avatar>
             <Stack spacing={1}>
               <Typography variant='h6' fontWeight={600}>
                 {agentData?.name}

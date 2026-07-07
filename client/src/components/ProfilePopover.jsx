@@ -22,6 +22,7 @@ export default function ProfilePopover({
   onNavigate,
   onSignOut,
   user,
+  avatarSrc,
 }) {
   const getInitials = (name) => {
     if (!name) return '?';
@@ -50,7 +51,7 @@ export default function ProfilePopover({
             {user?.email}
           </Typography>
           <Avatar
-            src={agentData?.avatar}
+            src={avatarSrc || undefined}
             sx={{
               width: 72,
               height: 72,

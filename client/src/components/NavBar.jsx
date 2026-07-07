@@ -15,10 +15,13 @@ import InviteAgentDialog from './InviteAgentDialog';
 import ProfilePopover from './ProfilePopover';
 
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 
+import { stringToColor } from '../utils/helpers';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent.jsx';
 import { supabase } from '../utils/supabase';
+import { apiClient } from '../utils/query';
 
 const drawerWidth = 220;
 
@@ -30,6 +33,39 @@ export default function NavBar() {
   const navigate = useNavigate();
 
   const agentData = useAgent();
+  const {
+    data: accountData,
+    isLoading: accountLoading,
+    isError: accountError,
+  } = useQuery({
+    queryKey: ['navbarAccountImage', user?.email],
+    enabled: !!user?.email,
+    retry: false,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      try {
+        const response = await apiClient.request({
+          method: 'GET',
+          url: '/gsq-account',
+          params: { email: user.email, mode: import.meta.env.MODE },
+        });
+        return response.data;
+      } catch (error) {
+        if (error?.response?.status === 404) return null;
+        throw error;
+      }
+    },
+  });
+
+  const accountResolved = !user?.email || !accountLoading || accountError;
+  const avatarSrc = accountResolved ? accountData?.imageUrl : undefined;
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const words = name.trim().split(' ');
+    if (words.length === 1) return words[0][0].toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  };
 
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -86,18 +122,24 @@ export default function NavBar() {
             sx={{ cursor: 'pointer' }}
             onClick={handleAvatarClick}
           >
-            {user && agentData && (
+            {user && agentData && accountResolved && (
               <>
                 <Avatar
                   alt={agentData?.name}
-                  src={agentData?.avatar}
+                  src={avatarSrc || undefined}
                   sx={{
                     width: 36,
                     height: 36,
                     color: '#fff',
-                    bgcolor: 'transparent',
+                    bgcolor: stringToColor(agentData?.name || ''),
                   }}
-                />
+                >
+                  <Typography variant='caption' textAlign='center'>
+                    {getInitials(
+                      agentData?.first_name + ' ' + agentData?.last_name,
+                    )}
+                  </Typography>
+                </Avatar>
                 <Typography variant='body2'>
                   {agentData?.first_name} {agentData?.last_name}
                 </Typography>
@@ -114,6 +156,7 @@ export default function NavBar() {
             onNavigate={handleNavigate}
             onSignOut={handleSignOut}
             user={user}
+            avatarSrc={avatarSrc}
           />
         </Toolbar>
       </AppBar>
