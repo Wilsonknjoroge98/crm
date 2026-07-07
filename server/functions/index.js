@@ -16,6 +16,7 @@ exports.app = functions.https.onRequest(
     memory: '512MiB',
     secrets: [
       'GSQ_SERVICE_ACCOUNT_KEY',
+      'GSQ_PROJECT_ID',
       'STRIPE_SECRET_KEY',
       'SUPABASE_PUBLISHABLE_KEY',
       'SUPABASE_SERVICE_ROLE_KEY',

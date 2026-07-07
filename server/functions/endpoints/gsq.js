@@ -28,7 +28,10 @@ const getImageDimensions = (buffer, contentType) => {
     }
   }
 
-  if (contentType === 'image/webp' && buffer.toString('ascii', 12, 16) === 'VP8X') {
+  if (
+    contentType === 'image/webp' &&
+    buffer.toString('ascii', 12, 16) === 'VP8X'
+  ) {
     return {
       width: buffer.readUIntLE(24, 3) + 1,
       height: buffer.readUIntLE(27, 3) + 1,
@@ -72,7 +75,7 @@ gsqRouter.get('/insurdial-config', async (req, res) => {
   }
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
   const snapshot = await db.collection('id_config').doc(email).get();
@@ -109,7 +112,7 @@ gsqRouter.patch('/insurdial-config', async (req, res) => {
   logger.log('InsurDial config update request received:', { email });
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
@@ -143,7 +146,7 @@ gsqRouter.get('/', async (req, res) => {
   }
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
@@ -255,7 +258,7 @@ gsqRouter.patch('/', async (req, res) => {
   });
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
@@ -378,17 +381,19 @@ gsqRouter.patch('/', async (req, res) => {
     const projectId = credentials.project_id;
     const bucketName = `${projectId}.firebasestorage.app`;
     const token = randomUUID();
-    const filePath =
-      `agent-profile-images/${email}/profile.${imageTypes[contentType]}`;
+    const filePath = `agent-profile-images/${email}/profile.${imageTypes[contentType]}`;
     const storage = new Storage({
       projectId,
       credentials,
     });
-    await storage.bucket(bucketName).file(filePath).save(buffer, {
-      resumable: false,
-      contentType,
-      metadata: { metadata: { firebaseStorageDownloadTokens: token } },
-    });
+    await storage
+      .bucket(bucketName)
+      .file(filePath)
+      .save(buffer, {
+        resumable: false,
+        contentType,
+        metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+      });
     updateObject.imageUrl =
       `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/` +
       `${encodeURIComponent(filePath)}?alt=media&token=${token}`;

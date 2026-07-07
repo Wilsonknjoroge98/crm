@@ -18,11 +18,14 @@ import {
   Slider,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
+import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
@@ -43,12 +46,16 @@ const SPECIALTIES = [
 ];
 const CROP_SIZE = 260;
 const MAX_ZOOM = 3;
+const MOBILE_FRAME_WIDTH = 390;
+const MOBILE_FRAME_ZOOM = 0.85;
+const DESKTOP_FRAME_WIDTH = 1400;
 
 export default function AgentCardSettings({ accountData, agentData }) {
   const [bioOpen, setBioOpen] = React.useState(false);
   const [tagsOpen, setTagsOpen] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewMode, setPreviewMode] = React.useState('mobile');
   const [previewLoaded, setPreviewLoaded] = React.useState(false);
   const [previewVersion, setPreviewVersion] = React.useState(0);
   const [previewSlug, setPreviewSlug] = React.useState('');
@@ -60,9 +67,38 @@ export default function AgentCardSettings({ accountData, agentData }) {
   const [dragStart, setDragStart] = React.useState(null);
   const [bioDraft, setBioDraft] = React.useState('');
   const [specialtyDraft, setSpecialtyDraft] = React.useState([]);
+  const [scrollbarWidth, setScrollbarWidth] = React.useState(0);
+  const [desktopZoom, setDesktopZoom] = React.useState(1);
   const cropImageRef = React.useRef(null);
   const cropPreviewRef = React.useRef(null);
+  const desktopFrameRef = React.useRef(null);
   const queryClient = useQueryClient();
+
+  React.useEffect(() => {
+    const outer = document.createElement('div');
+    outer.style.visibility = 'hidden';
+    outer.style.overflow = 'scroll';
+    document.body.appendChild(outer);
+    const inner = document.createElement('div');
+    outer.appendChild(inner);
+    setScrollbarWidth(outer.offsetWidth - inner.offsetWidth);
+    outer.parentNode.removeChild(outer);
+  }, []);
+
+  React.useEffect(() => {
+    if (previewMode !== 'desktop' || !previewOpen) return undefined;
+    const el = desktopFrameRef.current;
+    if (!el) return undefined;
+    const updateZoom = () => {
+      setDesktopZoom(
+        Math.max(0.1, Math.min(1, el.offsetWidth / DESKTOP_FRAME_WIDTH)),
+      );
+    };
+    updateZoom();
+    const observer = new ResizeObserver(updateZoom);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [previewMode, previewOpen]);
 
   const { mutate: saveProfile, isPending } = useMutation({
     mutationFn: patchAccount,
@@ -110,7 +146,10 @@ export default function AgentCardSettings({ accountData, agentData }) {
   const selectImage = (file) => {
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      enqueueSnackbar('Choose a JPG, PNG, or WebP image.', SNACKBAR_ERROR_OPTIONS);
+      enqueueSnackbar(
+        'Choose a JPG, PNG, or WebP image.',
+        SNACKBAR_ERROR_OPTIONS,
+      );
       return;
     }
     const reader = new FileReader();
@@ -144,8 +183,7 @@ export default function AgentCardSettings({ accountData, agentData }) {
   const previewImageScale = (value) => {
     const nextOffset = clampImageOffset(imageOffset, value);
     if (cropPreviewRef.current) {
-      cropPreviewRef.current.style.transform =
-        `translate(${nextOffset.x}px, ${nextOffset.y}px) scale(${value})`;
+      cropPreviewRef.current.style.transform = `translate(${nextOffset.x}px, ${nextOffset.y}px) scale(${value})`;
     }
   };
 
@@ -162,7 +200,8 @@ export default function AgentCardSettings({ accountData, agentData }) {
       CROP_SIZE / imageEl.naturalHeight,
     );
     const outputScale = outputSize / CROP_SIZE;
-    const drawWidth = imageEl.naturalWidth * baseScale * imageScale * outputScale;
+    const drawWidth =
+      imageEl.naturalWidth * baseScale * imageScale * outputScale;
     const drawHeight =
       imageEl.naturalHeight * baseScale * imageScale * outputScale;
     context.drawImage(
@@ -212,228 +251,306 @@ export default function AgentCardSettings({ accountData, agentData }) {
   };
 
   const agentCardBaseUrl =
-    import.meta.env.VITE_AGENT_CARD_BASE_URL || 'https://getseniorquotes.com';
-  const previewBaseUrl = previewSlug || accountData?.slug
-    ? `${agentCardBaseUrl}/agents/${previewSlug || accountData?.slug}`
-    : '';
+    import.meta.env.MODE === 'production'
+      ? 'https://getseniorquotes.com'
+      : 'http://life-quoter-staging.web.app';
+  const previewBaseUrl =
+    previewSlug || accountData?.slug
+      ? `${agentCardBaseUrl}/agents/${previewSlug || accountData?.slug}`
+      : '';
   const previewUrl = previewBaseUrl
     ? `${previewBaseUrl}?preview=${previewVersion}`
     : '';
 
-  return (
-    <Box sx={{ position: 'relative', width: '100%' }}>
-      <Paper
-        variant='outlined'
-        sx={{
-          width: '100%',
-          p: { xs: 2, md: 3 },
-          borderRadius: 1,
-          bgcolor: 'background.paper',
-          ...(previewOpen
-            ? {}
-            : {
-                position: 'absolute',
-                inset: 0,
-                visibility: 'hidden',
-                pointerEvents: 'none',
-              }),
-        }}
-      >
-        <Stack spacing={2}>
-          <Button
-            size='small'
-            startIcon={<ArrowBackIcon />}
-            onClick={() => setPreviewOpen(false)}
-            sx={{ alignSelf: 'flex-start' }}
-          >
-            Back
-          </Button>
-          <Box
-            sx={{
+  const renderPreviewFrame = () => (
+    <Box
+      sx={
+        previewMode === 'mobile'
+          ? {
+              position: 'relative',
+              width: MOBILE_FRAME_WIDTH * MOBILE_FRAME_ZOOM,
+              maxWidth: '100%',
+              height: {
+                xs: `calc(70vh * ${MOBILE_FRAME_ZOOM})`,
+                md: 780 * MOBILE_FRAME_ZOOM,
+              },
+              mx: 'auto',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              overflow: 'hidden',
+            }
+          : {
               position: 'relative',
               width: '100%',
               height: { xs: '70vh', md: '78vh' },
-            }}
-          >
-            {!previewLoaded && (
-              <Stack
-                alignItems='center'
-                justifyContent='center'
-                spacing={1}
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  bgcolor: 'background.paper',
-                  zIndex: 1,
-                }}
-              >
-                <CircularProgress size={28} />
-                <Typography variant='body2' color='text.secondary'>
-                  Loading preview...
-                </Typography>
-              </Stack>
-            )}
-            {previewUrl && (
-              <Box
-                component='iframe'
-                src={previewUrl}
-                title='Agent card preview'
-                onLoad={() => setPreviewLoaded(true)}
-                sx={{
-                  display: previewLoaded || !previewOpen ? 'block' : 'none',
-                  width: '100%',
-                  height: '100%',
-                  border: 0,
-                }}
-              />
-            )}
-          </Box>
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              overflow: 'hidden',
+            }
+      }
+      ref={previewMode === 'desktop' ? desktopFrameRef : undefined}
+    >
+      {!previewLoaded && (
+        <Stack
+          alignItems='center'
+          justifyContent='center'
+          spacing={1}
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            bgcolor: 'background.paper',
+            zIndex: 1,
+          }}
+        >
+          <CircularProgress size={28} />
+          <Typography variant='body2' color='text.secondary'>
+            Loading preview...
+          </Typography>
         </Stack>
-      </Paper>
+      )}
+      {previewUrl && previewMode === 'mobile' && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: `calc(100% / ${MOBILE_FRAME_ZOOM})`,
+            height: `calc(100% / ${MOBILE_FRAME_ZOOM})`,
+            transform: `scale(${MOBILE_FRAME_ZOOM})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <Box
+            component='iframe'
+            src={previewUrl}
+            title='Agent card preview'
+            onLoad={() => setPreviewLoaded(true)}
+            sx={{
+              display: previewLoaded ? 'block' : 'none',
+              width: `calc(100% + ${scrollbarWidth}px)`,
+              height: '100%',
+              border: 0,
+            }}
+          />
+        </Box>
+      )}
+      {previewUrl && previewMode === 'desktop' && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: `calc(100% / ${desktopZoom})`,
+            height: `calc(100% / ${desktopZoom})`,
+            transform: `scale(${desktopZoom})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <Box
+            component='iframe'
+            src={previewUrl}
+            title='Agent card preview'
+            onLoad={() => setPreviewLoaded(true)}
+            sx={{
+              display: previewLoaded ? 'block' : 'none',
+              width: `calc(100% + ${scrollbarWidth}px)`,
+              height: '100%',
+              border: 0,
+            }}
+          />
+        </Box>
+      )}
+    </Box>
+  );
 
+  return (
+    <Box sx={{ width: '100%' }}>
       <Paper
         variant='outlined'
         sx={{
-          display: previewOpen ? 'none' : 'block',
           width: '100%',
           p: { xs: 3, md: 4 },
           borderRadius: 1,
+          border: 'none',
           bgcolor: 'background.paper',
         }}
       >
         <Stack spacing={3}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={{ xs: 3, md: 4 }}
-          alignItems={{ xs: 'flex-start', sm: 'stretch' }}
-        >
           <Stack
-            direction='row'
-            spacing={3}
-            alignItems='center'
-            sx={{ flex: { sm: '0 0 42%' } }}
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={{ xs: 3, md: 4 }}
+            alignItems={{ xs: 'flex-start', sm: 'stretch' }}
           >
-            <Avatar
-              src={accountData?.imageUrl || agentData?.avatar}
+            <Stack
+              direction='row'
+              spacing={3}
+              alignItems='center'
+              sx={{ flex: { sm: '0 0 42%' } }}
+            >
+              <Avatar
+                src={accountData?.imageUrl || agentData?.avatar}
+                sx={{
+                  width: 148,
+                  height: 148,
+                  bgcolor: stringToColor(agentData?.name || ''),
+                  fontSize: 44,
+                }}
+              >
+                {getInitials(agentData?.name)}
+              </Avatar>
+              <Stack spacing={1}>
+                <Typography variant='h6' fontWeight={600}>
+                  {agentData?.name}
+                </Typography>
+                <Button
+                  variant='outlined'
+                  size='small'
+                  startIcon={<FileUploadOutlinedIcon />}
+                  onClick={() => setImageOpen(true)}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  Upload Photo
+                </Button>
+              </Stack>
+            </Stack>
+
+            <Divider
+              orientation='vertical'
+              flexItem
+              sx={{ display: { xs: 'none', sm: 'block' } }}
+            />
+
+            <Box
               sx={{
-                width: 148,
-                height: 148,
-                bgcolor: stringToColor(agentData?.name || ''),
-                fontSize: 44,
+                flex: 1,
+                py: { sm: 2 },
               }}
             >
-              {getInitials(agentData?.name)}
-            </Avatar>
-            <Stack spacing={1}>
               <Typography variant='h6' fontWeight={600}>
-                {agentData?.name}
+                Bio
               </Typography>
+              {accountData?.bio ? (
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  sx={{ my: 2, whiteSpace: 'pre-wrap', lineHeight: 1.8 }}
+                >
+                  {accountData.bio}
+                </Typography>
+              ) : (
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  sx={{ my: 2, lineHeight: 1.8 }}
+                >
+                  In 1-2 sentences, tell a potential client who you are and why
+                  you do this work.
+                </Typography>
+              )}
               <Button
-                variant='outlined'
                 size='small'
-                startIcon={<FileUploadOutlinedIcon />}
-                onClick={() => setImageOpen(true)}
-                sx={{ alignSelf: 'flex-start' }}
+                startIcon={<EditOutlinedIcon fontSize='small' />}
+                onClick={openBioEditor}
+                sx={{ mt: 0.5, px: 0 }}
               >
-                Update Photo
+                {accountData?.bio ? 'Edit bio' : 'Add bio'}
               </Button>
-            </Stack>
+            </Box>
+
+            <Divider
+              flexItem
+              sx={{ display: { xs: 'block', sm: 'none' }, width: '100%' }}
+            >
+              <span />
+            </Divider>
           </Stack>
 
-          <Divider
-            orientation='vertical'
-            flexItem
-            sx={{ display: { xs: 'none', sm: 'block' } }}
-          />
+          <Divider />
 
-          <Box
-            sx={{
-              flex: 1,
-              py: { sm: 2 },
-            }}
-          >
-            <Typography variant='h6' fontWeight={600}>
-              Bio
+          <Box>
+            <Typography variant='h6' fontWeight={600} mb={0.75}>
+              Specialties
             </Typography>
-            {accountData?.bio ? (
-              <Typography
-                variant='body2'
-                color='text.secondary'
-                sx={{ my: 2, whiteSpace: 'pre-wrap', lineHeight: 1.8 }}
-              >
-                {accountData.bio}
-              </Typography>
-            ) : (
-              <Typography
-                variant='body2'
-                color='text.secondary'
-                sx={{ my: 2, lineHeight: 1.8 }}
-              >
-                In 1-2 sentences, tell a potential client who you are and why
-                you do this work.
-              </Typography>
-            )}
+            <Stack
+              direction='row'
+              gap={0.5}
+              flexWrap='wrap'
+              sx={{ ml: (accountData?.specialties || []).length ? -0.5 : 0 }}
+            >
+              {(accountData?.specialties || []).length ? (
+                accountData.specialties.map((specialty) => (
+                  <Chip key={specialty} label={specialty} />
+                ))
+              ) : (
+                <Typography variant='body2'>No specialties yet.</Typography>
+              )}
+            </Stack>
             <Button
               size='small'
               startIcon={<EditOutlinedIcon fontSize='small' />}
-              onClick={openBioEditor}
+              onClick={openTagsEditor}
               sx={{ mt: 0.5, px: 0 }}
             >
-              {accountData?.bio ? 'Edit bio' : 'Add bio'}
+              {(accountData?.specialties || []).length
+                ? 'Edit specialties'
+                : 'Add specialties'}
             </Button>
           </Box>
 
-          <Divider
-            flexItem
-            sx={{ display: { xs: 'block', sm: 'none' }, width: '100%' }}
-          >
-            <span />
-          </Divider>
-        </Stack>
+          <Divider />
 
-        <Divider />
-
-        <Box>
-          <Typography variant='h6' fontWeight={600} mb={0.75}>
-            Specialties
-          </Typography>
-          <Stack
-            direction='row'
-            gap={0.5}
-            flexWrap='wrap'
-            sx={{ ml: (accountData?.specialties || []).length ? -0.5 : 0 }}
-          >
-            {(accountData?.specialties || []).length ? (
-              accountData.specialties.map((specialty) => (
-                <Chip key={specialty} label={specialty} />
-              ))
-            ) : (
-              <Typography variant='body2'>No specialties yet.</Typography>
-            )}
-          </Stack>
-          <Button
-            size='small'
-            startIcon={<EditOutlinedIcon fontSize='small' />}
-            onClick={openTagsEditor}
-            sx={{ mt: 0.5, px: 0 }}
-          >
-            {(accountData?.specialties || []).length
-              ? 'Edit specialties'
-              : 'Add specialties'}
-          </Button>
-        </Box>
-
-        <Divider />
-
-        <Button
-          variant='contained'
-          startIcon={<VisibilityOutlinedIcon />}
-          onClick={openPreview}
-          disabled={previewPending}
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          {previewPending ? 'Preparing preview...' : 'Preview Agent Card'}
-        </Button>
+          {previewOpen ? (
+            <Stack spacing={2}>
+              <Stack
+                direction='row'
+                alignItems='center'
+                justifyContent='space-between'
+              >
+                <Typography variant='h6' fontWeight={600}>
+                  Preview
+                </Typography>
+                <Stack direction='row' spacing={1} alignItems='center'>
+                  <ToggleButtonGroup
+                    size='small'
+                    exclusive
+                    value={previewMode}
+                    onChange={(_, value) => value && setPreviewMode(value)}
+                  >
+                    <ToggleButton value='mobile' aria-label='Mobile view'>
+                      <PhoneIphoneOutlinedIcon
+                        fontSize='small'
+                        sx={{ mr: 0.5 }}
+                      />
+                      Mobile
+                    </ToggleButton>
+                    <ToggleButton value='desktop' aria-label='Desktop view'>
+                      <DesktopWindowsOutlinedIcon
+                        fontSize='small'
+                        sx={{ mr: 0.5 }}
+                      />
+                      Desktop
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  <Button size='small' onClick={() => setPreviewOpen(false)}>
+                    Hide Preview
+                  </Button>
+                </Stack>
+              </Stack>
+              {renderPreviewFrame()}
+            </Stack>
+          ) : (
+            <Button
+              variant='contained'
+              startIcon={<VisibilityOutlinedIcon />}
+              onClick={openPreview}
+              disabled={previewPending}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {previewPending ? 'Preparing preview...' : 'Preview Agent Card'}
+            </Button>
+          )}
         </Stack>
       </Paper>
 
@@ -585,7 +702,7 @@ export default function AgentCardSettings({ accountData, agentData }) {
                     }}
                   />
                 </Box>
-                <Box sx={{ width: CROP_SIZE }}>
+                <Box sx={{ width: 500, maxWidth: '100%' }}>
                   <Typography variant='caption' color='text.secondary'>
                     Zoom
                   </Typography>
