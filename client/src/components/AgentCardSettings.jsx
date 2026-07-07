@@ -211,8 +211,10 @@ export default function AgentCardSettings({ accountData, agentData }) {
     }
   };
 
+  const agentCardBaseUrl =
+    import.meta.env.VITE_AGENT_CARD_BASE_URL || 'https://getseniorquotes.com';
   const previewBaseUrl = previewSlug || accountData?.slug
-    ? `${import.meta.env.DEV ? 'http://localhost:5173' : 'https://getseniorquotes.com'}/agents/${previewSlug || accountData?.slug}`
+    ? `${agentCardBaseUrl}/agents/${previewSlug || accountData?.slug}`
     : '';
   const previewUrl = previewBaseUrl
     ? `${previewBaseUrl}?preview=${previewVersion}`

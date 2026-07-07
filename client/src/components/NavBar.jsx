@@ -29,7 +29,7 @@ export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [inviteOpen, setInviteOpen] = React.useState(false);
 
-  const { user } = useSelector((state) => state.user);
+  const { user, isAuthenticated } = useSelector((state) => state.user);
   const navigate = useNavigate();
 
   const agentData = useAgent();
@@ -38,8 +38,8 @@ export default function NavBar() {
     isLoading: accountLoading,
     isError: accountError,
   } = useQuery({
-    queryKey: ['navbarAccountImage', user?.email],
-    enabled: !!user?.email,
+    queryKey: ['account', user?.email, isAuthenticated],
+    enabled: !!user?.email && isAuthenticated,
     retry: false,
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
