@@ -137,7 +137,11 @@ insightsRouter.get('/', async (req, res) => {
         );
         const leads = leadAction ? parseInt(leadAction.value || 0, 10) : 0;
         return { spend, leads };
-      } catch {
+      } catch (err) {
+        logger.error('Error fetching Meta insights for ad', {
+          adId,
+          error: err.response?.data || err.message || err,
+        });
         return { spend: 0, leads: 0 };
       }
     }
