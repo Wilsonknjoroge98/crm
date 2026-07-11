@@ -21,6 +21,7 @@ import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
+import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 
 import { useTheme } from '@mui/material/styles';
@@ -94,6 +95,11 @@ const SidePanel = () => {
     { text: 'Agents', icon: <BadgeOutlinedIcon />, path: '/agents' },
     { text: 'Insights', icon: <InsightsIcon />, path: '/insights' },
     { text: 'Cash Flow', icon: <BusinessOutlinedIcon />, path: '/cashflow' },
+    {
+      text: 'Review Triage',
+      icon: <RateReviewOutlinedIcon />,
+      path: '/review-triage',
+    },
   ];
 
   const authItems = [

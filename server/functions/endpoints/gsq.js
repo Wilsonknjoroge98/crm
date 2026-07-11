@@ -1,6 +1,11 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
-const { Firestore } = require('firebase-admin/firestore');
+const {
+  Firestore,
+  FieldValue,
+  Timestamp,
+} = require('firebase-admin/firestore');
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const gsqRouter = express.Router();
@@ -267,6 +272,118 @@ gsqRouter.patch('/', async (req, res) => {
 
   await ref.update(updateObject);
   res.status(200).send({ message: 'Agent account updated successfully' });
+});
+
+gsqRouter.get('/reviews/unmatched', async (req, res) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
+
+  const db = new Firestore({
+    projectId: process.env.GSQ_PROJECT_ID,
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+
+  const snapshot = await db.collection('unmatched_agent_reviews').get();
+  const reviews = snapshot.docs.map((doc) => ({
+    docId: doc.id,
+    ...doc.data(),
+  }));
+
+  res.status(200).send({ reviews });
+});
+
+gsqRouter.post('/reviews/match', async (req, res) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
+
+  const { reviewId, agentEmail } = req.body;
+
+  if (typeof reviewId !== 'string' || !reviewId.trim()) {
+    return res.status(400).send({ message: 'reviewId is required' });
+  }
+  if (typeof agentEmail !== 'string' || !agentEmail.trim()) {
+    return res.status(400).send({ message: 'agentEmail is required' });
+  }
+
+  const { data: agent, error: agentError } = await supabaseService
+    .from('agents')
+    .select('email')
+    .eq('email', agentEmail.trim())
+    .maybeSingle();
+
+  if (agentError) {
+    logger.error('Failed to verify agent for review match', { agentError });
+    return res.status(500).send({ message: 'Failed to verify agent' });
+  }
+  if (!agent) {
+    return res.status(404).send({ message: 'Agent not found' });
+  }
+
+  const db = new Firestore({
+    projectId: process.env.GSQ_PROJECT_ID,
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+
+  const unmatchedRef = db.doc(`unmatched_agent_reviews/${reviewId}`);
+  const unmatchedSnapshot = await unmatchedRef.get();
+  if (!unmatchedSnapshot.exists) {
+    return res.status(404).send({ message: 'Review not found' });
+  }
+
+  const { date, id, rating, reviewerName, reviewerPhotoUrl, text } =
+    unmatchedSnapshot.data();
+  const reviewEntry = Object.fromEntries(
+    Object.entries({
+      date,
+      id,
+      rating,
+      reviewerName,
+      reviewerPhotoUrl,
+      text,
+    }).filter(([, value]) => value !== undefined),
+  );
+
+  const batch = db.batch();
+  batch.set(
+    db.doc(`agent_reviews/${agentEmail.trim()}`),
+    {
+      reviews: FieldValue.arrayUnion(reviewEntry),
+      updatedAt: Timestamp.now(),
+    },
+    { merge: true },
+  );
+  batch.delete(unmatchedRef);
+  await batch.commit();
+
+  logger.log('Matched review to agent', { reviewId, agentEmail });
+
+  res.status(200).send({ message: 'Review matched successfully' });
+});
+
+gsqRouter.delete('/reviews/unmatched/:reviewId', async (req, res) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
+
+  const { reviewId } = req.params;
+
+  const db = new Firestore({
+    projectId: process.env.GSQ_PROJECT_ID,
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+
+  const ref = db.doc(`unmatched_agent_reviews/${reviewId}`);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) {
+    return res.status(404).send({ message: 'Review not found' });
+  }
+
+  await ref.delete();
+  logger.log('Dismissed unmatched review', { reviewId });
+
+  res.status(200).send({ message: 'Review dismissed successfully' });
 });
 
 module.exports = gsqRouter;
