@@ -5,6 +5,8 @@ import { RouterProvider } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from 'notistack';
 import { Provider } from 'react-redux';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { AuthProvider } from './utils/AuthProvider.js';
 import router from './utils/router.jsx';
 import store from './utils/redux/store.js';
@@ -16,13 +18,15 @@ if (!root) throw new Error('Failed to find the root element');
 createRoot(root).render(
   <StrictMode>
     <Provider store={store}>
-      <SnackbarProvider>
-        <QueryClientProvider client={client}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <SnackbarProvider>
+          <QueryClientProvider client={client}>
             <AuthProvider>
-                <RouterProvider router={router} />
+              <RouterProvider router={router} />
             </AuthProvider>
-        </QueryClientProvider>
-      </SnackbarProvider>
+          </QueryClientProvider>
+        </SnackbarProvider>
+      </LocalizationProvider>
     </Provider>
   </StrictMode>,
 );
