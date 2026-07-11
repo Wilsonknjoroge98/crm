@@ -21,6 +21,8 @@ import { enqueueSnackbar } from 'notistack';
 import { STATES, SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 
 import { NumericFormat } from 'react-number-format';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { postClient, getLeadVendors } from '../utils/query';
@@ -211,6 +213,13 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     });
   };
 
+  const handleDateChange = (name, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [name]: value?.isValid?.() ? value.format('YYYY-MM-DD') : '',
+    }));
+  };
+
   const handleCancel = () => {
     setForm(initialForm);
   };
@@ -362,14 +371,19 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           </Grid>
 
           <Grid item size={6}>
-            <TextField
-              name='date_of_birth'
+            <DatePicker
               label='Date of Birth'
-              type='date'
-              value={form.date_of_birth}
-              onChange={handleChange}
-              fullWidth
-              required
+              format='MM/DD/YYYY'
+              value={form.date_of_birth ? dayjs(form.date_of_birth) : null}
+              onChange={(value) => handleDateChange('date_of_birth', value)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  required: true,
+                },
+                desktopPaper: { sx: { boxShadow: 3 } },
+                mobilePaper: { sx: { boxShadow: 3 } },
+              }}
             />
           </Grid>
           <Grid item size={6}>
