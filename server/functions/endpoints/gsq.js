@@ -1,5 +1,7 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const { randomUUID } = require('crypto');
+const { Storage } = require('@google-cloud/storage');
 const {
   Firestore,
   FieldValue,
@@ -10,6 +12,65 @@ const { supabaseService } = require('../services/supabase');
 // eslint-disable-next-line new-cap
 const gsqRouter = express.Router();
 
+const getImageDimensions = (buffer, contentType) => {
+  if (contentType === 'image/png') {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+
+  if (contentType === 'image/jpeg') {
+    let offset = 2;
+    while (offset < buffer.length) {
+      if (buffer[offset] !== 0xff) break;
+      const marker = buffer[offset + 1];
+      const length = buffer.readUInt16BE(offset + 2);
+      if (marker >= 0xc0 && marker <= 0xc3) {
+        return {
+          height: buffer.readUInt16BE(offset + 5),
+          width: buffer.readUInt16BE(offset + 7),
+        };
+      }
+      offset += 2 + length;
+    }
+  }
+
+  if (
+    contentType === 'image/webp' &&
+    buffer.toString('ascii', 12, 16) === 'VP8X'
+  ) {
+    return {
+      width: buffer.readUIntLE(24, 3) + 1,
+      height: buffer.readUIntLE(27, 3) + 1,
+    };
+  }
+
+  return null;
+};
+
+const toSlug = (value) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const getUniqueAgentSlug = async (db, email, name) => {
+  const baseSlug = toSlug(name);
+  if (!baseSlug) return '';
+
+  for (let suffix = 1; ; suffix += 1) {
+    const slug = suffix === 1 ? baseSlug : `${baseSlug}-${suffix}`;
+    const snapshot = await db
+      .collection('agents')
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty || snapshot.docs[0].id === email) {
+      return slug;
+    }
+  }
+};
+
 gsqRouter.get('/insurdial-config', async (req, res) => {
   const { data: authData, error: authError } =
     await req.supabase.auth.getUser();
@@ -19,7 +80,7 @@ gsqRouter.get('/insurdial-config', async (req, res) => {
   }
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
   const snapshot = await db.collection('id_config').doc(email).get();
@@ -56,7 +117,7 @@ gsqRouter.patch('/insurdial-config', async (req, res) => {
   logger.log('InsurDial config update request received:', { email });
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
@@ -90,7 +151,7 @@ gsqRouter.get('/', async (req, res) => {
   }
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
@@ -181,6 +242,10 @@ gsqRouter.patch('/', async (req, res) => {
       ringyEnabled,
       ghlEnabled,
       insurDialEnabled,
+      bio,
+      imageUrl,
+      image,
+      specialties,
     },
   } = req.body;
 
@@ -198,7 +263,7 @@ gsqRouter.patch('/', async (req, res) => {
   });
 
   const db = new Firestore({
-    projectId: 'life-quoter',
+    projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
@@ -264,6 +329,98 @@ gsqRouter.patch('/', async (req, res) => {
     updateObject.states = states;
   }
 
+  if (bio !== undefined) {
+    if (typeof bio !== 'string' || bio.trim().length > 200) {
+      return res
+        .status(400)
+        .send({ message: 'Bio must be 200 characters or fewer' });
+    }
+    updateObject.bio = bio.trim();
+  }
+
+  const agentName = [req.agent?.first_name, req.agent?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  updateObject.name = agentName;
+  updateObject.npn = req.agent?.npn || '';
+  updateObject.slug = await getUniqueAgentSlug(db, email, agentName);
+
+  if (imageUrl !== undefined) {
+    if (typeof imageUrl !== 'string') {
+      return res.status(400).send({ message: 'Image URL must be text' });
+    }
+    updateObject.imageUrl = imageUrl.trim();
+  }
+
+  if (image !== undefined) {
+    const imageTypes = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+    const { data, contentType } = image || {};
+    if (!imageTypes[contentType] || typeof data !== 'string') {
+      return res.status(400).send({ message: 'Invalid image' });
+    }
+    const buffer = Buffer.from(data.split(',').pop(), 'base64');
+    if (!buffer.length || buffer.length > 2 * 1024 * 1024) {
+      return res.status(400).send({ message: 'Image must be 2MB or smaller' });
+    }
+    let dimensions;
+    try {
+      dimensions = getImageDimensions(buffer, contentType);
+    } catch {
+      dimensions = null;
+    }
+    if (
+      !dimensions ||
+      dimensions.width !== dimensions.height ||
+      dimensions.width > 400
+    ) {
+      return res
+        .status(400)
+        .send({ message: 'Image must be square and 400x400 or smaller' });
+    }
+    const credentials = JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY);
+    const projectId = credentials.project_id;
+    const bucketName = `${projectId}.firebasestorage.app`;
+    const token = randomUUID();
+    const filePath = `agent-profile-images/${email}/profile.${imageTypes[contentType]}`;
+    const storage = new Storage({
+      projectId,
+      credentials,
+    });
+    await storage
+      .bucket(bucketName)
+      .file(filePath)
+      .save(buffer, {
+        resumable: false,
+        contentType,
+        metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+      });
+    updateObject.imageUrl =
+      `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/` +
+      `${encodeURIComponent(filePath)}?alt=media&token=${token}`;
+  }
+
+  if (specialties !== undefined) {
+    const allowedSpecialties = [
+      'Final Expense',
+      'Annuities',
+      'Mortgage Protection',
+      'Term Life',
+      'Indexed Universal Life',
+    ];
+    if (
+      !Array.isArray(specialties) ||
+      specialties.some((specialty) => !allowedSpecialties.includes(specialty))
+    ) {
+      return res.status(400).send({ message: 'Invalid specialties' });
+    }
+    updateObject.specialties = [...new Set(specialties)];
+  }
+
   for (const integration of integrationUpdates) {
     if (integration.value !== undefined) {
       updateObject[integration.field] = integration.value;
@@ -271,7 +428,10 @@ gsqRouter.patch('/', async (req, res) => {
   }
 
   await ref.update(updateObject);
-  res.status(200).send({ message: 'Agent account updated successfully' });
+  res.status(200).send({
+    message: 'Agent account updated successfully',
+    slug: updateObject.slug,
+  });
 });
 
 gsqRouter.get('/reviews/unmatched', async (req, res) => {

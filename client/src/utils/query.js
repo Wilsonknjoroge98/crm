@@ -123,9 +123,10 @@ const patchAccount = async ({ data }) => {
     const response = await apiClient.request(options);
     return response.data;
   } catch (error) {
+    error.userMessage = error?.response?.data?.message || error?.message;
     console.error('Account update failed', {
       status: error?.response?.status,
-      message: error?.response?.data?.message || error?.message,
+      message: error.userMessage,
     });
     throw error;
   }

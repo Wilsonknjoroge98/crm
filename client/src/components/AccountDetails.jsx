@@ -36,6 +36,7 @@ import UpdateStatesDialog from './UpdateStatesDialog';
 import EditIcon from '@mui/icons-material/Edit';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined';
+import AgentCardSettings from './AgentCardSettings';
 
 const CRM_INTEGRATIONS = [
   { key: 'ringy', label: 'Ringy', field: 'ringyEnabled' },
@@ -141,8 +142,9 @@ const AccountDetails = ({ data }) => {
             </Link>
             before enabling.
           </>
-        ) :
-        error?.response?.data?.message || 'Failed to update account.';
+        ) : (
+          error?.response?.data?.message || 'Failed to update account.'
+        );
       enqueueSnackbar(message, SNACKBAR_ERROR_OPTIONS);
       setCrmOverrides((current) => {
         const next = { ...current };
@@ -256,10 +258,7 @@ const AccountDetails = ({ data }) => {
           />
         </DialogContent>
         <DialogActions>
-          <Button
-            disabled={isTokenPending}
-            onClick={closeApiKeyDialog}
-          >
+          <Button disabled={isTokenPending} onClick={closeApiKeyDialog}>
             Cancel
           </Button>
           <Button
@@ -294,153 +293,146 @@ const AccountDetails = ({ data }) => {
           sx={{ letterSpacing: 1, fontSize: '.875rem' }}
         />
         <Tab label='States' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab label='Card' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
       </Tabs>
 
       <Box sx={{ mt: 4 }}>
         {activeTab === 1 && (
           <Box sx={{ maxWidth: 525 }}>
-            <Typography variant='h6' fontWeight={600} mb={1}>
-              CRM Integrations
-            </Typography>
             <Stack divider={<Divider flexItem />}>
-              {CRM_INTEGRATIONS.map(
-                ({ key, label, field, informational }) => {
-                  const connected =
-                    (crmOverrides[key] ?? data?.[field]) === true;
-                  const updatePending = isCrmPending;
+              {CRM_INTEGRATIONS.map(({ key, label, field, informational }) => {
+                const connected = (crmOverrides[key] ?? data?.[field]) === true;
+                const updatePending = isCrmPending;
 
-                  return (
+                return (
+                  <Stack
+                    key={key}
+                    direction={{ xs: 'column', sm: 'row' }}
+                    justifyContent='space-between'
+                    alignItems={{ xs: 'stretch', sm: 'center' }}
+                    spacing={2}
+                    sx={{ py: 1 }}
+                  >
                     <Stack
-                      key={key}
-                      direction={{ xs: 'column', sm: 'row' }}
-                      justifyContent='space-between'
-                      alignItems={{ xs: 'stretch', sm: 'center' }}
-                      spacing={2}
-                      sx={{ py: 1 }}
+                      direction='row'
+                      alignItems='center'
+                      sx={{ position: 'relative' }}
                     >
-                      <Stack
-                        direction='row'
-                        alignItems='center'
-                        sx={{ position: 'relative' }}
-                      >
-                        {key === 'insurDial' && (
-                          <Tooltip title='Set API key' arrow>
+                      {key === 'insurDial' && (
+                        <Tooltip title='Set API key' arrow>
+                          <IconButton
+                            size='small'
+                            aria-label='Set InsurDial API key'
+                            onClick={() => setOpenApiKeyDialog(true)}
+                            sx={{
+                              position: 'absolute',
+                              right: 'calc(100% + 2px)',
+                              p: 0.5,
+                            }}
+                          >
+                            <KeyOutlinedIcon
+                              sx={{
+                                fontSize: '1.1rem',
+                                transform: 'rotate(45deg)',
+                              }}
+                            />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Typography variant='subtitle2'>{label}</Typography>
+                    </Stack>
+
+                    {informational ? (
+                      <Stack direction='row' spacing={1} alignItems='center'>
+                        <Typography
+                          variant='caption'
+                          color={connected ? 'success.main' : 'text.secondary'}
+                        >
+                          {connected ? 'Connected' : 'Not Connected'}
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: 38,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Tooltip title='Talk to administrators' arrow>
                             <IconButton
                               size='small'
-                              aria-label='Set InsurDial API key'
-                              onClick={() => setOpenApiKeyDialog(true)}
-                              sx={{
-                                position: 'absolute',
-                                right: 'calc(100% + 2px)',
-                                p: 0.5,
-                              }}
+                              aria-label={`${label} integration information`}
                             >
-                              <KeyOutlinedIcon
+                              <HelpOutlineIcon
                                 sx={{
-                                  fontSize: '1.1rem',
-                                  transform: 'rotate(45deg)',
+                                  fontSize: '1.25rem',
+                                  color: 'text.secondary',
                                 }}
                               />
                             </IconButton>
                           </Tooltip>
-                        )}
-                        <Typography variant='subtitle2'>{label}</Typography>
+                        </Box>
                       </Stack>
-
-                      {informational ? (
-                        <Stack direction='row' spacing={1} alignItems='center'>
-                          <Typography
-                            variant='caption'
-                            color={connected ? 'success.main' : 'text.secondary'}
-                          >
-                            {connected ? 'Connected' : 'Not Connected'}
-                          </Typography>
-                          <Box
-                            sx={{
-                              width: 38,
-                              display: 'flex',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                            }}
-                          >
-                            <Tooltip title='Talk to administrators' arrow>
-                              <IconButton
-                                size='small'
-                                aria-label={`${label} integration information`}
-                              >
-                                <HelpOutlineIcon
-                                  sx={{
-                                    fontSize: '1.25rem',
-                                    color: 'text.secondary',
-                                  }}
-                                />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </Stack>
-                      ) : (
-                        <Stack
-                          direction='row'
-                          alignItems='center'
-                          justifyContent={{ xs: 'space-between', sm: 'flex-end' }}
-                          spacing={1}
-                          sx={{ flexShrink: 0 }}
+                    ) : (
+                      <Stack
+                        direction='row'
+                        alignItems='center'
+                        justifyContent={{ xs: 'space-between', sm: 'flex-end' }}
+                        spacing={1}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <Typography
+                          variant='caption'
+                          color={connected ? 'success.main' : 'text.secondary'}
                         >
-                          <Typography
-                            variant='caption'
-                            color={connected ? 'success.main' : 'text.secondary'}
-                          >
-                            {connected ? 'Connected' : 'Not Connected'}
-                          </Typography>
-                          <Switch
-                            size='small'
-                            checked={connected}
-                            sx={{
-                              pointerEvents: updatePending ? 'none' : 'auto',
-                              '& .MuiSwitch-switchBase.Mui-checked': {
-                                color: 'success.main',
-                              },
-                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                          {connected ? 'Connected' : 'Not Connected'}
+                        </Typography>
+                        <Switch
+                          size='small'
+                          checked={connected}
+                          sx={{
+                            pointerEvents: updatePending ? 'none' : 'auto',
+                            '& .MuiSwitch-switchBase.Mui-checked': {
+                              color: 'success.main',
+                            },
+                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track':
+                              {
                                 backgroundColor: 'success.main',
                               },
-                            }}
-                            onChange={(event) => {
-                              if (updatePending) return;
-                              const nextConnected = event.target.checked;
-                              setCrmOverrides((current) => ({
-                                ...current,
-                                [key]: nextConnected,
-                              }));
-                              updateCrm({
-                                data: {
-                                  email: agent?.email,
-                                  [field]: nextConnected,
-                                },
-                                crmKey: key,
-                                field,
-                                value: nextConnected,
-                              });
-                            }}
-                            inputProps={{
-                              'aria-label': `${label} integration status`,
-                              'aria-disabled': updatePending,
-                            }}
-                          />
-                        </Stack>
-                      )}
-                    </Stack>
-                  );
-                },
-              )}
+                          }}
+                          onChange={(event) => {
+                            if (updatePending) return;
+                            const nextConnected = event.target.checked;
+                            setCrmOverrides((current) => ({
+                              ...current,
+                              [key]: nextConnected,
+                            }));
+                            updateCrm({
+                              data: {
+                                email: agent?.email,
+                                [field]: nextConnected,
+                              },
+                              crmKey: key,
+                              field,
+                              value: nextConnected,
+                            });
+                          }}
+                          inputProps={{
+                            'aria-label': `${label} integration status`,
+                            'aria-disabled': updatePending,
+                          }}
+                        />
+                      </Stack>
+                    )}
+                  </Stack>
+                );
+              })}
             </Stack>
           </Box>
         )}
 
         {activeTab === 0 && (
           <Box sx={{ maxWidth: 600 }}>
-            <Typography variant='h6' fontWeight={600} mb={2}>
-              Leads Summary
-            </Typography>
             <Stack spacing={0.75}>
               {[
                 ['Outstanding Leads', data?.outstandingLeads ?? 0],
@@ -497,7 +489,9 @@ const AccountDetails = ({ data }) => {
                   onChange={(e) => {
                     const newValue = e.target.checked;
                     setDeliver(newValue);
-                    mutate({ data: { deliver: newValue, email: agent?.email } });
+                    mutate({
+                      data: { deliver: newValue, email: agent?.email },
+                    });
                   }}
                 />
               </Stack>
@@ -519,9 +513,6 @@ const AccountDetails = ({ data }) => {
           <Box>
             <Stack spacing={3} alignItems='flex-start'>
               <Box>
-                <Typography variant='h6' fontWeight={600} mb={1}>
-                  Licensed States
-                </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
                   {data?.states?.length ? (
                     data.states.map((state) => (
@@ -543,6 +534,10 @@ const AccountDetails = ({ data }) => {
               </Button>
             </Stack>
           </Box>
+        )}
+
+        {activeTab === 3 && (
+          <AgentCardSettings accountData={data} agentData={agent} />
         )}
       </Box>
     </>
