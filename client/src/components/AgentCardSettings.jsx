@@ -20,11 +20,13 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -44,6 +46,7 @@ const SPECIALTIES = [
   'Term Life',
   'Indexed Universal Life',
 ];
+
 const CROP_SIZE = 260;
 const MAX_ZOOM = 3;
 const MOBILE_FRAME_WIDTH = 390;
@@ -55,7 +58,7 @@ export default function AgentCardSettings({ accountData, agentData }) {
   const [tagsOpen, setTagsOpen] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [previewMode, setPreviewMode] = React.useState('mobile');
+  const [previewMode, setPreviewMode] = React.useState('desktop');
   const [previewLoaded, setPreviewLoaded] = React.useState(false);
   const [previewVersion, setPreviewVersion] = React.useState(0);
   const [previewSlug, setPreviewSlug] = React.useState('');
@@ -508,9 +511,20 @@ export default function AgentCardSettings({ accountData, agentData }) {
                 alignItems='center'
                 justifyContent='space-between'
               >
-                <Typography variant='h6' fontWeight={600}>
-                  Preview
-                </Typography>
+                <Stack direction='row' spacing={0.5} alignItems='center'>
+                  <Typography variant='h6' fontWeight={600}>
+                    Preview
+                  </Typography>
+                  <Tooltip
+                    title='This preview shows the lead what your lead will see after they select a quote and verify their phone number via text.'
+                    arrow
+                  >
+                    <InfoOutlinedIcon
+                      fontSize='small'
+                      sx={{ color: 'text.secondary', cursor: 'help' }}
+                    />
+                  </Tooltip>
+                </Stack>
                 <Stack direction='row' spacing={1} alignItems='center'>
                   <ToggleButtonGroup
                     size='small'
