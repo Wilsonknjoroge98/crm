@@ -152,6 +152,31 @@ const patchInsurDialConfig = async ({ data }) => {
   return response.data;
 };
 
+const getUnmatchedReviews = async () => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/gsq-account/reviews/unmatched',
+  });
+  return response.data;
+};
+
+const matchReview = async ({ reviewId, agentEmail }) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/gsq-account/reviews/match',
+    data: { reviewId, agentEmail },
+  });
+  return response.data;
+};
+
+const dismissUnmatchedReview = async ({ reviewId }) => {
+  const response = await apiClient.request({
+    method: 'DELETE',
+    url: `/gsq-account/reviews/unmatched/${reviewId}`,
+  });
+  return response.data;
+};
+
 const getAccount = async ({ email }) => {
   console.log('Getting client account', email);
 
@@ -1014,6 +1039,9 @@ export {
   patchAccount,
   getInsurDialConfig,
   patchInsurDialConfig,
+  getUnmatchedReviews,
+  matchReview,
+  dismissUnmatchedReview,
   postError,
   getInvites,
   createInvite,

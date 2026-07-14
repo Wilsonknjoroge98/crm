@@ -35,6 +35,8 @@ import {
 } from '../utils/constants';
 
 import { NumericFormat } from 'react-number-format';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { enqueueSnackbar } from 'notistack';
 import { useSelector } from 'react-redux';
@@ -212,6 +214,13 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
         client_id: form?.client_id,
       },
     });
+  };
+
+  const handleDateChange = (name, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [name]: value?.isValid?.() ? value.format('YYYY-MM-DD') : '',
+    }));
   };
 
   useEffect(() => {
@@ -579,25 +588,35 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           </Grid>
 
           <Grid size={6}>
-            <TextField
-              name='sold_date'
+            <DatePicker
               label='Date Sold'
-              type='date'
-              value={form.sold_date}
-              onChange={handleChange}
-              fullWidth
-              required
+              format='MM/DD/YYYY'
+              value={form.sold_date ? dayjs(form.sold_date) : null}
+              onChange={(value) => handleDateChange('sold_date', value)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  required: true,
+                },
+                desktopPaper: { sx: { boxShadow: 3 } },
+                mobilePaper: { sx: { boxShadow: 3 } },
+              }}
             />
           </Grid>
           <Grid size={6}>
-            <TextField
-              name='effective_date'
+            <DatePicker
               label='Effective Date'
-              type='date'
-              value={form.effective_date}
-              onChange={handleChange}
-              fullWidth
-              required
+              format='MM/DD/YYYY'
+              value={form.effective_date ? dayjs(form.effective_date) : null}
+              onChange={(value) => handleDateChange('effective_date', value)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  required: true,
+                },
+                desktopPaper: { sx: { boxShadow: 3 } },
+                mobilePaper: { sx: { boxShadow: 3 } },
+              }}
             />
           </Grid>
 

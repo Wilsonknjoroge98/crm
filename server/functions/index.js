@@ -25,6 +25,7 @@ exports.app = functions.https.onRequest(
       'META_CONVERSIONS_URL',
       'META_AD_ACCOUNT_IDS',
       'META_MARKETING_ACCESS_TOKEN',
+      'HYROS_SECRET_KEY',
     ],
   },
   expressApp,
