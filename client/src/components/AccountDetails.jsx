@@ -288,12 +288,12 @@ const AccountDetails = ({ data }) => {
       </Dialog>
       <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)}>
         <Tab label='Leads' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab label='CRMs' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
+        <Tab label='States' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
         <Tab
-          label='Integrations'
+          label='Producer Page'
           sx={{ letterSpacing: 1, fontSize: '.875rem' }}
         />
-        <Tab label='States' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
-        <Tab label='Card' sx={{ letterSpacing: 1, fontSize: '.875rem' }} />
       </Tabs>
 
       <Box sx={{ mt: 4 }}>

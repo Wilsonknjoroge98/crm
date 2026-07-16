@@ -57,7 +57,7 @@ export default function AgentCardSettings({ accountData, agentData }) {
   const [bioOpen, setBioOpen] = React.useState(false);
   const [tagsOpen, setTagsOpen] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
-  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewOpen, setPreviewOpen] = React.useState(true);
   const [previewMode, setPreviewMode] = React.useState('desktop');
   const [previewLoaded, setPreviewLoaded] = React.useState(false);
   const [previewVersion, setPreviewVersion] = React.useState(0);
@@ -470,9 +470,9 @@ export default function AgentCardSettings({ accountData, agentData }) {
             </Divider>
           </Stack>
 
-          <Divider />
+          {/* <Divider /> */}
 
-          <Box>
+          {/* <Box>
             <Typography variant='h6' fontWeight={600} mb={0.75}>
               Specialties
             </Typography>
@@ -500,9 +500,9 @@ export default function AgentCardSettings({ accountData, agentData }) {
                 ? 'Edit specialties'
                 : 'Add specialties'}
             </Button>
-          </Box>
+          </Box> */}
 
-          <Divider />
+          {/* <Divider /> */}
 
           {previewOpen ? (
             <Stack spacing={2}>
@@ -516,7 +516,7 @@ export default function AgentCardSettings({ accountData, agentData }) {
                     Preview
                   </Typography>
                   <Tooltip
-                    title='This preview shows the lead what your lead will see after they select a quote and verify their phone number via text.'
+                    title='What your leads sees after selecting a quote and verifying their phone number.'
                     arrow
                   >
                     <InfoOutlinedIcon
