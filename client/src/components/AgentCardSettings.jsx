@@ -470,9 +470,9 @@ export default function AgentCardSettings({ accountData, agentData }) {
             </Divider>
           </Stack>
 
-          <Divider />
+          {/* <Divider /> */}
 
-          <Box>
+          {/* <Box>
             <Typography variant='h6' fontWeight={600} mb={0.75}>
               Specialties
             </Typography>
@@ -500,9 +500,9 @@ export default function AgentCardSettings({ accountData, agentData }) {
                 ? 'Edit specialties'
                 : 'Add specialties'}
             </Button>
-          </Box>
+          </Box> */}
 
-          <Divider />
+          {/* <Divider /> */}
 
           {previewOpen ? (
             <Stack spacing={2}>
