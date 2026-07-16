@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Alert,
   CircularProgress,
@@ -8,10 +9,18 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import AccountDetails from '../components/AccountDetails';
+import AgentCardIntroDialog, {
+  STORAGE_KEY as AGENT_CARD_INTRO_STORAGE_KEY,
+} from '../components/AgentCardIntroDialog';
 import { getAccount } from '../utils/query';
+
+const PRODUCER_PAGE_TAB_INDEX = 3;
 
 const Profile = () => {
   const { user, isAuthenticated } = useSelector((state) => state.user);
+  const [introOpen, setIntroOpen] = useState(
+    () => localStorage.getItem(AGENT_CARD_INTRO_STORAGE_KEY) !== 'true',
+  );
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['account', user?.email, isAuthenticated],
     queryFn: () => getAccount({ email: user?.email }),
@@ -22,6 +31,7 @@ const Profile = () => {
 
   return (
     <Container sx={{ mt: 4 }}>
+      <AgentCardIntroDialog open={introOpen} setOpen={setIntroOpen} />
       <Stack spacing={0.5} mb={3}>
         <Typography variant='h4'>Agent Profile</Typography>
       </Stack>
@@ -37,7 +47,10 @@ const Profile = () => {
         </Alert>
       )}
       {!isLoading && (!isError || error?.response?.status === 404) && (
-        <AccountDetails data={data} />
+        <AccountDetails
+          data={data}
+          defaultTab={introOpen ? PRODUCER_PAGE_TAB_INDEX : undefined}
+        />
       )}
     </Container>
   );

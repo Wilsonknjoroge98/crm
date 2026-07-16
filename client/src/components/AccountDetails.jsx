@@ -50,12 +50,12 @@ const CRM_INTEGRATIONS = [
   },
 ];
 
-const AccountDetails = ({ data }) => {
+const AccountDetails = ({ data, defaultTab }) => {
   const [openStatesDlg, setOpenStatesDlg] = useState(false);
   const [openApiKeyDialog, setOpenApiKeyDialog] = useState(false);
   const [token, setToken] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(defaultTab ?? 0);
 
   const closeApiKeyDialog = () => {
     setToken('');
