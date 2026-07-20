@@ -78,8 +78,8 @@ const inboundGSQ = async (req, res) => {
       face_amount: lead.faceAmount
         ? Number(lead.faceAmount.split('-')[0]) || null
         : null,
-      face_amount_max: lead.faceAmount?.includes('-')
-        ? Number(lead.faceAmount.split('-')[1]) || null
+      premium_max: lead.premium?.includes('-')
+        ? Number(lead.premium.split('-')[1]) || null
         : null,
       premium: lead.premium ? parseFloat(lead.premium) : null,
       selected_plan: lead.selectedPlan ?? null,
