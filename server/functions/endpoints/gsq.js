@@ -140,7 +140,7 @@ gsqRouter.patch('/insurdial-config', async (req, res) => {
 });
 
 gsqRouter.get('/', async (req, res) => {
-  const SUPER_ADMIN_EMAIL = 'info@finalexpensedigital.com';
+  const SUPER_ADMIN_EMAIL = 'info@fexdigital.com';
   const { data: authData, error: authError } =
     await req.supabase.auth.getUser();
   const authenticatedEmail = authData?.user?.email;
@@ -222,7 +222,7 @@ gsqRouter.get('/', async (req, res) => {
 
     return res.status(200).send({
       name: 'Admin',
-      email: 'info@finalexpensedigital.com',
+      email: 'info@fexdigital.com',
       outstandingLeads,
       verified,
       unverified,
