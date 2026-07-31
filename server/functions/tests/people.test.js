@@ -78,7 +78,10 @@ const EXPECTED_DETAIL_FIELDS = [
   'updated_at',
   'policies',
 ].join(',');
-const { getOwnedClientIds } = require('../endpoints/people_access');
+const {
+  getOwnedClientIds,
+  applyOwnershipFilter,
+} = require('../endpoints/people_access');
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 
@@ -108,6 +111,10 @@ class FakeQuery {
 
   in(...args) {
     return this.record('in', args);
+  }
+
+  is(...args) {
+    return this.record('is', args);
   }
 
   lte(...args) {
@@ -213,6 +220,32 @@ describe('people ownership helpers', () => {
       method: 'range',
       args: [1000, 1999],
     });
+  });
+
+  test('restricts an agent with no client links to lead-only rows', () => {
+    const query = new FakeQuery('people', {});
+
+    applyOwnershipFilter(query, 'agent-1', []);
+
+    expect(query.calls).toEqual([
+      { method: 'is', args: ['client_id', null] },
+      { method: 'eq', args: ['agent_id', 'agent-1'] },
+    ]);
+  });
+
+  test('grants sale rows only through client links', () => {
+    const query = new FakeQuery('people', {});
+
+    applyOwnershipFilter(query, 'agent-1', ['client-1', 'client-2']);
+
+    expect(query.calls).toEqual([
+      {
+        method: 'or',
+        args: [
+          'and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1,client-2)',
+        ],
+      },
+    ]);
   });
 });
 
@@ -400,7 +433,7 @@ describe('GET /people', () => {
         },
         {
           method: 'or',
-          args: ['agent_id.eq.agent-1,client_id.in.(client-1)'],
+          args: ['and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1)'],
         },
         {
           method: 'order',
@@ -658,7 +691,7 @@ describe('GET /people', () => {
         },
         {
           method: 'or',
-          args: ['agent_id.eq.agent-1,client_id.in.(client-1)'],
+          args: ['and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1)'],
         },
         {
           method: 'or',
@@ -807,7 +840,7 @@ describe('GET /people/metrics', () => {
       expect(peopleQuery.calls).toContainEqual({
         method: 'or',
         args: [
-          'agent_id.eq.agent-1,client_id.in.(client-1,client-2)',
+          'and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1,client-2)',
         ],
       });
 
@@ -934,7 +967,7 @@ describe('GET /people/metrics', () => {
     expect(response.body).toEqual({ error: 'Agent profile required' });
   });
 
-  test('chunks ownership past 100 clients and dedupes closed counts', async () => {
+  test('chunks ownership past 100 clients using only client links', async () => {
     const ownedClients = Array.from({ length: 150 }, (_, index) => ({
       client_id: `client-${index}`,
     }));
@@ -942,9 +975,8 @@ describe('GET /people/metrics', () => {
       agent_clients: [{ data: ownedClients, error: null }],
       leads: [{ data: null, error: null, count: 5 }],
       people: [
-        { data: [{ client_id: 'client-dup' }], error: null },
         {
-          data: [{ client_id: 'client-dup' }, { client_id: 'client-b' }],
+          data: [{ client_id: 'client-a' }, { client_id: 'client-b' }],
           error: null,
         },
         { data: [{ client_id: 'client-c' }], error: null },
@@ -973,19 +1005,23 @@ describe('GET /people/metrics', () => {
       },
     });
 
-    expect(findQuery(supabase, 'people').calls).toContainEqual({
-      method: 'eq',
-      args: ['agent_id', 'agent-1'],
-    });
-    const firstChunk = findQuery(supabase, 'people', 1).calls.find(
+    const firstChunk = findQuery(supabase, 'people').calls.find(
       ({ method }) => method === 'in',
     );
-    const secondChunk = findQuery(supabase, 'people', 2).calls.find(
+    const secondChunk = findQuery(supabase, 'people', 1).calls.find(
       ({ method }) => method === 'in',
     );
     expect(firstChunk.args[0]).toBe('client_id');
     expect(firstChunk.args[1]).toHaveLength(100);
     expect(secondChunk.args[1]).toHaveLength(50);
+    const leadOwnedQueries = supabase.queries.filter(
+      (query) =>
+        query.table === 'people' &&
+        query.calls.some(
+          ({ method, args }) => method === 'eq' && args[0] === 'agent_id',
+        ),
+    );
+    expect(leadOwnedQueries).toHaveLength(0);
   });
 
   test('returns a sanitized error when a metric query fails', async () => {
@@ -1056,7 +1092,7 @@ describe('GET /people/:id', () => {
         },
         {
           method: 'or',
-          args: ['agent_id.eq.agent-1,client_id.in.(client-1)'],
+          args: ['and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1)'],
         },
         {
           method: 'maybeSingle',
@@ -1273,22 +1309,10 @@ describe('DELETE /people', () => {
     expect(supabase.from).not.toHaveBeenCalledWith('leads');
   });
 
-  test('rejects a SALE whose client belongs to another agent even when the requester owns the lead', async () => {
+  test('excludes a mismatched SALE at the ownership filter, so its delete 404s', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
-      people: [
-        {
-          data: [
-            {
-              id: clientId,
-              lead_id: saleLeadId,
-              client_id: clientId,
-              lifecycle_status: 'SALE',
-            },
-          ],
-          error: null,
-        },
-      ],
+      people: [{ data: [], error: null }],
     });
     const app = makeApp(supabase, { id: 'agent-1' });
 
@@ -1299,6 +1323,14 @@ describe('DELETE /people', () => {
     expect(response.status).toBe(404);
     expect(response.body).toEqual({
       error: 'One or more people were not found',
+    });
+    expect(findQuery(supabase, 'people').calls).toContainEqual({
+      method: 'is',
+      args: ['client_id', null],
+    });
+    expect(findQuery(supabase, 'people').calls).toContainEqual({
+      method: 'eq',
+      args: ['agent_id', 'agent-1'],
     });
     expect(supabase.from).not.toHaveBeenCalledWith('policies');
     expect(supabase.from).not.toHaveBeenCalledWith('clients');
