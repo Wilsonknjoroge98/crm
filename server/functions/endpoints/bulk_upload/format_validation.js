@@ -1,3 +1,5 @@
+const { parsePremium } = require('../../integrations/premium');
+
 // User-facing columns that must exist before any database checks run.
 const REQUIRED_FIELDS = [
   'Full Name',
@@ -49,6 +51,7 @@ const PERSON_FIELDS = [
   'Marital Status',
   'Annual Income',
   'Lead Vendor',
+  'Lead Premium',
   'Smoker',
   'Height (Feet)',
   'Height (Inches)',
@@ -161,6 +164,12 @@ const normalizePersonValue = (field, raw) => {
     const parsed = parseNumber(trimmed);
     return parsed === undefined ? trimmed : String(parsed ?? '');
   }
+  if (field === 'Lead Premium') {
+    const parsed = parsePremium(trimmed);
+    return parsed.raw === null && parsed.min === null && parsed.max === null
+      ? normalizeString(trimmed)
+      : JSON.stringify(parsed);
+  }
   if (['Smoker', 'Cholesterol Medication', 'Blood Pressure Medication'].includes(field)) {
     const parsed = parseBoolean(trimmed);
     return parsed === undefined ? trimmed.toLowerCase() : String(parsed ?? '');
@@ -251,7 +260,8 @@ const validateBeneficiarySet = (row, rowNumber, type) => {
       errors.push({
         row: rowNumber,
         message:
-          `${prefix} Beneficiary ${beneficiary.index} Relationship contains invalid option "${beneficiary.relationship}"`,
+          `${prefix} Beneficiary ${beneficiary.index} Relationship contains ` +
+          `invalid option "${beneficiary.relationship}"`,
       });
     }
   });
@@ -312,6 +322,17 @@ const validateRowFormat = (row, rowNumber) => {
       }
     }
   });
+
+  const leadPremium = value(row, 'Lead Premium');
+  if (leadPremium) {
+    const parsed = parsePremium(leadPremium);
+    if (parsed.raw === null && parsed.min === null && parsed.max === null) {
+      errors.push({
+        row: rowNumber,
+        message: 'Lead Premium must be a number or a range such as 50 - 75',
+      });
+    }
+  }
 
   if (hasPolicyData) {
     const draftDay = parseInteger(value(row, 'Draft Day'));
