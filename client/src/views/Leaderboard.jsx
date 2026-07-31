@@ -297,6 +297,8 @@ const Leaderboard = () => {
   const {
     data: rows = [],
     isLoading,
+    isPending,
+    isSuccess,
     refetch,
   } = useQuery({
     queryKey: ['premiumLeaderboard', startDate, endDate, agent?.org_id],
@@ -313,7 +315,7 @@ const Leaderboard = () => {
     .subtract(1, 'month')
     .endOf('month')
     .format('YYYY-MM-DD');
-  const { data: lastMonthRows = [], isLoading: lastMonthLoading } = useQuery({
+  const { data: lastMonthRows = [], isPending: lastMonthPending } = useQuery({
     queryKey: ['premiumLeaderboard', lastMonthStart, lastMonthEnd, agent?.org_id],
     queryFn: () =>
       getPremiumLeaderboard({
@@ -332,7 +334,7 @@ const Leaderboard = () => {
     .subtract(1, 'week')
     .endOf('week')
     .format('YYYY-MM-DD');
-  const { data: lastWeekRows = [], isLoading: lastWeekLoading } = useQuery({
+  const { data: lastWeekRows = [], isPending: lastWeekPending } = useQuery({
     queryKey: ['premiumLeaderboard', lastWeekStart, lastWeekEnd, agent?.org_id],
     queryFn: () =>
       getPremiumLeaderboard({
@@ -399,7 +401,7 @@ const Leaderboard = () => {
             tint={(theme) => alpha(theme.palette.action.main, 0.08)}
             watermark='action.main'
             champion={lastMonthRows[0]}
-            isLoading={lastMonthLoading}
+            isLoading={lastMonthPending}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
@@ -409,12 +411,12 @@ const Leaderboard = () => {
             tint={(theme) => alpha(theme.palette.info.alertIconColor, 0.06)}
             watermark='info.alertIconColor'
             champion={lastWeekRows[0]}
-            isLoading={lastWeekLoading}
+            isLoading={lastWeekPending}
           />
         </Grid>
       </Grid>
 
-      {isLoading && (
+      {isPending && (
         <>
           <Grid container spacing={2} mb={4} alignItems='flex-start'>
             {[2, 1, 3].map((rank) => (
@@ -443,7 +445,7 @@ const Leaderboard = () => {
         </>
       )}
 
-      {!isLoading && rows.length === 0 && (
+      {isSuccess && rows.length === 0 && (
         <Typography
           fontFamily={SANS}
           color='text.secondary'
@@ -454,7 +456,7 @@ const Leaderboard = () => {
         </Typography>
       )}
 
-      {!isLoading && podium.length > 0 && (
+      {isSuccess && podium.length > 0 && (
         <Grid container spacing={2} mb={4} alignItems='flex-start'>
           {podium.map(({ row, rank }) => (
             <Grid
@@ -468,7 +470,7 @@ const Leaderboard = () => {
         </Grid>
       )}
 
-      {!isLoading && mentions.length > 0 && (
+      {isSuccess && mentions.length > 0 && (
         <Box sx={{ maxWidth: 900, mx: 'auto' }}>
           {mentions.map((row, index) => (
             <MentionRow key={row.name} row={row} rank={index + 4} />
