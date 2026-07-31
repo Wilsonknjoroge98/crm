@@ -1,0 +1,23 @@
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter.ttf');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('/fonts/librebaskerville.ttf');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrainsmono.ttf');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
