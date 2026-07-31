@@ -1,0 +1,565 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  Drawer,
+  Grid,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import { enqueueSnackbar } from 'notistack';
+import {
+  getPerson,
+  patchClient,
+  patchLead,
+} from '../utils/query';
+import {
+  SNACKBAR_ERROR_OPTIONS,
+  SNACKBAR_SUCCESS_OPTIONS,
+} from '../utils/constants';
+
+const PROFILE_FIELDS = [
+  ['first_name', 'First Name'],
+  ['last_name', 'Last Name'],
+  ['date_of_birth', 'Date of Birth', 'date'],
+  ['phone', 'Phone'],
+  ['email', 'Email', 'email'],
+  ['state', 'State'],
+];
+
+const CLIENT_FIELDS = [
+  ['address', 'Street Address'],
+  ['city', 'City'],
+  ['zip', 'ZIP Code'],
+  ['occupation', 'Occupation'],
+  ['marital_status', 'Marital Status'],
+  ['annual_income', 'Annual Income', 'number'],
+];
+
+const formatCurrency = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '—';
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatDate = (value) => {
+  if (!value) return '—';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+};
+
+const premiumLabel = (person) => {
+  if (person?.premium !== null && person?.premium !== undefined) {
+    return formatCurrency(person.premium);
+  }
+  if (
+    person?.premium_min !== null &&
+    person?.premium_max !== null &&
+    person?.premium_min !== undefined &&
+    person?.premium_max !== undefined
+  ) {
+    return `${formatCurrency(person.premium_min)} – ${formatCurrency(
+      person.premium_max,
+    )}`;
+  }
+  return '—';
+};
+
+const POLICY_PREMIUM_LABELS = {
+  weekly: 'Weekly Premium',
+  monthly: 'Monthly Premium',
+  quarterly: 'Quarterly Premium',
+  'semi-annually': 'Semi-Annual Premium',
+  'semi-annual': 'Semi-Annual Premium',
+  annually: 'Annual Premium',
+  annual: 'Annual Premium',
+};
+
+const policyPremiumLabel = (frequency) =>
+  POLICY_PREMIUM_LABELS[frequency] || 'Premium';
+
+const calculateBmi = (person) => {
+  const inches =
+    Number(person?.height_feet || 0) * 12 +
+    Number(person?.height_inches || 0);
+  const pounds = Number(person?.weight_lbs);
+  if (!inches || !pounds) return null;
+  return ((pounds / (inches * inches)) * 703).toFixed(1);
+};
+
+const profileFormFromPerson = (person) => ({
+  first_name: person?.first_name || '',
+  last_name: person?.last_name || '',
+  date_of_birth: person?.date_of_birth || '',
+  phone: person?.phone || '',
+  email: person?.email || '',
+  state: person?.state || '',
+  address: person?.address || '',
+  city: person?.city || '',
+  zip: person?.zip || '',
+  occupation: person?.occupation || '',
+  marital_status: person?.marital_status || '',
+  annual_income: person?.annual_income ?? '',
+  availability: person?.availability || '',
+});
+
+const BooleanIndicator = ({ label, value }) => (
+  <Stack direction='row' spacing={1} alignItems='center'>
+    {value ? (
+      <CheckCircleIcon color='success' fontSize='small' />
+    ) : (
+      <CancelIcon color='error' fontSize='small' />
+    )}
+    <Typography variant='body2'>
+      {label}: {value ? 'Yes' : 'No'}
+    </Typography>
+  </Stack>
+);
+
+const PeopleDrawer = ({
+  open,
+  personId,
+  onClose,
+  onUpdated,
+  onMarkSold,
+}) => {
+  const [form, setForm] = useState({});
+  const [editing, setEditing] = useState(false);
+
+  const {
+    data: person,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['person', personId],
+    queryFn: () => getPerson(personId),
+    enabled: open && Boolean(personId),
+  });
+
+  useEffect(() => {
+    if (!person) return;
+    setForm(profileFormFromPerson(person));
+    setEditing(false);
+  }, [person]);
+
+  useEffect(() => {
+    if (open || !person) return;
+    setForm(profileFormFromPerson(person));
+    setEditing(false);
+  }, [open, person]);
+
+  const { mutate: saveProfile, isPending: isSaving } = useMutation({
+    mutationFn: async () => {
+      const identity = Object.fromEntries(
+        PROFILE_FIELDS.map(([field]) => [field, form[field]]),
+      );
+
+      if (person.client_id) {
+        await patchClient({
+          data: {
+            clientId: person.client_id,
+            client: {
+              ...identity,
+              ...Object.fromEntries(
+                CLIENT_FIELDS.map(([field]) => [field, form[field]]),
+              ),
+            },
+          },
+        });
+        if (
+          person.lead_id &&
+          form.availability !== (person.availability || '')
+        ) {
+          await patchLead({
+            leadId: person.lead_id,
+            lead: { availability: form.availability },
+          });
+        }
+        return;
+      }
+
+      await patchLead({
+        leadId: person.lead_id,
+        lead: { ...identity, availability: form.availability },
+      });
+    },
+    onSuccess: async () => {
+      enqueueSnackbar('Profile updated', SNACKBAR_SUCCESS_OPTIONS);
+      setEditing(false);
+      await refetch();
+      onUpdated?.();
+    },
+    onError: (mutationError) => {
+      enqueueSnackbar(
+        mutationError?.response?.data?.error || 'Failed to update profile',
+        SNACKBAR_ERROR_OPTIONS,
+      );
+    },
+  });
+
+  const bmi = useMemo(() => calculateBmi(person), [person]);
+  const fullName =
+    [person?.first_name, person?.last_name].filter(Boolean).join(' ') ||
+    'Person';
+
+  const handleFormChange = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const renderProfileField = ([field, label, type = 'text']) => (
+    <Grid key={field} size={{ xs: 12, sm: 6 }}>
+      <TextField
+        name={field}
+        label={label}
+        type={type}
+        value={form[field] ?? ''}
+        onChange={handleFormChange}
+        disabled={!editing}
+        size='small'
+        fullWidth
+      />
+    </Grid>
+  );
+
+  return (
+    <Drawer
+      anchor='right'
+      open={open}
+      onClose={onClose}
+      slotProps={{
+        paper: {
+          sx: {
+            width: { xs: '100%', sm: 620 },
+            maxWidth: '100vw',
+          },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 2,
+          bgcolor: 'background.paper',
+          borderBottom: 1,
+          borderColor: 'divider',
+          p: 2,
+        }}
+      >
+        <Stack
+          direction='row'
+          alignItems='center'
+          justifyContent='space-between'
+          spacing={2}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant='h6' noWrap>
+              {fullName}
+            </Typography>
+            {person && (
+              <Chip
+                label={person.lifecycle_status}
+                size='small'
+                sx={{
+                  mt: 0.5,
+                  bgcolor:
+                    person.lifecycle_status === 'SALE'
+                      ? 'success.light'
+                      : 'grey.200',
+                  color:
+                    person.lifecycle_status === 'SALE'
+                      ? 'success.main'
+                      : 'text.primary',
+                }}
+              />
+            )}
+          </Box>
+          <Stack direction='row' spacing={1} alignItems='center'>
+            {person?.lifecycle_status === 'LEAD' && (
+              <Button
+                variant='contained'
+                color='action'
+                onClick={() => onMarkSold?.(person)}
+              >
+                Mark Sold
+              </Button>
+            )}
+            <IconButton aria-label='Close profile' onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </Stack>
+      </Box>
+
+      <Box sx={{ p: 2 }}>
+        {isLoading && (
+          <Stack alignItems='center' sx={{ py: 8 }}>
+            <CircularProgress />
+          </Stack>
+        )}
+        {error && (
+          <Alert severity='error'>
+            {error?.response?.data?.error || 'Failed to load person'}
+          </Alert>
+        )}
+
+        {person && (
+          <Stack spacing={1.5}>
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography fontWeight={700}>Profile & Address</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Grid container spacing={2}>
+                  {PROFILE_FIELDS.map(renderProfileField)}
+                  {person.client_id &&
+                    CLIENT_FIELDS.map(renderProfileField)}
+                  <Grid size={12}>
+                    <TextField
+                      name='availability'
+                      label='Availability'
+                      value={form.availability ?? ''}
+                      onChange={handleFormChange}
+                      disabled={!editing}
+                      size='small'
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid size={12}>
+                    <Stack
+                      direction='row'
+                      spacing={1}
+                      justifyContent='flex-end'
+                    >
+                      {editing ? (
+                        <>
+                          <Button
+                            onClick={() => {
+                              setForm(profileFormFromPerson(person));
+                              setEditing(false);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant='contained'
+                            onClick={() => saveProfile()}
+                            disabled={isSaving}
+                          >
+                            {isSaving ? 'Saving…' : 'Save'}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant='outlined' onClick={() => setEditing(true)}>
+                          Edit profile
+                        </Button>
+                      )}
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography fontWeight={700}>Underwriting Data</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Stack spacing={2}>
+                  <Alert severity='info'>
+                    {person.height_feet || '—'}&apos;
+                    {person.height_inches ?? '—'}&quot; |{' '}
+                    {person.weight_lbs || '—'} lbs
+                    {bmi ? ` (BMI: ${bmi})` : ''}
+                  </Alert>
+                  <Stack direction='row' spacing={1} flexWrap='wrap'>
+                    <Chip
+                      label={person.smoker ? 'Smoker' : 'Non-smoker'}
+                      size='small'
+                      color={person.smoker ? 'error' : 'success'}
+                    />
+                    <Chip
+                      label={`Premium: ${premiumLabel(person)}`}
+                      size='small'
+                      variant='outlined'
+                    />
+                    {person.face_amount !== null && (
+                      <Chip
+                        label={`Coverage: ${formatCurrency(person.face_amount)}`}
+                        size='small'
+                        variant='outlined'
+                      />
+                    )}
+                  </Stack>
+                  <BooleanIndicator
+                    label='Cholesterol medication'
+                    value={person.cholesterol_medication}
+                  />
+                  <BooleanIndicator
+                    label='Blood pressure medication'
+                    value={person.blood_pressure_medication}
+                  />
+                  <Divider />
+                  <Typography variant='body2'>
+                    Carrier: {person.selected_carrier || '—'}
+                  </Typography>
+                  <Typography variant='body2'>
+                    Plan: {person.selected_plan || '—'}
+                  </Typography>
+                  <Typography variant='body2'>
+                    Reason: {person.why || '—'}
+                  </Typography>
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography fontWeight={700}>
+                  Policies & Beneficiaries ({person.policies?.length || 0})
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {!person.policies?.length ? (
+                  <Typography color='text.secondary'>
+                    No policies are linked to this person.
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {person.policies.map((policy) => (
+                      <Card key={policy.id} variant='outlined'>
+                        <CardContent>
+                          <Stack
+                            direction='row'
+                            justifyContent='space-between'
+                            spacing={2}
+                            alignItems='flex-start'
+                          >
+                            <Box>
+                              <Typography fontWeight={700}>
+                                {policy.carrier_name || 'Unknown Carrier'}
+                              </Typography>
+                              <Typography
+                                variant='body2'
+                                color='text.secondary'
+                              >
+                                {policy.policy_number || 'No policy number'}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={policy.policy_status || 'Unknown'}
+                              size='small'
+                              color={
+                                policy.policy_status === 'active'
+                                  ? 'success'
+                                  : policy.policy_status === 'lapsed'
+                                    ? 'error'
+                                    : 'warning'
+                              }
+                            />
+                          </Stack>
+                          <Grid container spacing={1.5} sx={{ mt: 1 }}>
+                            <Grid size={6}>
+                              <Typography variant='caption' color='text.secondary'>
+                                Coverage
+                              </Typography>
+                              <Typography variant='body2'>
+                                {formatCurrency(policy.coverage_amount)}
+                              </Typography>
+                            </Grid>
+                            <Grid size={6}>
+                              <Typography variant='caption' color='text.secondary'>
+                                {policyPremiumLabel(policy.premium_frequency)}
+                              </Typography>
+                              <Typography variant='body2'>
+                                {formatCurrency(policy.premium_amount)}
+                              </Typography>
+                            </Grid>
+                            <Grid size={6}>
+                              <Typography variant='caption' color='text.secondary'>
+                                Effective Date
+                              </Typography>
+                              <Typography variant='body2'>
+                                {formatDate(policy.effective_date)}
+                              </Typography>
+                            </Grid>
+                            <Grid size={6}>
+                              <Typography variant='caption' color='text.secondary'>
+                                Draft Day
+                              </Typography>
+                              <Typography variant='body2'>
+                                {policy.draft_day || '—'}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                          {!!policy.beneficiaries?.length && (
+                            <>
+                              <Divider sx={{ my: 1.5 }} />
+                              <Typography
+                                variant='caption'
+                                fontWeight={700}
+                                color='text.secondary'
+                              >
+                                BENEFICIARIES
+                              </Typography>
+                              <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                                {policy.beneficiaries.map((beneficiary) => (
+                                  <Stack
+                                    key={beneficiary.id}
+                                    direction='row'
+                                    justifyContent='space-between'
+                                    spacing={2}
+                                  >
+                                    <Typography variant='body2'>
+                                      {beneficiary.first_name}{' '}
+                                      {beneficiary.last_name}
+                                    </Typography>
+                                    <Typography
+                                      variant='body2'
+                                      color='text.secondary'
+                                    >
+                                      {beneficiary.relationship || '—'} ·{' '}
+                                      {beneficiary.allocation_percent ?? '—'}%
+                                    </Typography>
+                                  </Stack>
+                                ))}
+                              </Stack>
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          </Stack>
+        )}
+      </Box>
+    </Drawer>
+  );
+};
+
+export default PeopleDrawer;
