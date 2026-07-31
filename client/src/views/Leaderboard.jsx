@@ -415,11 +415,32 @@ const Leaderboard = () => {
       </Grid>
 
       {isLoading && (
-        <Stack spacing={2} mt={4}>
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} variant='rounded' height={64} />
-          ))}
-        </Stack>
+        <>
+          <Grid container spacing={2} mb={4} alignItems='flex-start'>
+            {[2, 1, 3].map((rank) => (
+              <Grid key={rank} size={{ xs: 12, md: 4 }}>
+                <Skeleton
+                  variant='rounded'
+                  height={rank === 1 ? 320 : 280}
+                  sx={{
+                    borderRadius: 3,
+                    mt: rank === 1 ? 0 : { xs: 0, md: 3 },
+                  }}
+                />
+              </Grid>
+            ))}
+          </Grid>
+          <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+            {[...Array(5)].map((_, i) => (
+              <Skeleton
+                key={i}
+                variant='rounded'
+                height={64}
+                sx={{ mb: 1.5, borderRadius: 2 }}
+              />
+            ))}
+          </Box>
+        </>
       )}
 
       {!isLoading && rows.length === 0 && (
