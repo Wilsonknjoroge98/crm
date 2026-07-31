@@ -243,9 +243,6 @@ const fetchClosedClientIds = async ({
       ),
     );
   } else {
-    const directRows = await fetchAllRows(() =>
-      buildQuery((query) => query.eq('agent_id', agentId)),
-    );
     const linkedRows = [];
     for (const clientIdChunk of chunkValues(ownedClientIds)) {
       linkedRows.push(
@@ -254,7 +251,7 @@ const fetchClosedClientIds = async ({
         )),
       );
     }
-    rows = [...directRows, ...linkedRows];
+    rows = linkedRows;
   }
 
   return [
@@ -762,23 +759,6 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
         return res
           .status(404)
           .json({ error: 'One or more people were not found' });
-      }
-
-      // The view's agent_id is the lead's agent, and reassignment paths (GSQ
-      // duplicate phones, bulk import) can move a lead without moving its
-      // clients. Deleting a SALE therefore requires owning the client itself,
-      // not just the lead.
-      if (!isSuperuser) {
-        const ownedClientIdSet = new Set(ownedClientIds);
-        const ownsEveryClient = people.every(
-          ({ client_id: clientId }) =>
-            !clientId || ownedClientIdSet.has(clientId),
-        );
-        if (!ownsEveryClient) {
-          return res
-            .status(404)
-            .json({ error: 'One or more people were not found' });
-        }
       }
 
       const clientIds = people

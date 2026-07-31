@@ -25,13 +25,17 @@ const getOwnedClientIds = async (supabase, agentId) => {
   return [...clientIds];
 };
 
+// Lead-only rows belong to the lead's agent; sale rows belong solely to
+// agents linked through agent_clients. Lead reassignment (duplicate phones,
+// bulk import) must not grant access to another agent's client.
 const applyOwnershipFilter = (query, agentId, ownedClientIds) => {
   if (ownedClientIds.length === 0) {
-    return query.eq('agent_id', agentId);
+    return query.is('client_id', null).eq('agent_id', agentId);
   }
 
   return query.or(
-    `agent_id.eq.${agentId},client_id.in.(${ownedClientIds.join(',')})`,
+    `and(client_id.is.null,agent_id.eq.${agentId}),` +
+      `client_id.in.(${ownedClientIds.join(',')})`,
   );
 };
 
