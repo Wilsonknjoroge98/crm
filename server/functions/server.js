@@ -32,6 +32,7 @@ const {
   gsqRouter,
   commissionsRouter,
   bulkUploadRouter,
+  peopleRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -69,6 +70,7 @@ app.use('/insights', insightsRouter);
 app.use('/gsq-account', gsqRouter);
 app.use('/commissions', commissionsRouter);
 app.use('/bulk-upload', bulkUploadRouter);
+app.use('/people', peopleRouter);
 
 app.get('/ad-spend', async (req, res) => {
   const { startDate, endDate, mode } = req.query;
