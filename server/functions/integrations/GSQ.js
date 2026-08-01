@@ -2,6 +2,7 @@ const { Firestore } = require('firebase-admin/firestore');
 const { getHyrosSource } = require('./hyros');
 const { supabaseService } = require('../services/supabase');
 const logger = require('firebase-functions/logger');
+const { parsePremium } = require('./premium');
 
 const inboundGSQ = async (req, res) => {
   try {
@@ -65,6 +66,7 @@ const inboundGSQ = async (req, res) => {
     agentId = agent.id;
 
     const lead = { ...req.body };
+    const premiumParsed = parsePremium(lead.premium);
 
     const payload = {
       first_name: firstName,
@@ -78,10 +80,9 @@ const inboundGSQ = async (req, res) => {
       face_amount: lead.faceAmount
         ? Number(lead.faceAmount.split('-')[0]) || null
         : null,
-      premium_max: lead.premium?.includes('-')
-        ? Number(lead.premium.split('-')[1]) || null
-        : null,
-      premium: lead.premium ? parseFloat(lead.premium) : null,
+      premium_min: premiumParsed.min,
+      premium_max: premiumParsed.max,
+      premium: premiumParsed.raw,
       selected_plan: lead.selectedPlan ?? null,
       selected_carrier: lead.selectedCarrier ?? null,
       beneficiary: lead.beneficiary ?? null,
