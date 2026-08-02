@@ -1,9 +1,6 @@
-// theme.js
 import { createTheme, alpha } from '@mui/material/styles';
 
-// ["#be8624","#160501","#ca9d56","#f9d077","#b29260","#442b0f","#e8b14d","#7a5f37"]
-
-export const createAppTheme = ({ agency }) => {
+export const createAppTheme = () => {
   return createTheme({
     palette: {
       primary: {
@@ -22,14 +19,14 @@ export const createAppTheme = ({ agency }) => {
         main: '#2F4E6F', // Light Blue
       },
       info: {
-        main: agency === 'ag_Hq92aLsK' ? '#DCE6EF' : '#D6EAF8',
-        alertBackground: '#e5f6fd',
+        main: '#D6EAF8',
+        alertBackground: '#E5F6FD',
         alertTextColor: '#2E3A59',
         alertIconColor: '#1C7EBB',
         contrastText: '#1A1A1A',
       },
       warning: {
-        main: agency === 'ag_Hq92aLsK' ? '#C9A24D' : '#C9A24D',
+        main: '#C9A24D',
       },
       success: {
         main: '#3F6F5B',
@@ -50,31 +47,46 @@ export const createAppTheme = ({ agency }) => {
       },
     },
 
+    // 1. GLOBAL TYPOGRAPHY SYSTEM
     typography: {
-      fontFamily: `"Libre Baskerville", serif`,
+      // Set Inter as the global default for all UI/Body text
+      fontFamily: '"Inter", "Helvetica", "Arial", sans-serif',
+
+      // Force Libre Baskerville ONLY on Headings
+      h1: { fontFamily: '"Libre Baskerville", serif', fontWeight: 700 },
+      h2: { fontFamily: '"Libre Baskerville", serif', fontWeight: 700 },
+      h3: { fontFamily: '"Libre Baskerville", serif', fontWeight: 700 },
       h4: {
+        fontFamily: '"Libre Baskerville", serif',
         fontWeight: 700,
-        textTransform: 'uppercase',
         letterSpacing: '0.5px',
       },
+      h5: { fontFamily: '"Libre Baskerville", serif', fontWeight: 700 },
+      h6: { fontFamily: '"Libre Baskerville", serif', fontWeight: 700 },
+
+      // Standard UI weights
       button: {
+        fontFamily: '"Inter", sans-serif',
         fontWeight: 600,
         textTransform: 'none',
         fontSize: '0.95rem',
       },
+      body1: { fontFamily: '"Inter", sans-serif' },
+      body2: { fontFamily: '"Inter", sans-serif' },
+      caption: { fontFamily: '"Inter", sans-serif' },
     },
+
+    // 2. GLOBAL COMPONENT OVERRIDES
     components: {
-      MuiTextField: {
-        defaultProps: {
-          slotProps: { inputLabel: { shrink: true } },
-        },
-      },
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: 3,
+            borderRadius: 6, // Slightly softer edges
             boxShadow: 'none',
             padding: '8px 20px',
+            '&:hover': {
+              boxShadow: 'none',
+            },
           },
         },
       },
@@ -82,97 +94,63 @@ export const createAppTheme = ({ agency }) => {
         styleOverrides: {
           root: {
             boxShadow: 'none',
+            backgroundImage: 'none',
           },
-        },
-      },
-      MuiTableHead: {
-        styleOverrides: {
-          root: {
-            backgroundColor: '#F9F9F9',
-            '& .MuiTableCell-head': {
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              color: '#1A1A1A',
-            },
-          },
-        },
-      },
-      MuiDataGrid: {
-        styleOverrides: {
-          root: {
-            '& .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaderTitle': {
-              userSelect: 'none',
-            },
-          },
-        },
-      },
-      MuiListItem: {
-        styleOverrides: {
-          root: {
-            userSelect: 'none',
-          },
-        },
-      },
-      MuiTypography: {
-        styleOverrides: {
-          root: {
-            '&.MuiTypography-h1, &.MuiTypography-h2, &.MuiTypography-h3, &.MuiTypography-h4, &.MuiTypography-h5, &.MuiTypography-h6':
-              {
-                userSelect: 'none',
-              },
-          },
-        },
-      },
-      MuiTableCell: {
-        styleOverrides: {
-          root: {
-            borderBottom: '1px solid #E0E0E0',
+          outlined: {
+            borderColor: '#E0E0E0',
+            borderRadius: 8,
           },
         },
       },
       MuiChip: {
         styleOverrides: {
           root: {
-            fontWeight: 600,
+            fontWeight: 700,
+            fontSize: '0.675rem',
             letterSpacing: '0.3px',
-            textTransform: 'capitalize',
+            fontFamily: '"Inter", sans-serif',
           },
         },
       },
-
-      // MuiAlert: {
-      //   styleOverrides: {
-      //     standardInfo: ({ theme }) => ({
-      //       marginBottom: theme.spacing(2),
-      //       color: alpha(theme.palette.info.alertTextColor, 0.9),
-      //       backgroundColor: alpha(theme.palette.info.alertBackground, 0.9),
-      //       '& .MuiAlert-icon': {
-      //         color: alpha(theme.palette.info.alertIconColor, 0.9),
-      //       },
-      //     }),
-      //     standardWarning: ({ theme }) => ({
-      //       marginBottom: theme.spacing(2),
-      //       color: alpha(theme.palette.warning.alertTextColor, 0.9),
-      //       backgroundColor: alpha(theme.palette.warning.alertBackground, 0.9),
-      //       '& .MuiAlert-icon': {
-      //         color: alpha(theme.palette.warning.alertIconColor, 0.9),
-      //       },
-      //     }),
-      //     standardError: ({ theme }) => ({
-      //       marginBottom: theme.spacing(2),
-      //       color: alpha(theme.palette.error.alertTextColor, 0.9),
-      //       backgroundColor: alpha(theme.palette.error.alertBackground, 0.9),
-      //       '& .MuiAlert-icon': {
-      //         color: alpha(theme.palette.error.alertIconColor, 0.9),
-      //       },
-      //     }),
-      //   },
-      // },
-
+      // Automatically polish ALL DataGrids across the app
+      MuiDataGrid: {
+        styleOverrides: {
+          root: {
+            border: 'none',
+            fontFamily: '"Inter", sans-serif',
+            '& .MuiDataGrid-columnHeaders': {
+              backgroundColor: '#FAFAFA',
+              borderBottom: '2px solid #E0E0E0',
+              '& .MuiDataGrid-columnHeaderTitle': {
+                fontWeight: 700,
+                color: '#5F5A52',
+                fontSize: '0.7rem',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                userSelect: 'none',
+              },
+            },
+            '& .MuiDataGrid-row': {
+              transition: 'background-color 0.15s ease-in-out',
+              '&:hover': {
+                backgroundColor: '#F9FAFB',
+              },
+            },
+            '& .MuiDataGrid-cell': {
+              borderBottom: '1px solid #F0F0F0',
+            },
+          },
+        },
+      },
+      MuiTextField: {
+        defaultProps: {
+          slotProps: { inputLabel: { shrink: true } },
+        },
+      },
       MuiInputBase: {
         styleOverrides: {
           root: {
-            borderRadius: 10,
+            borderRadius: 8,
             backgroundColor: '#FFFFFF',
           },
         },
@@ -187,160 +165,3 @@ export const createAppTheme = ({ agency }) => {
     },
   });
 };
-// const theme = createTheme({
-//   palette: {
-//     primary: {
-//       main: '#1A1A1A', // Black
-//       contrastText: '#F2F2F2',
-//     },
-//     secondary: {
-//       main: '#4A4A4A', // Charcoal
-//       contrastText: '#F2F2F2',
-//     },
-//     action: {
-//       main: '#CA9837', // Gold
-//       contrastText: '#1A1A1A',
-//     },
-//     accent: {
-//       main: '#5DA9E9', // Light Blue
-//     },
-//     info: {
-//       main: '#D6EAF8',
-//       alertBackground: '#e5f6fd',
-//       alertTextColor: '#2E3A59',
-//       alertIconColor: '#1C7EBB',
-//       contrastText: '#1A1A1A',
-//     },
-//     warning: {
-//       main: '#FCF3CF',
-//       contrastText: '#1A1A1A',
-//       alertBackground: '#fff4e6',
-//       alertTextColor: '#7A4A00',
-//       alertIconColor: '#D48806',
-//     },
-//     success: {
-//       main: '#D5F5E3',
-//       contrastText: '#1A1A1A',
-//     },
-//     error: {
-//       main: '#FADBD8',
-//       alertBackground: '#fff1f0',
-//       alertTextColor: '#611A15',
-//       alertIconColor: '#D32F2F',
-//       contrastText: '#1A1A1A',
-//     },
-//     background: {
-//       default: '#F2F2F2',
-//       paper: '#FFFFFF',
-//     },
-//     text: {
-//       primary: '#1A1A1A',
-//       secondary: '#4A4A4A',
-//     },
-//   },
-
-//   typography: {
-//     fontFamily: `"Libre Baskerville", serif`,
-//     h4: {
-//       fontWeight: 700,
-//       textTransform: 'uppercase',
-//       letterSpacing: '0.5px',
-//     },
-//     button: {
-//       fontWeight: 600,
-//       textTransform: 'none',
-//       fontSize: '0.95rem',
-//     },
-//   },
-//   components: {
-//     MuiButton: {
-//       styleOverrides: {
-//         root: {
-//           borderRadius: 3,
-//           boxShadow: 'none',
-//           padding: '8px 20px',
-//         },
-//       },
-//     },
-//     MuiPaper: {
-//       styleOverrides: {
-//         root: {
-//           boxShadow: '0px 10px 25px rgba(0,0,0,0.05)',
-//         },
-//       },
-//     },
-//     MuiTableHead: {
-//       styleOverrides: {
-//         root: {
-//           backgroundColor: '#F9F9F9',
-//           '& .MuiTableCell-head': {
-//             fontWeight: 700,
-//             fontSize: '0.875rem',
-//             color: '#1A1A1A',
-//           },
-//         },
-//       },
-//     },
-//     MuiTableCell: {
-//       styleOverrides: {
-//         root: {
-//           borderBottom: '1px solid #E0E0E0',
-//         },
-//       },
-//     },
-//     MuiChip: {
-//       styleOverrides: {
-//         root: {
-//           fontWeight: 600,
-//           letterSpacing: '0.3px',
-//           textTransform: 'capitalize',
-//         },
-//       },
-//     },
-//     MuiAlert: {
-//       styleOverrides: {
-//         standardInfo: ({ theme }) => ({
-//           marginBottom: theme.spacing(2),
-//           color: alpha(theme.palette.info.alertTextColor, 0.9),
-//           backgroundColor: alpha(theme.palette.info.alertBackground, 0.9),
-//           '& .MuiAlert-icon': {
-//             color: alpha(theme.palette.info.alertIconColor, 0.9),
-//           },
-//         }),
-//         standardWarning: ({ theme }) => ({
-//           marginBottom: theme.spacing(2),
-//           color: alpha(theme.palette.warning.alertTextColor, 0.9),
-//           backgroundColor: alpha(theme.palette.warning.alertBackground, 0.9),
-//           '& .MuiAlert-icon': {
-//             color: alpha(theme.palette.warning.alertIconColor, 0.9),
-//           },
-//         }),
-//         standardError: ({ theme }) => ({
-//           marginBottom: theme.spacing(2),
-//           color: alpha(theme.palette.error.alertTextColor, 0.9),
-//           backgroundColor: alpha(theme.palette.error.alertBackground, 0.9),
-//           '& .MuiAlert-icon': {
-//             color: alpha(theme.palette.error.alertIconColor, 0.9),
-//           },
-//         }),
-//       },
-//     },
-//     MuiInputBase: {
-//       styleOverrides: {
-//         root: {
-//           borderRadius: 10,
-//           backgroundColor: '#FFFFFF',
-//         },
-//       },
-//     },
-//     MuiOutlinedInput: {
-//       styleOverrides: {
-//         notchedOutline: {
-//           borderColor: '#DDD',
-//         },
-//       },
-//     },
-//   },
-// });
-
-// export default theme;
