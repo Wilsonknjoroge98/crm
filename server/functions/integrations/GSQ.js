@@ -45,7 +45,7 @@ const inboundGSQ = async (req, res) => {
 
     // If the lead is issued to the GSQ platform email, override the email to match company
     if (issuedTo === GSQ_PLATFORM_EMAIL) {
-      issuedTo = 'info@finalexpensedigital.com';
+      issuedTo = 'info@fexdigital.com';
     }
 
     let agentId = null;
