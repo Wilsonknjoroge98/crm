@@ -37,7 +37,14 @@ const getInitials = (name) =>
     .slice(0, 2)
     .toUpperCase();
 
-const WinnerCard = ({ label, chipSx, tint, watermark, champion, isLoading }) => (
+const WinnerCard = ({
+  label,
+  chipSx,
+  tint,
+  watermark,
+  champion,
+  isLoading,
+}) => (
   <Paper
     elevation={0}
     variant='outlined'
@@ -266,11 +273,7 @@ const MentionRow = ({ row, rank }) => (
         <Typography fontFamily={SERIF} variant='subtitle2'>
           {row.name}
         </Typography>
-        <Typography
-          fontFamily={SANS}
-          variant='caption'
-          color='text.secondary'
-        >
+        <Typography fontFamily={SANS} variant='caption' color='text.secondary'>
           {row.count} {row.count === 1 ? 'Sale' : 'Sales'}
         </Typography>
       </Box>
@@ -316,7 +319,12 @@ const Leaderboard = () => {
     .endOf('month')
     .format('YYYY-MM-DD');
   const { data: lastMonthRows = [], isPending: lastMonthPending } = useQuery({
-    queryKey: ['premiumLeaderboard', lastMonthStart, lastMonthEnd, agent?.org_id],
+    queryKey: [
+      'premiumLeaderboard',
+      lastMonthStart,
+      lastMonthEnd,
+      agent?.org_id,
+    ],
     queryFn: () =>
       getPremiumLeaderboard({
         agency: agent?.org_id,
@@ -346,9 +354,13 @@ const Leaderboard = () => {
   });
 
   const handleStartChange = (val) =>
-    setStartDate(val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD') : '');
+    setStartDate(
+      val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD') : '',
+    );
   const handleEndChange = (val) =>
-    setEndDate(val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD') : '');
+    setEndDate(
+      val && dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD') : '',
+    );
 
   const totalPremium = rows.reduce((sum, row) => sum + row.premiumAmount, 0);
   const totalSalesCount = rows.reduce((sum, row) => sum + row.count, 0);
@@ -373,18 +385,52 @@ const Leaderboard = () => {
           <Typography
             variant='h4'
             fontFamily={SERIF}
-            sx={{ textTransform: 'none', letterSpacing: 0 }}
+            sx={{ textTransform: 'none', letterSpacing: 0, mb: 0.5 }}
           >
             Leaderboard
           </Typography>
-          <Typography
-            fontFamily={SANS}
-            variant='body2'
-            color='text.secondary'
-            mt={0.5}
-          >
-            Top performing agents, ranked by total premium
-          </Typography>
+          <Stack direction='row' spacing={1} alignItems='center'>
+            <Typography
+              fontFamily={SANS}
+              variant='body2'
+              color='text.secondary'
+            >
+              Top performing agents
+            </Typography>
+            <Typography variant='body2' color='text.disabled'>
+              |
+            </Typography>
+            {isPending ? (
+              <Skeleton variant='text' width={220} height={25} />
+            ) : (
+              <>
+                <Typography
+                  fontFamily={SANS}
+                  variant='body2'
+                  color='text.secondary'
+                >
+                  Total:
+                </Typography>
+                <Typography
+                  variant='body2'
+                  sx={{
+                    fontFamily: MONO,
+                    fontWeight: 700,
+                    color: 'success.main',
+                  }}
+                >
+                  {currency.format(totalPremium)}
+                </Typography>
+                <Typography
+                  fontFamily={SANS}
+                  variant='caption'
+                  color='text.secondary'
+                >
+                  ({totalSalesCount} {totalSalesCount === 1 ? 'sale' : 'sales'})
+                </Typography>
+              </>
+            )}
+          </Stack>
         </Box>
         <DateSelector
           startDate={startDate}
@@ -395,63 +441,6 @@ const Leaderboard = () => {
           isLoading={isLoading}
         />
       </Stack>
-
-      <Paper
-        elevation={0}
-        sx={{
-          py: 1.5,
-          px: 3,
-          mb: 3,
-          borderRadius: 2,
-          bgcolor: '#FAFAFA',
-          border: '1px solid #E0E0E0',
-        }}
-      >
-        <Stack direction='row' alignItems='center' justifyContent='space-between'>
-          <Stack direction='row' spacing={2} alignItems='center'>
-            <Typography
-              variant='caption'
-              sx={{
-                fontFamily: SANS,
-                fontWeight: 700,
-                color: 'text.secondary',
-                letterSpacing: '0.5px',
-                textTransform: 'uppercase',
-              }}
-            >
-              Total Sales (Selected Period):
-            </Typography>
-            {isPending ? (
-              <Skeleton variant='rounded' width={140} height={28} />
-            ) : (
-              <Typography
-                variant='h6'
-                sx={{
-                  fontFamily: MONO,
-                  fontWeight: 700,
-                  color: 'success.main',
-                }}
-              >
-                {currency.format(totalPremium)}
-              </Typography>
-            )}
-          </Stack>
-
-          {!isPending && (
-            <Chip
-              label={`${totalSalesCount} ${totalSalesCount === 1 ? 'Sale' : 'Sales'}`}
-              size='small'
-              sx={{
-                bgcolor: '#E0E0E0',
-                color: 'text.primary',
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                fontFamily: MONO,
-              }}
-            />
-          )}
-        </Stack>
-      </Paper>
 
       <Grid container spacing={2} mb={4}>
         <Grid size={{ xs: 12, sm: 6 }}>
@@ -467,7 +456,10 @@ const Leaderboard = () => {
         <Grid size={{ xs: 12, sm: 6 }}>
           <WinnerCard
             label="LAST WEEK'S CHAMP"
-            chipSx={{ bgcolor: 'info.alertBackground', color: 'secondary.main' }}
+            chipSx={{
+              bgcolor: 'info.alertBackground',
+              color: 'secondary.main',
+            }}
             tint={(theme) => alpha(theme.palette.info.alertIconColor, 0.06)}
             watermark='info.alertIconColor'
             champion={lastWeekRows[0]}
