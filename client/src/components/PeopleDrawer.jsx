@@ -15,14 +15,16 @@ import {
   Drawer,
   Grid,
   IconButton,
+  Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloseIcon from '@mui/icons-material/Close';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { enqueueSnackbar } from 'notistack';
 import {
   getPerson,
@@ -33,6 +35,10 @@ import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
+
+const SANS = '"Inter", sans-serif';
+const MONO = '"JetBrains Mono", monospace';
+const SERIF = '"Libre Baskerville", serif';
 
 const PROFILE_FIELDS = [
   ['first_name', 'First Name'],
@@ -124,13 +130,29 @@ const profileFormFromPerson = (person) => ({
 });
 
 const BooleanIndicator = ({ label, value }) => (
-  <Stack direction='row' spacing={1} alignItems='center'>
+  <Stack
+    direction='row'
+    spacing={1}
+    alignItems='center'
+    sx={{
+      px: 1.5,
+      py: 0.75,
+      borderRadius: 2,
+      bgcolor: value ? '#E6F1EC' : 'grey.100',
+    }}
+  >
     {value ? (
-      <CheckCircleIcon color='success' fontSize='small' />
+      <CheckCircleOutlinedIcon fontSize='small' sx={{ color: 'success.main' }} />
     ) : (
-      <CancelIcon color='error' fontSize='small' />
+      <CancelOutlinedIcon fontSize='small' sx={{ color: 'text.disabled' }} />
     )}
-    <Typography variant='body2'>
+    <Typography
+      variant='body2'
+      sx={{
+        fontWeight: 600,
+        color: value ? 'success.main' : 'text.secondary',
+      }}
+    >
       {label}: {value ? 'Yes' : 'No'}
     </Typography>
   </Stack>
@@ -236,12 +258,65 @@ const PeopleDrawer = ({
         type={type}
         value={form[field] ?? ''}
         onChange={handleFormChange}
-        disabled={!editing}
         size='small'
         fullWidth
       />
     </Grid>
   );
+
+  const handleCopy = async (label, value) => {
+    await navigator.clipboard.writeText(value);
+    enqueueSnackbar(`${label} copied`, SNACKBAR_SUCCESS_OPTIONS);
+  };
+
+  const readFieldValue = (field) => {
+    if (field === 'date_of_birth') return formatDate(person?.date_of_birth);
+    if (field === 'annual_income') {
+      return person?.annual_income != null
+        ? formatCurrency(person.annual_income)
+        : '—';
+    }
+    return person?.[field] || '—';
+  };
+
+  const renderReadField = ([field, label]) => {
+    const value = readFieldValue(field);
+    const mono = ['phone', 'date_of_birth', 'zip', 'annual_income'].includes(
+      field,
+    );
+    const copyable = ['phone', 'email'].includes(field) && value !== '—';
+    return (
+      <Grid key={field} size={{ xs: 12, sm: 6 }}>
+        <Typography
+          variant='caption'
+          sx={{ fontFamily: SANS, fontWeight: 700, color: 'text.secondary' }}
+        >
+          {label}
+        </Typography>
+        <Stack direction='row' spacing={0.5} alignItems='center'>
+          <Typography
+            variant='body2'
+            sx={{
+              fontWeight: 600,
+              fontFamily: mono ? MONO : SANS,
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {value}
+          </Typography>
+          {copyable && (
+            <IconButton
+              size='small'
+              aria-label={`Copy ${label.toLowerCase()}`}
+              onClick={() => handleCopy(label, value)}
+            >
+              <ContentCopyIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          )}
+        </Stack>
+      </Grid>
+    );
+  };
 
   return (
     <Drawer
@@ -332,53 +407,68 @@ const PeopleDrawer = ({
                 <Typography fontWeight={700}>Profile & Address</Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <Grid container spacing={2}>
-                  {PROFILE_FIELDS.map(renderProfileField)}
-                  {person.client_id &&
-                    CLIENT_FIELDS.map(renderProfileField)}
-                  <Grid size={12}>
-                    <TextField
-                      name='availability'
-                      label='Availability'
-                      value={form.availability ?? ''}
-                      onChange={handleFormChange}
-                      disabled={!editing}
-                      size='small'
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid size={12}>
-                    <Stack
-                      direction='row'
-                      spacing={1}
-                      justifyContent='flex-end'
-                    >
-                      {editing ? (
-                        <>
-                          <Button
-                            onClick={() => {
-                              setForm(profileFormFromPerson(person));
-                              setEditing(false);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            variant='contained'
-                            onClick={() => saveProfile()}
-                            disabled={isSaving}
-                          >
-                            {isSaving ? 'Saving…' : 'Save'}
-                          </Button>
-                        </>
-                      ) : (
-                        <Button variant='outlined' onClick={() => setEditing(true)}>
-                          Edit profile
+                {editing ? (
+                  <Grid container spacing={2}>
+                    {PROFILE_FIELDS.map(renderProfileField)}
+                    {person.client_id &&
+                      CLIENT_FIELDS.map(renderProfileField)}
+                    <Grid size={12}>
+                      <TextField
+                        name='availability'
+                        label='Availability'
+                        value={form.availability ?? ''}
+                        onChange={handleFormChange}
+                        size='small'
+                        fullWidth
+                      />
+                    </Grid>
+                    <Grid size={12}>
+                      <Stack
+                        direction='row'
+                        spacing={1}
+                        justifyContent='flex-end'
+                      >
+                        <Button
+                          onClick={() => {
+                            setForm(profileFormFromPerson(person));
+                            setEditing(false);
+                          }}
+                        >
+                          Cancel
                         </Button>
-                      )}
-                    </Stack>
+                        <Button
+                          variant='contained'
+                          onClick={() => saveProfile()}
+                          disabled={isSaving}
+                        >
+                          {isSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                      </Stack>
+                    </Grid>
                   </Grid>
-                </Grid>
+                ) : (
+                  <Stack spacing={2}>
+                    <Paper
+                      variant='outlined'
+                      sx={{ bgcolor: '#FAFAFA', p: 2, borderRadius: 2 }}
+                    >
+                      <Grid container spacing={2}>
+                        {PROFILE_FIELDS.map(renderReadField)}
+                        {person.client_id &&
+                          CLIENT_FIELDS.map(renderReadField)}
+                        {renderReadField(['availability', 'Availability'])}
+                      </Grid>
+                    </Paper>
+                    <Stack direction='row' justifyContent='flex-end'>
+                      <Button
+                        variant='outlined'
+                        onClick={() => setEditing(true)}
+                      >
+                        Edit profile
+                      </Button>
+                    </Stack>
+                  </Stack>
+                )}
               </AccordionDetails>
             </Accordion>
 
@@ -388,7 +478,7 @@ const PeopleDrawer = ({
               </AccordionSummary>
               <AccordionDetails>
                 <Stack spacing={2}>
-                  <Alert severity='info'>
+                  <Alert severity='info' sx={{ fontFamily: MONO }}>
                     {person.height_feet || '—'}&apos;
                     {person.height_inches ?? '—'}&quot; |{' '}
                     {person.weight_lbs || '—'} lbs
@@ -421,16 +511,42 @@ const PeopleDrawer = ({
                     label='Blood pressure medication'
                     value={person.blood_pressure_medication}
                   />
-                  <Divider />
-                  <Typography variant='body2'>
-                    Carrier: {person.selected_carrier || '—'}
-                  </Typography>
-                  <Typography variant='body2'>
-                    Plan: {person.selected_plan || '—'}
-                  </Typography>
-                  <Typography variant='body2'>
-                    Reason: {person.why || '—'}
-                  </Typography>
+                  <Paper
+                    variant='outlined'
+                    sx={{ bgcolor: '#FAFAFA', p: 2, borderRadius: 2 }}
+                  >
+                    <Grid container spacing={2}>
+                      {[
+                        ['Selected Carrier', person.selected_carrier, 6],
+                        ['Selected Plan', person.selected_plan, 6],
+                        ['Reason', person.why, 12],
+                      ].map(([label, value, size]) => (
+                        <Grid key={label} size={{ xs: 12, sm: size }}>
+                          <Typography
+                            variant='caption'
+                            display='block'
+                            sx={{
+                              fontFamily: SANS,
+                              fontWeight: 700,
+                              color: 'text.secondary',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {label}
+                          </Typography>
+                          <Typography
+                            variant='body2'
+                            sx={{
+                              fontWeight: 600,
+                              color: value ? 'text.primary' : 'text.disabled',
+                            }}
+                          >
+                            {value || 'None'}
+                          </Typography>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Paper>
                 </Stack>
               </AccordionDetails>
             </Accordion>
@@ -449,7 +565,11 @@ const PeopleDrawer = ({
                 ) : (
                   <Stack spacing={2}>
                     {person.policies.map((policy) => (
-                      <Card key={policy.id} variant='outlined'>
+                      <Card
+                        key={policy.id}
+                        variant='outlined'
+                        sx={{ borderRadius: 2, borderColor: '#E0E0E0' }}
+                      >
                         <CardContent>
                           <Stack
                             direction='row'
@@ -464,6 +584,7 @@ const PeopleDrawer = ({
                               <Typography
                                 variant='body2'
                                 color='text.secondary'
+                                sx={{ fontFamily: MONO }}
                               >
                                 {policy.policy_number || 'No policy number'}
                               </Typography>
@@ -485,7 +606,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 Coverage
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {formatCurrency(policy.coverage_amount)}
                               </Typography>
                             </Grid>
@@ -493,7 +614,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 {policyPremiumLabel(policy.premium_frequency)}
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {formatCurrency(policy.premium_amount)}
                               </Typography>
                             </Grid>
@@ -501,7 +622,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 Effective Date
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {formatDate(policy.effective_date)}
                               </Typography>
                             </Grid>
@@ -509,7 +630,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 Draft Day
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {policy.draft_day || '—'}
                               </Typography>
                             </Grid>
@@ -532,7 +653,10 @@ const PeopleDrawer = ({
                                     justifyContent='space-between'
                                     spacing={2}
                                   >
-                                    <Typography variant='body2'>
+                                    <Typography
+                                      variant='body2'
+                                      sx={{ fontFamily: SERIF, fontWeight: 600 }}
+                                    >
                                       {beneficiary.first_name}{' '}
                                       {beneficiary.last_name}
                                     </Typography>
@@ -541,7 +665,12 @@ const PeopleDrawer = ({
                                       color='text.secondary'
                                     >
                                       {beneficiary.relationship || '—'} ·{' '}
-                                      {beneficiary.allocation_percent ?? '—'}%
+                                      <Box
+                                        component='span'
+                                        sx={{ fontFamily: MONO }}
+                                      >
+                                        {beneficiary.allocation_percent ?? '—'}%
+                                      </Box>
                                     </Typography>
                                   </Stack>
                                 ))}
