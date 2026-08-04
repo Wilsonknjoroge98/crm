@@ -38,6 +38,7 @@ import {
 
 const SANS = '"Inter", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
+const SERIF = '"Libre Baskerville", serif';
 
 const PROFILE_FIELDS = [
   ['first_name', 'First Name'],
@@ -564,7 +565,11 @@ const PeopleDrawer = ({
                 ) : (
                   <Stack spacing={2}>
                     {person.policies.map((policy) => (
-                      <Card key={policy.id} variant='outlined'>
+                      <Card
+                        key={policy.id}
+                        variant='outlined'
+                        sx={{ borderRadius: 2, borderColor: '#E0E0E0' }}
+                      >
                         <CardContent>
                           <Stack
                             direction='row'
@@ -579,6 +584,7 @@ const PeopleDrawer = ({
                               <Typography
                                 variant='body2'
                                 color='text.secondary'
+                                sx={{ fontFamily: MONO }}
                               >
                                 {policy.policy_number || 'No policy number'}
                               </Typography>
@@ -600,7 +606,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 Coverage
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {formatCurrency(policy.coverage_amount)}
                               </Typography>
                             </Grid>
@@ -608,7 +614,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 {policyPremiumLabel(policy.premium_frequency)}
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {formatCurrency(policy.premium_amount)}
                               </Typography>
                             </Grid>
@@ -616,7 +622,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 Effective Date
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {formatDate(policy.effective_date)}
                               </Typography>
                             </Grid>
@@ -624,7 +630,7 @@ const PeopleDrawer = ({
                               <Typography variant='caption' color='text.secondary'>
                                 Draft Day
                               </Typography>
-                              <Typography variant='body2'>
+                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
                                 {policy.draft_day || '—'}
                               </Typography>
                             </Grid>
@@ -647,7 +653,10 @@ const PeopleDrawer = ({
                                     justifyContent='space-between'
                                     spacing={2}
                                   >
-                                    <Typography variant='body2'>
+                                    <Typography
+                                      variant='body2'
+                                      sx={{ fontFamily: SERIF, fontWeight: 600 }}
+                                    >
                                       {beneficiary.first_name}{' '}
                                       {beneficiary.last_name}
                                     </Typography>
@@ -656,7 +665,12 @@ const PeopleDrawer = ({
                                       color='text.secondary'
                                     >
                                       {beneficiary.relationship || '—'} ·{' '}
-                                      {beneficiary.allocation_percent ?? '—'}%
+                                      <Box
+                                        component='span'
+                                        sx={{ fontFamily: MONO }}
+                                      >
+                                        {beneficiary.allocation_percent ?? '—'}%
+                                      </Box>
                                     </Typography>
                                   </Stack>
                                 ))}
