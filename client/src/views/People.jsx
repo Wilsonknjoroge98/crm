@@ -43,6 +43,9 @@ import PeopleDrawer from '../components/PeopleDrawer';
 import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 
+const SANS = '"Inter", sans-serif';
+const MONO = '"JetBrains Mono", monospace';
+
 const DATE_PRESETS = [
   ['last_7_days', 'Last 7 days'],
   ['last_30_days', 'Last 30 days'],
@@ -97,22 +100,24 @@ const downloadRows = (rows) => {
   URL.revokeObjectURL(url);
 };
 
-const MetricCard = ({ label, value, accent }) => (
+const MetricCard = ({ label, value, chipSx }) => (
   <Paper
     variant='outlined'
     sx={{
       p: 2,
       minWidth: 150,
       flex: 1,
-      borderColor: 'divider',
-      borderTop: 3,
-      borderTopColor: accent,
+      bgcolor: 'info.alertBackground',
+      border: '1px solid #E0E0E0',
+      borderRadius: 2,
     }}
   >
-    <Typography variant='caption' color='text.secondary'>
-      {label}
-    </Typography>
-    <Typography variant='h5' sx={{ mt: 0.5 }}>
+    <Chip
+      label={label}
+      size='small'
+      sx={{ fontWeight: 700, fontFamily: SANS, ...chipSx }}
+    />
+    <Typography variant='h5' sx={{ mt: 1, fontFamily: MONO }}>
       {value}
     </Typography>
   </Paper>
@@ -359,16 +364,20 @@ const People = () => {
           <Alert severity='error'>Failed to load people metrics.</Alert>
         )}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-          <MetricCard label='New' value={metrics?.new ?? '—'} accent='info.main' />
+          <MetricCard
+            label='New'
+            value={metrics?.new ?? '—'}
+            chipSx={{ bgcolor: '#F0F4F8', color: 'secondary.main' }}
+          />
           <MetricCard
             label='Closed'
             value={metrics?.closed ?? '—'}
-            accent='success.main'
+            chipSx={{ bgcolor: 'success.light', color: 'success.contrastText' }}
           />
           <MetricCard
             label='Total Closed'
             value={metrics ? formatCurrency(metrics.totalClosed) : '—'}
-            accent='action.main'
+            chipSx={{ bgcolor: 'primary.main', color: 'action.main' }}
           />
         </Stack>
 
