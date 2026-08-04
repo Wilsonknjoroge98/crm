@@ -22,8 +22,8 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloseIcon from '@mui/icons-material/Close';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { enqueueSnackbar } from 'notistack';
 import {
@@ -129,13 +129,29 @@ const profileFormFromPerson = (person) => ({
 });
 
 const BooleanIndicator = ({ label, value }) => (
-  <Stack direction='row' spacing={1} alignItems='center'>
+  <Stack
+    direction='row'
+    spacing={1}
+    alignItems='center'
+    sx={{
+      px: 1.5,
+      py: 0.75,
+      borderRadius: 2,
+      bgcolor: value ? '#E6F1EC' : 'grey.100',
+    }}
+  >
     {value ? (
-      <CheckCircleIcon color='success' fontSize='small' />
+      <CheckCircleOutlinedIcon fontSize='small' sx={{ color: 'success.main' }} />
     ) : (
-      <CancelIcon color='error' fontSize='small' />
+      <CancelOutlinedIcon fontSize='small' sx={{ color: 'text.disabled' }} />
     )}
-    <Typography variant='body2'>
+    <Typography
+      variant='body2'
+      sx={{
+        fontWeight: 600,
+        color: value ? 'success.main' : 'text.secondary',
+      }}
+    >
       {label}: {value ? 'Yes' : 'No'}
     </Typography>
   </Stack>
@@ -461,7 +477,7 @@ const PeopleDrawer = ({
               </AccordionSummary>
               <AccordionDetails>
                 <Stack spacing={2}>
-                  <Alert severity='info'>
+                  <Alert severity='info' sx={{ fontFamily: MONO }}>
                     {person.height_feet || '—'}&apos;
                     {person.height_inches ?? '—'}&quot; |{' '}
                     {person.weight_lbs || '—'} lbs
@@ -494,16 +510,42 @@ const PeopleDrawer = ({
                     label='Blood pressure medication'
                     value={person.blood_pressure_medication}
                   />
-                  <Divider />
-                  <Typography variant='body2'>
-                    Carrier: {person.selected_carrier || '—'}
-                  </Typography>
-                  <Typography variant='body2'>
-                    Plan: {person.selected_plan || '—'}
-                  </Typography>
-                  <Typography variant='body2'>
-                    Reason: {person.why || '—'}
-                  </Typography>
+                  <Paper
+                    variant='outlined'
+                    sx={{ bgcolor: '#FAFAFA', p: 2, borderRadius: 2 }}
+                  >
+                    <Grid container spacing={2}>
+                      {[
+                        ['Selected Carrier', person.selected_carrier, 6],
+                        ['Selected Plan', person.selected_plan, 6],
+                        ['Reason', person.why, 12],
+                      ].map(([label, value, size]) => (
+                        <Grid key={label} size={{ xs: 12, sm: size }}>
+                          <Typography
+                            variant='caption'
+                            display='block'
+                            sx={{
+                              fontFamily: SANS,
+                              fontWeight: 700,
+                              color: 'text.secondary',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {label}
+                          </Typography>
+                          <Typography
+                            variant='body2'
+                            sx={{
+                              fontWeight: 600,
+                              color: value ? 'text.primary' : 'text.disabled',
+                            }}
+                          >
+                            {value || 'None'}
+                          </Typography>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Paper>
                 </Stack>
               </AccordionDetails>
             </Accordion>
