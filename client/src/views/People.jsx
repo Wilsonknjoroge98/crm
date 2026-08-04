@@ -23,6 +23,8 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import HighlightOffOutlinedIcon from '@mui/icons-material/HighlightOffOutlined';
 import {
   useMutation,
   useQuery,
@@ -267,7 +269,16 @@ const People = () => {
           [row.first_name, row.last_name].filter(Boolean).join(' ') || '—',
       },
       { field: 'email', headerName: 'Email', minWidth: 220, flex: 1 },
-      { field: 'phone', headerName: 'Phone', minWidth: 140 },
+      {
+        field: 'phone',
+        headerName: 'Phone',
+        minWidth: 140,
+        renderCell: ({ value }) => (
+          <Box component='span' sx={{ fontFamily: MONO }}>
+            {value}
+          </Box>
+        ),
+      },
       { field: 'state', headerName: 'State', minWidth: 130 },
       {
         field: 'lifecycle_status',
@@ -278,35 +289,45 @@ const People = () => {
             label={value}
             size='small'
             sx={{
-              bgcolor: value === 'SALE' ? 'success.light' : 'grey.200',
-              color: value === 'SALE' ? 'success.main' : 'text.primary',
+              bgcolor: value === 'SALE' ? '#E6F1EC' : '#F0F4F8',
+              color: value === 'SALE' ? 'success.main' : 'secondary.main',
+              border: '1px solid',
+              borderColor: 'divider',
               fontWeight: 700,
+              fontSize: '0.675rem',
             }}
           />
         ),
       },
       {
         field: 'verified',
-        headerName: 'Verification',
-        minWidth: 130,
+        headerName: 'Verified',
+        minWidth: 100,
         sortable: false,
-        renderCell: ({ value }) => (
-          <Chip
-            label={value ? 'Verified' : 'Unverified'}
-            size='small'
-            sx={{
-              bgcolor: value ? 'success.light' : 'rgba(139, 46, 46, 0.1)',
-              color: value ? 'success.main' : 'error.main',
-            }}
-          />
-        ),
+        renderCell: ({ value }) =>
+          value === true ? (
+            <CheckCircleOutlinedIcon
+              fontSize='small'
+              sx={{ color: 'success.main' }}
+            />
+          ) : value === false ? (
+            <HighlightOffOutlinedIcon
+              fontSize='small'
+              sx={{ color: 'text.disabled' }}
+            />
+          ) : (
+            '—'
+          ),
       },
       {
         field: 'created_at',
         headerName: 'Created At',
-        minWidth: 180,
-        renderCell: ({ value }) =>
-          value ? new Date(value).toLocaleString() : '—',
+        minWidth: 210,
+        renderCell: ({ value }) => (
+          <Box component='span' sx={{ fontFamily: MONO }}>
+            {value ? new Date(value).toLocaleString() : '—'}
+          </Box>
+        ),
       },
     ],
     [],
