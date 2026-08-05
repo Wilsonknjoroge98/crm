@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Accordion,
@@ -13,24 +14,22 @@ import {
   CircularProgress,
   Divider,
   Drawer,
-  Grid,
   IconButton,
   Paper,
   Stack,
   TextField,
   Typography,
+  Grid,
 } from '@mui/material';
+
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { enqueueSnackbar } from 'notistack';
-import {
-  getPerson,
-  patchClient,
-  patchLead,
-} from '../utils/query';
+import { getPerson, patchClient, patchLead } from '../utils/query';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
@@ -106,8 +105,7 @@ const policyPremiumLabel = (frequency) =>
 
 const calculateBmi = (person) => {
   const inches =
-    Number(person?.height_feet || 0) * 12 +
-    Number(person?.height_inches || 0);
+    Number(person?.height_feet || 0) * 12 + Number(person?.height_inches || 0);
   const pounds = Number(person?.weight_lbs);
   if (!inches || !pounds) return null;
   return ((pounds / (inches * inches)) * 703).toFixed(1);
@@ -129,42 +127,35 @@ const profileFormFromPerson = (person) => ({
   availability: person?.availability || '',
 });
 
-const BooleanIndicator = ({ label, value }) => (
-  <Stack
-    direction='row'
-    spacing={1}
-    alignItems='center'
-    sx={{
-      px: 1.5,
-      py: 0.75,
-      borderRadius: 2,
-      bgcolor: value ? '#E6F1EC' : 'grey.100',
-    }}
-  >
-    {value ? (
-      <CheckCircleOutlinedIcon fontSize='small' sx={{ color: 'success.main' }} />
-    ) : (
-      <CancelOutlinedIcon fontSize='small' sx={{ color: 'text.disabled' }} />
-    )}
-    <Typography
-      variant='body2'
-      sx={{
-        fontWeight: 600,
-        color: value ? 'success.main' : 'text.secondary',
-      }}
-    >
-      {label}: {value ? 'Yes' : 'No'}
-    </Typography>
-  </Stack>
-);
+// ADD Icon Import: import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 
-const PeopleDrawer = ({
-  open,
-  personId,
-  onClose,
-  onUpdated,
-  onMarkSold,
-}) => {
+const BooleanIndicator = ({ label, value }) => {
+  if (value === null || value === undefined) return null;
+
+  return (
+    <Chip
+      icon={
+        value ? (
+          <WarningAmberOutlinedIcon fontSize='small' />
+        ) : (
+          <CheckCircleOutlinedIcon fontSize='small' />
+        )
+      }
+      label={`${label}: ${value ? 'Yes' : 'No'}`}
+      size='small'
+      sx={{
+        bgcolor: value ? 'warning.light' : 'success.light',
+        color: value ? 'warning.dark' : 'success.main',
+        fontWeight: 600,
+        '& .MuiChip-icon': {
+          color: value ? 'warning.dark' : 'success.main',
+        },
+      }}
+    />
+  );
+};
+
+const PeopleDrawer = ({ open, personId, onClose, onUpdated, onMarkSold }) => {
   const [form, setForm] = useState({});
   const [editing, setEditing] = useState(false);
 
@@ -410,8 +401,7 @@ const PeopleDrawer = ({
                 {editing ? (
                   <Grid container spacing={2}>
                     {PROFILE_FIELDS.map(renderProfileField)}
-                    {person.client_id &&
-                      CLIENT_FIELDS.map(renderProfileField)}
+                    {person.client_id && CLIENT_FIELDS.map(renderProfileField)}
                     <Grid size={12}>
                       <TextField
                         name='availability'
@@ -454,8 +444,7 @@ const PeopleDrawer = ({
                     >
                       <Grid container spacing={2}>
                         {PROFILE_FIELDS.map(renderReadField)}
-                        {person.client_id &&
-                          CLIENT_FIELDS.map(renderReadField)}
+                        {person.client_id && CLIENT_FIELDS.map(renderReadField)}
                         {renderReadField(['availability', 'Availability'])}
                       </Grid>
                     </Paper>
@@ -478,39 +467,117 @@ const PeopleDrawer = ({
               </AccordionSummary>
               <AccordionDetails>
                 <Stack spacing={2}>
-                  <Alert severity='info' sx={{ fontFamily: MONO }}>
-                    {person.height_feet || '—'}&apos;
-                    {person.height_inches ?? '—'}&quot; |{' '}
-                    {person.weight_lbs || '—'} lbs
-                    {bmi ? ` (BMI: ${bmi})` : ''}
-                  </Alert>
-                  <Stack direction='row' spacing={1} flexWrap='wrap'>
+                  {/* 1. BUILD & TOBACCO HEADER BANNER */}
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      bgcolor: 'info.alertBackground',
+                      color: 'info.alertTextColor',
+                      borderRadius: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      '& .MuiAlert-icon': { color: 'info.alertIconColor' },
+                    }}
+                  >
+                    <Stack direction='row' spacing={1} alignItems='center'>
+                      <InfoOutlinedIcon
+                        sx={{
+                          color: 'info.alertIconColor',
+                          fontSize: '1.25rem',
+                        }}
+                      />
+                      <Typography
+                        variant='body2'
+                        sx={{ fontFamily: MONO, fontWeight: 600 }}
+                      >
+                        {person.height_feet || '—'}&apos;
+                        {person.height_inches ?? '—'}&quot; |{' '}
+                        {person.weight_lbs || '—'} lbs{' '}
+                        {bmi ? `(BMI: ${bmi})` : ''}
+                      </Typography>
+                    </Stack>
+
                     <Chip
                       label={person.smoker ? 'Smoker' : 'Non-smoker'}
                       size='small'
                       color={person.smoker ? 'error' : 'success'}
+                      sx={{ fontWeight: 700, fontSize: '0.7rem' }}
                     />
-                    <Chip
-                      label={`Premium: ${premiumLabel(person)}`}
-                      size='small'
-                      variant='outlined'
-                    />
-                    {person.face_amount !== null && (
-                      <Chip
-                        label={`Coverage: ${formatCurrency(person.face_amount)}`}
-                        size='small'
-                        variant='outlined'
+                  </Paper>
+
+                  {/* 2. FINANCIAL QUOTE CARD (Replaces standalone Premium/Coverage chips) */}
+                  <Paper
+                    variant='outlined'
+                    sx={{ p: 2, bgcolor: '#FAFAFA', borderRadius: 2 }}
+                  >
+                    <Grid container spacing={2}>
+                      <Grid size={6}>
+                        <Typography
+                          variant='caption'
+                          color='text.secondary'
+                          fontWeight={700}
+                          sx={{ display: 'block', letterSpacing: '0.5px' }}
+                        >
+                          SELECTED PREMIUM
+                        </Typography>
+                        <Typography
+                          variant='body1'
+                          sx={{ fontFamily: MONO, fontWeight: 700 }}
+                        >
+                          {premiumLabel(person)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid size={6}>
+                        <Typography
+                          variant='caption'
+                          color='text.secondary'
+                          fontWeight={700}
+                          sx={{ display: 'block', letterSpacing: '0.5px' }}
+                        >
+                          SELECTED COVERAGE
+                        </Typography>
+                        <Typography
+                          variant='body1'
+                          sx={{ fontFamily: MONO, fontWeight: 700 }}
+                        >
+                          {person.face_amount !== null
+                            ? formatCurrency(person.face_amount)
+                            : '—'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  {/* 3. MEDICAL HISTORY FLAGS */}
+                  <Box>
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                      fontWeight={700}
+                      sx={{ display: 'block', mb: 1, letterSpacing: '0.5px' }}
+                    >
+                      MEDICAL HISTORY
+                    </Typography>
+                    <Stack
+                      direction='row'
+                      spacing={1}
+                      flexWrap='wrap'
+                      useFlexGap
+                    >
+                      <BooleanIndicator
+                        label='Cholesterol medication'
+                        value={person.cholesterol_medication}
                       />
-                    )}
-                  </Stack>
-                  <BooleanIndicator
-                    label='Cholesterol medication'
-                    value={person.cholesterol_medication}
-                  />
-                  <BooleanIndicator
-                    label='Blood pressure medication'
-                    value={person.blood_pressure_medication}
-                  />
+                      <BooleanIndicator
+                        label='Blood pressure medication'
+                        value={person.blood_pressure_medication}
+                      />
+                    </Stack>
+                  </Box>
+
                   <Paper
                     variant='outlined'
                     sx={{ bgcolor: '#FAFAFA', p: 2, borderRadius: 2 }}
@@ -603,34 +670,58 @@ const PeopleDrawer = ({
                           </Stack>
                           <Grid container spacing={1.5} sx={{ mt: 1 }}>
                             <Grid size={6}>
-                              <Typography variant='caption' color='text.secondary'>
+                              <Typography
+                                variant='caption'
+                                color='text.secondary'
+                              >
                                 Coverage
                               </Typography>
-                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
+                              <Typography
+                                variant='body2'
+                                sx={{ fontFamily: MONO }}
+                              >
                                 {formatCurrency(policy.coverage_amount)}
                               </Typography>
                             </Grid>
                             <Grid size={6}>
-                              <Typography variant='caption' color='text.secondary'>
+                              <Typography
+                                variant='caption'
+                                color='text.secondary'
+                              >
                                 {policyPremiumLabel(policy.premium_frequency)}
                               </Typography>
-                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
+                              <Typography
+                                variant='body2'
+                                sx={{ fontFamily: MONO }}
+                              >
                                 {formatCurrency(policy.premium_amount)}
                               </Typography>
                             </Grid>
                             <Grid size={6}>
-                              <Typography variant='caption' color='text.secondary'>
+                              <Typography
+                                variant='caption'
+                                color='text.secondary'
+                              >
                                 Effective Date
                               </Typography>
-                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
+                              <Typography
+                                variant='body2'
+                                sx={{ fontFamily: MONO }}
+                              >
                                 {formatDate(policy.effective_date)}
                               </Typography>
                             </Grid>
                             <Grid size={6}>
-                              <Typography variant='caption' color='text.secondary'>
+                              <Typography
+                                variant='caption'
+                                color='text.secondary'
+                              >
                                 Draft Day
                               </Typography>
-                              <Typography variant='body2' sx={{ fontFamily: MONO }}>
+                              <Typography
+                                variant='body2'
+                                sx={{ fontFamily: MONO }}
+                              >
                                 {policy.draft_day || '—'}
                               </Typography>
                             </Grid>
@@ -655,7 +746,10 @@ const PeopleDrawer = ({
                                   >
                                     <Typography
                                       variant='body2'
-                                      sx={{ fontFamily: SERIF, fontWeight: 600 }}
+                                      sx={{
+                                        fontFamily: SERIF,
+                                        fontWeight: 600,
+                                      }}
                                     >
                                       {beneficiary.first_name}{' '}
                                       {beneficiary.last_name}

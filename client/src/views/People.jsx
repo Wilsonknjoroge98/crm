@@ -25,17 +25,9 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HighlightOffOutlinedIcon from '@mui/icons-material/HighlightOffOutlined';
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
-import {
-  deletePeople,
-  getPeople,
-  getPeopleMetrics,
-} from '../utils/query';
+import { deletePeople, getPeople, getPeopleMetrics } from '../utils/query';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
@@ -66,6 +58,12 @@ const CSV_COLUMNS = [
   ['verified', 'Verified'],
   ['created_at', 'Created At'],
 ];
+
+const formatPhone = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.length !== 10) return value || '';
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+};
 
 const formatCurrency = (value) =>
   Number(value || 0).toLocaleString('en-US', {
@@ -102,26 +100,58 @@ const downloadRows = (rows) => {
   URL.revokeObjectURL(url);
 };
 
-const MetricCard = ({ label, value, chipSx }) => (
+// Find the current MetricCard definition and replace it with this:
+const MetricCard = ({ label, value, subtext, accentColor = '#1C7EBB' }) => (
   <Paper
     variant='outlined'
     sx={{
-      p: 2,
-      minWidth: 150,
       flex: 1,
-      bgcolor: 'info.alertBackground',
-      border: '1px solid #E0E0E0',
+      p: 2,
       borderRadius: 2,
+      borderColor: '#E0E0E0',
+      bgcolor: '#FFFFFF', // Clean white background
+      borderTop: `3px solid ${accentColor}`, // 3px accent line at top
+      transition: 'box-shadow 0.2s ease-in-out',
+      '&:hover': {
+        boxShadow: (theme) => theme.shadows[1],
+      },
     }}
   >
-    <Chip
-      label={label}
-      size='small'
-      sx={{ fontWeight: 700, fontFamily: SANS, ...chipSx }}
-    />
-    <Typography variant='h5' sx={{ mt: 1, fontFamily: MONO }}>
+    <Typography
+      variant='caption'
+      sx={{
+        fontFamily: '"Inter", sans-serif',
+        fontWeight: 700,
+        color: 'text.secondary',
+        letterSpacing: '0.5px',
+        textTransform: 'uppercase',
+        display: 'block',
+      }}
+    >
+      {label}
+    </Typography>
+
+    <Typography
+      variant='h5'
+      sx={{
+        fontFamily: '"JetBrains Mono", monospace',
+        fontWeight: 700,
+        color: 'text.primary',
+        my: 0.5,
+      }}
+    >
       {value}
     </Typography>
+
+    {subtext && (
+      <Typography
+        variant='caption'
+        color='text.disabled'
+        sx={{ display: 'block' }}
+      >
+        {subtext}
+      </Typography>
+    )}
   </Paper>
 );
 
@@ -194,6 +224,14 @@ const People = () => {
     queryKey: ['peopleMetrics', preset],
     queryFn: () => getPeopleMetrics(preset),
   });
+
+  const newLeads = Number(metrics?.new || 0);
+  const closedSales = Number(metrics?.closed || 0);
+  const totalRevenue = Number(metrics?.totalClosed || 0);
+
+  const closeRate =
+    newLeads > 0 ? ((closedSales / newLeads) * 100).toFixed(1) : '0.0';
+  const avgDealSize = closedSales > 0 ? totalRevenue / closedSales : 0;
 
   const rows = peopleResponse?.data || [];
   const rowCount = peopleResponse?.pagination?.total || 0;
@@ -275,7 +313,7 @@ const People = () => {
         minWidth: 140,
         renderCell: ({ value }) => (
           <Box component='span' sx={{ fontFamily: MONO }}>
-            {value}
+            {formatPhone(value)}
           </Box>
         ),
       },
@@ -384,21 +422,47 @@ const People = () => {
         {metricsError && (
           <Alert severity='error'>Failed to load people metrics.</Alert>
         )}
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          sx={{ mb: 3 }}
+        >
+          {/* 1. NEW LEADS */}
           <MetricCard
-            label='New'
-            value={metrics?.new ?? '—'}
-            chipSx={{ bgcolor: '#F0F4F8', color: 'secondary.main' }}
+            label='New Leads'
+            value={metrics?.new ? Number(metrics.new).toLocaleString() : '—'}
+            subtext='Selected period'
+            accentColor='#1C7EBB' // Info Steel Blue
           />
+
+          {/* 2. CLOSED SALES */}
           <MetricCard
-            label='Closed'
-            value={metrics?.closed ?? '—'}
-            chipSx={{ bgcolor: 'success.light', color: 'success.contrastText' }}
+            label='Closed Sales'
+            value={
+              metrics?.closed ? Number(metrics.closed).toLocaleString() : '—'
+            }
+            subtext='Selected period'
+            accentColor='#3F6F5B' // Forest Green
           />
+
+          {/* 3. CLOSE RATE % */}
+          <MetricCard
+            label='Close Rate'
+            value={metrics ? `${closeRate}%` : '—'}
+            subtext={
+              metrics
+                ? `${closedSales.toLocaleString()} / ${newLeads.toLocaleString()} sold`
+                : '—'
+            }
+            accentColor='#D4AF37' // Executive Gold
+          />
+
+          {/* 4. TOTAL REVENUE */}
           <MetricCard
             label='Total Closed'
             value={metrics ? formatCurrency(metrics.totalClosed) : '—'}
-            chipSx={{ bgcolor: 'primary.main', color: 'action.main' }}
+            subtext={metrics ? `Avg: ${formatCurrency(avgDealSize)}` : '—'}
+            accentColor='#3F6F5B' // Forest Green
           />
         </Stack>
 

@@ -4,46 +4,65 @@ export const createAppTheme = () => {
   return createTheme({
     palette: {
       primary: {
-        main: '#051118',
+        main: '#051118', // Deep Executive Ink / Off-Black
         contrastText: '#F2F2F2',
       },
       secondary: {
-        main: '#2F4E6F',
+        main: '#2F4E6F', // Slate Blue
         contrastText: '#F2F2F2',
       },
+
+      // 1. BRAND GOLD (Primary CTAs & Leaderboard Badges)
       action: {
-        main: '#D4AF37', // Gold
+        main: '#D4AF37', // Metallic Executive Gold
+        hover: '#C29F2D',
         contrastText: '#000000',
       },
-      accent: {
-        main: '#2F4E6F', // Light Blue
+
+      // 2. SYSTEM STATUS PALETTES (Muted Editorial Tints)
+
+      // SUCCESS: Deep Forest Green & Sage Background Tint
+      success: {
+        main: '#3F6F5B', // Forest Green
+        light: '#EAF4EE', // Sage Tint (for chips & row highlights)
+        dark: '#1E3D32',
+        contrastText: '#FFFFFF',
       },
+
+      // WARNING: Warm Ochre (Underwriting Flags / Health Risk Factors)
+      warning: {
+        main: '#B78103', // Muted Amber / Ochre
+        light: '#FFF8E7', // Champagne / Warm Light Gold Tint
+        dark: '#7A5400',
+        contrastText: '#3D2A00',
+      },
+
+      // ERROR: Deep Crimson Burgundy & Soft Rose Tint
+      error: {
+        main: '#8B2E2E', // Crimson Burgundy
+        light: '#FDF2F2', // Crisp Rose Tint (for destructive chips & unverified states)
+        dark: '#5C1E1E',
+        contrastText: '#FFFFFF',
+      },
+
+      // INFO: Executive Blue & Ice Blue Banner Tint
       info: {
-        main: '#D6EAF8',
+        main: '#1C7EBB', // Muted Steel Blue
+        light: '#E5F6FD', // Ice Blue Tint (for BMI banner & New metric card)
         alertBackground: '#E5F6FD',
         alertTextColor: '#2E3A59',
         alertIconColor: '#1C7EBB',
-        contrastText: '#1A1A1A',
+        contrastText: '#FFFFFF',
       },
-      warning: {
-        main: '#C9A24D',
-      },
-      success: {
-        main: '#3F6F5B',
-        light: '#E6F1EC',
-        contrastText: '#1E3D32',
-      },
-      error: {
-        main: '#8B2E2E',
-      },
+
       background: {
         default: '#FFFFFF',
         paper: '#FFFFFF',
       },
       text: {
-        primary: '#1C1A17',
-        secondary: '#5F5A52',
-        disabled: '#9C958A',
+        primary: '#1C1A17', // Dark Warm Charcoal
+        secondary: '#5F5A52', // Muted Slate Gray
+        disabled: '#9C958A', // Soft Warm Gray
       },
     },
 
