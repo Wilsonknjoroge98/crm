@@ -9,12 +9,12 @@ const hyrosAgent = axios.create({
   },
 });
 
-const getHyrosSource = async (email) => {
+const getHyrosSource = async (phone) => {
   const HYROS_BODY = {
     method: 'GET',
     url: '/leads',
     params: {
-      emails: email,
+      phones: phone,
     },
   };
 
