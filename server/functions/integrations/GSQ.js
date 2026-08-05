@@ -95,6 +95,7 @@ const inboundGSQ = async (req, res) => {
       height_inches: lead.heightInches ? parseInt(lead.heightInches) : null,
       weight_lbs: lead.weight ? parseInt(lead.weight) : null,
       agent_id: agentId,
+      original_agent_id: agentId,
       gsq_source: hyrosSource,
       gsq_id: lead.gsqId,
       lead_vendor_id: leadVendor.id,
@@ -110,6 +111,7 @@ const inboundGSQ = async (req, res) => {
           .from('leads')
           .select('id, created_at, agent_id')
           .eq('phone', payload.phone)
+          .eq('lead_vendor_id', leadVendor.id)
           .single();
 
         if (existingLead?.agent_id === agentId) {

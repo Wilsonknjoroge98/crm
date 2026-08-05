@@ -79,6 +79,7 @@ function buildLead(row, agentId, leadVendorId) {
     'state': value(row, 'State'),
     'date_of_birth': value(row, 'Date of Birth'),
     'agent_id': agentId,
+    'original_agent_id': agentId,
     'sold': true,
     'lead_vendor_id': leadVendorId,
     'smoker': parseBoolean(value(row, 'Smoker')),
@@ -202,10 +203,17 @@ async function insertLeads({ plan, rowsWithLookups, agentId }) {
   }
 
   if (plan.useExistingLeads.length) {
-    // We reassign because thats what happens in other areas on the app, is this an aged leads flow thing?
+    // Aged-lead purchase: the uploader becomes the current owner and the
+    // redistribution is stamped, while original_agent_id keeps the first
+    // issuance on record.
     const { error: updateError } = await supabaseService
       .from('leads')
-      .update({ agent_id: agentId, sold: true })
+      .update({
+        agent_id: agentId,
+        sold: true,
+        redistributed_agent_id: agentId,
+        redistributed_at: new Date().toISOString(),
+      })
       .in('id', plan.useExistingLeads.map((lead) => lead.leadId));
 
     if (updateError) return { error: updateError };
