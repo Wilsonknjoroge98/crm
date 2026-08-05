@@ -163,6 +163,7 @@ const createLeadRouter = ({ supabase = supabaseService } = {}) => {
       .insert({
         ...payload,
         agent_id: req.agent.id,
+        original_agent_id: req.agent.id,
         sold: false,
       })
       .select('*')
