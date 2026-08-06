@@ -12,7 +12,9 @@ import {
   MenuItem,
   Paper,
   Select,
+  Skeleton,
   Stack,
+  Switch,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -100,7 +102,14 @@ const downloadRows = (rows) => {
   URL.revokeObjectURL(url);
 };
 
-// Find the current MetricCard definition and replace it with this:
+const LEAD_COST = 39;
+
+const formatMultiplier = (value) =>
+  value === null || value === undefined ? '—' : `${Number(value).toFixed(1)}x`;
+
+const formatSigned = (value) =>
+  `${Number(value) < 0 ? '-' : '+'}${formatCurrency(Math.abs(Number(value) || 0))}`;
+
 const MetricCard = ({ label, value, subtext, accentColor = '#1C7EBB' }) => (
   <Paper
     variant='outlined'
@@ -155,9 +164,31 @@ const MetricCard = ({ label, value, subtext, accentColor = '#1C7EBB' }) => (
   </Paper>
 );
 
+// Mirrors MetricCard's shape so the row keeps its height while loading. The
+// accent stays neutral because a skeleton has no metric to color-code yet.
+const MetricCardSkeleton = () => (
+  <Paper
+    variant='outlined'
+    sx={{
+      flex: 1,
+      p: 2,
+      borderRadius: 2,
+      borderColor: '#E0E0E0',
+      bgcolor: '#FFFFFF',
+      borderTop: '3px solid #E0E0E0',
+    }}
+  >
+    <Skeleton variant='text' width='45%' height={18} />
+    <Skeleton variant='text' width='60%' height={34} sx={{ my: 0.5 }} />
+    <Skeleton variant='text' width='35%' height={16} />
+  </Paper>
+);
+
 const People = () => {
   const queryClient = useQueryClient();
   const [preset, setPreset] = useState('last_30_days');
+  const [metricsMode, setMetricsMode] = useState('production');
+  const [gsqOnly, setGsqOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -207,6 +238,7 @@ const People = () => {
       activeSort.sort,
       search,
       statusFilter,
+      gsqOnly,
     ],
     queryFn: () =>
       getPeople({
@@ -216,18 +248,24 @@ const People = () => {
         direction: activeSort.sort || 'desc',
         search,
         status: statusFilter,
+        gsqOnly,
       }),
     placeholderData: (previous) => previous,
   });
 
-  const { data: metrics, error: metricsError } = useQuery({
-    queryKey: ['peopleMetrics', preset],
-    queryFn: () => getPeopleMetrics(preset),
+  const {
+    data: metrics,
+    isPending: isMetricsPending,
+    error: metricsError,
+  } = useQuery({
+    queryKey: ['peopleMetrics', preset, metricsMode, gsqOnly],
+    queryFn: () => getPeopleMetrics(preset, { mode: metricsMode, gsqOnly }),
   });
 
   const newLeads = Number(metrics?.new || 0);
   const closedSales = Number(metrics?.closed || 0);
   const totalRevenue = Number(metrics?.totalClosed || 0);
+  const leadSpend = Number(metrics?.leadSpend || 0);
 
   const closeRate =
     newLeads > 0 ? ((closedSales / newLeads) * 100).toFixed(1) : '0.0';
@@ -402,68 +440,114 @@ const People = () => {
               Leads, clients, and policies in one place.
             </Typography>
           </Box>
-          <FormControl size='small' sx={{ minWidth: 180 }}>
-            <InputLabel id='people-date-preset-label'>Date range</InputLabel>
-            <Select
-              labelId='people-date-preset-label'
-              value={preset}
-              label='Date range'
-              onChange={(event) => setPreset(event.target.value)}
-            >
-              {DATE_PRESETS.map(([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Stack direction='row' spacing={2} alignItems='center'>
+            <Stack direction='row' spacing={1} alignItems='center'>
+              <Typography
+                variant='caption'
+                sx={{
+                  fontFamily: SANS,
+                  fontWeight: 700,
+                  color: gsqOnly ? 'text.primary' : 'text.secondary',
+                }}
+              >
+                GSQ
+              </Typography>
+              <Switch
+                size='small'
+                checked={gsqOnly}
+                onChange={(event) => {
+                  setGsqOnly(event.target.checked);
+                  setPaginationModel((current) => ({ ...current, page: 0 }));
+                }}
+                slotProps={{ input: { 'aria-label': 'GSQ leads only' } }}
+              />
+            </Stack>
+            <FormControl size='small' sx={{ minWidth: 180 }}>
+              <InputLabel id='people-date-preset-label'>Date range</InputLabel>
+              <Select
+                labelId='people-date-preset-label'
+                value={preset}
+                label='Date range'
+                onChange={(event) => setPreset(event.target.value)}
+              >
+                {DATE_PRESETS.map(([value, label]) => (
+                  <MenuItem key={value} value={value}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
         </Stack>
 
         {metricsError && (
           <Alert severity='error'>Failed to load people metrics.</Alert>
         )}
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ mb: 3 }}
-        >
-          {/* 1. NEW LEADS */}
-          <MetricCard
-            label='New Leads'
-            value={metrics?.new ? Number(metrics.new).toLocaleString() : '—'}
-            subtext='Selected period'
-            accentColor='#1C7EBB' // Info Steel Blue
-          />
+        <Stack spacing={1.5} sx={{ mb: 3 }}>
+          <ToggleButtonGroup
+            value={metricsMode}
+            exclusive
+            size='small'
+            onChange={(event, value) => {
+              if (value) setMetricsMode(value);
+            }}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            <ToggleButton value='production'>Production</ToggleButton>
+            <ToggleButton value='profitability'>Profitability</ToggleButton>
+          </ToggleButtonGroup>
 
-          {/* 2. CLOSED SALES */}
-          <MetricCard
-            label='Closed Sales'
-            value={
-              metrics?.closed ? Number(metrics.closed).toLocaleString() : '—'
-            }
-            subtext='Selected period'
-            accentColor='#3F6F5B' // Forest Green
-          />
-
-          {/* 3. CLOSE RATE % */}
-          <MetricCard
-            label='Close Rate'
-            value={metrics ? `${closeRate}%` : '—'}
-            subtext={
-              metrics
-                ? `${closedSales.toLocaleString()} / ${newLeads.toLocaleString()} sold`
-                : '—'
-            }
-            accentColor='#D4AF37' // Executive Gold
-          />
-
-          {/* 4. TOTAL REVENUE */}
-          <MetricCard
-            label='Total Closed'
-            value={metrics ? formatCurrency(metrics.totalClosed) : '—'}
-            subtext={metrics ? `Avg: ${formatCurrency(avgDealSize)}` : '—'}
-            accentColor='#3F6F5B' // Forest Green
-          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            {isMetricsPending ? (
+              [0, 1, 2, 3].map((index) => <MetricCardSkeleton key={index} />)
+            ) : metricsMode === 'production' ? (
+              <>
+                <MetricCard
+                  label='New Leads'
+                  value={newLeads.toLocaleString()}
+                  subtext='Delivered in period'
+                />
+                <MetricCard
+                  label='Closed Sales'
+                  value={closedSales.toLocaleString()}
+                  subtext='Policies sold in period'
+                />
+                <MetricCard
+                  label='Close Rate'
+                  value={`${closeRate}%`}
+                  subtext={`${closedSales.toLocaleString()} / ${newLeads.toLocaleString()} sold`}
+                />
+                <MetricCard
+                  label='Total Revenue'
+                  value={formatCurrency(totalRevenue)}
+                  subtext={`Avg: ${formatCurrency(avgDealSize)}`}
+                />
+              </>
+            ) : (
+              <>
+                <MetricCard
+                  label='Leads Delivered'
+                  value={newLeads.toLocaleString()}
+                  subtext='Delivered in period'
+                />
+                <MetricCard
+                  label='Total Lead Spend'
+                  value={formatCurrency(leadSpend)}
+                  subtext={`${newLeads.toLocaleString()} x ${formatCurrency(LEAD_COST)}`}
+                />
+                <MetricCard
+                  label='Total Closed'
+                  value={formatCurrency(totalRevenue)}
+                  subtext='Cohort revenue, any sale date'
+                />
+                <MetricCard
+                  label='ROI'
+                  value={formatMultiplier(metrics?.roiMultiplier)}
+                  subtext={`${formatSigned(metrics?.roiNet)} net`}
+                />
+              </>
+            )}
+          </Stack>
         </Stack>
 
         <Paper variant='outlined' sx={{ p: 2 }}>

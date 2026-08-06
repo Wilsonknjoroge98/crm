@@ -258,6 +258,7 @@ describe('parsePeopleQuery', () => {
       sortOrder: 'desc',
       search: '',
       status: null,
+      gsqOnly: false,
     });
   });
 
@@ -270,6 +271,7 @@ describe('parsePeopleQuery', () => {
         direction: 'ASC',
         search: ' (555) 123-4567 ',
         status: ' Sale ',
+        gsqOnly: 'true',
       }),
     ).toEqual({
       page: 2,
@@ -278,6 +280,7 @@ describe('parsePeopleQuery', () => {
       sortOrder: 'asc',
       search: '5551234567',
       status: 'SALE',
+      gsqOnly: true,
     });
   });
 
@@ -472,6 +475,39 @@ describe('GET /people', () => {
         { method: 'eq', args: ['lifecycle_status', 'SALE'] },
       ]),
     );
+  });
+
+  test('limits the list to GSQ-sourced people when gsqOnly is set', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
+      people: [{ data: [{ id: 'person-1' }], error: null, count: 1 }],
+    });
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
+      '/people?gsqOnly=true',
+    );
+
+    expect(response.status).toBe(200);
+    expect(findQuery(supabase, 'people').calls).toContainEqual({
+      method: 'eq',
+      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+    });
+  });
+
+  test('omits the vendor filter unless gsqOnly is exactly true', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
+      people: [{ data: [], error: null, count: 0 }],
+    });
+
+    await request(makeApp(supabase, { id: 'agent-1' })).get(
+      '/people?gsqOnly=1',
+    );
+
+    const vendorCalls = findQuery(supabase, 'people').calls.filter(
+      (call) => call.method === 'eq' && call.args[0] === 'lead_vendor_id',
+    );
+    expect(vendorCalls).toHaveLength(0);
   });
 
   test('omits the lifecycle filter by default', async () => {
@@ -814,11 +850,16 @@ describe('GET /people/metrics', () => {
       expect(response.body).toEqual({
         data: {
           preset: 'last_7_days',
+          mode: 'production',
+          gsqOnly: false,
           startDate: '2026-07-18',
           endDate: '2026-07-24',
           new: 3,
-          closed: 2,
+          closed: 5,
           totalClosed: 560,
+          leadSpend: 117,
+          roiNet: 443,
+          roiMultiplier: 4.79,
         },
       });
 
@@ -859,8 +900,16 @@ describe('GET /people/metrics', () => {
           },
         ]),
       );
+      // Production mode credits revenue to the window a policy was sold in.
+      expect(policiesQuery.calls).toEqual(
+        expect.arrayContaining([
+          { method: 'gte', args: ['sold_date', '2026-07-18'] },
+          { method: 'lte', args: ['sold_date', '2026-07-24'] },
+        ]),
+      );
+      // The visible-client lookup itself is not date-bounded in this mode.
       expect(
-        policiesQuery.calls.some(({ args }) => args[0] === 'sold_date'),
+        peopleQuery.calls.some(({ args }) => args[0] === 'client_created_at'),
       ).toBe(false);
     } finally {
       jest.useRealTimers();
@@ -886,11 +935,16 @@ describe('GET /people/metrics', () => {
       expect(response.status).toBe(200);
       expect(response.body.data).toEqual({
         preset: 'last_30_days',
+        mode: 'production',
+        gsqOnly: false,
         startDate: '2026-06-25',
         endDate: '2026-07-24',
         new: 1,
         closed: 0,
         totalClosed: 0,
+        leadSpend: 39,
+        roiNet: -39,
+        roiMultiplier: 0,
       });
       expect(supabase.from).not.toHaveBeenCalledWith('policies');
     } finally {
@@ -941,11 +995,16 @@ describe('GET /people/metrics', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({
       preset: 'all_time',
+      mode: 'production',
+      gsqOnly: false,
       startDate: null,
       endDate: null,
       new: 4,
       closed: 1,
       totalClosed: 300,
+      leadSpend: 156,
+      roiNet: 144,
+      roiMultiplier: 1.92,
     });
 
     for (const table of ['leads', 'people']) {
@@ -997,11 +1056,16 @@ describe('GET /people/metrics', () => {
     expect(response.body).toEqual({
       data: {
         preset: 'all_time',
+        mode: 'production',
+        gsqOnly: false,
         startDate: null,
         endDate: null,
         new: 5,
-        closed: 3,
+        closed: 1,
         totalClosed: 120,
+        leadSpend: 195,
+        roiNet: -75,
+        roiMultiplier: 0.62,
       },
     });
 
@@ -1022,6 +1086,93 @@ describe('GET /people/metrics', () => {
         ),
     );
     expect(leadOwnedQueries).toHaveLength(0);
+  });
+
+  test('profitability mode credits a lead cohort regardless of sale date', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-24T15:30:00.000Z'));
+
+    try {
+      const supabase = makeSupabase({
+        agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
+        leads: [{ data: null, error: null, count: 10 }],
+        people: [{ data: [{ client_id: 'client-1' }], error: null }],
+        policies: [
+          {
+            data: [{ premium_amount: 100, premium_frequency: 'monthly' }],
+            error: null,
+          },
+        ],
+      });
+
+      const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
+        '/people/metrics?preset=last_7_days&mode=profitability',
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({
+        preset: 'last_7_days',
+        mode: 'profitability',
+        gsqOnly: false,
+        startDate: '2026-07-18',
+        endDate: '2026-07-24',
+        new: 10,
+        closed: 1,
+        totalClosed: 1200,
+        leadSpend: 390,
+        roiNet: 810,
+        roiMultiplier: 3.08,
+      });
+
+      // The cohort is defined by lead delivery date...
+      const peopleQuery = findQuery(supabase, 'people');
+      expect(peopleQuery.calls).toEqual(
+        expect.arrayContaining([
+          { method: 'gte', args: ['lead_created_at', '2026-07-18T00:00:00.000Z'] },
+        ]),
+      );
+      // ...and its policies are counted whenever they sold.
+      const policiesQuery = findQuery(supabase, 'policies');
+      expect(
+        policiesQuery.calls.some(({ args }) => args[0] === 'sold_date'),
+      ).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('gsqOnly narrows both lead counts and the client cohort', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
+      leads: [{ data: null, error: null, count: 2 }],
+      people: [{ data: [{ client_id: 'client-1' }], error: null }],
+      policies: [{ data: [], error: null }],
+    });
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
+      '/people/metrics?preset=all_time&gsqOnly=true',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.gsqOnly).toBe(true);
+
+    const gsqFilter = {
+      method: 'eq',
+      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+    };
+    expect(findQuery(supabase, 'leads').calls).toContainEqual(gsqFilter);
+    expect(findQuery(supabase, 'people').calls).toContainEqual(gsqFilter);
+  });
+
+  test('rejects an unsupported mode without querying Supabase', async () => {
+    const supabase = makeSupabase({});
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
+      '/people/metrics?mode=vanity',
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Unsupported metrics mode' });
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 
   test('returns a sanitized error when a metric query fails', async () => {

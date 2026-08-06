@@ -23,6 +23,13 @@ const METRICS_PRESETS = new Set([
   'this_year',
   'all_time',
 ]);
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+// Production anchors sales to policies.sold_date; profitability anchors them
+// to the lead delivery date so a cohort's revenue is credited to the window
+// that paid for it.
+const METRICS_MODES = new Set(['production', 'profitability']);
+const DEFAULT_METRICS_MODE = 'production';
+const LEAD_COST = 39;
 // Payments per year by premium_frequency; unknown frequencies assume monthly.
 const PREMIUM_ANNUAL_MULTIPLIERS = {
   'weekly': 52,
@@ -185,6 +192,13 @@ const applyDateRange = (query, field, range) => {
   return query.gte(field, range.startAt).lte(field, range.endAt);
 };
 
+// policies.sold_date is a date column, so it compares against day strings
+// rather than the timestamps used for the created_at anchors.
+const applyDayRange = (query, field, range) => {
+  if (!range.startDate || !range.endDate) return query;
+  return query.gte(field, range.startDate).lte(field, range.endDate);
+};
+
 const chunkValues = (values, size = METRICS_ID_CHUNK_SIZE) => {
   const chunks = [];
   for (let index = 0; index < values.length; index += size) {
@@ -215,13 +229,16 @@ const fetchAllRows = async (buildQuery) => {
   return rows;
 };
 
-// "Closed" metric: distinct visible clients created inside the range.
-const fetchClosedClientIds = async ({
+// Distinct visible client ids, optionally narrowed to a date window on the
+// given anchor column and to GSQ-sourced people.
+const fetchVisibleClientIds = async ({
   supabase,
   agentId,
   isSuperuser,
   ownedClientIds,
   range,
+  dateField,
+  gsqOnly = false,
 }) => {
   const buildQuery = (ownershipFilter) => {
     let query = supabase
@@ -229,7 +246,12 @@ const fetchClosedClientIds = async ({
       .select('client_id')
       .not('client_id', 'is', null)
       .order('client_id', { ascending: true });
-    query = applyDateRange(query, 'client_created_at', range);
+    if (dateField) {
+      query = applyDateRange(query, dateField, range);
+    }
+    if (gsqOnly) {
+      query = query.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+    }
     return ownershipFilter(query);
   };
 
@@ -260,21 +282,36 @@ const fetchClosedClientIds = async ({
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
-const fetchPoliciesForClientIds = async (supabase, clientIds) => {
+// soldRange, when given, keeps only policies sold inside the window.
+const fetchPoliciesForClientIds = async (supabase, clientIds, soldRange) => {
   const policies = [];
   for (const clientIdChunk of chunkValues(clientIds)) {
     policies.push(
-      ...(await fetchAllRows(() =>
-        supabase
+      ...(await fetchAllRows(() => {
+        const query = supabase
           .from('policies')
           .select('id,client_id,premium_amount,premium_frequency')
           .in('client_id', clientIdChunk)
-          .order('id', { ascending: true }),
-      )),
+          .order('id', { ascending: true });
+        return soldRange ? applyDayRange(query, 'sold_date', soldRange) : query;
+      })),
     );
   }
   return policies;
 };
+
+// Superusers see every policy, so the client-id intersection is skipped.
+const fetchPoliciesSoldInRange = async (supabase, range) =>
+  fetchAllRows(() =>
+    applyDayRange(
+      supabase
+        .from('policies')
+        .select('id,client_id,premium_amount,premium_frequency')
+        .order('id', { ascending: true }),
+      'sold_date',
+      range,
+    ),
+  );
 
 // Total Closed annualizes by payment frequency (weekly x52, quarterly x4, ...).
 const annualizePremium = ({
@@ -362,8 +399,9 @@ const parsePeopleQuery = (query) => {
     throw new QueryValidationError('status must be lead or sale');
   }
   const status = normalizedStatus ? normalizedStatus.toUpperCase() : null;
+  const gsqOnly = query.gsqOnly === 'true';
 
-  return { page, limit, sortBy, sortOrder, search, status };
+  return { page, limit, sortBy, sortOrder, search, status, gsqOnly };
 };
 
 // Contains-search: every whitespace-separated term becomes an escaped
@@ -487,6 +525,7 @@ const applyPeopleFilters = ({
   ownedClientIds,
   searchMatches,
   status,
+  gsqOnly,
 }) => {
   let filteredQuery = query;
 
@@ -504,6 +543,10 @@ const applyPeopleFilters = ({
 
   if (status) {
     filteredQuery = filteredQuery.eq('lifecycle_status', status);
+  }
+
+  if (gsqOnly) {
+    filteredQuery = filteredQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
   }
 
   return filteredQuery;
@@ -526,7 +569,8 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
       throw error;
     }
 
-    const { page, limit, sortBy, sortOrder, search, status } = parsedQuery;
+    const { page, limit, sortBy, sortOrder, search, status, gsqOnly } =
+      parsedQuery;
     const agentId = req.agent?.id;
     const isSuperuser = agentId === SUPERUSER_ID;
 
@@ -569,6 +613,7 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
         ownedClientIds,
         searchMatches,
         status,
+        gsqOnly,
       });
 
       const offset = (page - 1) * limit;
@@ -590,6 +635,7 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
           ownedClientIds,
           searchMatches,
           status,
+          gsqOnly,
         });
         const { error: countError, count: filteredCount } = await countQuery;
         if (countError) throw countError;
@@ -638,7 +684,8 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
     }
   });
 
-  // Header cards: new leads, closed clients, annualized premium in range.
+  // Header cards. Both modes count lead delivery the same way; they differ in
+  // which policies count as revenue for the window.
   router.get('/metrics', async (req, res) => {
     const agentId = req.agent?.id;
     const isSuperuser = agentId === SUPERUSER_ID;
@@ -648,8 +695,13 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
     }
 
     const preset = req.query.preset || DEFAULT_METRICS_PRESET;
+    const mode = req.query.mode || DEFAULT_METRICS_MODE;
+    const gsqOnly = req.query.gsqOnly === 'true';
     let range;
     try {
+      if (!METRICS_MODES.has(mode)) {
+        throw new QueryValidationError('Unsupported metrics mode');
+      }
       range = getMetricsRange(preset);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -672,38 +724,70 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
       if (!isSuperuser) {
         newLeadsQuery = newLeadsQuery.eq('agent_id', agentId);
       }
+      if (gsqOnly) {
+        newLeadsQuery = newLeadsQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+      }
 
-      const [newResult, closedClientIds] = await Promise.all([
-        newLeadsQuery,
-        fetchClosedClientIds({
+      // Profitability credits every policy a cohort ever produced back to the
+      // window the leads arrived in; production counts what was sold in it.
+      const fetchModePolicies = async () => {
+        if (mode === 'profitability') {
+          const cohortClientIds = await fetchVisibleClientIds({
+            supabase,
+            agentId,
+            isSuperuser,
+            ownedClientIds,
+            range,
+            dateField: 'lead_created_at',
+            gsqOnly,
+          });
+          return fetchPoliciesForClientIds(supabase, cohortClientIds);
+        }
+
+        if (isSuperuser && !gsqOnly) {
+          return fetchPoliciesSoldInRange(supabase, range);
+        }
+
+        const visibleClientIds = await fetchVisibleClientIds({
           supabase,
           agentId,
           isSuperuser,
           ownedClientIds,
           range,
-        }),
-      ]);
-      if (newResult.error) throw newResult.error;
+          dateField: null,
+          gsqOnly,
+        });
+        return fetchPoliciesForClientIds(supabase, visibleClientIds, range);
+      };
 
-      const policies = await fetchPoliciesForClientIds(
-        supabase,
-        closedClientIds,
-      );
+      const [newLeadsResult, policies] = await Promise.all([
+        newLeadsQuery,
+        fetchModePolicies(),
+      ]);
+      if (newLeadsResult.error) throw newLeadsResult.error;
+      const newLeads = newLeadsResult.count ?? 0;
 
       const totalClosed = Number(
         policies
           .reduce((total, policy) => total + annualizePremium(policy), 0)
           .toFixed(2),
       );
+      const leadSpend = Number((newLeads * LEAD_COST).toFixed(2));
 
       return res.status(200).json({
         data: {
           preset,
+          mode,
+          gsqOnly,
           startDate: range.startDate,
           endDate: range.endDate,
-          new: newResult.count ?? 0,
-          closed: closedClientIds.length,
+          new: newLeads,
+          closed: policies.length,
           totalClosed,
+          leadSpend,
+          roiNet: Number((totalClosed - leadSpend).toFixed(2)),
+          roiMultiplier:
+            leadSpend > 0 ? Number((totalClosed / leadSpend).toFixed(2)) : null,
         },
       });
     } catch (error) {
@@ -712,6 +796,7 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
         method: 'GET',
         requesterId: agentId,
         preset,
+        mode,
         error,
       });
       return res.status(500).json({ error: 'Failed to fetch people metrics' });

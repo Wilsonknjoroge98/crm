@@ -119,6 +119,7 @@ const getPeople = async ({
   direction = 'desc',
   search = '',
   status = 'all',
+  gsqOnly = false,
 } = {}) => {
   const response = await apiClient.request({
     method: 'GET',
@@ -130,6 +131,7 @@ const getPeople = async ({
       direction,
       search: search || undefined,
       status: status === 'all' ? undefined : status,
+      gsqOnly: gsqOnly ? 'true' : undefined,
     },
   });
   return response.data;
@@ -144,11 +146,14 @@ const getPerson = async (id) => {
   return response.data?.data;
 };
 
-const getPeopleMetrics = async (preset = 'last_30_days') => {
+const getPeopleMetrics = async (
+  preset = 'last_30_days',
+  { mode = 'production', gsqOnly = false } = {},
+) => {
   const response = await apiClient.request({
     method: 'GET',
     url: '/people/metrics',
-    params: { preset },
+    params: { preset, mode, gsqOnly: gsqOnly ? 'true' : undefined },
   });
   return response.data?.data;
 };
