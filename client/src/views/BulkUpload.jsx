@@ -65,6 +65,8 @@ const BulkUpload = () => {
     queryClient.invalidateQueries({ queryKey: ['leads'] });
     queryClient.invalidateQueries({ queryKey: ['clients'] });
     queryClient.invalidateQueries({ queryKey: ['policies'] });
+    queryClient.invalidateQueries({ queryKey: ['people'] });
+    queryClient.invalidateQueries({ queryKey: ['peopleMetrics'] });
     queryClient.invalidateQueries({ queryKey: ['insights'] });
     queryClient.invalidateQueries({ queryKey: ['personalSummary'] });
     queryClient.invalidateQueries({ queryKey: ['teamSummary'] });

@@ -112,6 +112,83 @@ const getLeads = async ({ data }) => {
   }
 };
 
+const getPeople = async ({
+  page = 1,
+  limit = 25,
+  sort = 'created_at',
+  direction = 'desc',
+  search = '',
+  status = 'all',
+  gsqOnly = false,
+} = {}) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/people',
+    params: {
+      page,
+      limit,
+      sort,
+      direction,
+      search: search || undefined,
+      status: status === 'all' ? undefined : status,
+      gsqOnly: gsqOnly ? 'true' : undefined,
+    },
+  });
+  return response.data;
+};
+
+const getPerson = async (id) => {
+  if (!id) throw new Error('Missing person ID');
+  const response = await apiClient.request({
+    method: 'GET',
+    url: `/people/${id}`,
+  });
+  return response.data?.data;
+};
+
+const getPeopleMetrics = async (
+  preset = 'last_30_days',
+  { mode = 'production', gsqOnly = false } = {},
+) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/people/metrics',
+    params: { preset, mode, gsqOnly: gsqOnly ? 'true' : undefined },
+  });
+  return response.data?.data;
+};
+
+const postLead = async (lead) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/leads',
+    data: { lead },
+  });
+  return response.data?.data;
+};
+
+const patchLead = async ({ leadId, lead }) => {
+  if (!leadId || !lead) throw new Error('Missing lead update data');
+  const response = await apiClient.request({
+    method: 'PATCH',
+    url: `/leads/${leadId}`,
+    data: { lead },
+  });
+  return response.data?.data;
+};
+
+const deletePeople = async (ids) => {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error('Select at least one person');
+  }
+  const response = await apiClient.request({
+    method: 'DELETE',
+    url: '/people',
+    data: { ids },
+  });
+  return response.data;
+};
+
 const patchAccount = async ({ data }) => {
   // Don't log data here since account updates can include API keys.
   const options = {
@@ -1036,6 +1113,12 @@ export {
   getAdSpend,
   getCommissions,
   getLeads,
+  getPeople,
+  getPerson,
+  getPeopleMetrics,
+  postLead,
+  patchLead,
+  deletePeople,
   patchAccount,
   getInsurDialConfig,
   patchInsurDialConfig,

@@ -1,0 +1,991 @@
+const express = require('express');
+const logger = require('firebase-functions/logger');
+const { supabaseService } = require('../services/supabase');
+const {
+  SUPERUSER_ID,
+  getOwnedClientIds,
+  applyOwnershipFilter,
+  findOwnedPerson,
+} = require('./people_access');
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 25;
+const MAX_LIMIT = 100;
+const MAX_BULK_DELETE = 100;
+const MAX_SEARCH_LENGTH = 200;
+const MAX_INDEXED_SEARCH_IDS = 100;
+const DEFAULT_METRICS_PRESET = 'last_30_days';
+const METRICS_PAGE_SIZE = 1000;
+const METRICS_ID_CHUNK_SIZE = 100;
+const METRICS_PRESETS = new Set([
+  'last_7_days',
+  'last_30_days',
+  'this_month',
+  'this_year',
+  'all_time',
+]);
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+// Production anchors sales to policies.sold_date; profitability anchors them
+// to the lead delivery date so a cohort's revenue is credited to the window
+// that paid for it.
+const METRICS_MODES = new Set(['production', 'profitability']);
+const DEFAULT_METRICS_MODE = 'production';
+const LEAD_COST = 39;
+// Payments per year by premium_frequency; unknown frequencies assume monthly.
+const PREMIUM_ANNUAL_MULTIPLIERS = {
+  'weekly': 52,
+  'monthly': 12,
+  'quarterly': 4,
+  'semi-annually': 2,
+  'semi-annual': 2,
+  'annually': 1,
+  'annual': 1,
+};
+// Slim projection for the grid; the drawer fetches PEOPLE_DETAIL_FIELDS.
+const PEOPLE_LIST_FIELDS = [
+  'id',
+  'lead_id',
+  'client_id',
+  'lifecycle_status',
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'state',
+  'verified',
+  'created_at',
+].join(',');
+const PEOPLE_DETAIL_FIELDS = [
+  'id',
+  'lead_id',
+  'client_id',
+  'lifecycle_status',
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'date_of_birth',
+  'state',
+  'address',
+  'city',
+  'zip',
+  'occupation',
+  'marital_status',
+  'annual_income',
+  'agent_id',
+  'sold',
+  'verified',
+  'smoker',
+  'height_feet',
+  'height_inches',
+  'weight_lbs',
+  'cholesterol_medication',
+  'blood_pressure_medication',
+  'face_amount',
+  'premium',
+  'premium_min',
+  'premium_max',
+  'availability',
+  'selected_plan',
+  'selected_carrier',
+  'beneficiary',
+  'priority',
+  'why',
+  'gsq_source',
+  'gsq_id',
+  'gsq_live_transfer',
+  'lead_vendor_id',
+  'lead_created_at',
+  'client_created_at',
+  'created_at',
+  'updated_at',
+  'policies',
+].join(',');
+// Whitelist keeps client-supplied sort fields from reaching PostgREST raw.
+const SORT_FIELDS = new Set([
+  'id',
+  'created_at',
+  'lead_created_at',
+  'client_created_at',
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'state',
+  'lifecycle_status',
+]);
+
+class QueryValidationError extends Error {}
+
+// Guards the delete endpoint: capped, deduplicated, UUID-only ids.
+const parseBulkPersonIds = (body) => {
+  if (!Array.isArray(body?.ids) || body.ids.length === 0) {
+    throw new QueryValidationError('ids must be a non-empty array');
+  }
+  if (body.ids.length > MAX_BULK_DELETE) {
+    throw new QueryValidationError(
+      `ids must contain at most ${MAX_BULK_DELETE} items`,
+    );
+  }
+
+  const ids = [...new Set(body.ids)];
+  if (
+    ids.some(
+      (id) =>
+        typeof id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          id,
+        ),
+    )
+  ) {
+    throw new QueryValidationError('ids must contain valid UUIDs');
+  }
+  return ids;
+};
+
+const startOfUtcDay = (value) => {
+  const date = new Date(value);
+  date.setUTCHours(0, 0, 0, 0);
+  return date;
+};
+
+// Preset windows are whole UTC days; all_time returns null bounds (no filter).
+const getMetricsRange = (preset, referenceDate = new Date()) => {
+  if (!METRICS_PRESETS.has(preset)) {
+    throw new QueryValidationError('Unsupported metrics preset');
+  }
+
+  const end = new Date(referenceDate);
+  if (Number.isNaN(end.getTime())) {
+    throw new Error('Invalid metrics reference date');
+  }
+
+  if (preset === 'all_time') {
+    return {
+      startAt: null,
+      endAt: null,
+      startDate: null,
+      endDate: null,
+    };
+  }
+
+  const start = startOfUtcDay(end);
+  if (preset === 'last_7_days') {
+    start.setUTCDate(start.getUTCDate() - 6);
+  } else if (preset === 'last_30_days') {
+    start.setUTCDate(start.getUTCDate() - 29);
+  } else if (preset === 'this_month') {
+    start.setUTCDate(1);
+  } else {
+    start.setUTCMonth(0, 1);
+  }
+
+  return {
+    startAt: start.toISOString(),
+    endAt: end.toISOString(),
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+};
+
+const applyDateRange = (query, field, range) => {
+  if (!range.startAt || !range.endAt) return query;
+  return query.gte(field, range.startAt).lte(field, range.endAt);
+};
+
+// policies.sold_date is a date column, so it compares against day strings
+// rather than the timestamps used for the created_at anchors.
+const applyDayRange = (query, field, range) => {
+  if (!range.startDate || !range.endDate) return query;
+  return query.gte(field, range.startDate).lte(field, range.endDate);
+};
+
+const chunkValues = (values, size = METRICS_ID_CHUNK_SIZE) => {
+  const chunks = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+};
+
+// PostgREST caps responses at 1000 rows, so full sets are drained page by page.
+const fetchAllRows = async (buildQuery) => {
+  const rows = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await buildQuery().range(
+      offset,
+      offset + METRICS_PAGE_SIZE - 1,
+    );
+    if (error) throw error;
+
+    const page = data || [];
+    rows.push(...page);
+    hasMore = page.length === METRICS_PAGE_SIZE;
+    offset += page.length;
+  }
+
+  return rows;
+};
+
+// Distinct visible client ids, optionally narrowed to a date window on the
+// given anchor column and to GSQ-sourced people.
+const fetchVisibleClientIds = async ({
+  supabase,
+  agentId,
+  isSuperuser,
+  ownedClientIds,
+  range,
+  dateField,
+  gsqOnly = false,
+}) => {
+  const buildQuery = (ownershipFilter) => {
+    let query = supabase
+      .from('people')
+      .select('client_id')
+      .not('client_id', 'is', null)
+      .order('client_id', { ascending: true });
+    if (dateField) {
+      query = applyDateRange(query, dateField, range);
+    }
+    if (gsqOnly) {
+      query = query.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+    }
+    return ownershipFilter(query);
+  };
+
+  let rows;
+  if (isSuperuser) {
+    rows = await fetchAllRows(() => buildQuery((query) => query));
+  } else if (ownedClientIds.length <= METRICS_ID_CHUNK_SIZE) {
+    rows = await fetchAllRows(() =>
+      buildQuery((query) =>
+        applyOwnershipFilter(query, agentId, ownedClientIds),
+      ),
+    );
+  } else {
+    const linkedRows = [];
+    for (const clientIdChunk of chunkValues(ownedClientIds)) {
+      linkedRows.push(
+        ...(await fetchAllRows(() =>
+          buildQuery((query) => query.in('client_id', clientIdChunk)),
+        )),
+      );
+    }
+    rows = linkedRows;
+  }
+
+  return [
+    ...new Set(rows.map(({ client_id: clientId }) => clientId).filter(Boolean)),
+  ];
+};
+
+// Chunked .in() lookups keep request URLs under PostgREST's length limits.
+// soldRange, when given, keeps only policies sold inside the window.
+const fetchPoliciesForClientIds = async (supabase, clientIds, soldRange) => {
+  const policies = [];
+  for (const clientIdChunk of chunkValues(clientIds)) {
+    policies.push(
+      ...(await fetchAllRows(() => {
+        const query = supabase
+          .from('policies')
+          .select('id,client_id,premium_amount,premium_frequency')
+          .in('client_id', clientIdChunk)
+          .order('id', { ascending: true });
+        return soldRange ? applyDayRange(query, 'sold_date', soldRange) : query;
+      })),
+    );
+  }
+  return policies;
+};
+
+// Superusers see every policy, so the client-id intersection is skipped.
+const fetchPoliciesSoldInRange = async (supabase, range) =>
+  fetchAllRows(() =>
+    applyDayRange(
+      supabase
+        .from('policies')
+        .select('id,client_id,premium_amount,premium_frequency')
+        .order('id', { ascending: true }),
+      'sold_date',
+      range,
+    ),
+  );
+
+// Total Closed annualizes by payment frequency (weekly x52, quarterly x4, ...).
+const annualizePremium = ({
+  premium_amount: amount,
+  premium_frequency: frequency,
+}) => {
+  const multiplier =
+    PREMIUM_ANNUAL_MULTIPLIERS[String(frequency || '').toLowerCase()] ?? 12;
+  return (Number(amount) || 0) * multiplier;
+};
+
+const parsePositiveInteger = (value, fallback, field, maximum) => {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    throw new QueryValidationError(`${field} must be a positive integer`);
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new QueryValidationError(`${field} must be a positive integer`);
+  }
+  if (maximum && parsed > maximum) {
+    throw new QueryValidationError(`${field} must be at most ${maximum}`);
+  }
+
+  return parsed;
+};
+
+// Validates every list-endpoint query param; bad input throws -> 400.
+const parsePeopleQuery = (query) => {
+  const page = parsePositiveInteger(
+    query.page,
+    DEFAULT_PAGE,
+    'page',
+  );
+  const limit = parsePositiveInteger(
+    query.limit,
+    DEFAULT_LIMIT,
+    'limit',
+    MAX_LIMIT,
+  );
+  const sortBy = query.sortBy ?? query.sort ?? 'created_at';
+  const rawSortOrder = query.sortOrder ?? query.direction ?? 'desc';
+
+  if (typeof sortBy !== 'string' || !SORT_FIELDS.has(sortBy)) {
+    throw new QueryValidationError('Unsupported sort field');
+  }
+  if (typeof rawSortOrder !== 'string') {
+    throw new QueryValidationError('sortOrder must be asc or desc');
+  }
+  const sortOrder = rawSortOrder.toLowerCase();
+  if (!['asc', 'desc'].includes(sortOrder)) {
+    throw new QueryValidationError('sortOrder must be asc or desc');
+  }
+
+  if (query.search !== undefined && typeof query.search !== 'string') {
+    throw new QueryValidationError('search must be a string');
+  }
+
+  const rawSearch = query.search?.trim() || '';
+  let search = rawSearch;
+  if (search.length > MAX_SEARCH_LENGTH) {
+    throw new QueryValidationError(
+      `search must be at most ${MAX_SEARCH_LENGTH} characters`,
+    );
+  }
+
+  // The generated vectors store phone numbers as digits only.
+  if (search && /^[\d\s()+.-]+$/.test(search)) {
+    search = search.replace(/\D/g, '');
+  }
+  if (rawSearch && !/[\p{L}\p{N}]/u.test(search)) {
+    throw new QueryValidationError('search must include letters or numbers');
+  }
+
+  if ((page - 1) * limit > Number.MAX_SAFE_INTEGER) {
+    throw new QueryValidationError('page is too large');
+  }
+
+  if (query.status !== undefined && typeof query.status !== 'string') {
+    throw new QueryValidationError('status must be lead or sale');
+  }
+  const normalizedStatus = query.status?.trim().toLowerCase() || '';
+  if (normalizedStatus && !['lead', 'sale'].includes(normalizedStatus)) {
+    throw new QueryValidationError('status must be lead or sale');
+  }
+  const status = normalizedStatus ? normalizedStatus.toUpperCase() : null;
+  const gsqOnly = query.gsqOnly === 'true';
+
+  return { page, limit, sortBy, sortOrder, search, status, gsqOnly };
+};
+
+// Contains-search: every whitespace-separated term becomes an escaped
+// %term% pattern that must match the trigram-indexed people_search_text.
+const buildSearchPatterns = (search) =>
+  search
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((term) => `%${term.replace(/[\\%_]/g, '\\$&')}%`);
+
+const applyContainsFilters = (query, column, patterns) =>
+  patterns.reduce(
+    (filtered, pattern) => filtered.ilike(column, pattern),
+    query,
+  );
+
+const searchSourceTable = async ({
+  supabase,
+  table,
+  patterns,
+  agentId,
+  isSuperuser,
+  ownedClientIds,
+}) => {
+  if (table === 'clients' && !isSuperuser && ownedClientIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const applyOwnership = (query) => {
+    if (isSuperuser) return query;
+    return table === 'leads'
+      ? query.eq('agent_id', agentId)
+      : query.in('id', ownedClientIds);
+  };
+
+  return applyOwnership(
+    applyContainsFilters(
+      supabase.from(table).select('id'),
+      'people_search_text',
+      patterns,
+    ),
+  ).limit(MAX_INDEXED_SEARCH_IDS + 1);
+};
+
+// Indexed search: collect candidate lead/client ids from the trigram-indexed
+// source-table columns, then filter the view by id. Past
+// MAX_INDEXED_SEARCH_IDS candidates, fall back to filtering the view directly.
+const findSearchMatches = async ({
+  supabase,
+  search,
+  agentId,
+  isSuperuser,
+  ownedClientIds,
+}) => {
+  const patterns = buildSearchPatterns(search);
+  const [leadResult, clientResult] = await Promise.all([
+    searchSourceTable({
+      supabase,
+      table: 'leads',
+      patterns,
+      agentId,
+      isSuperuser,
+      ownedClientIds,
+    }),
+    searchSourceTable({
+      supabase,
+      table: 'clients',
+      patterns,
+      agentId,
+      isSuperuser,
+      ownedClientIds,
+    }),
+  ]);
+
+  if (leadResult.error) throw leadResult.error;
+  if (clientResult.error) throw clientResult.error;
+
+  const leadIds = [
+    ...new Set((leadResult.data || []).map(({ id }) => id)),
+  ];
+  const clientIds = [
+    ...new Set((clientResult.data || []).map(({ id }) => id)),
+  ];
+
+  return {
+    leadIds,
+    clientIds,
+    directPatterns:
+      leadIds.length + clientIds.length > MAX_INDEXED_SEARCH_IDS
+        ? patterns
+        : null,
+  };
+};
+
+const applySearchFilter = (
+  query,
+  { leadIds, clientIds, directPatterns },
+) => {
+  if (directPatterns) {
+    return applyContainsFilters(query, 'search_text', directPatterns);
+  }
+
+  const filters = [];
+  if (leadIds.length > 0) {
+    filters.push(`lead_id.in.(${leadIds.join(',')})`);
+  }
+  if (clientIds.length > 0) {
+    filters.push(`client_id.in.(${clientIds.join(',')})`);
+  }
+
+  return filters.length > 0 ? query.or(filters.join(',')) : null;
+};
+
+// Single choke point for ownership, search, and lifecycle filters; both the
+// list query and its count re-query go through here.
+const applyPeopleFilters = ({
+  query,
+  agentId,
+  isSuperuser,
+  ownedClientIds,
+  searchMatches,
+  status,
+  gsqOnly,
+}) => {
+  let filteredQuery = query;
+
+  if (!isSuperuser) {
+    filteredQuery = applyOwnershipFilter(
+      filteredQuery,
+      agentId,
+      ownedClientIds,
+    );
+  }
+
+  if (searchMatches) {
+    filteredQuery = applySearchFilter(filteredQuery, searchMatches);
+  }
+
+  if (status) {
+    filteredQuery = filteredQuery.eq('lifecycle_status', status);
+  }
+
+  if (gsqOnly) {
+    filteredQuery = filteredQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+  }
+
+  return filteredQuery;
+};
+
+// Factory so tests can inject a fake Supabase client; production callers get
+// the real service client by default.
+const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
+  // eslint-disable-next-line new-cap
+  const router = express.Router();
+
+  router.get('/', async (req, res) => {
+    let parsedQuery;
+    try {
+      parsedQuery = parsePeopleQuery(req.query);
+    } catch (error) {
+      if (error instanceof QueryValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      throw error;
+    }
+
+    const { page, limit, sortBy, sortOrder, search, status, gsqOnly } =
+      parsedQuery;
+    const agentId = req.agent?.id;
+    const isSuperuser = agentId === SUPERUSER_ID;
+
+    if (!agentId) {
+      return res.status(403).json({ error: 'Agent profile required' });
+    }
+
+    try {
+      const ownedClientIds = isSuperuser
+        ? []
+        : await getOwnedClientIds(supabase, agentId);
+
+      let searchMatches = null;
+      if (search) {
+        searchMatches = await findSearchMatches({
+          supabase,
+          search,
+          agentId,
+          isSuperuser,
+          ownedClientIds,
+        });
+
+        if (
+          searchMatches.leadIds.length === 0 &&
+          searchMatches.clientIds.length === 0
+        ) {
+          return res.status(200).json({
+            data: [],
+            pagination: { page, limit, total: 0, totalPages: 0 },
+          });
+        }
+      }
+
+      let peopleQuery = applyPeopleFilters({
+        query: supabase
+          .from('people')
+          .select(PEOPLE_LIST_FIELDS, { count: 'exact' }),
+        agentId,
+        isSuperuser,
+        ownedClientIds,
+        searchMatches,
+        status,
+        gsqOnly,
+      });
+
+      const offset = (page - 1) * limit;
+      peopleQuery = peopleQuery
+        .order(sortBy, {
+          ascending: sortOrder === 'asc',
+          nullsFirst: false,
+        })
+        .range(offset, offset + limit - 1);
+
+      const { data, error, count } = await peopleQuery;
+      if (error?.code === 'PGRST103') {
+        const countQuery = applyPeopleFilters({
+          query: supabase
+            .from('people')
+            .select('id', { count: 'exact', head: true }),
+          agentId,
+          isSuperuser,
+          ownedClientIds,
+          searchMatches,
+          status,
+          gsqOnly,
+        });
+        const { error: countError, count: filteredCount } = await countQuery;
+        if (countError) throw countError;
+
+        const total = filteredCount ?? 0;
+        return res.status(200).json({
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+          },
+        });
+      }
+      if (error) throw error;
+
+      const total = count ?? 0;
+      logger.log('Fetched people successfully', {
+        route: '/people',
+        method: 'GET',
+        requesterId: agentId,
+        page,
+        limit,
+        total,
+        hasSearch: !!search,
+      });
+
+      return res.status(200).json({
+        data: data || [],
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to fetch people', {
+        route: '/people',
+        method: 'GET',
+        requesterId: agentId,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to fetch people' });
+    }
+  });
+
+  // Header cards. Both modes count lead delivery the same way; they differ in
+  // which policies count as revenue for the window.
+  router.get('/metrics', async (req, res) => {
+    const agentId = req.agent?.id;
+    const isSuperuser = agentId === SUPERUSER_ID;
+
+    if (!agentId) {
+      return res.status(403).json({ error: 'Agent profile required' });
+    }
+
+    const preset = req.query.preset || DEFAULT_METRICS_PRESET;
+    const mode = req.query.mode || DEFAULT_METRICS_MODE;
+    const gsqOnly = req.query.gsqOnly === 'true';
+    let range;
+    try {
+      if (!METRICS_MODES.has(mode)) {
+        throw new QueryValidationError('Unsupported metrics mode');
+      }
+      range = getMetricsRange(preset);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    try {
+      const ownedClientIds = isSuperuser
+        ? []
+        : await getOwnedClientIds(supabase, agentId);
+
+      let newLeadsQuery = supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: true });
+      newLeadsQuery = applyDateRange(
+        newLeadsQuery,
+        'created_at',
+        range,
+      );
+
+      if (!isSuperuser) {
+        newLeadsQuery = newLeadsQuery.eq('agent_id', agentId);
+      }
+      if (gsqOnly) {
+        newLeadsQuery = newLeadsQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+      }
+
+      // Profitability credits every policy a cohort ever produced back to the
+      // window the leads arrived in; production counts what was sold in it.
+      const fetchModePolicies = async () => {
+        if (mode === 'profitability') {
+          const cohortClientIds = await fetchVisibleClientIds({
+            supabase,
+            agentId,
+            isSuperuser,
+            ownedClientIds,
+            range,
+            dateField: 'lead_created_at',
+            gsqOnly,
+          });
+          return fetchPoliciesForClientIds(supabase, cohortClientIds);
+        }
+
+        if (isSuperuser && !gsqOnly) {
+          return fetchPoliciesSoldInRange(supabase, range);
+        }
+
+        const visibleClientIds = await fetchVisibleClientIds({
+          supabase,
+          agentId,
+          isSuperuser,
+          ownedClientIds,
+          range,
+          dateField: null,
+          gsqOnly,
+        });
+        return fetchPoliciesForClientIds(supabase, visibleClientIds, range);
+      };
+
+      const [newLeadsResult, policies] = await Promise.all([
+        newLeadsQuery,
+        fetchModePolicies(),
+      ]);
+      if (newLeadsResult.error) throw newLeadsResult.error;
+      const newLeads = newLeadsResult.count ?? 0;
+
+      const totalClosed = Number(
+        policies
+          .reduce((total, policy) => total + annualizePremium(policy), 0)
+          .toFixed(2),
+      );
+      const leadSpend = Number((newLeads * LEAD_COST).toFixed(2));
+
+      return res.status(200).json({
+        data: {
+          preset,
+          mode,
+          gsqOnly,
+          startDate: range.startDate,
+          endDate: range.endDate,
+          new: newLeads,
+          closed: policies.length,
+          totalClosed,
+          leadSpend,
+          roiNet: Number((totalClosed - leadSpend).toFixed(2)),
+          roiMultiplier:
+            leadSpend > 0 ? Number((totalClosed / leadSpend).toFixed(2)) : null,
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to fetch people metrics', {
+        route: '/people/metrics',
+        method: 'GET',
+        requesterId: agentId,
+        preset,
+        mode,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to fetch people metrics' });
+    }
+  });
+
+  // Bulk delete, all-or-nothing: cascades beneficiaries -> policies ->
+  // agent links -> clients, then leads no other client still references.
+  router.delete('/', async (req, res) => {
+    const agentId = req.agent?.id;
+    const isSuperuser = agentId === SUPERUSER_ID;
+
+    if (!agentId) {
+      return res.status(403).json({ error: 'Agent profile required' });
+    }
+
+    let ids;
+    try {
+      ids = parseBulkPersonIds(req.body);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    try {
+      const ownedClientIds = isSuperuser
+        ? []
+        : await getOwnedClientIds(supabase, agentId);
+
+      let peopleQuery = supabase
+        .from('people')
+        .select('id,lead_id,client_id,lifecycle_status')
+        .in('id', ids);
+
+      if (!isSuperuser) {
+        peopleQuery = applyOwnershipFilter(
+          peopleQuery,
+          agentId,
+          ownedClientIds,
+        );
+      }
+
+      const { data: people, error: peopleError } = await peopleQuery;
+      if (peopleError) throw peopleError;
+      if ((people || []).length !== ids.length) {
+        return res
+          .status(404)
+          .json({ error: 'One or more people were not found' });
+      }
+
+      const clientIds = people
+        .map(({ client_id: clientId }) => clientId)
+        .filter(Boolean);
+      const saleLeadIds = people
+        .filter(({ client_id: clientId }) => Boolean(clientId))
+        .map(({ lead_id: leadId }) => leadId)
+        .filter(Boolean);
+      const leadIdsToDelete = people
+        .filter(({ client_id: clientId }) => !clientId)
+        .map(({ lead_id: leadId }) => leadId)
+        .filter(Boolean);
+
+      if (clientIds.length > 0) {
+        const { data: policies, error: policiesLookupError } = await supabase
+          .from('policies')
+          .select('id')
+          .in('client_id', clientIds);
+        if (policiesLookupError) throw policiesLookupError;
+
+        const policyIds = (policies || []).map(({ id }) => id);
+        if (policyIds.length > 0) {
+          const { error: beneficiariesError } = await supabase
+            .from('beneficiaries')
+            .delete()
+            .in('policy_id', policyIds);
+          if (beneficiariesError) throw beneficiariesError;
+        }
+
+        const { error: policiesError } = await supabase
+          .from('policies')
+          .delete()
+          .in('client_id', clientIds);
+        if (policiesError) throw policiesError;
+
+        const { error: agentClientsError } = await supabase
+          .from('agent_clients')
+          .delete()
+          .in('client_id', clientIds);
+        if (agentClientsError) throw agentClientsError;
+
+        const { error: clientsError } = await supabase
+          .from('clients')
+          .delete()
+          .in('id', clientIds);
+        if (clientsError) throw clientsError;
+      }
+
+      if (saleLeadIds.length > 0) {
+        const uniqueSaleLeadIds = [...new Set(saleLeadIds)];
+        const { data: remainingClients, error: remainingClientsError } =
+          await supabase
+            .from('clients')
+            .select('lead_id')
+            .in('lead_id', uniqueSaleLeadIds);
+        if (remainingClientsError) throw remainingClientsError;
+
+        const retainedLeadIds = new Set(
+          (remainingClients || []).map(({ lead_id: leadId }) => leadId),
+        );
+        uniqueSaleLeadIds.forEach((leadId) => {
+          if (!retainedLeadIds.has(leadId)) leadIdsToDelete.push(leadId);
+        });
+      }
+
+      const uniqueLeadIdsToDelete = [...new Set(leadIdsToDelete)];
+      if (uniqueLeadIdsToDelete.length > 0) {
+        const { error: leadsError } = await supabase
+          .from('leads')
+          .delete()
+          .in('id', uniqueLeadIdsToDelete);
+        if (leadsError) throw leadsError;
+      }
+
+      logger.log('Deleted people successfully', {
+        route: '/people',
+        method: 'DELETE',
+        requesterId: agentId,
+        count: ids.length,
+      });
+      return res.status(200).json({ deletedIds: ids });
+    } catch (error) {
+      logger.error('Failed to delete people', {
+        route: '/people',
+        method: 'DELETE',
+        requesterId: agentId,
+        count: ids.length,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to delete people' });
+    }
+  });
+
+  // Drawer profile: full lead/client fields plus policies and beneficiaries.
+  router.get('/:id', async (req, res) => {
+    const agentId = req.agent?.id;
+
+    if (!agentId) {
+      return res.status(403).json({ error: 'Agent profile required' });
+    }
+
+    try {
+      const data = await findOwnedPerson(
+        supabase,
+        agentId,
+        req.params.id,
+        PEOPLE_DETAIL_FIELDS,
+      );
+      if (!data) {
+        return res.status(404).json({ error: 'Person not found' });
+      }
+
+      logger.log('Fetched person details successfully', {
+        route: '/people/:id',
+        method: 'GET',
+        requesterId: agentId,
+        personId: req.params.id,
+      });
+
+      return res.status(200).json({ data });
+    } catch (error) {
+      logger.error('Failed to fetch person details', {
+        route: '/people/:id',
+        method: 'GET',
+        requesterId: agentId,
+        personId: req.params.id,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to fetch person' });
+    }
+  });
+
+  return router;
+};
+
+const peopleRouter = createPeopleRouter();
+
+module.exports = peopleRouter;
+module.exports.createPeopleRouter = createPeopleRouter;
+module.exports.parsePeopleQuery = parsePeopleQuery;
+module.exports.buildSearchPatterns = buildSearchPatterns;
+module.exports.parseBulkPersonIds = parseBulkPersonIds;
+module.exports.getMetricsRange = getMetricsRange;
+module.exports.annualizePremium = annualizePremium;

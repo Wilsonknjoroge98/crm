@@ -32,7 +32,7 @@ import { useLocation } from 'react-router-dom';
 import { toTitleCase, formatPhone } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
 
-const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
+const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) => {
   const { pathname } = useLocation();
   const initialForm = {
     first_name: '',
@@ -80,16 +80,17 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.date_of_birth || '',
-        lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
-        marital_status: '',
-        address: '',
-        city: '',
-        state: '',
-        zip: '',
-        occupation: '',
-        annual_income: '',
+        lead_vendor_id:
+          lead.lead_vendor_id || '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+        marital_status: lead.marital_status || '',
+        address: lead.address || '',
+        city: lead.city || '',
+        state: lead.state || '',
+        zip: lead.zip || '',
+        occupation: lead.occupation || '',
+        annual_income: lead.annual_income || '',
         notes: '',
-        live_transfer: undefined,
+        live_transfer: lead.gsq_live_transfer ?? undefined,
       });
     }
   }, [lead]);
@@ -105,7 +106,10 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     error,
   } = useMutation({
     mutationFn: postClient,
-    onSuccess: () => {
+    onSuccess: (client) => {
+      if (typeof onCreated === 'function') {
+        onCreated(client);
+      }
       if (typeof refetchClients === 'function') {
         refetchClients();
       }

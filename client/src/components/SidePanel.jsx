@@ -12,9 +12,7 @@ import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import InsightsIcon from '@mui/icons-material/Insights';
 import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
-import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
-import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -67,9 +65,7 @@ const SidePanel = () => {
   };
 
   const salesItems = [
-    { text: 'Leads', icon: <StorageOutlinedIcon />, path: '/leads' },
-    { text: 'Clients', icon: <PeopleAltOutlinedIcon />, path: '/clients' },
-    { text: 'Policies', icon: <ArticleOutlinedIcon />, path: '/policies' },
+    { text: 'People', icon: <PeopleAltOutlinedIcon />, path: '/people' },
     { text: 'Bulk Upload', icon: <UploadFileOutlinedIcon />, path: '/bulk-upload' },
   ];
 

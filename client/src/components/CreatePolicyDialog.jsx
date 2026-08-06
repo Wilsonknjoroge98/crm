@@ -627,8 +627,8 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             <Typography fontWeight='bold'>Primary Beneficiaries</Typography>
           </Grid>
           {form.beneficiaries.map((b, i) => (
-            <>
-              <Grid container spacing={2} key={i} sx={{ mb: 1 }}>
+            <Fragment key={i}>
+              <Grid container spacing={2} sx={{ mb: 1 }}>
                 <Grid size={2}>
                   <TextField
                     value={b.first_name}
@@ -717,7 +717,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
                   </Stack>
                 </Grid>
               </Grid>
-            </>
+            </Fragment>
           ))}
           <Grid size={12}>
             <Button
