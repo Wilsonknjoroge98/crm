@@ -152,6 +152,15 @@ const patchInsurDialConfig = async ({ data }) => {
   return response.data;
 };
 
+const getSalesAnalytics = async ({ startDate, endDate }) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/gsq-account/sales-analytics',
+    params: { startDate, endDate },
+  });
+  return response.data?.data;
+};
+
 const getUnmatchedReviews = async () => {
   const response = await apiClient.request({
     method: 'GET',
@@ -1039,6 +1048,7 @@ export {
   patchAccount,
   getInsurDialConfig,
   patchInsurDialConfig,
+  getSalesAnalytics,
   getUnmatchedReviews,
   matchReview,
   dismissUnmatchedReview,
