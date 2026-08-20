@@ -66,7 +66,7 @@ app.use('/events', eventsRouter);
 app.use('/expenses', expensesRouter);
 app.use('/leaderboard', leaderboardRouter);
 app.use('/insights', insightsRouter);
-app.use('/gsq-account', gsqRouter);
+app.use('/gsq', gsqRouter);
 app.use('/commissions', commissionsRouter);
 app.use('/bulk-upload', bulkUploadRouter);
 

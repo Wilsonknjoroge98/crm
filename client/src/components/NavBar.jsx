@@ -46,7 +46,7 @@ export default function NavBar() {
       try {
         const response = await apiClient.request({
           method: 'GET',
-          url: '/gsq-account',
+          url: '/gsq',
           params: { email: user.email, mode: import.meta.env.MODE },
         });
         return response.data;
