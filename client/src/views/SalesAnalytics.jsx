@@ -108,6 +108,37 @@ const SalesAnalytics = () => {
     enabled: Boolean(params.startDate && params.endDate),
   });
 
+  const churnedColumns = [
+    { field: 'email', headerName: 'Email', minWidth: 240, flex: 1 },
+    {
+      field: 'lastPurchaseDate',
+      headerName: 'Last Purchase',
+      minWidth: 140,
+      renderCell: monoCell((value) =>
+        value ? dayjs(value).format('MMM D, YYYY') : '—',
+      ),
+    },
+    {
+      field: 'previousPeriodOrders',
+      headerName: 'Orders (Prior Period)',
+      minWidth: 160,
+      renderCell: monoCell((value) => Number(value || 0).toLocaleString()),
+    },
+    {
+      field: 'previousPeriodRevenue',
+      headerName: 'Revenue (Prior Period)',
+      minWidth: 170,
+      renderCell: monoCell(formatCurrency),
+    },
+    {
+      field: 'products',
+      headerName: 'Products Purchased',
+      minWidth: 240,
+      flex: 1,
+      valueGetter: (value) => (Array.isArray(value) ? value.join(', ') : ''),
+    },
+  ];
+
   const columns = [
     { field: 'name', headerName: 'Product Name', minWidth: 200 },
     {
@@ -225,9 +256,35 @@ const SalesAnalytics = () => {
           sx={{ borderRadius: 2, borderColor: 'divider' }}
         >
           <DataGrid
-            rows={data?.products || []}
+            rows={(data?.products || []).slice(0, 10)}
             columns={columns}
             getRowId={(row) => row.key}
+            loading={isFetching}
+            hideFooter
+            disableRowSelectionOnClick
+            autoHeight
+          />
+        </Paper>
+
+        <Box>
+          <Typography variant='h5'>Churned Agents</Typography>
+          <Typography color='text.secondary' variant='body2'>
+            {data?.previousPeriod
+              ? `Purchased ${dayjs(data.previousPeriod.startDate).format('MMM D, YYYY')} – ${dayjs(
+                  data.previousPeriod.endDate,
+                ).format('MMM D, YYYY')}, no purchase since.`
+              : 'Purchased in the prior period of equal length, no purchase in the selected range.'}
+          </Typography>
+        </Box>
+
+        <Paper
+          variant='outlined'
+          sx={{ borderRadius: 2, borderColor: 'divider' }}
+        >
+          <DataGrid
+            rows={(data?.churnedUsers || []).slice(0, 10)}
+            columns={churnedColumns}
+            getRowId={(row) => row.email}
             loading={isFetching}
             hideFooter
             disableRowSelectionOnClick
