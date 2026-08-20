@@ -665,6 +665,69 @@ gsqRouter.get('/sales-analytics', async (req, res) => {
     const snapshot = await query.get();
     const orders = snapshot.docs.map((doc) => doc.data());
 
+    // Previous period is the immediately preceding window of equal length,
+    // used to flag customers who bought last period but not this one.
+    let previousPeriod = null;
+    let churnedUsers = [];
+    if (startDate && endDate) {
+      const previousEnd = new Date(startDate.getTime() - 1);
+      const previousStart = new Date(
+        previousEnd.getTime() - (endDate.getTime() - startDate.getTime()),
+      );
+
+      const previousSnapshot = await db
+        .collection('stripe_orders')
+        .where('createdAt', '>=', previousStart)
+        .where('createdAt', '<=', previousEnd)
+        .get();
+      const previousOrders = previousSnapshot.docs.map((doc) => doc.data());
+
+      const currentEmails = new Set(
+        orders.map((order) => String(order.email || '').toLowerCase()).filter(Boolean),
+      );
+
+      const previousByCustomer = new Map();
+      previousOrders.forEach((order) => {
+        const email = String(order.email || '').toLowerCase();
+        if (!email) return;
+
+        const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : null;
+        const entry = previousByCustomer.get(email) || {
+          email,
+          orders: 0,
+          revenue: 0,
+          lastPurchaseAt: null,
+          products: new Set(),
+        };
+        entry.orders += 1;
+        entry.revenue += Number(order.amountPaid) || 0;
+        if (createdAt && (!entry.lastPurchaseAt || createdAt > entry.lastPurchaseAt)) {
+          entry.lastPurchaseAt = createdAt;
+        }
+        const product = matchProduct(order);
+        if (product) entry.products.add(product.name);
+        previousByCustomer.set(email, entry);
+      });
+
+      churnedUsers = [...previousByCustomer.values()]
+        .filter((entry) => !currentEmails.has(entry.email))
+        .map((entry) => ({
+          email: entry.email,
+          lastPurchaseDate: entry.lastPurchaseAt
+            ? entry.lastPurchaseAt.toISOString()
+            : null,
+          previousPeriodOrders: entry.orders,
+          previousPeriodRevenue: round2(entry.revenue),
+          products: [...entry.products],
+        }))
+        .sort((a, b) => b.previousPeriodRevenue - a.previousPeriodRevenue);
+
+      previousPeriod = {
+        startDate: previousStart.toISOString().slice(0, 10),
+        endDate: previousEnd.toISOString().slice(0, 10),
+      };
+    }
+
     const grossRevenue = orders.reduce(
       (total, order) => total + (Number(order.amountPaid) || 0),
       0,
@@ -744,6 +807,8 @@ gsqRouter.get('/sales-analytics', async (req, res) => {
           volume: categoryTotals.get(leadType).volume,
           revenue: round2(categoryTotals.get(leadType).revenue),
         })),
+        previousPeriod,
+        churnedUsers,
       },
     });
   } catch (error) {
