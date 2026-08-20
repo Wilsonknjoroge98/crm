@@ -78,10 +78,7 @@ const monoCell = (formatter) => (params) => (
 );
 
 const SalesAnalytics = () => {
-  const [range, setRange] = useState(() => [
-    dayjs().startOf('month'),
-    dayjs(),
-  ]);
+  const [range, setRange] = useState(() => [dayjs().startOf('month'), dayjs()]);
   // Tracked rather than derived: presets can resolve to identical ranges
   // (early in a month "This Month" and "Last 7 Days" are the same window).
   const [activePreset, setActivePreset] = useState('This Month');
@@ -112,7 +109,7 @@ const SalesAnalytics = () => {
   });
 
   const columns = [
-    { field: 'name', headerName: 'Product Name', minWidth: 220, flex: 1 },
+    { field: 'name', headerName: 'Product Name', minWidth: 200 },
     {
       field: 'baseUnitPrice',
       headerName: 'Base Unit Price',
@@ -223,7 +220,10 @@ const SalesAnalytics = () => {
           />
         </Stack>
 
-        <Paper variant='outlined' sx={{ borderRadius: 2, borderColor: 'divider' }}>
+        <Paper
+          variant='outlined'
+          sx={{ borderRadius: 2, borderColor: 'divider' }}
+        >
           <DataGrid
             rows={data?.products || []}
             columns={columns}
