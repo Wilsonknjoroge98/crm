@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import InsightsIcon from '@mui/icons-material/Insights';
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
@@ -99,6 +100,11 @@ const SidePanel = () => {
       text: 'Review Triage',
       icon: <RateReviewOutlinedIcon />,
       path: '/review-triage',
+    },
+    {
+      text: 'Sales Analytics',
+      icon: <PaidOutlinedIcon />,
+      path: '/sales-analytics',
     },
   ];
 

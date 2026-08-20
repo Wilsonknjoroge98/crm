@@ -117,7 +117,7 @@ const patchAccount = async ({ data }) => {
   const options = {
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
-    url: '/gsq-account',
+    url: '/gsq',
   };
   try {
     const response = await apiClient.request(options);
@@ -135,7 +135,7 @@ const patchAccount = async ({ data }) => {
 const getInsurDialConfig = async ({ email }) => {
   const response = await apiClient.request({
     method: 'GET',
-    url: '/gsq-account/insurdial-config',
+    url: '/gsq/insurdial-config',
     params: {
       email,
     },
@@ -147,15 +147,24 @@ const patchInsurDialConfig = async ({ data }) => {
   const response = await apiClient.request({
     method: 'PATCH',
     data: { account: data, mode: import.meta.env.MODE },
-    url: '/gsq-account/insurdial-config',
+    url: '/gsq/insurdial-config',
   });
   return response.data;
+};
+
+const getSalesAnalytics = async ({ startDate, endDate }) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/gsq/sales-analytics',
+    params: { startDate, endDate },
+  });
+  return response.data?.data;
 };
 
 const getUnmatchedReviews = async () => {
   const response = await apiClient.request({
     method: 'GET',
-    url: '/gsq-account/reviews/unmatched',
+    url: '/gsq/reviews/unmatched',
   });
   return response.data;
 };
@@ -163,7 +172,7 @@ const getUnmatchedReviews = async () => {
 const matchReview = async ({ reviewId, agentEmail }) => {
   const response = await apiClient.request({
     method: 'POST',
-    url: '/gsq-account/reviews/match',
+    url: '/gsq/reviews/match',
     data: { reviewId, agentEmail },
   });
   return response.data;
@@ -172,7 +181,7 @@ const matchReview = async ({ reviewId, agentEmail }) => {
 const dismissUnmatchedReview = async ({ reviewId }) => {
   const response = await apiClient.request({
     method: 'DELETE',
-    url: `/gsq-account/reviews/unmatched/${reviewId}`,
+    url: `/gsq/reviews/unmatched/${reviewId}`,
   });
   return response.data;
 };
@@ -183,7 +192,7 @@ const getAccount = async ({ email }) => {
   const options = {
     method: 'GET',
     // signal: signal,
-    url: '/gsq-account',
+    url: '/gsq',
     params: {
       email: email,
       mode: import.meta.env.MODE,
@@ -1039,6 +1048,7 @@ export {
   patchAccount,
   getInsurDialConfig,
   patchInsurDialConfig,
+  getSalesAnalytics,
   getUnmatchedReviews,
   matchReview,
   dismissUnmatchedReview,

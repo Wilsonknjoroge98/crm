@@ -18,6 +18,7 @@ const Leaderboard = lazy(() => import('../views/Leaderboard'));
 const Production = lazy(() => import('../views/Production'));
 const Agents = lazy(() => import('../views/Agents'));
 const ReviewTriage = lazy(() => import('../views/ReviewTriage'));
+const SalesAnalytics = lazy(() => import('../views/SalesAnalytics'));
 const ResetPassword = lazy(() => import('../views/ResetPassword'));
 const ForgotPassword = lazy(() => import('../views/ForgotPassword'));
 const Profile = lazy(() => import('../views/Profile'));
@@ -133,6 +134,27 @@ const router = createBrowserRouter([
             }
           >
             <ReviewTriage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/sales-analytics',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <SalesAnalytics />
           </Suspense>
         ),
       },
