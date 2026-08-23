@@ -325,7 +325,7 @@ clientRouter.post('/', async (req, res) => {
   if (!existingLead) {
     let hyrosSource = null;
     if (leadVendorId === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba') {
-      hyrosSource = await getHyrosSource(client.email);
+      hyrosSource = await getHyrosSource(client.phone);
     }
 
     const { data: newLead, error: newLeadError } = await supabaseService
@@ -366,7 +366,7 @@ clientRouter.post('/', async (req, res) => {
       leadVendorId === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
       !existingLead.gsq_source
     ) {
-      const hyrosSource = await getHyrosSource(client.email);
+      const hyrosSource = await getHyrosSource(client.phone);
       if (hyrosSource) {
         await supabaseService
           .from('leads')

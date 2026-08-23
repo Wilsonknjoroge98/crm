@@ -564,4 +564,257 @@ gsqRouter.delete('/reviews/unmatched/:reviewId', async (req, res) => {
   }
 });
 
+// Catalog order matches how the products are sold, not alphabetical. Base
+// prices are the list prices; actual unit price per order comes from Stripe.
+const SALES_PRODUCTS = [
+  {
+    key: 'live_transfer',
+    name: 'Live Transfers',
+    leadType: 'live_transfer',
+    verifiedOnly: null,
+    baseUnitPrice: 60,
+  },
+  {
+    key: 'fresh_mixed',
+    name: 'Fresh Leads / Mixed',
+    leadType: 'fresh_lead',
+    verifiedOnly: false,
+    baseUnitPrice: 39,
+  },
+  {
+    key: 'fresh_verified',
+    name: 'Fresh Leads / Verified Only',
+    leadType: 'fresh_lead',
+    verifiedOnly: true,
+    baseUnitPrice: 55,
+  },
+  {
+    key: 'banked_verified',
+    name: 'Banked Leads / Verified',
+    leadType: 'banked_lead',
+    verifiedOnly: true,
+    baseUnitPrice: 40,
+  },
+  {
+    key: 'banked_unverified',
+    name: 'Banked Leads / Unverified',
+    leadType: 'banked_lead',
+    verifiedOnly: false,
+    baseUnitPrice: 15,
+  },
+  {
+    key: 'aged_verified',
+    name: 'Aged Leads / Verified',
+    leadType: 'aged_lead',
+    verifiedOnly: true,
+    baseUnitPrice: 6,
+  },
+  {
+    key: 'aged_unverified',
+    name: 'Aged Leads / Unverified',
+    leadType: 'aged_lead',
+    verifiedOnly: false,
+    baseUnitPrice: 4,
+  },
+];
+
+const SALES_CATEGORIES = [
+  ['fresh_lead', 'Fresh Web Leads'],
+  ['banked_lead', 'Banked Leads'],
+  ['live_transfer', 'Live Transfers'],
+  ['aged_lead', 'Aged Leads'],
+];
+
+const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+const matchProduct = (order) =>
+  SALES_PRODUCTS.find(
+    (product) =>
+      product.leadType === order.leadType &&
+      (product.verifiedOnly === null ||
+        product.verifiedOnly === Boolean(order.isVerifiedOnly)),
+  );
+
+const parseBoundary = (value, endOfDay) => {
+  if (!value) return null;
+  const date = new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+gsqRouter.get('/sales-analytics', async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).send({ message: 'Forbidden' });
+    }
+
+    const startDate = parseBoundary(req.query.startDate, false);
+    const endDate = parseBoundary(req.query.endDate, true);
+    if (startDate === undefined || endDate === undefined) {
+      return res.status(400).send({ message: 'Invalid date range' });
+    }
+
+    const db = new Firestore({
+      projectId: process.env.GSQ_PROJECT_ID,
+      credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+    });
+
+    let query = db.collection('stripe_orders');
+    if (startDate) query = query.where('createdAt', '>=', startDate);
+    if (endDate) query = query.where('createdAt', '<=', endDate);
+
+    const snapshot = await query.get();
+    const orders = snapshot.docs.map((doc) => doc.data());
+
+    // Previous period is the immediately preceding window of equal length,
+    // used to flag customers who bought last period but not this one.
+    let previousPeriod = null;
+    let churnedUsers = [];
+    if (startDate && endDate) {
+      const previousEnd = new Date(startDate.getTime() - 1);
+      const previousStart = new Date(
+        previousEnd.getTime() - (endDate.getTime() - startDate.getTime()),
+      );
+
+      const previousSnapshot = await db
+        .collection('stripe_orders')
+        .where('createdAt', '>=', previousStart)
+        .where('createdAt', '<=', previousEnd)
+        .get();
+      const previousOrders = previousSnapshot.docs.map((doc) => doc.data());
+
+      const currentEmails = new Set(
+        orders.map((order) => String(order.email || '').toLowerCase()).filter(Boolean),
+      );
+
+      const previousByCustomer = new Map();
+      previousOrders.forEach((order) => {
+        const email = String(order.email || '').toLowerCase();
+        if (!email) return;
+
+        const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : null;
+        const entry = previousByCustomer.get(email) || {
+          email,
+          orders: 0,
+          revenue: 0,
+          lastPurchaseAt: null,
+          products: new Set(),
+        };
+        entry.orders += 1;
+        entry.revenue += Number(order.amountPaid) || 0;
+        if (createdAt && (!entry.lastPurchaseAt || createdAt > entry.lastPurchaseAt)) {
+          entry.lastPurchaseAt = createdAt;
+        }
+        const product = matchProduct(order);
+        if (product) entry.products.add(product.name);
+        previousByCustomer.set(email, entry);
+      });
+
+      churnedUsers = [...previousByCustomer.values()]
+        .filter((entry) => !currentEmails.has(entry.email))
+        .map((entry) => ({
+          email: entry.email,
+          lastPurchaseDate: entry.lastPurchaseAt
+            ? entry.lastPurchaseAt.toISOString()
+            : null,
+          previousPeriodOrders: entry.orders,
+          previousPeriodRevenue: round2(entry.revenue),
+          products: [...entry.products],
+        }))
+        .sort((a, b) => b.previousPeriodRevenue - a.previousPeriodRevenue);
+
+      previousPeriod = {
+        startDate: previousStart.toISOString().slice(0, 10),
+        endDate: previousEnd.toISOString().slice(0, 10),
+      };
+    }
+
+    const grossRevenue = orders.reduce(
+      (total, order) => total + (Number(order.amountPaid) || 0),
+      0,
+    );
+
+    const ordersByCustomer = new Map();
+    orders.forEach((order) => {
+      const email = String(order.email || '').toLowerCase();
+      if (!email) return;
+      ordersByCustomer.set(email, (ordersByCustomer.get(email) || 0) + 1);
+    });
+    const uniqueCustomers = ordersByCustomer.size;
+    // Repeat buyers are customers with more than two orders in the period.
+    const repeatCustomers = [...ordersByCustomer.values()].filter(
+      (count) => count > 2,
+    ).length;
+
+    const totals = new Map(
+      SALES_PRODUCTS.map(({ key }) => [key, { volume: 0, revenue: 0 }]),
+    );
+    const categoryTotals = new Map(
+      SALES_CATEGORIES.map(([leadType]) => [leadType, { volume: 0, revenue: 0 }]),
+    );
+
+    orders.forEach((order) => {
+      const volume = Number(order.leadsAdded) || 0;
+      const revenue = Number(order.amountPaid) || 0;
+
+      const product = matchProduct(order);
+      if (product) {
+        const bucket = totals.get(product.key);
+        bucket.volume += volume;
+        bucket.revenue += revenue;
+      }
+
+      const category = categoryTotals.get(order.leadType);
+      if (category) {
+        category.volume += volume;
+        category.revenue += revenue;
+      }
+    });
+
+    const products = SALES_PRODUCTS.map((product) => {
+      const { volume, revenue } = totals.get(product.key);
+      return {
+        key: product.key,
+        name: product.name,
+        leadType: product.leadType,
+        baseUnitPrice: product.baseUnitPrice,
+        volume,
+        revenue: round2(revenue),
+        avgUnitPrice: volume > 0 ? round2(revenue / volume) : 0,
+        revenueShare:
+          grossRevenue > 0 ? round2((revenue / grossRevenue) * 100) : 0,
+      };
+    });
+
+    return res.status(200).send({
+      data: {
+        startDate: req.query.startDate || null,
+        endDate: req.query.endDate || null,
+        totals: {
+          grossRevenue: round2(grossRevenue),
+          orders: orders.length,
+          averageOrderValue:
+            orders.length > 0 ? round2(grossRevenue / orders.length) : 0,
+          uniqueCustomers,
+          repeatBuyerRate:
+            uniqueCustomers > 0
+              ? round2((repeatCustomers / uniqueCustomers) * 100)
+              : 0,
+        },
+        products,
+        categories: SALES_CATEGORIES.map(([leadType, name]) => ({
+          leadType,
+          name,
+          volume: categoryTotals.get(leadType).volume,
+          revenue: round2(categoryTotals.get(leadType).revenue),
+        })),
+        previousPeriod,
+        churnedUsers,
+      },
+    });
+  } catch (error) {
+    logger.error('Error fetching sales analytics', { error });
+    return res.status(500).send({ message: 'Internal server error' });
+  }
+});
+
 module.exports = gsqRouter;

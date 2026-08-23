@@ -34,7 +34,7 @@ const inboundGSQ = async (req, res) => {
       return res.status(400).send({ message: 'Missing required fields' });
     }
 
-    const hyrosSource = await getHyrosSource(email);
+    const hyrosSource = await getHyrosSource(phone);
     const { data: leadVendor } = await supabaseService
       .from('lead_vendors')
       .select('id')
