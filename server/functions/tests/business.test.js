@@ -9,13 +9,12 @@ jest.mock('firebase-functions/logger', () => ({
 }));
 
 const {
-  createPeopleRouter,
+  createBusinessRouter,
   parsePeopleQuery,
   parseBulkPersonIds,
   buildSearchPatterns,
-  getMetricsRange,
   annualizePremium,
-} = require('../endpoints/people');
+} = require('../endpoints/business');
 
 // Independent copies of the API's projections. If a route starts selecting a
 // column these don't list (or drops one they do), the tests fail on purpose.
@@ -29,7 +28,21 @@ const EXPECTED_LIST_FIELDS = [
   'email',
   'phone',
   'state',
+  'date_of_birth',
   'verified',
+  'smoker',
+  'height_feet',
+  'height_inches',
+  'weight_lbs',
+  'cholesterol_medication',
+  'blood_pressure_medication',
+  'face_amount',
+  'beneficiary',
+  'why',
+  'notes',
+  'lead_vendor_id',
+  'lead_vendor_name',
+  'lead_created_at',
   'created_at',
 ].join(',');
 const EXPECTED_DETAIL_FIELDS = [
@@ -72,6 +85,8 @@ const EXPECTED_DETAIL_FIELDS = [
   'gsq_id',
   'gsq_live_transfer',
   'lead_vendor_id',
+  'lead_vendor_name',
+  'notes',
   'lead_created_at',
   'client_created_at',
   'created_at',
@@ -81,7 +96,7 @@ const EXPECTED_DETAIL_FIELDS = [
 const {
   getOwnedClientIds,
   applyOwnershipFilter,
-} = require('../endpoints/people_access');
+} = require('../endpoints/business_access');
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 
@@ -157,6 +172,14 @@ class FakeQuery {
     return this.record('delete', args);
   }
 
+  update(...args) {
+    return this.record('update', args);
+  }
+
+  upsert(...args) {
+    return this.record('upsert', args);
+  }
+
   then(resolve, reject) {
     return Promise.resolve(this.result).then(resolve, reject);
   }
@@ -180,14 +203,42 @@ const makeSupabase = (results) => {
   };
 };
 
-const makeApp = (supabase, agent) => {
+// Fake Firestore for the Stripe order lookup: docsByEmail maps a queried
+// email to the stripe_orders docs it should return.
+const makeFirestore = (docsByEmail = {}, options = {}) => {
+  const calls = [];
+  const db = {
+    collection: (name) => ({
+      where: (field, op, value) => ({
+        get: async () => {
+          calls.push({ name, field, op, value });
+          if (options.error) throw options.error;
+          return {
+            docs: (docsByEmail[value] || []).map((data) => ({
+              data: () => data,
+            })),
+          };
+        },
+      }),
+    }),
+  };
+  return { calls, createFirestore: () => db };
+};
+
+const makeApp = (supabase, agent, firestore = makeFirestore()) => {
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
     req.agent = agent;
     next();
   });
-  app.use('/people', createPeopleRouter({ supabase }));
+  app.use(
+    '/business',
+    createBusinessRouter({
+      supabase,
+      createFirestore: firestore.createFirestore,
+    }),
+  );
   return app;
 };
 
@@ -335,37 +386,7 @@ describe('parseBulkPersonIds', () => {
   });
 });
 
-describe('people metrics helpers', () => {
-  test.each([
-    ['last_7_days', '2026-07-18'],
-    ['last_30_days', '2026-06-25'],
-    ['this_month', '2026-07-01'],
-    ['this_year', '2026-01-01'],
-  ])('builds the %s UTC range', (preset, startDate) => {
-    expect(
-      getMetricsRange(preset, new Date('2026-07-24T15:30:00.000Z')),
-    ).toEqual({
-      startAt: `${startDate}T00:00:00.000Z`,
-      endAt: '2026-07-24T15:30:00.000Z',
-      startDate,
-      endDate: '2026-07-24',
-    });
-  });
-
-  test('builds an unbounded all-time range', () => {
-    expect(
-      getMetricsRange(
-        'all_time',
-        new Date('2026-07-24T15:30:00.000Z'),
-      ),
-    ).toEqual({
-      startAt: null,
-      endAt: null,
-      startDate: null,
-      endDate: null,
-    });
-  });
-
+describe('business metrics helpers', () => {
   test.each([
     ['weekly', 52],
     ['monthly', 12],
@@ -388,7 +409,7 @@ describe('people metrics helpers', () => {
 describe('GET /people', () => {
   test('requires an agent profile', async () => {
     const supabase = makeSupabase({});
-    const response = await request(makeApp(supabase, null)).get('/people');
+    const response = await request(makeApp(supabase, null)).get('/business');
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'Agent profile required' });
@@ -403,7 +424,7 @@ describe('GET /people', () => {
           error: null,
         },
       ],
-      people: [
+      business: [
         {
           data: [{ id: 'person-1', first_name: 'Ada' }],
           error: null,
@@ -414,7 +435,7 @@ describe('GET /people', () => {
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?page=2&limit=10&sortBy=last_name&sortOrder=asc');
+    ).get('/business?page=2&limit=10&sortBy=last_name&sortOrder=asc');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -427,7 +448,7 @@ describe('GET /people', () => {
       },
     });
 
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     expect(peopleQuery.calls).toEqual(
       expect.arrayContaining([
         {
@@ -455,7 +476,7 @@ describe('GET /people', () => {
       agent_clients: [
         { data: [{ client_id: 'client-1' }], error: null },
       ],
-      people: [
+      business: [
         {
           data: [{ id: 'person-1', lifecycle_status: 'SALE' }],
           error: null,
@@ -466,10 +487,10 @@ describe('GET /people', () => {
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?status=sale');
+    ).get('/business?status=sale');
 
     expect(response.status).toBe(200);
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     expect(peopleQuery.calls).toEqual(
       expect.arrayContaining([
         { method: 'eq', args: ['lifecycle_status', 'SALE'] },
@@ -480,15 +501,15 @@ describe('GET /people', () => {
   test('limits the list to GSQ-sourced people when gsqOnly is set', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
-      people: [{ data: [{ id: 'person-1' }], error: null, count: 1 }],
+      business: [{ data: [{ id: 'person-1' }], error: null, count: 1 }],
     });
 
     const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
-      '/people?gsqOnly=true',
+      '/business?gsqOnly=true',
     );
 
     expect(response.status).toBe(200);
-    expect(findQuery(supabase, 'people').calls).toContainEqual({
+    expect(findQuery(supabase, 'business').calls).toContainEqual({
       method: 'eq',
       args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
     });
@@ -497,14 +518,14 @@ describe('GET /people', () => {
   test('omits the vendor filter unless gsqOnly is exactly true', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
-      people: [{ data: [], error: null, count: 0 }],
+      business: [{ data: [], error: null, count: 0 }],
     });
 
     await request(makeApp(supabase, { id: 'agent-1' })).get(
-      '/people?gsqOnly=1',
+      '/business?gsqOnly=1',
     );
 
-    const vendorCalls = findQuery(supabase, 'people').calls.filter(
+    const vendorCalls = findQuery(supabase, 'business').calls.filter(
       (call) => call.method === 'eq' && call.args[0] === 'lead_vendor_id',
     );
     expect(vendorCalls).toHaveLength(0);
@@ -515,14 +536,14 @@ describe('GET /people', () => {
       agent_clients: [
         { data: [{ client_id: 'client-1' }], error: null },
       ],
-      people: [
+      business: [
         { data: [], error: null, count: 0 },
       ],
     });
 
-    await request(makeApp(supabase, { id: 'agent-1' })).get('/people');
+    await request(makeApp(supabase, { id: 'agent-1' })).get('/business');
 
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     const eqCalls = peopleQuery.calls.filter(
       (call) => call.method === 'eq' && call.args[0] === 'lifecycle_status',
     );
@@ -536,7 +557,7 @@ describe('GET /people', () => {
       ],
       leads: [{ data: [{ id: 'lead-1' }], error: null }],
       clients: [{ data: [{ id: 'client-1' }], error: null }],
-      people: [
+      business: [
         {
           data: [{ id: 'lead-1' }],
           error: null,
@@ -547,13 +568,13 @@ describe('GET /people', () => {
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?search=(555)%20123-4567');
+    ).get('/business?search=(555)%20123-4567');
 
     expect(response.status).toBe(200);
 
     const leadQuery = findQuery(supabase, 'leads');
     const clientQuery = findQuery(supabase, 'clients');
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
 
     expect(leadQuery.calls).toContainEqual({
       method: 'ilike',
@@ -581,14 +602,14 @@ describe('GET /people', () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
       leads: [{ data: [{ id: 'lead-1' }], error: null }],
-      people: [
+      business: [
         { data: [{ id: 'lead-1' }], error: null, count: 1 },
       ],
     });
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?search=CVerify%20Nadia');
+    ).get('/business?search=CVerify%20Nadia');
 
     expect(response.status).toBe(200);
     const leadQuery = findQuery(supabase, 'leads');
@@ -609,14 +630,14 @@ describe('GET /people', () => {
       ],
       leads: [{ data: [{ id: 'lead-1' }], error: null }],
       clients: [{ data: [], error: null }],
-      people: [
+      business: [
         { data: [{ id: 'lead-1' }], error: null, count: 1 },
       ],
     });
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?search=a%25b_c');
+    ).get('/business?search=a%25b_c');
 
     expect(response.status).toBe(200);
     expect(findQuery(supabase, 'leads').calls).toContainEqual({
@@ -643,15 +664,15 @@ describe('GET /people', () => {
       ],
       leads: [{ data: leadIds, error: null }],
       clients: [{ data: clientIds, error: null }],
-      people: [{ data: [], error: null, count: 101 }],
+      business: [{ data: [], error: null, count: 101 }],
     });
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?search=E2E');
+    ).get('/business?search=E2E');
 
     expect(response.status).toBe(200);
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     expect(peopleQuery.calls).toContainEqual({
       method: 'ilike',
       args: ['search_text', '%e2e%'],
@@ -671,7 +692,7 @@ describe('GET /people', () => {
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?search=nobody');
+    ).get('/business?search=nobody');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -697,7 +718,7 @@ describe('GET /people', () => {
       ],
       leads: [{ data: [{ id: 'lead-1' }], error: null }],
       clients: [{ data: [{ id: 'client-1' }], error: null }],
-      people: [
+      business: [
         { data: null, error: rangeError, count: null },
         { data: null, error: null, count: 16 },
       ],
@@ -705,7 +726,7 @@ describe('GET /people', () => {
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?search=Ada&page=5&limit=5');
+    ).get('/business?search=Ada&page=5&limit=5');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -718,7 +739,7 @@ describe('GET /people', () => {
       },
     });
 
-    const countQuery = findQuery(supabase, 'people', 1);
+    const countQuery = findQuery(supabase, 'business', 1);
     expect(countQuery.calls).toEqual(
       expect.arrayContaining([
         {
@@ -747,12 +768,12 @@ describe('GET /people', () => {
         { data: [{ id: 'client-1' }], error: null },
         { data: [], error: null },
       ],
-      people: [{ data: [], error: null, count: 0 }],
+      business: [{ data: [], error: null, count: 0 }],
     });
 
     const response = await request(
       makeApp(supabase, { id: SUPERUSER_ID }),
-    ).get('/people?search=Ada');
+    ).get('/business?search=Ada');
 
     expect(response.status).toBe(200);
     expect(supabase.from).not.toHaveBeenCalledWith('agent_clients');
@@ -760,7 +781,7 @@ describe('GET /people', () => {
     const clientQuery = findQuery(supabase, 'clients');
     expect(clientQuery.calls.some(({ method }) => method === 'in')).toBe(false);
 
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     expect(
       peopleQuery.calls.some(
         ({ method, args }) =>
@@ -773,7 +794,7 @@ describe('GET /people', () => {
     const supabase = makeSupabase({});
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people?limit=500');
+    ).get('/business?limit=500');
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
@@ -791,407 +812,349 @@ describe('GET /people', () => {
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people');
+    ).get('/business');
 
     expect(response.status).toBe(500);
-    expect(response.body).toEqual({ error: 'Failed to fetch people' });
+    expect(response.body).toEqual({ error: 'Failed to fetch business records' });
   });
 });
 
-describe('GET /people/metrics', () => {
-  test('returns ownership-filtered metrics for a preset', async () => {
-    jest.useFakeTimers().setSystemTime(
-      new Date('2026-07-24T15:30:00.000Z'),
-    );
-
-    try {
-      const supabase = makeSupabase({
-        agent_clients: [
-          {
-            data: [
-              { client_id: 'client-1' },
-              { client_id: 'client-2' },
-            ],
-            error: null,
-          },
-        ],
-        leads: [{ data: null, error: null, count: 3 }],
-        people: [
-          {
-            data: [
-              { client_id: 'client-1' },
-              { client_id: 'client-2' },
-            ],
-            error: null,
-          },
-        ],
-        policies: [
-          {
-            data: [
-              { premium_amount: 10, premium_frequency: 'monthly' },
-              { premium_amount: 20, premium_frequency: 'quarterly' },
-              {
-                premium_amount: 30,
-                premium_frequency: 'semi-annually',
-              },
-              { premium_amount: 40, premium_frequency: 'annually' },
-              { premium_amount: 5, premium_frequency: 'weekly' },
-            ],
-            error: null,
-          },
-        ],
-      });
-
-      const response = await request(
-        makeApp(supabase, { id: 'agent-1' }),
-      ).get('/people/metrics?preset=last_7_days');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual({
-        data: {
-          preset: 'last_7_days',
-          mode: 'production',
-          gsqOnly: false,
-          startDate: '2026-07-18',
-          endDate: '2026-07-24',
-          new: 3,
-          closed: 5,
-          totalClosed: 560,
-          leadSpend: 117,
-          roiNet: 443,
-          roiMultiplier: 4.79,
-        },
-      });
-
-      const leadsQuery = findQuery(supabase, 'leads');
-      expect(leadsQuery.calls).toEqual(
-        expect.arrayContaining([
-          {
-            method: 'gte',
-            args: ['created_at', '2026-07-18T00:00:00.000Z'],
-          },
-          {
-            method: 'eq',
-            args: ['agent_id', 'agent-1'],
-          },
-        ]),
-      );
-
-      const peopleQuery = findQuery(supabase, 'people');
-      expect(peopleQuery.calls).toContainEqual({
-        method: 'or',
-        args: [
-          'and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1,client-2)',
-        ],
-      });
-
-      const policiesQuery = findQuery(supabase, 'policies');
-      expect(policiesQuery.calls).toEqual(
-        expect.arrayContaining([
-          {
-            method: 'select',
-            args: [
-              'id,client_id,premium_amount,premium_frequency',
-            ],
-          },
-          {
-            method: 'in',
-            args: ['client_id', ['client-1', 'client-2']],
-          },
-        ]),
-      );
-      // Production mode credits revenue to the window a policy was sold in.
-      expect(policiesQuery.calls).toEqual(
-        expect.arrayContaining([
-          { method: 'gte', args: ['sold_date', '2026-07-18'] },
-          { method: 'lte', args: ['sold_date', '2026-07-24'] },
-        ]),
-      );
-      // The visible-client lookup itself is not date-bounded in this mode.
-      expect(
-        peopleQuery.calls.some(({ args }) => args[0] === 'client_created_at'),
-      ).toBe(false);
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  test('defaults to last 30 days and skips policies without clients', async () => {
-    jest.useFakeTimers().setSystemTime(
-      new Date('2026-07-24T15:30:00.000Z'),
-    );
-
-    try {
-      const supabase = makeSupabase({
-        agent_clients: [{ data: [], error: null }],
-        leads: [{ data: null, error: null, count: 1 }],
-        people: [{ data: [], error: null }],
-      });
-
-      const response = await request(
-        makeApp(supabase, { id: 'agent-1' }),
-      ).get('/people/metrics');
-
-      expect(response.status).toBe(200);
-      expect(response.body.data).toEqual({
-        preset: 'last_30_days',
-        mode: 'production',
-        gsqOnly: false,
-        startDate: '2026-06-25',
-        endDate: '2026-07-24',
-        new: 1,
-        closed: 0,
-        totalClosed: 0,
-        leadSpend: 39,
-        roiNet: -39,
-        roiMultiplier: 0,
-      });
-      expect(supabase.from).not.toHaveBeenCalledWith('policies');
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  test('rejects unsupported presets without querying Supabase', async () => {
-    const supabase = makeSupabase({});
-
-    const response = await request(
-      makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people/metrics?preset=yesterday');
-
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      error: 'Unsupported metrics preset',
-    });
-    expect(supabase.from).not.toHaveBeenCalled();
-  });
-
-  test('returns all-time metrics without date filters', async () => {
-    const supabase = makeSupabase({
-      agent_clients: [
-        { data: [{ client_id: 'client-1' }], error: null },
-      ],
-      leads: [{ data: null, error: null, count: 4 }],
-      people: [
-        { data: [{ client_id: 'client-1' }], error: null },
-      ],
-      policies: [
-        {
-          data: [
-            {
-              premium_amount: 25,
-              premium_frequency: 'monthly',
-            },
-          ],
-          error: null,
-        },
-      ],
-    });
-
-    const response = await request(
-      makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people/metrics?preset=all_time');
-
-    expect(response.status).toBe(200);
-    expect(response.body.data).toEqual({
-      preset: 'all_time',
-      mode: 'production',
-      gsqOnly: false,
-      startDate: null,
-      endDate: null,
-      new: 4,
-      closed: 1,
-      totalClosed: 300,
-      leadSpend: 156,
-      roiNet: 144,
-      roiMultiplier: 1.92,
-    });
-
-    for (const table of ['leads', 'people']) {
-      const query = findQuery(supabase, table);
-      expect(
-        query.calls.some(({ method }) => ['gte', 'lte'].includes(method)),
-      ).toBe(false);
-    }
-  });
-
+describe('GET /business/metrics', () => {
   test('requires an agent profile', async () => {
     const supabase = makeSupabase({});
-
-    const response = await request(
-      makeApp(supabase, null),
-    ).get('/people/metrics');
+    const response = await request(makeApp(supabase, null)).get(
+      '/business/metrics',
+    );
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'Agent profile required' });
   });
 
-  test('chunks ownership past 100 clients using only client links', async () => {
-    const ownedClients = Array.from({ length: 150 }, (_, index) => ({
-      client_id: `client-${index}`,
-    }));
+  test('returns all-time metrics with Stripe-derived lead spend', async () => {
     const supabase = makeSupabase({
-      agent_clients: [{ data: ownedClients, error: null }],
-      leads: [{ data: null, error: null, count: 5 }],
-      people: [
+      agent_clients: [
         {
-          data: [{ client_id: 'client-a' }, { client_id: 'client-b' }],
+          data: [{ client_id: 'client-1' }, { client_id: 'client-2' }],
           error: null,
         },
-        { data: [{ client_id: 'client-c' }], error: null },
+      ],
+      leads: [{ data: null, error: null, count: 3 }],
+      business: [
+        {
+          data: [{ client_id: 'client-1' }, { client_id: 'client-2' }],
+          error: null,
+        },
       ],
       policies: [
         {
-          data: [{ premium_amount: 10, premium_frequency: 'monthly' }],
+          data: [
+            { premium_amount: 10, premium_frequency: 'monthly' },
+            { premium_amount: 20, premium_frequency: 'quarterly' },
+            { premium_amount: 30, premium_frequency: 'semi-annually' },
+            { premium_amount: 40, premium_frequency: 'annually' },
+            { premium_amount: 5, premium_frequency: 'weekly' },
+          ],
           error: null,
         },
       ],
     });
+    const firestore = makeFirestore({
+      'agent-1@example.com': [{ amountPaid: 100 }, { amountPaid: 56 }],
+    });
 
     const response = await request(
-      makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people/metrics?preset=all_time');
+      makeApp(
+        supabase,
+        { id: 'agent-1', email: 'Agent-1@Example.com' },
+        firestore,
+      ),
+    ).get('/business/metrics');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       data: {
-        preset: 'all_time',
-        mode: 'production',
-        gsqOnly: false,
-        startDate: null,
-        endDate: null,
-        new: 5,
-        closed: 1,
-        totalClosed: 120,
-        leadSpend: 195,
-        roiNet: -75,
-        roiMultiplier: 0.62,
+        leadsDelivered: 3,
+        closedSales: 5,
+        totalClosed: 560,
+        leadSpend: 156,
+        roiNet: 404,
+        roiMultiplier: 3.59,
       },
     });
 
-    const firstChunk = findQuery(supabase, 'people').calls.find(
-      ({ method }) => method === 'in',
-    );
-    const secondChunk = findQuery(supabase, 'people', 1).calls.find(
-      ({ method }) => method === 'in',
-    );
-    expect(firstChunk.args[0]).toBe('client_id');
-    expect(firstChunk.args[1]).toHaveLength(100);
-    expect(secondChunk.args[1]).toHaveLength(50);
-    const leadOwnedQueries = supabase.queries.filter(
-      (query) =>
-        query.table === 'people' &&
-        query.calls.some(
-          ({ method, args }) => method === 'eq' && args[0] === 'agent_id',
-        ),
-    );
-    expect(leadOwnedQueries).toHaveLength(0);
-  });
+    // The Stripe lookup lowercases the account email before matching.
+    expect(firestore.calls).toEqual([
+      {
+        name: 'stripe_orders',
+        field: 'email',
+        op: '==',
+        value: 'agent-1@example.com',
+      },
+    ]);
 
-  test('profitability mode credits a lead cohort regardless of sale date', async () => {
-    jest.useFakeTimers().setSystemTime(new Date('2026-07-24T15:30:00.000Z'));
-
-    try {
-      const supabase = makeSupabase({
-        agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
-        leads: [{ data: null, error: null, count: 10 }],
-        people: [{ data: [{ client_id: 'client-1' }], error: null }],
-        policies: [
-          {
-            data: [{ premium_amount: 100, premium_frequency: 'monthly' }],
-            error: null,
-          },
-        ],
-      });
-
-      const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
-        '/people/metrics?preset=last_7_days&mode=profitability',
-      );
-
-      expect(response.status).toBe(200);
-      expect(response.body.data).toEqual({
-        preset: 'last_7_days',
-        mode: 'profitability',
-        gsqOnly: false,
-        startDate: '2026-07-18',
-        endDate: '2026-07-24',
-        new: 10,
-        closed: 1,
-        totalClosed: 1200,
-        leadSpend: 390,
-        roiNet: 810,
-        roiMultiplier: 3.08,
-      });
-
-      // The cohort is defined by lead delivery date...
-      const peopleQuery = findQuery(supabase, 'people');
-      expect(peopleQuery.calls).toEqual(
-        expect.arrayContaining([
-          { method: 'gte', args: ['lead_created_at', '2026-07-18T00:00:00.000Z'] },
-        ]),
-      );
-      // ...and its policies are counted whenever they sold.
-      const policiesQuery = findQuery(supabase, 'policies');
-      expect(
-        policiesQuery.calls.some(({ args }) => args[0] === 'sold_date'),
-      ).toBe(false);
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  test('gsqOnly narrows both lead counts and the client cohort', async () => {
-    const supabase = makeSupabase({
-      agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
-      leads: [{ data: null, error: null, count: 2 }],
-      people: [{ data: [{ client_id: 'client-1' }], error: null }],
-      policies: [{ data: [], error: null }],
-    });
-
-    const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
-      '/people/metrics?preset=all_time&gsqOnly=true',
-    );
-
-    expect(response.status).toBe(200);
-    expect(response.body.data.gsqOnly).toBe(true);
-
-    const gsqFilter = {
+    // Leads are scoped to the requesting agent for non-superusers.
+    const leadsQuery = findQuery(supabase, 'leads');
+    expect(leadsQuery.calls).toContainEqual({
       method: 'eq',
-      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
-    };
-    expect(findQuery(supabase, 'leads').calls).toContainEqual(gsqFilter);
-    expect(findQuery(supabase, 'people').calls).toContainEqual(gsqFilter);
+      args: ['agent_id', 'agent-1'],
+    });
   });
 
-  test('rejects an unsupported mode without querying Supabase', async () => {
-    const supabase = makeSupabase({});
-
-    const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
-      '/people/metrics?mode=vanity',
-    );
-
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: 'Unsupported metrics mode' });
-    expect(supabase.from).not.toHaveBeenCalled();
-  });
-
-  test('returns a sanitized error when a metric query fails', async () => {
+  test('superuser skips ownership scoping and reads all policies', async () => {
     const supabase = makeSupabase({
-      agent_clients: [{ data: [], error: null }],
-      leads: [
-        { data: null, error: new Error('database unavailable'), count: null },
+      leads: [{ data: null, error: null, count: 10 }],
+      policies: [
+        {
+          data: [{ premium_amount: 100, premium_frequency: 'annually' }],
+          error: null,
+        },
       ],
-      people: [{ data: [], error: null }],
+    });
+    const firestore = makeFirestore({
+      'super@example.com': [{ amountPaid: 50 }],
     });
 
     const response = await request(
-      makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people/metrics');
+      makeApp(
+        supabase,
+        { id: SUPERUSER_ID, email: 'super@example.com' },
+        firestore,
+      ),
+    ).get('/business/metrics');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      leadsDelivered: 10,
+      closedSales: 1,
+      totalClosed: 100,
+      leadSpend: 50,
+      roiNet: 50,
+      roiMultiplier: 2,
+    });
+
+    // No ownership lookups for the superuser.
+    expect(findQuery(supabase, 'agent_clients')).toBeUndefined();
+    const leadsQuery = findQuery(supabase, 'leads');
+    expect(leadsQuery.calls).not.toContainEqual({
+      method: 'eq',
+      args: ['agent_id', SUPERUSER_ID],
+    });
+  });
+
+  test('reports a null multiplier when there is no spend', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [], error: null }],
+      leads: [{ data: null, error: null, count: 0 }],
+      business: [{ data: [], error: null }],
+    });
+    const firestore = makeFirestore({});
+
+    const response = await request(
+      makeApp(
+        supabase,
+        { id: 'agent-1', email: 'agent-1@example.com' },
+        firestore,
+      ),
+    ).get('/business/metrics');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      leadsDelivered: 0,
+      closedSales: 0,
+      totalClosed: 0,
+      leadSpend: 0,
+      roiNet: 0,
+      roiMultiplier: null,
+    });
+  });
+
+  test('returns 500 when the Stripe order lookup fails', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [], error: null }],
+      leads: [{ data: null, error: null, count: 0 }],
+      business: [{ data: [], error: null }],
+    });
+    const firestore = makeFirestore({}, { error: new Error('firestore down') });
+
+    const response = await request(
+      makeApp(
+        supabase,
+        { id: 'agent-1', email: 'agent-1@example.com' },
+        firestore,
+      ),
+    ).get('/business/metrics');
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
-      error: 'Failed to fetch people metrics',
+      error: 'Failed to fetch business metrics',
     });
+  });
+
+  test('returns 500 when a supabase query fails', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [], error: null }],
+      leads: [{ data: null, error: { message: 'boom' }, count: null }],
+      business: [{ data: [], error: null }],
+    });
+
+    const response = await request(
+      makeApp(
+        supabase,
+        { id: 'agent-1', email: 'agent-1@example.com' },
+        makeFirestore({}),
+      ),
+    ).get('/business/metrics');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'Failed to fetch business metrics',
+    });
+  });
+});
+
+describe('PATCH /business/:id/notes', () => {
+  test('writes notes to the client row for a converted sale', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
+      business: [
+        {
+          data: {
+            id: 'client-1',
+            lead_id: 'lead-1',
+            client_id: 'client-1',
+          },
+          error: null,
+        },
+      ],
+      clients: [{ data: null, error: null }],
+    });
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' }))
+      .patch('/business/client-1/notes')
+      .send({ notes: 'called, follow up friday' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      data: { id: 'client-1', notes: 'called, follow up friday' },
+    });
+
+    const updateQuery = findQuery(supabase, 'clients');
+    expect(updateQuery.calls).toContainEqual({
+      method: 'update',
+      args: [{ notes: 'called, follow up friday' }],
+    });
+    expect(updateQuery.calls).toContainEqual({
+      method: 'eq',
+      args: ['id', 'client-1'],
+    });
+  });
+
+  test('writes notes to the lead row before conversion', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [], error: null }],
+      business: [
+        {
+          data: { id: 'lead-1', lead_id: 'lead-1', client_id: null },
+          error: null,
+        },
+      ],
+      leads: [{ data: null, error: null }],
+    });
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' }))
+      .patch('/business/lead-1/notes')
+      .send({ notes: 'left voicemail' });
+
+    expect(response.status).toBe(200);
+    const updateQuery = findQuery(supabase, 'leads');
+    expect(updateQuery.calls).toContainEqual({
+      method: 'update',
+      args: [{ notes: 'left voicemail' }],
+    });
+  });
+
+  test('rejects non-string notes', async () => {
+    const supabase = makeSupabase({});
+    const response = await request(makeApp(supabase, { id: 'agent-1' }))
+      .patch('/business/lead-1/notes')
+      .send({ notes: 42 });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'notes must be a string' });
+  });
+
+  test('404s for a person outside the agent scope', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [], error: null }],
+      business: [{ data: null, error: null }],
+    });
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' }))
+      .patch('/business/other/notes')
+      .send({ notes: 'nope' });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'Person not found' });
+  });
+});
+
+describe('POST /business/release-notifications', () => {
+  test('upserts the signup under the normalized email', async () => {
+    const supabase = makeSupabase({
+      release_notifications_subscribers: [{ data: null, error: null }],
+    });
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' }))
+      .post('/business/release-notifications')
+      .send({ email: ' Agent-1@Example.COM ' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      data: { email: 'agent-1@example.com' },
+    });
+
+    const upsertQuery = findQuery(
+      supabase,
+      'release_notifications_subscribers',
+    );
+    expect(upsertQuery.calls).toContainEqual({
+      method: 'upsert',
+      args: [
+        {
+          email: 'agent-1@example.com',
+          feature: 'business_quick_actions',
+          agent_id: 'agent-1',
+        },
+        { onConflict: 'email,feature', ignoreDuplicates: true },
+      ],
+    });
+  });
+
+  test('falls back to the logged-in account email', async () => {
+    const supabase = makeSupabase({
+      release_notifications_subscribers: [{ data: null, error: null }],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1', email: 'agent-1@example.com' }),
+    )
+      .post('/business/release-notifications')
+      .send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      data: { email: 'agent-1@example.com' },
+    });
+  });
+
+  test('rejects an invalid email', async () => {
+    const supabase = makeSupabase({});
+    const response = await request(makeApp(supabase, { id: 'agent-1' }))
+      .post('/business/release-notifications')
+      .send({ email: 'not-an-email' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'A valid email is required' });
   });
 });
 
@@ -1220,17 +1183,17 @@ describe('GET /people/:id', () => {
       agent_clients: [
         { data: [{ client_id: 'client-1' }], error: null },
       ],
-      people: [{ data: person, error: null }],
+      business: [{ data: person, error: null }],
     });
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people/client-1');
+    ).get('/business/client-1');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ data: person });
 
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     expect(peopleQuery.calls).toEqual(
       expect.arrayContaining([
         {
@@ -1256,17 +1219,17 @@ describe('GET /people/:id', () => {
   test('returns 404 without exposing an unowned person', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
-      people: [{ data: null, error: null }],
+      business: [{ data: null, error: null }],
     });
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people/client-2');
+    ).get('/business/client-2');
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'Person not found' });
 
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     expect(peopleQuery.calls).toContainEqual({
       method: 'eq',
       args: ['agent_id', 'agent-1'],
@@ -1276,18 +1239,18 @@ describe('GET /people/:id', () => {
   test('lets the existing superuser fetch any person', async () => {
     const person = { id: 'client-2', policies: [] };
     const supabase = makeSupabase({
-      people: [{ data: person, error: null }],
+      business: [{ data: person, error: null }],
     });
 
     const response = await request(
       makeApp(supabase, { id: SUPERUSER_ID }),
-    ).get('/people/client-2');
+    ).get('/business/client-2');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ data: person });
     expect(supabase.from).not.toHaveBeenCalledWith('agent_clients');
 
-    const peopleQuery = findQuery(supabase, 'people');
+    const peopleQuery = findQuery(supabase, 'business');
     expect(
       peopleQuery.calls.some(({ method }) => method === 'or'),
     ).toBe(false);
@@ -1298,7 +1261,7 @@ describe('GET /people/:id', () => {
 
     const response = await request(
       makeApp(supabase, null),
-    ).get('/people/person-1');
+    ).get('/business/person-1');
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'Agent profile required' });
@@ -1308,14 +1271,14 @@ describe('GET /people/:id', () => {
   test('returns a sanitized error when the detail query fails', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
-      people: [
+      business: [
         { data: null, error: new Error('database unavailable') },
       ],
     });
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1' }),
-    ).get('/people/person-1');
+    ).get('/business/person-1');
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
@@ -1336,7 +1299,7 @@ describe('DELETE /people', () => {
         { data: [{ client_id: clientId }], error: null },
         { data: null, error: null },
       ],
-      people: [
+      business: [
         {
           data: [
             {
@@ -1369,7 +1332,7 @@ describe('DELETE /people', () => {
     const app = makeApp(supabase, { id: 'agent-1' });
 
     const response = await request(app)
-      .delete('/people')
+      .delete('/business')
       .send({ ids: [leadOnlyId, clientId] });
 
     expect(response.status).toBe(200);
@@ -1396,7 +1359,7 @@ describe('DELETE /people', () => {
         { data: [{ client_id: clientId }], error: null },
         { data: null, error: null },
       ],
-      people: [
+      business: [
         {
           data: [
             {
@@ -1421,7 +1384,7 @@ describe('DELETE /people', () => {
     const app = makeApp(supabase, { id: 'agent-1' });
 
     const response = await request(app)
-      .delete('/people')
+      .delete('/business')
       .send({ ids: [clientId] });
 
     expect(response.status).toBe(200);
@@ -1431,7 +1394,7 @@ describe('DELETE /people', () => {
   test('rejects the whole request when any selected row is unowned', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
-      people: [
+      business: [
         {
           data: [
             {
@@ -1448,7 +1411,7 @@ describe('DELETE /people', () => {
     const app = makeApp(supabase, { id: 'agent-1' });
 
     const response = await request(app)
-      .delete('/people')
+      .delete('/business')
       .send({ ids: [leadOnlyId, clientId] });
 
     expect(response.status).toBe(404);
@@ -1463,23 +1426,23 @@ describe('DELETE /people', () => {
   test('excludes a mismatched SALE at the ownership filter, so its delete 404s', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
-      people: [{ data: [], error: null }],
+      business: [{ data: [], error: null }],
     });
     const app = makeApp(supabase, { id: 'agent-1' });
 
     const response = await request(app)
-      .delete('/people')
+      .delete('/business')
       .send({ ids: [clientId] });
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({
       error: 'One or more people were not found',
     });
-    expect(findQuery(supabase, 'people').calls).toContainEqual({
+    expect(findQuery(supabase, 'business').calls).toContainEqual({
       method: 'is',
       args: ['client_id', null],
     });
-    expect(findQuery(supabase, 'people').calls).toContainEqual({
+    expect(findQuery(supabase, 'business').calls).toContainEqual({
       method: 'eq',
       args: ['agent_id', 'agent-1'],
     });
@@ -1491,7 +1454,7 @@ describe('DELETE /people', () => {
   test('allows the superuser to delete sales linked to any agent', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: null, error: null }],
-      people: [
+      business: [
         {
           data: [
             {
@@ -1517,7 +1480,7 @@ describe('DELETE /people', () => {
     const app = makeApp(supabase, { id: SUPERUSER_ID });
 
     const response = await request(app)
-      .delete('/people')
+      .delete('/business')
       .send({ ids: [clientId] });
 
     expect(response.status).toBe(200);
@@ -1527,7 +1490,7 @@ describe('DELETE /people', () => {
   test('requires an agent profile', async () => {
     const supabase = makeSupabase({});
     const response = await request(makeApp(supabase, null))
-      .delete('/people')
+      .delete('/business')
       .send({ ids: [clientId] });
 
     expect(response.status).toBe(403);
@@ -1538,7 +1501,7 @@ describe('DELETE /people', () => {
   test('returns a sanitized 500 when the cascade fails midway', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [{ client_id: clientId }], error: null }],
-      people: [
+      business: [
         {
           data: [
             {
@@ -1559,11 +1522,11 @@ describe('DELETE /people', () => {
     const app = makeApp(supabase, { id: 'agent-1' });
 
     const response = await request(app)
-      .delete('/people')
+      .delete('/business')
       .send({ ids: [clientId] });
 
     expect(response.status).toBe(500);
-    expect(response.body).toEqual({ error: 'Failed to delete people' });
+    expect(response.body).toEqual({ error: 'Failed to delete business records' });
     expect(supabase.from).not.toHaveBeenCalledWith('leads');
   });
 
@@ -1572,7 +1535,7 @@ describe('DELETE /people', () => {
     const app = makeApp(supabase, { id: 'agent-1' });
 
     const response = await request(app)
-      .delete('/people')
+      .delete('/business')
       .send({ ids: ['bad-id'] });
 
     expect(response.status).toBe(400);

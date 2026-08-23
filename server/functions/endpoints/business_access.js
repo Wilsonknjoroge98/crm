@@ -46,7 +46,7 @@ const findOwnedPerson = async (supabase, agentId, personId, fields) => {
     : await getOwnedClientIds(supabase, agentId);
 
   let query = supabase
-    .from('people')
+    .from('business')
     .select(fields)
     .eq('id', personId);
 

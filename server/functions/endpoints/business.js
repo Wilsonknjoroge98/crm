@@ -1,35 +1,23 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
+const { Firestore } = require('@google-cloud/firestore');
 const { supabaseService } = require('../services/supabase');
 const {
   SUPERUSER_ID,
   getOwnedClientIds,
   applyOwnershipFilter,
   findOwnedPerson,
-} = require('./people_access');
+} = require('./business_access');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 const MAX_BULK_DELETE = 100;
 const MAX_SEARCH_LENGTH = 200;
 const MAX_INDEXED_SEARCH_IDS = 100;
-const DEFAULT_METRICS_PRESET = 'last_30_days';
+const MAX_NOTES_LENGTH = 10000;
 const METRICS_PAGE_SIZE = 1000;
 const METRICS_ID_CHUNK_SIZE = 100;
-const METRICS_PRESETS = new Set([
-  'last_7_days',
-  'last_30_days',
-  'this_month',
-  'this_year',
-  'all_time',
-]);
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
-// Production anchors sales to policies.sold_date; profitability anchors them
-// to the lead delivery date so a cohort's revenue is credited to the window
-// that paid for it.
-const METRICS_MODES = new Set(['production', 'profitability']);
-const DEFAULT_METRICS_MODE = 'production';
-const LEAD_COST = 39;
 // Payments per year by premium_frequency; unknown frequencies assume monthly.
 const PREMIUM_ANNUAL_MULTIPLIERS = {
   'weekly': 52,
@@ -40,8 +28,9 @@ const PREMIUM_ANNUAL_MULTIPLIERS = {
   'annually': 1,
   'annual': 1,
 };
-// Slim projection for the grid; the drawer fetches PEOPLE_DETAIL_FIELDS.
-const PEOPLE_LIST_FIELDS = [
+// Card rows surface contact, notes, and the underwriting summary directly,
+// so the list projection carries what the drawer alone used to need.
+const BUSINESS_LIST_FIELDS = [
   'id',
   'lead_id',
   'client_id',
@@ -51,10 +40,24 @@ const PEOPLE_LIST_FIELDS = [
   'email',
   'phone',
   'state',
+  'date_of_birth',
   'verified',
+  'smoker',
+  'height_feet',
+  'height_inches',
+  'weight_lbs',
+  'cholesterol_medication',
+  'blood_pressure_medication',
+  'face_amount',
+  'beneficiary',
+  'why',
+  'notes',
+  'lead_vendor_id',
+  'lead_vendor_name',
+  'lead_created_at',
   'created_at',
 ].join(',');
-const PEOPLE_DETAIL_FIELDS = [
+const BUSINESS_DETAIL_FIELDS = [
   'id',
   'lead_id',
   'client_id',
@@ -94,6 +97,8 @@ const PEOPLE_DETAIL_FIELDS = [
   'gsq_id',
   'gsq_live_transfer',
   'lead_vendor_id',
+  'lead_vendor_name',
+  'notes',
   'lead_created_at',
   'client_created_at',
   'created_at',
@@ -142,63 +147,6 @@ const parseBulkPersonIds = (body) => {
   return ids;
 };
 
-const startOfUtcDay = (value) => {
-  const date = new Date(value);
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
-};
-
-// Preset windows are whole UTC days; all_time returns null bounds (no filter).
-const getMetricsRange = (preset, referenceDate = new Date()) => {
-  if (!METRICS_PRESETS.has(preset)) {
-    throw new QueryValidationError('Unsupported metrics preset');
-  }
-
-  const end = new Date(referenceDate);
-  if (Number.isNaN(end.getTime())) {
-    throw new Error('Invalid metrics reference date');
-  }
-
-  if (preset === 'all_time') {
-    return {
-      startAt: null,
-      endAt: null,
-      startDate: null,
-      endDate: null,
-    };
-  }
-
-  const start = startOfUtcDay(end);
-  if (preset === 'last_7_days') {
-    start.setUTCDate(start.getUTCDate() - 6);
-  } else if (preset === 'last_30_days') {
-    start.setUTCDate(start.getUTCDate() - 29);
-  } else if (preset === 'this_month') {
-    start.setUTCDate(1);
-  } else {
-    start.setUTCMonth(0, 1);
-  }
-
-  return {
-    startAt: start.toISOString(),
-    endAt: end.toISOString(),
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
-  };
-};
-
-const applyDateRange = (query, field, range) => {
-  if (!range.startAt || !range.endAt) return query;
-  return query.gte(field, range.startAt).lte(field, range.endAt);
-};
-
-// policies.sold_date is a date column, so it compares against day strings
-// rather than the timestamps used for the created_at anchors.
-const applyDayRange = (query, field, range) => {
-  if (!range.startDate || !range.endDate) return query;
-  return query.gte(field, range.startDate).lte(field, range.endDate);
-};
-
 const chunkValues = (values, size = METRICS_ID_CHUNK_SIZE) => {
   const chunks = [];
   for (let index = 0; index < values.length; index += size) {
@@ -229,26 +177,20 @@ const fetchAllRows = async (buildQuery) => {
   return rows;
 };
 
-// Distinct visible client ids, optionally narrowed to a date window on the
-// given anchor column and to GSQ-sourced people.
+// Distinct visible client ids, optionally narrowed to GSQ-sourced people.
 const fetchVisibleClientIds = async ({
   supabase,
   agentId,
   isSuperuser,
   ownedClientIds,
-  range,
-  dateField,
   gsqOnly = false,
 }) => {
   const buildQuery = (ownershipFilter) => {
     let query = supabase
-      .from('people')
+      .from('business')
       .select('client_id')
       .not('client_id', 'is', null)
       .order('client_id', { ascending: true });
-    if (dateField) {
-      query = applyDateRange(query, dateField, range);
-    }
     if (gsqOnly) {
       query = query.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
     }
@@ -282,35 +224,29 @@ const fetchVisibleClientIds = async ({
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
-// soldRange, when given, keeps only policies sold inside the window.
-const fetchPoliciesForClientIds = async (supabase, clientIds, soldRange) => {
+const fetchPoliciesForClientIds = async (supabase, clientIds) => {
   const policies = [];
   for (const clientIdChunk of chunkValues(clientIds)) {
     policies.push(
-      ...(await fetchAllRows(() => {
-        const query = supabase
+      ...(await fetchAllRows(() =>
+        supabase
           .from('policies')
           .select('id,client_id,premium_amount,premium_frequency')
           .in('client_id', clientIdChunk)
-          .order('id', { ascending: true });
-        return soldRange ? applyDayRange(query, 'sold_date', soldRange) : query;
-      })),
+          .order('id', { ascending: true }),
+      )),
     );
   }
   return policies;
 };
 
 // Superusers see every policy, so the client-id intersection is skipped.
-const fetchPoliciesSoldInRange = async (supabase, range) =>
+const fetchAllPolicies = async (supabase) =>
   fetchAllRows(() =>
-    applyDayRange(
-      supabase
-        .from('policies')
-        .select('id,client_id,premium_amount,premium_frequency')
-        .order('id', { ascending: true }),
-      'sold_date',
-      range,
-    ),
+    supabase
+      .from('policies')
+      .select('id,client_id,premium_amount,premium_frequency')
+      .order('id', { ascending: true }),
   );
 
 // Total Closed annualizes by payment frequency (weekly x52, quarterly x4, ...).
@@ -552,9 +488,37 @@ const applyPeopleFilters = ({
   return filteredQuery;
 };
 
+// Lead spend comes from the GSQ project's stripe_orders mirror, matched on
+// the purchasing account's email (see gsq.js /sales-analytics for the same
+// source). Factory injectable so tests can stub Firestore.
+const defaultCreateFirestore = () =>
+  new Firestore({
+    projectId: process.env.GSQ_PROJECT_ID,
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+
+const fetchStripeLeadSpend = async (createFirestore, email) => {
+  const normalizedEmail = String(email || '').toLowerCase();
+  if (!normalizedEmail) return 0;
+
+  const db = createFirestore();
+  const snapshot = await db
+    .collection('stripe_orders')
+    .where('email', '==', normalizedEmail)
+    .get();
+
+  return snapshot.docs.reduce(
+    (total, doc) => total + (Number(doc.data().amountPaid) || 0),
+    0,
+  );
+};
+
 // Factory so tests can inject a fake Supabase client; production callers get
 // the real service client by default.
-const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
+const createBusinessRouter = ({
+  supabase = supabaseService,
+  createFirestore = defaultCreateFirestore,
+} = {}) => {
   // eslint-disable-next-line new-cap
   const router = express.Router();
 
@@ -606,8 +570,8 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
 
       let peopleQuery = applyPeopleFilters({
         query: supabase
-          .from('people')
-          .select(PEOPLE_LIST_FIELDS, { count: 'exact' }),
+          .from('business')
+          .select(BUSINESS_LIST_FIELDS, { count: 'exact' }),
         agentId,
         isSuperuser,
         ownedClientIds,
@@ -628,7 +592,7 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
       if (error?.code === 'PGRST103') {
         const countQuery = applyPeopleFilters({
           query: supabase
-            .from('people')
+            .from('business')
             .select('id', { count: 'exact', head: true }),
           agentId,
           isSuperuser,
@@ -655,7 +619,7 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
 
       const total = count ?? 0;
       logger.log('Fetched people successfully', {
-        route: '/people',
+        route: '/business',
         method: 'GET',
         requesterId: agentId,
         page,
@@ -674,18 +638,18 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
         },
       });
     } catch (error) {
-      logger.error('Failed to fetch people', {
-        route: '/people',
+      logger.error('Failed to fetch business records', {
+        route: '/business',
         method: 'GET',
         requesterId: agentId,
         error,
       });
-      return res.status(500).json({ error: 'Failed to fetch people' });
+      return res.status(500).json({ error: 'Failed to fetch business records' });
     }
   });
 
-  // Header cards. Both modes count lead delivery the same way; they differ in
-  // which policies count as revenue for the window.
+  // Header strip: all-time financial figures. Lead spend is the account's
+  // actual Stripe charge history rather than a per-lead price estimate.
   router.get('/metrics', async (req, res) => {
     const agentId = req.agent?.id;
     const isSuperuser = agentId === SUPERUSER_ID;
@@ -694,95 +658,48 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
       return res.status(403).json({ error: 'Agent profile required' });
     }
 
-    const preset = req.query.preset || DEFAULT_METRICS_PRESET;
-    const mode = req.query.mode || DEFAULT_METRICS_MODE;
-    const gsqOnly = req.query.gsqOnly === 'true';
-    let range;
-    try {
-      if (!METRICS_MODES.has(mode)) {
-        throw new QueryValidationError('Unsupported metrics mode');
-      }
-      range = getMetricsRange(preset);
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
-
     try {
       const ownedClientIds = isSuperuser
         ? []
         : await getOwnedClientIds(supabase, agentId);
 
-      let newLeadsQuery = supabase
+      let leadsQuery = supabase
         .from('leads')
         .select('id', { count: 'exact', head: true });
-      newLeadsQuery = applyDateRange(
-        newLeadsQuery,
-        'created_at',
-        range,
-      );
-
       if (!isSuperuser) {
-        newLeadsQuery = newLeadsQuery.eq('agent_id', agentId);
-      }
-      if (gsqOnly) {
-        newLeadsQuery = newLeadsQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+        leadsQuery = leadsQuery.eq('agent_id', agentId);
       }
 
-      // Profitability credits every policy a cohort ever produced back to the
-      // window the leads arrived in; production counts what was sold in it.
-      const fetchModePolicies = async () => {
-        if (mode === 'profitability') {
-          const cohortClientIds = await fetchVisibleClientIds({
-            supabase,
-            agentId,
-            isSuperuser,
-            ownedClientIds,
-            range,
-            dateField: 'lead_created_at',
-            gsqOnly,
-          });
-          return fetchPoliciesForClientIds(supabase, cohortClientIds);
-        }
-
-        if (isSuperuser && !gsqOnly) {
-          return fetchPoliciesSoldInRange(supabase, range);
-        }
-
+      const fetchPolicies = async () => {
+        if (isSuperuser) return fetchAllPolicies(supabase);
         const visibleClientIds = await fetchVisibleClientIds({
           supabase,
           agentId,
           isSuperuser,
           ownedClientIds,
-          range,
-          dateField: null,
-          gsqOnly,
         });
-        return fetchPoliciesForClientIds(supabase, visibleClientIds, range);
+        return fetchPoliciesForClientIds(supabase, visibleClientIds);
       };
 
-      const [newLeadsResult, policies] = await Promise.all([
-        newLeadsQuery,
-        fetchModePolicies(),
+      const [leadsResult, policies, leadSpendRaw] = await Promise.all([
+        leadsQuery,
+        fetchPolicies(),
+        fetchStripeLeadSpend(createFirestore, req.agent?.email),
       ]);
-      if (newLeadsResult.error) throw newLeadsResult.error;
-      const newLeads = newLeadsResult.count ?? 0;
+      if (leadsResult.error) throw leadsResult.error;
 
+      const leadsDelivered = leadsResult.count ?? 0;
       const totalClosed = Number(
         policies
           .reduce((total, policy) => total + annualizePremium(policy), 0)
           .toFixed(2),
       );
-      const leadSpend = Number((newLeads * LEAD_COST).toFixed(2));
+      const leadSpend = Number(leadSpendRaw.toFixed(2));
 
       return res.status(200).json({
         data: {
-          preset,
-          mode,
-          gsqOnly,
-          startDate: range.startDate,
-          endDate: range.endDate,
-          new: newLeads,
-          closed: policies.length,
+          leadsDelivered,
+          closedSales: policies.length,
           totalClosed,
           leadSpend,
           roiNet: Number((totalClosed - leadSpend).toFixed(2)),
@@ -791,15 +708,104 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
         },
       });
     } catch (error) {
-      logger.error('Failed to fetch people metrics', {
-        route: '/people/metrics',
+      logger.error('Failed to fetch business metrics', {
+        route: '/business/metrics',
         method: 'GET',
         requesterId: agentId,
-        preset,
-        mode,
         error,
       });
-      return res.status(500).json({ error: 'Failed to fetch people metrics' });
+      return res
+        .status(500)
+        .json({ error: 'Failed to fetch business metrics' });
+    }
+  });
+
+  // Inline card notes; writes land on the client row after conversion, else
+  // the lead row, matching the view's coalesce(c.notes, l.notes).
+  router.patch('/:id/notes', async (req, res) => {
+    const agentId = req.agent?.id;
+
+    if (!agentId) {
+      return res.status(403).json({ error: 'Agent profile required' });
+    }
+
+    const { notes } = req.body || {};
+    if (typeof notes !== 'string') {
+      return res.status(400).json({ error: 'notes must be a string' });
+    }
+    if (notes.length > MAX_NOTES_LENGTH) {
+      return res.status(400).json({
+        error: `notes must be at most ${MAX_NOTES_LENGTH} characters`,
+      });
+    }
+
+    try {
+      const person = await findOwnedPerson(
+        supabase,
+        agentId,
+        req.params.id,
+        'id,lead_id,client_id',
+      );
+      if (!person) {
+        return res.status(404).json({ error: 'Person not found' });
+      }
+
+      const target = person.client_id
+        ? { table: 'clients', id: person.client_id }
+        : { table: 'leads', id: person.lead_id };
+      const { error } = await supabase
+        .from(target.table)
+        .update({ notes })
+        .eq('id', target.id);
+      if (error) throw error;
+
+      return res.status(200).json({ data: { id: person.id, notes } });
+    } catch (error) {
+      logger.error('Failed to save notes', {
+        route: '/business/:id/notes',
+        method: 'PATCH',
+        requesterId: agentId,
+        personId: req.params.id,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to save notes' });
+    }
+  });
+
+  // "Notify me" signups from the disabled quick-action buttons. Duplicate
+  // signups are idempotent successes, not errors.
+  router.post('/release-notifications', async (req, res) => {
+    const agentId = req.agent?.id;
+
+    if (!agentId) {
+      return res.status(403).json({ error: 'Agent profile required' });
+    }
+
+    const email = String(req.body?.email || req.agent?.email || '')
+      .trim()
+      .toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'A valid email is required' });
+    }
+
+    try {
+      const { error } = await supabase
+        .from('release_notifications_subscribers')
+        .upsert(
+          { email, feature: 'business_quick_actions', agent_id: agentId },
+          { onConflict: 'email,feature', ignoreDuplicates: true },
+        );
+      if (error) throw error;
+
+      return res.status(200).json({ data: { email } });
+    } catch (error) {
+      logger.error('Failed to save release notification signup', {
+        route: '/business/release-notifications',
+        method: 'POST',
+        requesterId: agentId,
+        error,
+      });
+      return res.status(500).json({ error: 'Failed to save signup' });
     }
   });
 
@@ -826,7 +832,7 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
         : await getOwnedClientIds(supabase, agentId);
 
       let peopleQuery = supabase
-        .from('people')
+        .from('business')
         .select('id,lead_id,client_id,lifecycle_status')
         .in('id', ids);
 
@@ -920,21 +926,21 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
       }
 
       logger.log('Deleted people successfully', {
-        route: '/people',
+        route: '/business',
         method: 'DELETE',
         requesterId: agentId,
         count: ids.length,
       });
       return res.status(200).json({ deletedIds: ids });
     } catch (error) {
-      logger.error('Failed to delete people', {
-        route: '/people',
+      logger.error('Failed to delete business records', {
+        route: '/business',
         method: 'DELETE',
         requesterId: agentId,
         count: ids.length,
         error,
       });
-      return res.status(500).json({ error: 'Failed to delete people' });
+      return res.status(500).json({ error: 'Failed to delete business records' });
     }
   });
 
@@ -951,14 +957,14 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
         supabase,
         agentId,
         req.params.id,
-        PEOPLE_DETAIL_FIELDS,
+        BUSINESS_DETAIL_FIELDS,
       );
       if (!data) {
         return res.status(404).json({ error: 'Person not found' });
       }
 
       logger.log('Fetched person details successfully', {
-        route: '/people/:id',
+        route: '/business/:id',
         method: 'GET',
         requesterId: agentId,
         personId: req.params.id,
@@ -967,7 +973,7 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
       return res.status(200).json({ data });
     } catch (error) {
       logger.error('Failed to fetch person details', {
-        route: '/people/:id',
+        route: '/business/:id',
         method: 'GET',
         requesterId: agentId,
         personId: req.params.id,
@@ -980,12 +986,11 @@ const createPeopleRouter = ({ supabase = supabaseService } = {}) => {
   return router;
 };
 
-const peopleRouter = createPeopleRouter();
+const businessRouter = createBusinessRouter();
 
-module.exports = peopleRouter;
-module.exports.createPeopleRouter = createPeopleRouter;
+module.exports = businessRouter;
+module.exports.createBusinessRouter = createBusinessRouter;
 module.exports.parsePeopleQuery = parsePeopleQuery;
 module.exports.buildSearchPatterns = buildSearchPatterns;
 module.exports.parseBulkPersonIds = parseBulkPersonIds;
-module.exports.getMetricsRange = getMetricsRange;
 module.exports.annualizePremium = annualizePremium;

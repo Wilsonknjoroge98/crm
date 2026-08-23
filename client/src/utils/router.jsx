@@ -12,7 +12,7 @@ const Premiums = lazy(() => import('../views/Premiums'));
 const Commissions = lazy(() => import('../views/Commissions'));
 const CashFlow = lazy(() => import('../views/CashFlow'));
 const Leads = lazy(() => import('../views/Leads'));
-const People = lazy(() => import('../views/People'));
+const Business = lazy(() => import('../views/Business'));
 const BulkUpload = lazy(() => import('../views/BulkUpload'));
 const Purchase = lazy(() => import('../views/Purchase'));
 const Leaderboard = lazy(() => import('../views/Leaderboard'));
@@ -33,7 +33,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to='/people' replace />,
+        element: <Navigate to='/business' replace />,
       },
       {
         path: '/premiums',
@@ -206,7 +206,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: '/people',
+        path: '/business',
         element: (
           <Suspense
             fallback={
@@ -222,7 +222,7 @@ const router = createBrowserRouter([
               </div>
             }
           >
-            <People />
+            <Business />
           </Suspense>
         ),
       },

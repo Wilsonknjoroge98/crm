@@ -112,7 +112,7 @@ const getLeads = async ({ data }) => {
   }
 };
 
-const getPeople = async ({
+const getBusinessRecords = async ({
   page = 1,
   limit = 25,
   sort = 'created_at',
@@ -123,7 +123,7 @@ const getPeople = async ({
 } = {}) => {
   const response = await apiClient.request({
     method: 'GET',
-    url: '/people',
+    url: '/business',
     params: {
       page,
       limit,
@@ -141,19 +141,34 @@ const getPerson = async (id) => {
   if (!id) throw new Error('Missing person ID');
   const response = await apiClient.request({
     method: 'GET',
-    url: `/people/${id}`,
+    url: `/business/${id}`,
   });
   return response.data?.data;
 };
 
-const getPeopleMetrics = async (
-  preset = 'last_30_days',
-  { mode = 'production', gsqOnly = false } = {},
-) => {
+const getBusinessMetrics = async () => {
   const response = await apiClient.request({
     method: 'GET',
-    url: '/people/metrics',
-    params: { preset, mode, gsqOnly: gsqOnly ? 'true' : undefined },
+    url: '/business/metrics',
+  });
+  return response.data?.data;
+};
+
+const saveBusinessNotes = async ({ personId, notes }) => {
+  if (!personId) throw new Error('Missing person ID');
+  const response = await apiClient.request({
+    method: 'PATCH',
+    url: `/business/${personId}/notes`,
+    data: { notes },
+  });
+  return response.data?.data;
+};
+
+const subscribeReleaseNotifications = async ({ email } = {}) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/business/release-notifications',
+    data: { email },
   });
   return response.data?.data;
 };
@@ -177,13 +192,13 @@ const patchLead = async ({ leadId, lead }) => {
   return response.data?.data;
 };
 
-const deletePeople = async (ids) => {
+const deleteBusinessRecords = async (ids) => {
   if (!Array.isArray(ids) || ids.length === 0) {
     throw new Error('Select at least one person');
   }
   const response = await apiClient.request({
     method: 'DELETE',
-    url: '/people',
+    url: '/business',
     data: { ids },
   });
   return response.data;
@@ -1122,12 +1137,14 @@ export {
   getAdSpend,
   getCommissions,
   getLeads,
-  getPeople,
+  getBusinessRecords,
   getPerson,
-  getPeopleMetrics,
+  getBusinessMetrics,
+  saveBusinessNotes,
+  subscribeReleaseNotifications,
   postLead,
   patchLead,
-  deletePeople,
+  deleteBusinessRecords,
   patchAccount,
   getInsurDialConfig,
   patchInsurDialConfig,

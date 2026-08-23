@@ -66,7 +66,7 @@ const SidePanel = () => {
   };
 
   const salesItems = [
-    { text: 'People', icon: <PeopleAltOutlinedIcon />, path: '/people' },
+    { text: 'Business', icon: <PeopleAltOutlinedIcon />, path: '/business' },
     { text: 'Bulk Upload', icon: <UploadFileOutlinedIcon />, path: '/bulk-upload' },
   ];
 

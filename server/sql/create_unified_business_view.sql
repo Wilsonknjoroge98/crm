@@ -1,7 +1,9 @@
--- Unified Leads -> Clients -> Policies read model.
+-- Unified Leads -> Clients -> Policies read model ("business" domain).
 --
 -- This is a regular view, so changes to the source tables are visible
--- immediately. Run this script manually in Supabase.
+-- immediately. Run this script manually in Supabase. It is cumulative and
+-- idempotent: a single run brings a fresh database fully up to date, and
+-- re-running it is always safe.
 
 begin;
 
@@ -14,9 +16,32 @@ alter table public.leads
   add column if not exists premium_max numeric,
   add column if not exists availability text;
 
--- The view must be dropped (not replaced) because it selects the search
--- columns being rebuilt below; it is recreated at the end of this script.
+-- Inline card notes autosave against whichever record the person currently
+-- is: the client row after conversion, the lead row before it.
+alter table public.leads
+  add column if not exists notes text;
+alter table public.clients
+  add column if not exists notes text;
+
+-- "Notify me when this is available" signups from the disabled quick-action
+-- buttons (Call / Text / Disposition / Appointment).
+create table if not exists public.release_notifications_subscribers (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  feature text not null default 'business_quick_actions',
+  agent_id uuid,
+  created_at timestamptz not null default now(),
+  unique (email, feature)
+);
+
+revoke all on public.release_notifications_subscribers from anon;
+revoke all on public.release_notifications_subscribers from authenticated;
+grant all on public.release_notifications_subscribers to service_role;
+
+-- The people name is retired in favor of business; the view must be dropped
+-- (not replaced) because it selects the search columns rebuilt below.
 drop view if exists public.people;
+drop view if exists public.business;
 
 -- Search is substring-based (ilike '%term%'), which trigram indexes serve
 -- and tsvector cannot. Full-text leftovers have no callers.
@@ -63,7 +88,7 @@ create index if not exists leads_people_search_text_idx
 create index if not exists clients_people_search_text_idx
   on public.clients using gin (people_search_text gin_trgm_ops);
 
-create view public.people
+create view public.business
 with (security_invoker = true)
 as
 select
@@ -112,6 +137,9 @@ select
   l.gsq_id,
   l.gsq_live_transfer,
   l.lead_vendor_id,
+  lv.name as lead_vendor_name,
+
+  coalesce(c.notes, l.notes) as notes,
 
   l.created_at as lead_created_at,
   c.created_at as client_created_at,
@@ -132,6 +160,8 @@ select
 from public.leads l
 full outer join public.clients c
   on c.lead_id = l.id
+left join public.lead_vendors lv
+  on lv.id = l.lead_vendor_id
 left join lateral (
   select json_agg(
     to_jsonb(p) ||
@@ -170,11 +200,11 @@ left join lateral (
   where p.client_id = c.id
 ) policy_rollup on true;
 
-comment on view public.people is
+comment on view public.business is
   'Unified lead/client identity with policies aggregated as JSON.';
 
-revoke all on public.people from anon;
-grant select on public.people to authenticated;
-grant select on public.people to service_role;
+revoke all on public.business from anon;
+grant select on public.business to authenticated;
+grant select on public.business to service_role;
 
 commit;
