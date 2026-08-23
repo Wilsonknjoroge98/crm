@@ -56,6 +56,7 @@ const BUSINESS_LIST_FIELDS = [
   'lead_vendor_name',
   'lead_created_at',
   'created_at',
+  'policies',
 ].join(',');
 const BUSINESS_DETAIL_FIELDS = [
   'id',

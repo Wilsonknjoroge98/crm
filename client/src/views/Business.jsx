@@ -14,10 +14,12 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -426,6 +428,38 @@ const Business = () => {
                 <ToggleButton value='lead'>Leads</ToggleButton>
                 <ToggleButton value='sale'>Sales</ToggleButton>
               </ToggleButtonGroup>
+              {/* Placeholder filters from BUSINESS_VIEW.png; same coming-soon
+                  treatment as the card action buttons. */}
+              {['Disposition tags', 'Automations'].map((label) => (
+                <Tooltip
+                  key={label}
+                  title='Coming soon - click to get notified'
+                >
+                  <Box
+                    component='span'
+                    onClick={() => setReleaseDialogOpen(true)}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Button
+                      size='small'
+                      variant='outlined'
+                      disabled
+                      endIcon={<ArrowDropDownIcon />}
+                      sx={{
+                        textTransform: 'none',
+                        pointerEvents: 'none',
+                        '&.Mui-disabled': {
+                          color: 'text.primary',
+                          borderColor: '#E0E0E0',
+                          opacity: 0.9,
+                        },
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  </Box>
+                </Tooltip>
+              ))}
             </Stack>
             <Button
               variant='contained'
@@ -446,6 +480,40 @@ const Business = () => {
         )}
 
         <Stack spacing={1.5}>
+          <Stack
+            direction='row'
+            justifyContent='space-between'
+            alignItems='center'
+            sx={{ px: 0.5 }}
+          >
+            <Typography
+              variant='caption'
+              sx={{
+                fontFamily: SANS,
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                color: 'text.secondary',
+              }}
+            >
+              {selectedIds.length} selected
+            </Typography>
+            <Typography
+              variant='caption'
+              sx={{
+                fontFamily: '"JetBrains Mono", monospace',
+                textTransform: 'uppercase',
+                color: 'text.secondary',
+              }}
+            >
+              {rowCount > 0
+                ? `${page * pageSize + 1}–${Math.min(
+                    (page + 1) * pageSize,
+                    rowCount,
+                  )} of ${rowCount.toLocaleString()}`
+                : '0 of 0'}
+            </Typography>
+          </Stack>
           {isLoading ? (
             [0, 1, 2].map((index) => <CardSkeleton key={index} />)
           ) : rows.length === 0 ? (

@@ -44,6 +44,7 @@ const EXPECTED_LIST_FIELDS = [
   'lead_vendor_name',
   'lead_created_at',
   'created_at',
+  'policies',
 ].join(',');
 const EXPECTED_DETAIL_FIELDS = [
   'id',
