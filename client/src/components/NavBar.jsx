@@ -8,11 +8,14 @@ import {
   Box,
   Stack,
   Button,
+  Chip,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import InviteAgentDialog from './InviteAgentDialog';
 import ProfilePopover from './ProfilePopover';
+import OffersPopover from './OffersPopover';
 
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -21,18 +24,44 @@ import { stringToColor } from '../utils/helpers';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent.jsx';
 import { supabase } from '../utils/supabase';
-import { apiClient } from '../utils/query';
+import { apiClient, getOffers } from '../utils/query';
 
 const drawerWidth = 220;
+
+// Shared pill styling — the offer chip is the reference style; the invite
+// button converges to it so both nav actions read as one quiet, airy family.
+const navPillSx = {
+  height: 28,
+  borderRadius: '14px',
+  bgcolor: 'grey.100',
+  color: 'text.secondary',
+  fontWeight: 600,
+  fontSize: '0.72rem',
+  letterSpacing: '0.04em',
+  border: '1px solid transparent',
+  transition: 'all 0.15s ease',
+  '&:hover': {
+    bgcolor: 'grey.200',
+    color: 'text.primary',
+  },
+};
 
 export default function NavBar() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [inviteOpen, setInviteOpen] = React.useState(false);
+  const [offersAnchorEl, setOffersAnchorEl] = React.useState(null);
 
   const { user, isAuthenticated } = useSelector((state) => state.user);
   const navigate = useNavigate();
 
   const agentData = useAgent();
+
+  const { data: offers = [] } = useQuery({
+    queryKey: ['offers'],
+    queryFn: getOffers,
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5,
+  });
   const {
     data: accountData,
     isLoading: accountLoading,
@@ -105,12 +134,41 @@ export default function NavBar() {
         <Toolbar>
           <Box sx={{ flexGrow: 1 }} />
 
-          <Button
-            variant='outlined'
+          <Chip
+            icon={
+              <LocalOfferOutlinedIcon
+                sx={{
+                  fontSize: '0.85rem !important',
+                  color: 'inherit !important',
+                }}
+              />
+            }
+            label={`${offers.length} Offer${offers.length !== 1 ? 's' : ''}`}
             size='small'
-            startIcon={<PersonAddOutlinedIcon />}
+            onClick={(event) => setOffersAnchorEl(event.currentTarget)}
+            sx={{
+              ...navPillSx,
+              mr: 1.5,
+              cursor: 'pointer',
+              px: 0.5,
+            }}
+          />
+
+          <Button
+            startIcon={
+              <PersonAddOutlinedIcon sx={{ fontSize: '0.85rem !important' }} />
+            }
             onClick={() => setInviteOpen(true)}
-            sx={{ mr: 2, fontSize: 12 }}
+            sx={{
+              ...navPillSx,
+              mr: 2,
+              minWidth: 'auto',
+              padding: '0 14px',
+              '&:hover': {
+                ...navPillSx['&:hover'],
+                boxShadow: 'none',
+              },
+            }}
           >
             Invite Agent
           </Button>
@@ -157,6 +215,12 @@ export default function NavBar() {
             onSignOut={handleSignOut}
             user={user}
             avatarSrc={avatarSrc}
+          />
+
+          <OffersPopover
+            anchorEl={offersAnchorEl}
+            offers={offers}
+            onClose={() => setOffersAnchorEl(null)}
           />
         </Toolbar>
       </AppBar>

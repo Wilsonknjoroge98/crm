@@ -1,0 +1,137 @@
+import { Menu, Box, Stack, Typography, Divider, Chip } from '@mui/material';
+import dayjs from 'dayjs';
+
+export default function OffersPopover({ anchorEl, offers = [], onClose }) {
+  return (
+    <Menu
+      anchorEl={anchorEl}
+      open={Boolean(anchorEl)}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      PaperProps={{
+        elevation: 4,
+        sx: {
+          width: 320,
+          maxHeight: 420,
+          borderRadius: 1.5,
+          border: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.06)',
+          p: 0,
+        },
+      }}
+    >
+      {/* Header */}
+      <Box sx={{ px: 2.5, py: 1.75 }}>
+        <Typography
+          variant='overline'
+          sx={{
+            letterSpacing: '0.14em',
+            color: 'text.secondary',
+            fontSize: '0.65rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+          }}
+        >
+          Active Offers
+        </Typography>
+      </Box>
+
+      <Divider sx={{ borderColor: 'grey.100' }} />
+
+      {/* Offer List */}
+      <Stack divider={<Divider sx={{ borderColor: 'grey.100' }} />}>
+        {offers.map((offer) => (
+          <Box key={offer.id} sx={{ px: 2.5, py: 2 }}>
+            <Stack spacing={0.75}>
+              <Typography
+                variant='subtitle1'
+                sx={{
+                  fontFamily: '"Libre Baskerville", serif',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  lineHeight: 1.25,
+                  color: 'text.primary',
+                }}
+              >
+                {offer.title}
+              </Typography>
+
+              {offer.description && (
+                <Typography
+                  variant='body2'
+                  noWrap
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.8125rem',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {offer.description}
+                </Typography>
+              )}
+
+              {(offer.code || offer.expires_at) && (
+                <Stack
+                  direction='row'
+                  spacing={1.25}
+                  alignItems='center'
+                  sx={{ pt: 0.75 }}
+                >
+                  {offer.code && (
+                    <Chip
+                      label={offer.code}
+                      size='small'
+                      sx={{
+                        fontFamily: 'ui-monospace, "SF Mono", monospace',
+                        fontWeight: 600,
+                        fontSize: '0.72rem',
+                        letterSpacing: '0.08em',
+                        borderRadius: '4px',
+                        bgcolor: 'grey.50',
+                        color: 'text.primary',
+                        border: '1px solid',
+                        borderColor: 'grey.300',
+                        height: 22,
+                        '& .MuiChip-label': {
+                          px: 1,
+                        },
+                      }}
+                    />
+                  )}
+
+                  {offer.expires_at && (
+                    <Typography
+                      variant='caption'
+                      sx={{
+                        color: 'text.secondary',
+                        fontSize: '0.72rem',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      Expires {dayjs(offer.expires_at).format('MMM D')}
+                    </Typography>
+                  )}
+                </Stack>
+              )}
+            </Stack>
+          </Box>
+        ))}
+
+        {offers.length === 0 && (
+          <Box sx={{ px: 3, py: 4 }}>
+            <Typography
+              variant='body2'
+              color='text.secondary'
+              textAlign='center'
+              sx={{ fontStyle: 'italic', fontSize: '0.85rem' }}
+            >
+              No active offers right now — check back soon.
+            </Typography>
+          </Box>
+        )}
+      </Stack>
+    </Menu>
+  );
+}
