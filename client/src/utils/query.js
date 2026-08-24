@@ -1015,6 +1015,11 @@ const validateInvite = async (token) => {
   return response.data;
 };
 
+const getOffers = async () => {
+  const response = await apiClient.request({ method: 'GET', url: '/offers' });
+  return response.data;
+};
+
 export {
   getClients,
   getPolicies,
@@ -1064,4 +1069,5 @@ export {
   getTeamLeaderboard,
   getHierarchy,
   getEvents,
+  getOffers,
 };
