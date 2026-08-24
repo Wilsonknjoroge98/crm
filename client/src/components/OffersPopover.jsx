@@ -34,7 +34,7 @@ export default function OffersPopover({ anchorEl, offers = [], onClose }) {
             textTransform: 'uppercase',
           }}
         >
-          Active Offers
+          Discounts
         </Typography>
       </Box>
 
