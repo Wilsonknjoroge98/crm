@@ -180,27 +180,44 @@ const BusinessCard = ({
   const [noteStatus, setNoteStatus] = useState('idle');
   const [showMore, setShowMore] = useState(false);
   const debounceRef = useRef(null);
+  // Saves are serialized: at most one PATCH in flight, and when it settles
+  // any newer text is sent next. Concurrent saves could otherwise land out
+  // of order and persist stale notes.
+  const latestNotesRef = useRef(person.notes || '');
+  const inFlightRef = useRef(false);
 
   // Reset when pagination swaps a different person into this card slot.
   useEffect(() => {
     setNotes(person.notes || '');
     setNoteStatus('idle');
     setShowMore(false);
+    latestNotesRef.current = person.notes || '';
+    inFlightRef.current = false;
   }, [person.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { mutate: persistNotes } = useMutation({
     mutationFn: saveBusinessNotes,
-    onSuccess: () => setNoteStatus('saved'),
-    onError: () => setNoteStatus('error'),
+    onSettled: (data, error, variables) => {
+      if (latestNotesRef.current !== variables.notes) {
+        persistNotes({ personId: person.id, notes: latestNotesRef.current });
+        return;
+      }
+      inFlightRef.current = false;
+      setNoteStatus(error ? 'error' : 'saved');
+    },
   });
 
   const handleNotesChange = (event) => {
     const value = event.target.value;
     setNotes(value);
     setNoteStatus('saving');
+    latestNotesRef.current = value;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
-      persistNotes({ personId: person.id, notes: value });
+      // An in-flight save re-sends the latest text when it settles.
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      persistNotes({ personId: person.id, notes: latestNotesRef.current });
     }, NOTES_DEBOUNCE_MS);
   };
 
