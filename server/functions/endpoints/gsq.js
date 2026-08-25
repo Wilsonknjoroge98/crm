@@ -603,18 +603,36 @@ const SALES_PRODUCTS = [
     baseUnitPrice: 15,
   },
   {
-    key: 'aged_verified',
-    name: 'Aged Leads / Verified',
+    key: 'aged_31_90_verified',
+    name: 'Aged Leads / 31-90 Days / Verified',
     leadType: 'aged_lead',
+    tier: 'second',
     verifiedOnly: true,
     baseUnitPrice: 6,
   },
   {
-    key: 'aged_unverified',
-    name: 'Aged Leads / Unverified',
+    key: 'aged_31_90_unverified',
+    name: 'Aged Leads / 31-90 Days / Unverified',
     leadType: 'aged_lead',
+    tier: 'second',
     verifiedOnly: false,
     baseUnitPrice: 4,
+  },
+  {
+    key: 'aged_91_180_verified',
+    name: 'Aged Leads / 91-180 Days / Verified',
+    leadType: 'aged_lead',
+    tier: 'third',
+    verifiedOnly: true,
+    baseUnitPrice: 3,
+  },
+  {
+    key: 'aged_91_180_unverified',
+    name: 'Aged Leads / 91-180 Days / Unverified',
+    leadType: 'aged_lead',
+    tier: 'third',
+    verifiedOnly: false,
+    baseUnitPrice: 1.5,
   },
 ];
 
@@ -627,12 +645,16 @@ const SALES_CATEGORIES = [
 
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
+// Orders written before the 91-180 day tier existed have no `tier` field;
+// they're all 31-90 day orders (the only aged product at the time), so a
+// missing tier defaults to 'second' rather than failing to match.
 const matchProduct = (order) =>
   SALES_PRODUCTS.find(
     (product) =>
       product.leadType === order.leadType &&
       (product.verifiedOnly === null ||
-        product.verifiedOnly === Boolean(order.isVerifiedOnly)),
+        product.verifiedOnly === Boolean(order.isVerifiedOnly)) &&
+      (product.tier === undefined || product.tier === (order.tier || 'second')),
   );
 
 const parseBoundary = (value, endOfDay) => {

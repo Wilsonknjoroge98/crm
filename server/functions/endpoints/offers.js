@@ -31,6 +31,8 @@ const PRODUCT_LEAD_TYPES = {
   prod_UZPsfeVsOiYLJV: ['banked_lead', 'Unverified'], // BANKED LEAD - UNVERIFIED
   prod_TrcBtjw3yCOPyu: ['aged_lead', 'Verified'], // 31+ Day Aged LEAD - VERIFIED
   prod_TrcCUyw2JjEZ7e: ['aged_lead', 'Unverified'], // 31+ Day Aged LEAD - UNVERIFIED
+  prod_V7V3Ld6JNVrnxV: ['aged_lead_91_180', 'Verified'], // 91-180 Day Aged LEAD - VERIFIED
+  prod_V7V2C48Cyk47vv: ['aged_lead_91_180', 'Unverified'], // 91-180 Day Aged LEAD - UNVERIFIED
 };
 
 const LEAD_TYPE_LABELS = {
@@ -38,6 +40,7 @@ const LEAD_TYPE_LABELS = {
   live_transfer: 'Live Transfers',
   banked_lead: 'Banked Leads',
   aged_lead: '31+ Day Aged Leads',
+  aged_lead_91_180: '91-180 Day Aged Leads',
 };
 
 const describeProduct = (productId) => {
