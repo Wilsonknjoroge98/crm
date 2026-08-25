@@ -15,7 +15,7 @@ import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import InviteAgentDialog from './InviteAgentDialog';
 import ProfilePopover from './ProfilePopover';
-import OffersPopover from './OffersPopover';
+import OffersPopover, { FREE_LEAD_OFFERS } from './OffersPopover';
 
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -143,7 +143,9 @@ export default function NavBar() {
                 }}
               />
             }
-            label={`${offers.length} Offer${offers.length !== 1 ? 's' : ''}`}
+            label={`${offers.length + FREE_LEAD_OFFERS.length} Offer${
+              offers.length + FREE_LEAD_OFFERS.length !== 1 ? 's' : ''
+            }`}
             size='small'
             onClick={(event) => setOffersAnchorEl(event.currentTarget)}
             sx={{
