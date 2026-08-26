@@ -22,6 +22,25 @@ const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 const FEARLESS_ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
+// Editable policy columns only. See clients.js EDITABLE_CLIENT_FIELDS: a
+// deny-list here would forward any future generated column on `policies`
+// straight to .update() and hit the same "can only be updated to DEFAULT"
+// error that hit /clients.
+const EDITABLE_POLICY_FIELDS = [
+  'policy_number',
+  'carrier_id',
+  'product_id',
+  'policy_status',
+  'coverage_amount',
+  'premium_amount',
+  'premium_frequency',
+  'sold_date',
+  'effective_date',
+  'draft_day',
+  'split_agent_id',
+  'split_agent_share',
+];
+
 const mapBeneficiaries = (list, policyId, type) =>
   (list || [])
     .filter((b) => b.first_name && b.last_name)
@@ -431,20 +450,13 @@ policyRouter.patch('/', async (req, res) => {
       .json({ error: 'Missing policyId or policy payload' });
   }
 
-  const {
-    beneficiaries,
-    contingent_beneficiaries,
-    clientName,
-    split_policy,
-    product,
-    carrier,
-    carrier_name,
-    product_name,
-    client_name,
-    split_agent_name,
-    writing_agent_name,
-    ...policyFields
-  } = policy;
+  const { beneficiaries, contingent_beneficiaries } = policy;
+  const policyFields = Object.fromEntries(
+    EDITABLE_POLICY_FIELDS.filter((key) => key in policy).map((key) => [
+      key,
+      policy[key],
+    ]),
+  );
 
   logger.log('Updating policy', {
     route: '/policy',

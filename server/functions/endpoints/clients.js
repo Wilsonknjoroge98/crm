@@ -9,6 +9,25 @@ const clientRouter = express.Router();
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 
+// Editable client columns only. Deny-listing UI-only fields (as before) lets
+// anything else in the update payload through, including generated columns
+// like people_search_text that round-trip from a GET '*' select — Postgres
+// rejects writes to those with "can only be updated to DEFAULT".
+const EDITABLE_CLIENT_FIELDS = [
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'date_of_birth',
+  'marital_status',
+  'address',
+  'city',
+  'state',
+  'zip',
+  'occupation',
+  'annual_income',
+];
+
 clientRouter.get('/all', async (req, res) => {
   try {
     logger.log('Getting clients for current agent', {
@@ -455,16 +474,13 @@ clientRouter.patch('/', async (req, res) => {
       .json({ error: 'Missing clientId or client payload' });
   }
 
-  const {
-    notes,
-    agent_name,
-    gsq_source,
-    createdAtMs,
-    fullName,
-    income,
-    policyData,
-    ...clientFields
-  } = client;
+  const { notes } = client;
+  const clientFields = Object.fromEntries(
+    EDITABLE_CLIENT_FIELDS.filter((key) => key in client).map((key) => [
+      key,
+      client[key],
+    ]),
+  );
 
   try {
     logger.log('Updating client', {
