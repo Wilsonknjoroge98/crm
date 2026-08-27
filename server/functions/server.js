@@ -30,7 +30,6 @@ const {
   carriersRouter,
   insightsRouter,
   gsqRouter,
-  commissionsRouter,
   bulkUploadRouter,
   offersRouter,
 } = require('./endpoints');
@@ -68,7 +67,6 @@ app.use('/expenses', expensesRouter);
 app.use('/leaderboard', leaderboardRouter);
 app.use('/insights', insightsRouter);
 app.use('/gsq', gsqRouter);
-app.use('/commissions', commissionsRouter);
 app.use('/bulk-upload', bulkUploadRouter);
 app.use('/offers', offersRouter);
 

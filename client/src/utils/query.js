@@ -437,38 +437,6 @@ const getAdSpend = async ({ startDate, endDate }) => {
   }
 };
 
-const getCommissions = async ({ startDate, endDate, agent }) => {
-  // request config for compulife server
-  const options = {
-    method: 'GET',
-    // signal: signal,
-    url: '/commissions',
-    params: {
-      mode: import.meta.env.MODE,
-      startDate,
-      endDate,
-      agent: { id: agent?.id, role: agent?.role },
-    },
-  };
-
-  // abort request when notified by react-query
-  // signal?.addEventListener('abort', () => {
-  //   controller.abort();
-  // });
-
-  try {
-    const response = await apiClient.request(options);
-
-    console.log('Commissions fetched:', response.data);
-
-    return response.data;
-  } catch (error) {
-    console.error('Error getting commissions:', error);
-
-    throw error;
-  }
-};
-
 const getPolicies = async ({ agentId, startDate, endDate } = {}) => {
   const params = {};
   if (agentId) params.agentId = agentId;
@@ -1048,7 +1016,6 @@ export {
   getExpenses,
   getAllExpenses,
   getAdSpend,
-  getCommissions,
   getLeads,
   patchAccount,
   getInsurDialConfig,
