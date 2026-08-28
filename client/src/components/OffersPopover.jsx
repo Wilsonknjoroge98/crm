@@ -9,6 +9,11 @@ import {
 } from '@mui/material';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Not a Stripe discount — a standing referral incentive, so it's hardcoded
 // rather than fetched. Agents get 2 free fresh leads per positive Google
@@ -23,102 +28,109 @@ export const FREE_LEAD_OFFERS = [
   },
 ];
 
-const OfferItem = ({ offer }) => (
-  <Box sx={{ px: 2.5, py: 2 }}>
-    <Stack spacing={0.75}>
-      <Typography
-        variant='subtitle1'
-        sx={{
-          fontFamily: '"Libre Baskerville", serif',
-          fontWeight: 700,
-          fontSize: '1rem',
-          lineHeight: 1.25,
-          color: 'text.primary',
-        }}
-      >
-        {offer.title}
-      </Typography>
+const OfferItem = ({ offer }) => {
+  const expiresEst = offer.expires_at
+    ? dayjs(offer.expires_at).tz('America/New_York')
+    : null;
 
-      {offer.description && (
+  return (
+    <Box sx={{ px: 2.5, py: 2 }}>
+      <Stack spacing={0.75}>
         <Typography
-          variant='body2'
-          noWrap
+          variant='subtitle1'
           sx={{
-            color: 'text.secondary',
-            fontSize: '0.8125rem',
-            lineHeight: 1.5,
+            fontFamily: '"Libre Baskerville", serif',
+            fontWeight: 700,
+            fontSize: '1rem',
+            lineHeight: 1.25,
+            color: 'text.primary',
           }}
         >
-          {offer.description}
+          {offer.title}
         </Typography>
-      )}
 
-      {(offer.code || offer.expires_at || offer.linkUrl) && (
-        <Stack
-          direction='row'
-          spacing={1.25}
-          alignItems='center'
-          sx={{ pt: 0.75 }}
-        >
-          {offer.code && (
-            <Chip
-              label={offer.code}
-              size='small'
-              sx={{
-                fontFamily: 'ui-monospace, "SF Mono", monospace',
-                fontWeight: 600,
-                fontSize: '0.72rem',
-                letterSpacing: '0.08em',
-                borderRadius: '4px',
-                bgcolor: 'grey.50',
-                color: 'text.primary',
-                border: '1px solid',
-                borderColor: 'grey.300',
-                height: 22,
-                '& .MuiChip-label': {
-                  px: 1,
-                },
-              }}
-            />
-          )}
+        {offer.description && (
+          <Typography
+            variant='body2'
+            noWrap
+            sx={{
+              color: 'text.secondary',
+              fontSize: '0.8125rem',
+              lineHeight: 1.5,
+            }}
+          >
+            {offer.description}
+          </Typography>
+        )}
 
-          {offer.linkUrl && (
-            <Link
-              href={offer.linkUrl}
-              target='_blank'
-              rel='noopener noreferrer'
-              underline='hover'
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.4,
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                color: 'accent.main',
-              }}
-            >
-              {offer.linkLabel || 'Learn More'}
-              <NorthEastIcon sx={{ fontSize: '0.7rem' }} />
-            </Link>
-          )}
+        {(offer.code || offer.expires_at || offer.linkUrl) && (
+          <Stack
+            direction='row'
+            spacing={1.25}
+            alignItems='center'
+            sx={{ pt: 0.75 }}
+          >
+            {offer.code && (
+              <Chip
+                label={offer.code}
+                size='small'
+                sx={{
+                  fontFamily: 'ui-monospace, "SF Mono", monospace',
+                  fontWeight: 600,
+                  fontSize: '0.72rem',
+                  letterSpacing: '0.08em',
+                  borderRadius: '4px',
+                  bgcolor: 'grey.50',
+                  color: 'text.primary',
+                  border: '1px solid',
+                  borderColor: 'grey.300',
+                  height: 22,
+                  '& .MuiChip-label': {
+                    px: 1,
+                  },
+                }}
+              />
+            )}
 
-          {offer.expires_at && (
-            <Typography
-              variant='caption'
-              sx={{
-                color: 'text.secondary',
-                fontSize: '0.72rem',
-                letterSpacing: '0.02em',
-              }}
-            >
-              Expires {dayjs(offer.expires_at).format('MMM D')}
-            </Typography>
-          )}
-        </Stack>
-      )}
-    </Stack>
-  </Box>
-);
+            {offer.linkUrl && (
+              <Link
+                href={offer.linkUrl}
+                target='_blank'
+                rel='noopener noreferrer'
+                underline='hover'
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.4,
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  color: 'accent.main',
+                }}
+              >
+                {offer.linkLabel || 'Learn More'}
+                <NorthEastIcon sx={{ fontSize: '0.7rem' }} />
+              </Link>
+            )}
+
+            {offer.expires_at && (
+              <Typography
+                variant='caption'
+                sx={{
+                  color: 'text.secondary',
+                  fontSize: '0.72rem',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Expires {expiresEst.format('MMM D, h:mm A')}{' '}
+                {expiresEst.offsetName('short')}
+              </Typography>
+            )}
+          </Stack>
+        )}
+      </Stack>
+    </Box>
+  );
+};
 
 export default function OffersPopover({ anchorEl, offers = [], onClose }) {
   return (
