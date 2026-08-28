@@ -61,13 +61,21 @@ const describeCoupon = (coupon) => {
 
 // Stripe is the source of truth for discounts — a Promotion Code carries the
 // customer-facing code/expiration, and its Coupon carries the percent/amount
-// off. Only coupons opted in via metadata { show: "true" } are surfaced here,
-// so private/internal codes stay hidden without a second data store.
+// off. Only promotion codes opted in via metadata { show: "true" } (set on
+// the Promotion Code itself, not the Coupon) are surfaced here, so
+// private/internal codes stay hidden without a second data store.
 offersRouter.get('/', async (req, res) => {
+  logger.log('Fetching offers', {
+    route: '/offers',
+    method: 'GET',
+    requesterId: req.agent?.id,
+  });
+
   try {
     const promotionCodes = [];
     let hasMore = true;
     let startingAfter;
+    let page = 0;
 
     while (hasMore) {
       const params = new URLSearchParams();
@@ -87,6 +95,14 @@ offersRouter.get('/', async (req, res) => {
         },
       );
 
+      page += 1;
+      logger.log('Fetched promotion codes page from Stripe', {
+        route: '/offers',
+        page,
+        pageCount: response.data.data.length,
+        hasMore: response.data.has_more,
+      });
+
       promotionCodes.push(...response.data.data);
       hasMore = response.data.has_more;
       if (hasMore) {
@@ -96,13 +112,32 @@ offersRouter.get('/', async (req, res) => {
 
     const now = dayjs();
 
-    const offers = promotionCodes
-      .filter((promo) => promo.coupon?.valid)
-      .filter((promo) => promo.coupon?.metadata?.show === 'true')
-      .filter(
-        (promo) =>
-          !promo.expires_at || dayjs.unix(promo.expires_at).isAfter(now),
-      )
+    const eligiblePromotionCodes = promotionCodes.filter((promo) => {
+      const notExpired =
+        !promo.expires_at || dayjs.unix(promo.expires_at).isAfter(now);
+      const isEligible =
+        !!promo.coupon?.valid && promo.metadata?.show === 'true' && notExpired;
+
+      if (!isEligible) {
+        logger.log('Excluding promotion code from offers', {
+          route: '/offers',
+          promotionCodeId: promo.id,
+          code: promo.code,
+          couponId: promo.coupon?.id,
+          couponValid: !!promo.coupon?.valid,
+          couponMetadata: promo.coupon?.metadata ?? null,
+          promotionCodeMetadata: promo.metadata ?? null,
+          expiresAt: promo.expires_at
+            ? dayjs.unix(promo.expires_at).toISOString()
+            : null,
+          notExpired,
+        });
+      }
+
+      return isEligible;
+    });
+
+    const offers = eligiblePromotionCodes
       .map((promo) => ({
         id: promo.id,
         title: formatCouponTitle(promo.coupon),
@@ -116,9 +151,20 @@ offersRouter.get('/', async (req, res) => {
       }))
       .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
+    logger.log('Fetched offers successfully', {
+      route: '/offers',
+      method: 'GET',
+      requesterId: req.agent?.id,
+      promotionCodesFetched: promotionCodes.length,
+      offersReturned: offers.length,
+    });
+
     return res.status(200).json(offers);
   } catch (error) {
     logger.error('Error fetching offers from Stripe in endpoints/offers.js', {
+      route: '/offers',
+      method: 'GET',
+      requesterId: req.agent?.id,
       error: error.response?.data || error.message,
     });
     return res.status(500).json({ error: 'Failed to fetch offers' });
