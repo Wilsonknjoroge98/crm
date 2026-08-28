@@ -23,6 +23,17 @@ alter table public.leads
 alter table public.clients
   add column if not exists notes text;
 
+-- One-time carry-over: agent_clients.agent_notes was the only place client
+-- notes lived before this column existed. Every client has exactly one
+-- agent_clients row in practice, so this is lossless. Only backfills rows
+-- this script hasn't already touched, so re-running is a no-op.
+update public.clients c
+set notes = ac.agent_notes
+from public.agent_clients ac
+where ac.client_id = c.id
+  and c.notes is null
+  and ac.agent_notes is not null;
+
 -- "Notify me when this is available" signups from the disabled quick-action
 -- buttons (Call / Text / Disposition / Appointment).
 create table if not exists public.release_notifications_subscribers (
