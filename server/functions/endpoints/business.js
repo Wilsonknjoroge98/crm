@@ -4,7 +4,6 @@ const { Firestore } = require('@google-cloud/firestore');
 const { supabaseService } = require('../services/supabase');
 const {
   SUPERUSER_ID,
-  getOwnedClientIds,
   applyOwnershipFilter,
   findOwnedPerson,
 } = require('./business_access');
@@ -30,6 +29,9 @@ const PREMIUM_ANNUAL_MULTIPLIERS = {
 };
 // Card rows surface contact, notes, and the underwriting summary directly,
 // so the list projection carries what the drawer alone used to need.
+// `policies` is deliberately absent: the view builds it with a per-row lateral,
+// so sorting on it makes PostgreSQL build the rollup for every row before
+// paging discards it. attachPolicies fetches it one page at a time instead.
 const BUSINESS_LIST_FIELDS = [
   'id',
   'lead_id',
@@ -56,8 +58,9 @@ const BUSINESS_LIST_FIELDS = [
   'lead_vendor_name',
   'lead_created_at',
   'created_at',
-  'policies',
 ].join(',');
+// Detail is a single row looked up by id with no ORDER BY, so the lateral runs
+// once and the rollup can stay in the projection.
 const BUSINESS_DETAIL_FIELDS = [
   'id',
   'lead_id',
@@ -183,7 +186,6 @@ const fetchVisibleClientIds = async ({
   supabase,
   agentId,
   isSuperuser,
-  ownedClientIds,
   gsqOnly = false,
 }) => {
   const buildQuery = (ownershipFilter) => {
@@ -198,30 +200,38 @@ const fetchVisibleClientIds = async ({
     return ownershipFilter(query);
   };
 
-  let rows;
-  if (isSuperuser) {
-    rows = await fetchAllRows(() => buildQuery((query) => query));
-  } else if (ownedClientIds.length <= METRICS_ID_CHUNK_SIZE) {
-    rows = await fetchAllRows(() =>
-      buildQuery((query) =>
-        applyOwnershipFilter(query, agentId, ownedClientIds),
-      ),
-    );
-  } else {
-    const linkedRows = [];
-    for (const clientIdChunk of chunkValues(ownedClientIds)) {
-      linkedRows.push(
-        ...(await fetchAllRows(() =>
-          buildQuery((query) => query.in('client_id', clientIdChunk)),
-        )),
-      );
-    }
-    rows = linkedRows;
-  }
+  const rows = await fetchAllRows(() =>
+    buildQuery((query) =>
+      isSuperuser ? query : applyOwnershipFilter(query, agentId),
+    ),
+  );
 
   return [
     ...new Set(rows.map(({ client_id: clientId }) => clientId).filter(Boolean)),
   ];
+};
+
+// Puts the `policies` rollup back on a page of list rows. Filtering by id runs
+// the view's lateral only for those rows, so the cost stays flat as data grows.
+const attachPolicies = async (supabase, rows) => {
+  if (rows.length === 0) return rows;
+
+  const { data, error } = await supabase
+    .from('business')
+    .select('id,policies')
+    .in(
+      'id',
+      rows.map(({ id }) => id),
+    );
+  if (error) throw error;
+
+  const policiesById = new Map(
+    (data || []).map(({ id, policies }) => [id, policies]),
+  );
+  return rows.map((row) => ({
+    ...row,
+    policies: policiesById.get(row.id) ?? [],
+  }));
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
@@ -362,18 +372,12 @@ const searchSourceTable = async ({
   patterns,
   agentId,
   isSuperuser,
-  ownedClientIds,
 }) => {
-  if (table === 'clients' && !isSuperuser && ownedClientIds.length === 0) {
-    return { data: [], error: null };
-  }
-
-  const applyOwnership = (query) => {
-    if (isSuperuser) return query;
-    return table === 'leads'
-      ? query.eq('agent_id', agentId)
-      : query.in('id', ownedClientIds);
-  };
+  // Leads carry their owning agent, so they are narrowed here. Clients do not,
+  // and listing every owned id overflowed the request URL. Their candidates go
+  // unnarrowed: the view query applies ownership alongside them.
+  const applyOwnership = (query) =>
+    !isSuperuser && table === 'leads' ? query.eq('agent_id', agentId) : query;
 
   return applyOwnership(
     applyContainsFilters(
@@ -392,7 +396,6 @@ const findSearchMatches = async ({
   search,
   agentId,
   isSuperuser,
-  ownedClientIds,
 }) => {
   const patterns = buildSearchPatterns(search);
   const [leadResult, clientResult] = await Promise.all([
@@ -402,7 +405,6 @@ const findSearchMatches = async ({
       patterns,
       agentId,
       isSuperuser,
-      ownedClientIds,
     }),
     searchSourceTable({
       supabase,
@@ -410,7 +412,6 @@ const findSearchMatches = async ({
       patterns,
       agentId,
       isSuperuser,
-      ownedClientIds,
     }),
   ]);
 
@@ -459,7 +460,6 @@ const applyPeopleFilters = ({
   query,
   agentId,
   isSuperuser,
-  ownedClientIds,
   searchMatches,
   status,
   gsqOnly,
@@ -467,11 +467,7 @@ const applyPeopleFilters = ({
   let filteredQuery = query;
 
   if (!isSuperuser) {
-    filteredQuery = applyOwnershipFilter(
-      filteredQuery,
-      agentId,
-      ownedClientIds,
-    );
+    filteredQuery = applyOwnershipFilter(filteredQuery, agentId);
   }
 
   if (searchMatches) {
@@ -544,10 +540,6 @@ const createBusinessRouter = ({
     }
 
     try {
-      const ownedClientIds = isSuperuser
-        ? []
-        : await getOwnedClientIds(supabase, agentId);
-
       let searchMatches = null;
       if (search) {
         searchMatches = await findSearchMatches({
@@ -555,7 +547,6 @@ const createBusinessRouter = ({
           search,
           agentId,
           isSuperuser,
-          ownedClientIds,
         });
 
         if (
@@ -575,7 +566,6 @@ const createBusinessRouter = ({
           .select(BUSINESS_LIST_FIELDS, { count: 'exact' }),
         agentId,
         isSuperuser,
-        ownedClientIds,
         searchMatches,
         status,
         gsqOnly,
@@ -597,7 +587,6 @@ const createBusinessRouter = ({
             .select('id', { count: 'exact', head: true }),
           agentId,
           isSuperuser,
-          ownedClientIds,
           searchMatches,
           status,
           gsqOnly,
@@ -618,6 +607,8 @@ const createBusinessRouter = ({
       }
       if (error) throw error;
 
+      const rows = await attachPolicies(supabase, data || []);
+
       const total = count ?? 0;
       logger.log('Fetched people successfully', {
         route: '/business',
@@ -630,7 +621,7 @@ const createBusinessRouter = ({
       });
 
       return res.status(200).json({
-        data: data || [],
+        data: rows,
         pagination: {
           page,
           limit,
@@ -660,10 +651,6 @@ const createBusinessRouter = ({
     }
 
     try {
-      const ownedClientIds = isSuperuser
-        ? []
-        : await getOwnedClientIds(supabase, agentId);
-
       let leadsQuery = supabase
         .from('leads')
         .select('id', { count: 'exact', head: true });
@@ -677,7 +664,6 @@ const createBusinessRouter = ({
           supabase,
           agentId,
           isSuperuser,
-          ownedClientIds,
         });
         return fetchPoliciesForClientIds(supabase, visibleClientIds);
       };
@@ -828,21 +814,13 @@ const createBusinessRouter = ({
     }
 
     try {
-      const ownedClientIds = isSuperuser
-        ? []
-        : await getOwnedClientIds(supabase, agentId);
-
       let peopleQuery = supabase
         .from('business')
         .select('id,lead_id,client_id,lifecycle_status')
         .in('id', ids);
 
       if (!isSuperuser) {
-        peopleQuery = applyOwnershipFilter(
-          peopleQuery,
-          agentId,
-          ownedClientIds,
-        );
+        peopleQuery = applyOwnershipFilter(peopleQuery, agentId);
       }
 
       const { data: people, error: peopleError } = await peopleQuery;

@@ -145,14 +145,22 @@ const Bullet = ({ children }) => (
   <Typography
     variant='caption'
     component='li'
-    sx={{ color: 'text.primary', lineHeight: 1.7, listStyle: 'disc' }}
+    sx={{
+      color: 'text.primary',
+      lineHeight: 1.7,
+      listStyle: 'disc',
+      overflowWrap: 'anywhere',
+    }}
   >
     {children}
   </Typography>
 );
 
 const LabeledValue = ({ label, value, mono }) => (
-  <Typography variant='caption' sx={{ display: 'block', lineHeight: 1.8 }}>
+  <Typography
+    variant='caption'
+    sx={{ display: 'block', lineHeight: 1.8, overflowWrap: 'anywhere' }}
+  >
     <Box component='span' sx={{ color: 'text.secondary' }}>
       {label}:{' '}
     </Box>
@@ -279,7 +287,12 @@ const BusinessCard = ({
         {/* Column 1: identity & local time */}
         <Grid size={{ xs: 20, md: 4 }}>
           <Stack spacing={0.25}>
-            <Stack direction='row' spacing={0.75} alignItems='center'>
+            <Stack
+              direction='row'
+              spacing={0.75}
+              alignItems='center'
+              sx={{ minWidth: 0 }}
+            >
               <Checkbox
                 size='small'
                 checked={selected}
@@ -291,7 +304,13 @@ const BusinessCard = ({
                 component='button'
                 underline='hover'
                 onClick={() => onOpenDrawer(person.id)}
-                sx={{ fontWeight: 700, fontSize: '1rem', textAlign: 'left' }}
+                sx={{
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  textAlign: 'left',
+                  minWidth: 0,
+                  overflowWrap: 'anywhere',
+                }}
               >
                 {fullName}
               </Link>
@@ -305,6 +324,7 @@ const BusinessCard = ({
                   borderColor: 'divider',
                   fontWeight: 700,
                   fontSize: '0.675rem',
+                  flexShrink: 0,
                 }}
               />
             </Stack>

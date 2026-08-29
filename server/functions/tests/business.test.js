@@ -44,8 +44,10 @@ const EXPECTED_LIST_FIELDS = [
   'lead_vendor_name',
   'lead_created_at',
   'created_at',
-  'policies',
 ].join(',');
+// The page query must not ask for `policies`: combined with ORDER BY it makes
+// PostgreSQL build the rollup for every row in the view before paging.
+const EXPECTED_ROLLUP_FIELDS = 'id,policies';
 const EXPECTED_DETAIL_FIELDS = [
   'id',
   'lead_id',
@@ -94,10 +96,7 @@ const EXPECTED_DETAIL_FIELDS = [
   'updated_at',
   'policies',
 ].join(',');
-const {
-  getOwnedClientIds,
-  applyOwnershipFilter,
-} = require('../endpoints/business_access');
+const { applyOwnershipFilter } = require('../endpoints/business_access');
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 
@@ -246,58 +245,42 @@ const makeApp = (supabase, agent, firestore = makeFirestore()) => {
 const findQuery = (supabase, table, index = 0) =>
   supabase.queries.filter((query) => query.table === table)[index];
 
+// The list route reads the page first, then fetches the `policies` rollup for
+// just that page, so a non-empty page needs a second `business` result queued
+// behind the first.
+const rollupFor = (rows, policiesById = {}) => ({
+  data: rows.map(({ id }) => ({ id, policies: policiesById[id] ?? [] })),
+  error: null,
+});
+
 describe('people ownership helpers', () => {
-  test('drains every ownership page and dedupes across pages', async () => {
-    const firstPage = Array.from({ length: 1000 }, (_, index) => ({
-      client_id: `client-${index}`,
-    }));
-    const supabase = makeSupabase({
-      agent_clients: [
-        { data: firstPage, error: null },
-        {
-          data: [firstPage[0], { client_id: 'client-1000' }],
-          error: null,
-        },
-      ],
-    });
+  test('grants lead rows by agent and sale rows by owner membership', () => {
+    const query = new FakeQuery('business', {});
 
-    const ids = await getOwnedClientIds(supabase, 'agent-1');
-
-    expect(ids).toHaveLength(1001);
-    expect(findQuery(supabase, 'agent_clients').calls).toContainEqual({
-      method: 'range',
-      args: [0, 999],
-    });
-    expect(findQuery(supabase, 'agent_clients', 1).calls).toContainEqual({
-      method: 'range',
-      args: [1000, 1999],
-    });
-  });
-
-  test('restricts an agent with no client links to lead-only rows', () => {
-    const query = new FakeQuery('people', {});
-
-    applyOwnershipFilter(query, 'agent-1', []);
-
-    expect(query.calls).toEqual([
-      { method: 'is', args: ['client_id', null] },
-      { method: 'eq', args: ['agent_id', 'agent-1'] },
-    ]);
-  });
-
-  test('grants sale rows only through client links', () => {
-    const query = new FakeQuery('people', {});
-
-    applyOwnershipFilter(query, 'agent-1', ['client-1', 'client-2']);
+    applyOwnershipFilter(query, 'agent-1');
 
     expect(query.calls).toEqual([
       {
         method: 'or',
         args: [
-          'and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1,client-2)',
+          'and(client_id.is.null,agent_id.eq.agent-1),' +
+            'owner_agent_ids.cs.{agent-1}',
         ],
       },
     ]);
+  });
+
+  // The filter used to inline one UUID per owned client, overflowing the URL
+  // past roughly 350 clients, so its size must not track the size of the book.
+  test('stays the same size no matter how many clients an agent owns', () => {
+    const small = new FakeQuery('business', {});
+    const large = new FakeQuery('business', {});
+
+    applyOwnershipFilter(small, 'agent-1');
+    applyOwnershipFilter(large, 'agent-1');
+
+    expect(large.calls).toEqual(small.calls);
+    expect(large.calls[0].args[0].length).toBeLessThan(200);
   });
 });
 
@@ -431,6 +414,9 @@ describe('GET /people', () => {
           error: null,
           count: 26,
         },
+        rollupFor([{ id: 'person-1' }], {
+          'person-1': [{ id: 'policy-1', carrier_name: 'Ladder' }],
+        }),
       ],
     });
 
@@ -440,7 +426,13 @@ describe('GET /people', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      data: [{ id: 'person-1', first_name: 'Ada' }],
+      data: [
+        {
+          id: 'person-1',
+          first_name: 'Ada',
+          policies: [{ id: 'policy-1', carrier_name: 'Ladder' }],
+        },
+      ],
       pagination: {
         page: 2,
         limit: 10,
@@ -458,7 +450,10 @@ describe('GET /people', () => {
         },
         {
           method: 'or',
-          args: ['and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1)'],
+          args: [
+            'and(client_id.is.null,agent_id.eq.agent-1),' +
+              'owner_agent_ids.cs.{agent-1}',
+          ],
         },
         {
           method: 'order',
@@ -472,6 +467,61 @@ describe('GET /people', () => {
     );
   });
 
+  // Regression guard for the statement timeout: sorting while selecting the
+  // per-row `policies` rollup makes PostgreSQL build it for every row.
+  test('never sorts and selects the policies rollup in one query', async () => {
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [{ id: 'person-1' }, { id: 'person-2' }],
+          error: null,
+          count: 2,
+        },
+        rollupFor([{ id: 'person-1' }, { id: 'person-2' }]),
+      ],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: SUPERUSER_ID }),
+    ).get('/business?sortBy=created_at');
+
+    expect(response.status).toBe(200);
+
+    const pageQuery = findQuery(supabase, 'business');
+    const rollupQuery = findQuery(supabase, 'business', 1);
+
+    const pageSelect = pageQuery.calls.find((call) => call.method === 'select');
+    expect(pageSelect.args[0]).not.toContain('policies');
+    expect(pageQuery.calls.some((call) => call.method === 'order')).toBe(true);
+
+    // The rollup read is filtered to the page and never ordered.
+    expect(rollupQuery.calls).toContainEqual({
+      method: 'select',
+      args: [EXPECTED_ROLLUP_FIELDS],
+    });
+    expect(rollupQuery.calls).toContainEqual({
+      method: 'in',
+      args: ['id', ['person-1', 'person-2']],
+    });
+    expect(rollupQuery.calls.some((call) => call.method === 'order')).toBe(
+      false,
+    );
+  });
+
+  test('skips the rollup read entirely for an empty page', async () => {
+    const supabase = makeSupabase({
+      business: [{ data: [], error: null, count: 0 }],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: SUPERUSER_ID }),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([]);
+    expect(findQuery(supabase, 'business', 1)).toBeUndefined();
+  });
+
   test('filters by lifecycle status when requested', async () => {
     const supabase = makeSupabase({
       agent_clients: [
@@ -483,6 +533,7 @@ describe('GET /people', () => {
           error: null,
           count: 1,
         },
+        rollupFor([{ id: 'person-1' }]),
       ],
     });
 
@@ -502,7 +553,10 @@ describe('GET /people', () => {
   test('limits the list to GSQ-sourced people when gsqOnly is set', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
-      business: [{ data: [{ id: 'person-1' }], error: null, count: 1 }],
+      business: [
+        { data: [{ id: 'person-1' }], error: null, count: 1 },
+        rollupFor([{ id: 'person-1' }]),
+      ],
     });
 
     const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
@@ -564,6 +618,7 @@ describe('GET /people', () => {
           error: null,
           count: 1,
         },
+        rollupFor([{ id: 'lead-1' }]),
       ],
     });
 
@@ -589,10 +644,14 @@ describe('GET /people', () => {
       method: 'ilike',
       args: ['people_search_text', '%5551234567%'],
     });
-    expect(clientQuery.calls).toContainEqual({
-      method: 'in',
-      args: ['id', ['client-1']],
-    });
+    // Client candidates are deliberately not narrowed by ownership here -
+    // there is no owning-agent column on clients, and listing owned ids is
+    // what overflowed the URL. The view query filters them instead.
+    expect(
+      clientQuery.calls.some(
+        (call) => call.method === 'eq' || call.method === 'in',
+      ),
+    ).toBe(false);
     expect(peopleQuery.calls).toContainEqual({
       method: 'or',
       args: ['lead_id.in.(lead-1),client_id.in.(client-1)'],
@@ -603,8 +662,10 @@ describe('GET /people', () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
       leads: [{ data: [{ id: 'lead-1' }], error: null }],
+      clients: [{ data: [], error: null }],
       business: [
         { data: [{ id: 'lead-1' }], error: null, count: 1 },
+        rollupFor([{ id: 'lead-1' }]),
       ],
     });
 
@@ -633,6 +694,7 @@ describe('GET /people', () => {
       clients: [{ data: [], error: null }],
       business: [
         { data: [{ id: 'lead-1' }], error: null, count: 1 },
+        rollupFor([{ id: 'lead-1' }]),
       ],
     });
 
@@ -689,6 +751,7 @@ describe('GET /people', () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
       leads: [{ data: [], error: null }],
+      clients: [{ data: [], error: null }],
     });
 
     const response = await request(
@@ -749,7 +812,10 @@ describe('GET /people', () => {
         },
         {
           method: 'or',
-          args: ['and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1)'],
+          args: [
+            'and(client_id.is.null,agent_id.eq.agent-1),' +
+              'owner_agent_ids.cs.{agent-1}',
+          ],
         },
         {
           method: 'or',
@@ -1207,7 +1273,10 @@ describe('GET /people/:id', () => {
         },
         {
           method: 'or',
-          args: ['and(client_id.is.null,agent_id.eq.agent-1),client_id.in.(client-1)'],
+          args: [
+            'and(client_id.is.null,agent_id.eq.agent-1),' +
+              'owner_agent_ids.cs.{agent-1}',
+          ],
         },
         {
           method: 'maybeSingle',
@@ -1232,8 +1301,11 @@ describe('GET /people/:id', () => {
 
     const peopleQuery = findQuery(supabase, 'business');
     expect(peopleQuery.calls).toContainEqual({
-      method: 'eq',
-      args: ['agent_id', 'agent-1'],
+      method: 'or',
+      args: [
+        'and(client_id.is.null,agent_id.eq.agent-1),' +
+          'owner_agent_ids.cs.{agent-1}',
+      ],
     });
   });
 
@@ -1440,12 +1512,11 @@ describe('DELETE /people', () => {
       error: 'One or more people were not found',
     });
     expect(findQuery(supabase, 'business').calls).toContainEqual({
-      method: 'is',
-      args: ['client_id', null],
-    });
-    expect(findQuery(supabase, 'business').calls).toContainEqual({
-      method: 'eq',
-      args: ['agent_id', 'agent-1'],
+      method: 'or',
+      args: [
+        'and(client_id.is.null,agent_id.eq.agent-1),' +
+          'owner_agent_ids.cs.{agent-1}',
+      ],
     });
     expect(supabase.from).not.toHaveBeenCalledWith('policies');
     expect(supabase.from).not.toHaveBeenCalledWith('clients');

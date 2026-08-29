@@ -129,6 +129,11 @@ select
 
   -- Lead/underwriting fields.
   l.agent_id,
+
+  -- Lets the API scope ownership with one constant-size predicate instead of
+  -- listing every owned client id. Grouped rather than lateral so it is built
+  -- once per query, and an array so two agents on one client keep both.
+  coalesce(owners.owner_agent_ids, array[]::uuid[]) as owner_agent_ids,
   l.sold,
   l.verified,
   l.smoker,
@@ -173,6 +178,12 @@ full outer join public.clients c
   on c.lead_id = l.id
 left join public.lead_vendors lv
   on lv.id = l.lead_vendor_id
+left join (
+  select client_id, array_agg(agent_id) as owner_agent_ids
+  from public.agent_clients
+  group by client_id
+) owners
+  on owners.client_id = c.id
 left join lateral (
   select json_agg(
     to_jsonb(p) ||
