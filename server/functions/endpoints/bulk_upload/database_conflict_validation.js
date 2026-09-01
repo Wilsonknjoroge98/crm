@@ -355,15 +355,27 @@ const validatePolicyConflicts = async ({ rows, agentId }) => {
   return { errors };
 };
 
-// Leads are globally unique by phone, so any existing lead is reused.
+// Leads are unique per (phone, lead_vendor_id), so an existing lead is only
+// reused when the upload row resolves to the same vendor.
 const validateLeadConflicts = async ({ phoneGroups }) => {
   const errors = [];
   const phones = [...phoneGroups.keys()];
   if (!phones.length) return { errors, leadsByPhone: new Map() };
 
+  const { data: leadVendors, error: vendorError } = await supabaseService
+    .from('lead_vendors')
+    .select('id, name');
+
+  if (vendorError) {
+    return { queryError: vendorError };
+  }
+
+  const vendorsByName = mapByName(leadVendors);
+  const defaultVendor = vendorsByName.get(normalizeLookup(DEFAULT_LEAD_VENDOR));
+
   const { data: leads, error } = await queryInChunks({
     table: 'leads',
-    select: 'id, phone',
+    select: 'id, phone, lead_vendor_id',
     column: 'phone',
     values: phones,
   });
@@ -372,7 +384,18 @@ const validateLeadConflicts = async ({ phoneGroups }) => {
     return { queryError: error };
   }
 
-  const leadsByPhone = new Map((leads || []).map((lead) => [lead.phone, lead]));
+  const leadsByPhoneVendor = new Map(
+    (leads || []).map((lead) => [`${lead.phone}|${lead.lead_vendor_id}`, lead]),
+  );
+
+  const leadsByPhone = new Map();
+  phoneGroups.forEach((group, phone) => {
+    const vendor =
+      vendorsByName.get(normalizeLookup(value(group.row, 'Lead Vendor'))) ||
+      defaultVendor;
+    const lead = leadsByPhoneVendor.get(`${phone}|${vendor?.id}`);
+    if (lead) leadsByPhone.set(phone, lead);
+  });
 
   return { errors, leadsByPhone };
 };

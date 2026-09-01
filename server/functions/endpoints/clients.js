@@ -328,6 +328,7 @@ clientRouter.post('/', async (req, res) => {
     .from('leads')
     .select('id, gsq_source')
     .eq('phone', client.phone)
+    .eq('lead_vendor_id', leadVendorId)
     .maybeSingle();
 
   if (existingLeadError) {
@@ -357,6 +358,7 @@ clientRouter.post('/', async (req, res) => {
         state: client.state,
         date_of_birth: client.date_of_birth,
         agent_id: req?.agent?.id,
+        original_agent_id: req?.agent?.id,
         sold: true,
         lead_vendor_id: leadVendorId,
         gsq_live_transfer: liveTransfer || false,

@@ -314,12 +314,14 @@ policyRouter.post('/', async (req, res) => {
         .single();
 
       lead_vendor_id = leadData?.lead_vendor_id ?? null;
-    }
 
-    await supabaseService
-      .from('leads')
-      .update({ sold: true })
-      .eq('phone', clientData.phone);
+      // Match by id: phone is no longer unique across vendors, and marking
+      // by phone flipped other vendors' leads sold.
+      await supabaseService
+        .from('leads')
+        .update({ sold: true })
+        .eq('id', clientData.lead_id);
+    }
   } catch (error) {
     logger.error('Error updating lead sold status in endpoints/policies.js', {
       error,
