@@ -64,53 +64,50 @@ const OfferItem = ({ offer }) => {
         )}
 
         {(offer.code || offer.expires_at || offer.linkUrl) && (
-          <Stack
-            direction='row'
-            spacing={1.25}
-            alignItems='center'
-            sx={{ pt: 0.75 }}
-          >
-            {offer.code && (
-              <Chip
-                label={offer.code}
-                size='small'
-                sx={{
-                  fontFamily: 'ui-monospace, "SF Mono", monospace',
-                  fontWeight: 600,
-                  fontSize: '0.72rem',
-                  letterSpacing: '0.08em',
-                  borderRadius: '4px',
-                  bgcolor: 'grey.50',
-                  color: 'text.primary',
-                  border: '1px solid',
-                  borderColor: 'grey.300',
-                  height: 22,
-                  '& .MuiChip-label': {
-                    px: 1,
-                  },
-                }}
-              />
-            )}
+          <Stack spacing={0.5} sx={{ pt: 0.75 }}>
+            <Stack direction='row' spacing={1.25} alignItems='center'>
+              {offer.code && (
+                <Chip
+                  label={offer.code}
+                  size='small'
+                  sx={{
+                    fontFamily: '"Libre Baskerville", serif',
+                    fontWeight: 600,
+                    fontSize: '0.72rem',
+                    letterSpacing: '0.08em',
+                    borderRadius: '4px',
+                    bgcolor: 'grey.50',
+                    color: 'text.primary',
+                    border: '1px solid',
+                    borderColor: 'grey.300',
+                    height: 22,
+                    '& .MuiChip-label': {
+                      px: 1,
+                    },
+                  }}
+                />
+              )}
 
-            {offer.linkUrl && (
-              <Link
-                href={offer.linkUrl}
-                target='_blank'
-                rel='noopener noreferrer'
-                underline='hover'
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.4,
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  color: 'accent.main',
-                }}
-              >
-                {offer.linkLabel || 'Learn More'}
-                <NorthEastIcon sx={{ fontSize: '0.7rem' }} />
-              </Link>
-            )}
+              {offer.linkUrl && (
+                <Link
+                  href={offer.linkUrl}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  underline='hover'
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.4,
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    color: 'accent.main',
+                  }}
+                >
+                  {offer.linkLabel || 'Learn More'}
+                  <NorthEastIcon sx={{ fontSize: '0.7rem' }} />
+                </Link>
+              )}
+            </Stack>
 
             {offer.expires_at && (
               <Typography
