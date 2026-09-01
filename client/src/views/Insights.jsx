@@ -148,6 +148,22 @@ const Insights = () => {
       },
     },
     {
+      field: 'verifiedPct',
+      headerName: 'Verified %',
+      align: 'left',
+      flex: 1,
+      minWidth: 110,
+      sortable: true,
+      renderCell: (params) => {
+        const value = params.value;
+        // Zero leads in the denominator will render as a "-" in the frontend
+        if (value === null || value === undefined || isNaN(value)) {
+          return '—';
+        }
+        return `${Number(value).toLocaleString()}%`;
+      },
+    },
+    {
       field: 'revenuePerLead',
       headerName: 'Rev. Per Lead',
       align: 'left',
