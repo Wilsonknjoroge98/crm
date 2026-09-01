@@ -43,6 +43,20 @@ const LEAD_TYPE_LABELS = {
   aged_lead_91_180: '91-180 Day Aged Leads',
 };
 
+// Storefront per lead type. fresh_lead splits by qualifier (Mixed vs
+// Verified go to different Stripe payment links); every other type sells
+// verified/unverified from the same storefront, so it's a single URL.
+const LEAD_TYPE_URLS = {
+  fresh_lead: {
+    null: 'https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p', // Mixed
+    Verified: 'https://buy.stripe.com/00w4gzcWE33NgJc8mp6Ri0u',
+  },
+  live_transfer: 'https://buy.stripe.com/dRm00j7CkgUDdx01Y16Ri0b',
+  banked_lead: 'https://fexdigital.com/fresh/store',
+  aged_lead: 'https://fexdigital.com/aged/store?tier=second', // 31-90 days
+  aged_lead_91_180: 'https://fexdigital.com/aged/store?tier=third', // 91+ days
+};
+
 const describeProduct = (productId) => {
   const entry = PRODUCT_LEAD_TYPES[productId];
   if (!entry) return null;
@@ -51,12 +65,38 @@ const describeProduct = (productId) => {
   return qualifier ? `${label} - ${qualifier}` : label;
 };
 
+const getProductUrl = (productId) => {
+  const entry = PRODUCT_LEAD_TYPES[productId];
+  if (!entry) return null;
+  const [type, qualifier] = entry;
+  const urls = LEAD_TYPE_URLS[type];
+  if (!urls) return null;
+  return typeof urls === 'string' ? urls : urls[qualifier || 'null'] || null;
+};
+
 const describeCoupon = (coupon) => {
   const productIds = coupon?.applies_to?.products;
   logger.log('Describing coupon for product IDs:', productIds);
   if (!productIds?.length) return null;
   const labels = [...new Set(productIds.map(describeProduct).filter(Boolean))];
   return labels.length ? labels.join(', ') : null;
+};
+
+// Only surface a "Shop" link when every product the coupon applies to
+// shares the same storefront — a mixed-storefront coupon has no single
+// correct link to send the agent to.
+const getCouponUrl = (coupon) => {
+  const productIds = coupon?.applies_to?.products;
+  if (!productIds?.length) return null;
+  const urls = [...new Set(productIds.map(getProductUrl).filter(Boolean))];
+  if (urls.length > 1) {
+    logger.warn(
+      'Coupon applies to products across multiple storefronts — no single Shop link can be shown. Split it into per-product promotion codes in Stripe.',
+      { couponId: coupon?.id, productIds, urls },
+    );
+    return null;
+  }
+  return urls.length === 1 ? urls[0] : null;
 };
 
 // Stripe is the source of truth for discounts — a Promotion Code carries the
@@ -143,6 +183,8 @@ offersRouter.get('/', async (req, res) => {
         title: formatCouponTitle(promo.coupon),
         description: describeCoupon(promo.coupon),
         code: promo.code,
+        linkUrl: getCouponUrl(promo.coupon),
+        linkLabel: 'Shop',
         starts_at: dayjs.unix(promo.created).toISOString(),
         expires_at: promo.expires_at
           ? dayjs.unix(promo.expires_at).toISOString()
