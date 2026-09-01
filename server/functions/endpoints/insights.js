@@ -146,6 +146,28 @@ insightsRouter.get('/', async (req, res) => {
       }
     }
 
+    const countLeadsForCreative = async (creative, verifiedOnly) => {
+      let query = supabaseService
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('gsq_source', creative)
+        .gte('created_at', since)
+        .lt('created_at', untilExclusive);
+
+      if (verifiedOnly) query = query.eq('verified', true);
+
+      const { count, error } = await query;
+      if (error) {
+        logger.error('Error counting leads for verified % in insights', {
+          creative,
+          verifiedOnly,
+          error,
+        });
+        return null;
+      }
+      return count ?? 0;
+    };
+
     const sources = [];
 
     for (const [creative, sales] of Object.entries(salesBySource)) {
@@ -156,6 +178,17 @@ insightsRouter.get('/', async (req, res) => {
       if (adId) {
         ({ spend, leads } = await getInsightsForAd(adId));
       }
+
+      const [totalLeads, verifiedLeads] = await Promise.all([
+        countLeadsForCreative(creative, false),
+        countLeadsForCreative(creative, true),
+      ]);
+
+      // null means zero leads for the selected creative (denominator is 0)
+      const verifiedPct =
+        totalLeads && verifiedLeads !== null
+          ? +((verifiedLeads / totalLeads) * 100).toFixed(2)
+          : null;
 
       const matched = policiesBySource[creative] || [];
       const totalAnnual = matched.reduce((sum, p) => {
@@ -178,6 +211,7 @@ insightsRouter.get('/', async (req, res) => {
         cpl: spend > 0 && leads > 0 ? +(spend / leads).toFixed(2) : 0,
         cps: spend > 0 && sales > 0 ? +(spend / sales).toFixed(2) : 0,
         closeRate: leads > 0 ? +((sales / leads) * 100).toFixed(2) : 0,
+        verifiedPct,
         revenuePerLead: +revenuePerLead.toFixed(2),
       });
     }
