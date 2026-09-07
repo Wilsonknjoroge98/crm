@@ -334,7 +334,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
         </Box>
       </DialogTitle>
       <DialogContent>
-        <Grid container spacing={2} p={2}>
+        <Grid container spacing={2} sx={{ pt: 1 }}>
           <Grid size={12}>
             <FormControl fullWidth>
               <Alert sx={{ width: 'fit-content' }} severity='warning'>
@@ -429,7 +429,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             )}
             <Divider sx={{ my: 2 }} />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             {carriersLoading ? (
               <Skeleton variant='rounded' height={56} />
             ) : (
@@ -451,7 +451,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             )}
           </Grid>
 
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             {productsLoading ? (
               <Skeleton variant='rounded' height={56} />
             ) : (
@@ -474,7 +474,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               </TextField>
             )}
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='policy_number'
               label='Policy #'
@@ -485,7 +485,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             />
           </Grid>
 
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               select
               name='policy_status'
@@ -503,7 +503,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             </TextField>
           </Grid>
 
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <NumericFormat
               style={{ width: '100%' }}
               name='coverage_amount'
@@ -525,7 +525,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               }}
             />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <NumericFormat
               name='premium_amount'
               label='Monthly Premium Amount'
@@ -551,7 +551,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             />
           </Grid>
 
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               select
               name='draft_day'
@@ -569,7 +569,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             </TextField>
           </Grid>
 
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               select
               name='premium_frequency'
@@ -587,7 +587,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
             </TextField>
           </Grid>
 
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <DatePicker
               label='Date Sold'
               format='MM/DD/YYYY'
@@ -603,7 +603,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
               }}
             />
           </Grid>
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <DatePicker
               label='Effective Date'
               format='MM/DD/YYYY'
@@ -846,7 +846,7 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
           )}
         </Grid>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
         <Button
           onClick={handleSubmit}

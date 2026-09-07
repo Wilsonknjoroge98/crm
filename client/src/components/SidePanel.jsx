@@ -67,7 +67,11 @@ const SidePanel = () => {
 
   const salesItems = [
     { text: 'Business', icon: <PeopleAltOutlinedIcon />, path: '/business' },
-    { text: 'Bulk Upload', icon: <UploadFileOutlinedIcon />, path: '/bulk-upload' },
+    {
+      text: 'Bulk Upload',
+      icon: <UploadFileOutlinedIcon />,
+      path: '/bulk-upload',
+    },
   ];
 
   const managementItems = [

@@ -23,35 +23,106 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
 import { enqueueSnackbar } from 'notistack';
 import {
   deleteBusinessRecords,
   getBusinessRecords,
   getBusinessMetrics,
+  getAgents,
 } from '../utils/query';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 import NewLeadDialog from '../components/NewLeadDialog';
-import PeopleDrawer from '../components/PeopleDrawer';
 import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
+import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import BusinessCard from '../components/BusinessCard';
 import ReleaseNotificationDialog from '../components/ReleaseNotificationDialog';
 
 const SANS = '"Inter", sans-serif';
 const LOCAL_TIME_TICK_MS = 30000;
+const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+// TEMPORARY TEST OVERRIDE — remove after testing. Superuser-only: scopes the
+// list and metrics queries to this agent instead of the caller's own.
 
+// One row per business record, so a person with multiple policies only gets
+// the most recent one's fields (the view already orders policies newest
+// first) plus a count so nothing is silently dropped.
+const formatBeneficiaries = (policy) =>
+  (policy?.beneficiaries || [])
+    .map(
+      (b) =>
+        `${[b.first_name, b.last_name].filter(Boolean).join(' ')} (${
+          b.relationship || '—'
+        }, ${b.allocation_percent ?? '—'}%, ${b.beneficiary_type})`,
+    )
+    .join('; ');
+
+// [label, accessor] rather than [field, label]: policy and beneficiary
+// columns are computed from `person.policies`, not a flat field lookup.
 const CSV_COLUMNS = [
-  ['first_name', 'First Name'],
-  ['last_name', 'Last Name'],
-  ['email', 'Email'],
-  ['phone', 'Phone'],
-  ['state', 'State'],
-  ['lifecycle_status', 'Lifecycle'],
-  ['verified', 'Verified'],
-  ['created_at', 'Created At'],
+  ['Business ID', (p) => p.id],
+  ['Lead ID', (p) => p.lead_id],
+  ['Client ID', (p) => p.client_id],
+  ['Lifecycle', (p) => p.lifecycle_status],
+  ['First Name', (p) => p.first_name],
+  ['Last Name', (p) => p.last_name],
+  ['Email', (p) => p.email],
+  ['Phone', (p) => p.phone],
+  ['Date of Birth', (p) => p.date_of_birth],
+  ['State', (p) => p.state],
+  ['Address', (p) => p.address],
+  ['City', (p) => p.city],
+  ['Zip', (p) => p.zip],
+  ['Occupation', (p) => p.occupation],
+  ['Marital Status', (p) => p.marital_status],
+  ['Annual Income', (p) => p.annual_income],
+  ['Agent ID', (p) => p.agent_id],
+  ['Sold', (p) => p.sold],
+  ['Verified', (p) => p.verified],
+  ['Smoker', (p) => p.smoker],
+  ['Height (feet)', (p) => p.height_feet],
+  ['Height (inches)', (p) => p.height_inches],
+  ['Weight (lbs)', (p) => p.weight_lbs],
+  ['Cholesterol Medication', (p) => p.cholesterol_medication],
+  ['Blood Pressure Medication', (p) => p.blood_pressure_medication],
+  ['Health Class', (p) => p.health_class],
+  ['Face Amount', (p) => p.face_amount],
+  ['Premium', (p) => p.premium],
+  ['Premium Min', (p) => p.premium_min],
+  ['Premium Max', (p) => p.premium_max],
+  ['Selected Carrier', (p) => p.selected_carrier],
+  ['Selected Plan', (p) => p.selected_plan],
+  ['Beneficiary', (p) => p.beneficiary],
+  ['Priority', (p) => p.priority],
+  ['Why', (p) => p.why],
+  ['Availability', (p) => p.availability],
+  ['Lead Vendor ID', (p) => p.lead_vendor_id],
+  ['Lead Vendor Name', (p) => p.lead_vendor_name],
+  ['GSQ Source', (p) => p.gsq_source],
+  ['GSQ ID', (p) => p.gsq_id],
+  ['GSQ Live Transfer', (p) => p.gsq_live_transfer],
+  ['Notes', (p) => p.notes],
+  ['Lead Created At', (p) => p.lead_created_at],
+  ['Client Created At', (p) => p.client_created_at],
+  ['Created At', (p) => p.created_at],
+  ['Updated At', (p) => p.updated_at],
+  ['Policy Count', (p) => (p.policies || []).length],
+  ['Policy Number', (p) => p.policies?.[0]?.policy_number],
+  ['Policy Status', (p) => p.policies?.[0]?.policy_status],
+  ['Carrier', (p) => p.policies?.[0]?.carrier_name],
+  ['Product', (p) => p.policies?.[0]?.product_name],
+  ['Coverage Amount', (p) => p.policies?.[0]?.coverage_amount],
+  ['Premium Amount', (p) => p.policies?.[0]?.premium_amount],
+  ['Premium Frequency', (p) => p.policies?.[0]?.premium_frequency],
+  ['Effective Date', (p) => p.policies?.[0]?.effective_date],
+  ['Sold Date', (p) => p.policies?.[0]?.sold_date],
+  ['Draft Day', (p) => p.policies?.[0]?.draft_day],
+  ['Split Policy', (p) => p.policies?.[0]?.split_policy],
+  ['Policy Beneficiaries', (p) => formatBeneficiaries(p.policies?.[0])],
 ];
 
 const formatCurrency = (value) =>
@@ -67,16 +138,16 @@ const escapeCsv = (value) => {
       ? ''
       : typeof value === 'boolean'
         ? value
-          ? 'Verified'
-          : 'Unverified'
+          ? 'Yes'
+          : 'No'
         : String(value);
   return `"${normalized.replaceAll('"', '""')}"`;
 };
 
 const downloadRows = (rows) => {
-  const header = CSV_COLUMNS.map(([, label]) => escapeCsv(label)).join(',');
+  const header = CSV_COLUMNS.map(([label]) => escapeCsv(label)).join(',');
   const body = rows.map((row) =>
-    CSV_COLUMNS.map(([field]) => escapeCsv(row[field])).join(','),
+    CSV_COLUMNS.map(([, getValue]) => escapeCsv(getValue(row))).join(','),
   );
   const blob = new Blob([[header, ...body].join('\n')], {
     type: 'text/csv;charset=utf-8',
@@ -185,6 +256,8 @@ const CardSkeleton = () => (
 
 const Business = () => {
   const queryClient = useQueryClient();
+  const { user } = useSelector((state) => state.user);
+  const isAdmin = user?.id === SUPERUSER_ID;
   const [gsqOnly, setGsqOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -192,12 +265,13 @@ const Business = () => {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [selectedById, setSelectedById] = useState(new Map());
-  const [selectedPersonId, setSelectedPersonId] = useState(null);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [markSoldLead, setMarkSoldLead] = useState(null);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [policyClient, setPolicyClient] = useState(null);
   const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState(null);
+  const [editPolicyOpen, setEditPolicyOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   // Single ticking clock shared by every card's local-time display.
   const [now, setNow] = useState(() => new Date());
@@ -242,8 +316,14 @@ const Business = () => {
     isPending: isMetricsPending,
     error: metricsError,
   } = useQuery({
-    queryKey: ['businessMetrics'],
-    queryFn: getBusinessMetrics,
+    queryKey: ['businessMetrics', gsqOnly],
+    queryFn: () => getBusinessMetrics({ gsqOnly }),
+  });
+
+  // Only needed for UpdatePolicyDialog's split-policy agent picker.
+  const { data: agents = [] } = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => getAgents(),
   });
 
   const rows = businessResponse?.data || [];
@@ -301,8 +381,30 @@ const Business = () => {
 
   const handleMarkSold = (person) => {
     setMarkSoldLead(person);
-    setSelectedPersonId(null);
     setClientDialogOpen(true);
+  };
+
+  // Recovery path for a SALE record whose client was created but never got
+  // a policy (dialog cancelled, request failed, etc.) — skips straight to
+  // CreatePolicyDialog instead of going through CreateClientDialog again.
+  const handleAddPolicy = (person) => {
+    setPolicyClient({ ...person, id: person.client_id });
+    setPolicyDialogOpen(true);
+  };
+
+  // The view's policy JSON carries raw carrier_id/product_id (from
+  // to_jsonb(policies)), but UpdatePolicyDialog's carrier/product selects
+  // bind to `carrier`/`product` — remap so they prefill correctly.
+  const handleEditPolicy = (person, policy) => {
+    setEditingPolicy({
+      ...policy,
+      carrier: policy.carrier_id,
+      product: policy.product_id,
+      client_name: [person.first_name, person.last_name]
+        .filter(Boolean)
+        .join(' '),
+    });
+    setEditPolicyOpen(true);
   };
 
   return (
@@ -362,7 +464,7 @@ const Business = () => {
                 subtext='All-time Stripe charges'
               />
               <MetricCard
-                label='Leads Delivered'
+                label='Lead Count'
                 value={Number(metrics?.leadsDelivered || 0).toLocaleString()}
                 subtext='All-time'
               />
@@ -531,10 +633,13 @@ const Business = () => {
                 key={person.id}
                 person={person}
                 now={now}
+                isAdmin={isAdmin}
                 selected={selectedById.has(person.id)}
                 onToggleSelect={toggleSelected}
-                onOpenDrawer={setSelectedPersonId}
                 onQuickAction={() => setReleaseDialogOpen(true)}
+                onMarkSold={handleMarkSold}
+                onAddPolicy={handleAddPolicy}
+                onEditPolicy={handleEditPolicy}
               />
             ))
           )}
@@ -599,18 +704,7 @@ const Business = () => {
       <NewLeadDialog
         open={newLeadOpen}
         onClose={() => setNewLeadOpen(false)}
-        onCreated={async (lead) => {
-          await refreshBusiness();
-          setSelectedPersonId(lead?.id || null);
-        }}
-      />
-
-      <PeopleDrawer
-        open={Boolean(selectedPersonId)}
-        personId={selectedPersonId}
-        onClose={() => setSelectedPersonId(null)}
-        onUpdated={refreshBusiness}
-        onMarkSold={handleMarkSold}
+        onCreated={refreshBusiness}
       />
 
       <ReleaseNotificationDialog
@@ -644,6 +738,19 @@ const Business = () => {
           }}
           client={policyClient}
           refetchClients={refreshBusiness}
+        />
+      )}
+
+      {editingPolicy && (
+        <UpdatePolicyDialog
+          open={editPolicyOpen}
+          setOpen={(nextOpen) => {
+            setEditPolicyOpen(nextOpen);
+            if (!nextOpen) setEditingPolicy(null);
+          }}
+          policy={editingPolicy}
+          refetchPolicies={refreshBusiness}
+          agents={agents}
         />
       )}
     </Container>

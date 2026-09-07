@@ -58,6 +58,38 @@ const BUSINESS_LIST_FIELDS = [
   'lead_vendor_name',
   'lead_created_at',
   'created_at',
+  // The funnel now asks one health-tier question (PP/P/RP/R) instead of the
+  // old cholesterol/BP medication flags, and captures a contact window.
+  'availability',
+  'health_class',
+  // Client-only profile fields. Null until conversion; surfaced on the card
+  // now that the drawer that used to show them is gone.
+  'address',
+  'city',
+  'zip',
+  'occupation',
+  'marital_status',
+  'annual_income',
+  // Quote details from the funnel: the premium the lead was shown (a single
+  // amount, or a min/max range) and what they selected against it.
+  'premium',
+  'premium_min',
+  'premium_max',
+  'selected_carrier',
+  'selected_plan',
+  // GSQ attribution: which agent the lead was issued to and the ad creative
+  // that sourced it. Only rendered for the admin, but cheap to select for
+  // everyone since both already live on the view.
+  'agent_id',
+  'gsq_source',
+  // Not rendered on the card, but the CSV export covers every lead/client
+  // column, so the list projection needs to carry them too.
+  'sold',
+  'priority',
+  'gsq_id',
+  'gsq_live_transfer',
+  'client_created_at',
+  'updated_at',
 ].join(',');
 // Detail is a single row looked up by id with no ORDER BY, so the lateral runs
 // once and the rollup can stay in the projection.
@@ -87,6 +119,7 @@ const BUSINESS_DETAIL_FIELDS = [
   'weight_lbs',
   'cholesterol_medication',
   'blood_pressure_medication',
+  'health_class',
   'face_amount',
   'premium',
   'premium_min',
@@ -231,6 +264,32 @@ const attachPolicies = async (supabase, rows) => {
   return rows.map((row) => ({
     ...row,
     policies: policiesById.get(row.id) ?? [],
+  }));
+};
+
+// Resolves the "Issued To" name for the admin's Lead Info column. Only the
+// admin sees another agent's name here, so callers should skip this for
+// non-superusers rather than pay for a lookup nobody's allowed to see.
+const attachAgentNames = async (supabase, rows) => {
+  const agentIds = [...new Set(rows.map((row) => row.agent_id).filter(Boolean))];
+  if (agentIds.length === 0) return rows;
+
+  const { data, error } = await supabase
+    .from('agents')
+    .select('id,first_name,last_name')
+    .in('id', agentIds);
+  if (error) throw error;
+
+  const nameById = new Map(
+    (data || []).map(({ id, first_name, last_name }) => [
+      id,
+      [first_name, last_name].filter(Boolean).join(' ') || null,
+    ]),
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    agent_name: row.agent_id ? (nameById.get(row.agent_id) ?? null) : null,
   }));
 };
 
@@ -487,31 +546,72 @@ const applyPeopleFilters = ({
 
 // Lead spend comes from the GSQ project's stripe_orders mirror, matched on
 // the purchasing account's email (see gsq.js /sales-analytics for the same
-// source). Factory injectable so tests can stub Firestore.
+// source). The superuser has no purchasing email of its own, so it gets the
+// account-wide total across every succeeded order instead, matching how
+// leadsDelivered/totalClosed drop the ownership filter for that role.
+// Factory injectable so tests can stub Firestore.
 const defaultCreateFirestore = () =>
   new Firestore({
     projectId: process.env.GSQ_PROJECT_ID,
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
-const fetchStripeLeadSpend = async (createFirestore, email) => {
+const sumAmountPaid = (snapshot) =>
+  snapshot.docs.reduce(
+    (total, doc) => total + (Number(doc.data().amountPaid) || 0),
+    0,
+  );
+
+const fetchStripeLeadSpend = async (createFirestore, email, isSuperuser) => {
+  const db = createFirestore();
+
+  if (isSuperuser) {
+    const snapshot = await db.collection('stripe_orders').get();
+    return sumAmountPaid(snapshot);
+  }
+
   const normalizedEmail = String(email || '').toLowerCase();
   if (!normalizedEmail) return 0;
 
-  const db = createFirestore();
   const snapshot = await db
     .collection('stripe_orders')
     .where('email', '==', normalizedEmail)
     .get();
 
-  return snapshot.docs.reduce(
-    (total, doc) => total + (Number(doc.data().amountPaid) || 0),
-    0,
-  );
+  return sumAmountPaid(snapshot);
 };
 
 // Factory so tests can inject a fake Supabase client; production callers get
 // the real service client by default.
+// Lets the superuser view the list/metrics scoped to a specific agent (for
+// support or testing) without weakening ownership for anyone else — a
+// non-superuser's ?agentId is ignored outright, never trusted from the client.
+const resolveAgentScope = async (req, supabase) => {
+  const realAgentId = req.agent?.id;
+  const isRealSuperuser = realAgentId === SUPERUSER_ID;
+  const requestedAgentId = isRealSuperuser ? req.query.agentId : null;
+
+  if (!requestedAgentId) {
+    return {
+      agentId: realAgentId,
+      isSuperuser: isRealSuperuser,
+      agentEmail: req.agent?.email,
+    };
+  }
+
+  const { data: targetAgent } = await supabase
+    .from('agents')
+    .select('email')
+    .eq('id', requestedAgentId)
+    .maybeSingle();
+
+  return {
+    agentId: requestedAgentId,
+    isSuperuser: false,
+    agentEmail: targetAgent?.email,
+  };
+};
+
 const createBusinessRouter = ({
   supabase = supabaseService,
   createFirestore = defaultCreateFirestore,
@@ -532,8 +632,7 @@ const createBusinessRouter = ({
 
     const { page, limit, sortBy, sortOrder, search, status, gsqOnly } =
       parsedQuery;
-    const agentId = req.agent?.id;
-    const isSuperuser = agentId === SUPERUSER_ID;
+    const { agentId, isSuperuser } = await resolveAgentScope(req, supabase);
 
     if (!agentId) {
       return res.status(403).json({ error: 'Agent profile required' });
@@ -607,7 +706,10 @@ const createBusinessRouter = ({
       }
       if (error) throw error;
 
-      const rows = await attachPolicies(supabase, data || []);
+      let rows = await attachPolicies(supabase, data || []);
+      if (isSuperuser) {
+        rows = await attachAgentNames(supabase, rows);
+      }
 
       const total = count ?? 0;
       logger.log('Fetched people successfully', {
@@ -642,9 +744,14 @@ const createBusinessRouter = ({
 
   // Header strip: all-time financial figures. Lead spend is the account's
   // actual Stripe charge history rather than a per-lead price estimate.
+  // gsqOnly scopes leadsDelivered/closedSales/totalClosed to the GSQ vendor,
+  // mirroring the GSQ switch on the list below.
   router.get('/metrics', async (req, res) => {
-    const agentId = req.agent?.id;
-    const isSuperuser = agentId === SUPERUSER_ID;
+    const { agentId, isSuperuser, agentEmail } = await resolveAgentScope(
+      req,
+      supabase,
+    );
+    const gsqOnly = req.query.gsqOnly === 'true';
 
     if (!agentId) {
       return res.status(403).json({ error: 'Agent profile required' });
@@ -657,21 +764,30 @@ const createBusinessRouter = ({
       if (!isSuperuser) {
         leadsQuery = leadsQuery.eq('agent_id', agentId);
       }
+      if (gsqOnly) {
+        leadsQuery = leadsQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+      }
 
+      // The superuser's fast path (fetchAllPolicies, no client-id join) only
+      // applies when every policy is in scope; gsqOnly needs the same
+      // client-id filter regular agents use, just without the ownership leg.
       const fetchPolicies = async () => {
-        if (isSuperuser) return fetchAllPolicies(supabase);
+        if (isSuperuser && !gsqOnly) return fetchAllPolicies(supabase);
         const visibleClientIds = await fetchVisibleClientIds({
           supabase,
           agentId,
           isSuperuser,
+          gsqOnly,
         });
         return fetchPoliciesForClientIds(supabase, visibleClientIds);
       };
 
+      // Not gated on gsqOnly: every dollar in stripe_orders was already spent
+      // buying GSQ leads, so it's the same total whichever way the switch is set.
       const [leadsResult, policies, leadSpendRaw] = await Promise.all([
         leadsQuery,
         fetchPolicies(),
-        fetchStripeLeadSpend(createFirestore, req.agent?.email),
+        fetchStripeLeadSpend(createFirestore, agentEmail, isSuperuser),
       ]);
       if (leadsResult.error) throw leadsResult.error;
 

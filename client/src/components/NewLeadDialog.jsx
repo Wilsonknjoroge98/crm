@@ -28,8 +28,6 @@ const EMPTY_FORM = {
   date_of_birth: '',
   state: '',
   lead_vendor_id: '',
-  premium: '',
-  availability: '',
 };
 
 const NewLeadDialog = ({ open, onClose, onCreated }) => {
@@ -92,10 +90,7 @@ const NewLeadDialog = ({ open, onClose, onCreated }) => {
   };
 
   const handleSubmit = () => {
-    const payload = { ...form };
-    if (!payload.premium) delete payload.premium;
-    if (!payload.availability) delete payload.availability;
-    mutate(payload);
+    mutate(form);
   };
 
   return (
@@ -195,26 +190,6 @@ const NewLeadDialog = ({ open, onClose, onCreated }) => {
                 </MenuItem>
               ))}
             </TextField>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              name='premium'
-              label='Premium'
-              value={form.premium}
-              onChange={handleChange}
-              placeholder='67.35 or 50 - 75'
-              fullWidth
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              name='availability'
-              label='Availability'
-              value={form.availability}
-              onChange={handleChange}
-              placeholder='Weekdays after 3 PM'
-              fullWidth
-            />
           </Grid>
           {error && (
             <Grid size={12}>

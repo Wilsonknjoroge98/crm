@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  ButtonBase,
   Checkbox,
   Chip,
   Grid,
@@ -22,6 +23,7 @@ import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurned
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import { useMutation } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
 import { saveBusinessNotes } from '../utils/query';
@@ -31,24 +33,28 @@ import { formatLocalTime } from '../utils/stateTimezones';
 const SANS = '"Inter", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
 const NOTES_DEBOUNCE_MS = 800;
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
+// Call/Text/Appointment aren't built yet, so they stay disabled placeholders
+// that route into the "notify me" signup. Mark Sold already has a real flow
+// (CreateClientDialog -> CreatePolicyDialog), so it's wired up separately
+// below instead of joining this list.
 const QUICK_ACTIONS = [
   ['Call', CallOutlinedIcon],
   ['Text', SmsOutlinedIcon],
-  ['Disposition', AssignmentTurnedInOutlinedIcon],
   ['Appointment', EventOutlinedIcon],
 ];
 
 // Payments per year by premium_frequency; unknown frequencies assume monthly.
 // Mirrors the server's annualizePremium for the card's Sale amount readout.
 const PREMIUM_ANNUAL_MULTIPLIERS = {
-  'weekly': 52,
-  'monthly': 12,
-  'quarterly': 4,
+  weekly: 52,
+  monthly: 12,
+  quarterly: 4,
   'semi-annually': 2,
   'semi-annual': 2,
-  'annually': 1,
-  'annual': 1,
+  annually: 1,
+  annual: 1,
 };
 
 const annualizedSaleAmount = (policies) => {
@@ -62,6 +68,11 @@ const annualizedSaleAmount = (policies) => {
   }, 0);
   return total > 0 ? total : null;
 };
+
+// Display-only: the vendor's stored name is "GetSeniorQuotes.com", but the
+// card reads better without the domain suffix.
+const formatVendorName = (value) =>
+  value === 'GetSeniorQuotes.com' ? 'GetSeniorQuotes' : value;
 
 const formatPhone = (value) => {
   const digits = String(value || '').replace(/\D/g, '');
@@ -95,7 +106,11 @@ const computeAge = (dateOfBirth) => {
   return beforeBirthday ? age - 1 : age;
 };
 
-const formatBuild = ({ height_feet: feet, height_inches: inches, weight_lbs: pounds }) => {
+const formatBuild = ({
+  height_feet: feet,
+  height_inches: inches,
+  weight_lbs: pounds,
+}) => {
   const heightInches = (Number(feet) || 0) * 12 + (Number(inches) || 0);
   const weight = Number(pounds) || 0;
   if (heightInches <= 0 || weight <= 0) return null;
@@ -107,6 +122,51 @@ const formatBuild = ({ height_feet: feet, height_inches: inches, weight_lbs: pou
 
 const formatBool = (value) =>
   value === true ? 'Yes' : value === false ? 'No' : '—';
+
+// Some funnel submissions send the literal string "None" for an unmade
+// selection instead of leaving the field blank — treat it as no value.
+const cleanSelection = (value) =>
+  value && String(value).trim().toLowerCase() !== 'none' ? value : null;
+
+// The funnel's health-tier codes: PP/P are the better tiers, RP/R the
+// lower ones.
+const HEALTH_CLASS_LABELS = {
+  PP: 'Excellent',
+  P: 'Great',
+  RP: 'Good',
+  R: 'Fair',
+};
+
+const healthClassLabel = (code) =>
+  code ? `${HEALTH_CLASS_LABELS[code] || code} (${code})` : null;
+
+// The funnel sends a few free-text fields (availability, beneficiary) as
+// lowercase from closed dropdown options, unlike name/email/etc. which carry
+// whatever casing the person typed. Title-cased for display only — the
+// stored value is untouched, so this also fixes historical rows.
+const titleCase = (value) =>
+  typeof value === 'string' && value
+    ? value.replace(/\w\S*/g, (word) => word[0].toUpperCase() + word.slice(1))
+    : value;
+
+// Mirrors the drawer's premiumLabel: a single amount, or a min/max range,
+// whichever the funnel captured.
+const premiumLabel = (person) => {
+  if (person.premium !== null && person.premium !== undefined) {
+    return formatCurrency(person.premium, 0);
+  }
+  if (person.premium_min != null && person.premium_max != null) {
+    return `${formatCurrency(person.premium_min, 0)} – ${formatCurrency(
+      person.premium_max,
+      0,
+    )}`;
+  }
+  // Open-ended bucket (e.g. GSQ's "100+"): a floor with no known ceiling.
+  if (person.premium_min != null) {
+    return `${formatCurrency(person.premium_min, 0)}+`;
+  }
+  return null;
+};
 
 const copyToClipboard = async (label, value) => {
   if (!value) return;
@@ -179,10 +239,13 @@ const LabeledValue = ({ label, value, mono }) => (
 const BusinessCard = ({
   person,
   now,
+  isAdmin,
   selected,
   onToggleSelect,
-  onOpenDrawer,
   onQuickAction,
+  onMarkSold,
+  onAddPolicy,
+  onEditPolicy,
 }) => {
   const [notes, setNotes] = useState(person.notes || '');
   const [noteStatus, setNoteStatus] = useState('idle');
@@ -237,6 +300,21 @@ const BusinessCard = ({
   );
 
   const isSale = person.lifecycle_status === 'SALE';
+  // A client can exist with no policy yet (creating one was skipped or
+  // failed) — surface a way back in rather than stranding the record.
+  const hasNoPolicies = (person.policies || []).length === 0;
+  // Policies are ordered most-recent-first by the view; that's the one
+  // worth surfacing prominently when there's more than one.
+  const latestPolicy = person.policies?.[0] || null;
+  const addressLine =
+    [person.address, person.city, person.zip].filter(Boolean).join(', ') ||
+    null;
+  const hasIdentityFields = Boolean(
+    addressLine ||
+    person.occupation ||
+    person.marital_status ||
+    person.annual_income,
+  );
   const fullName =
     [person.first_name, person.last_name].filter(Boolean).join(' ') || '—';
   const localTime = formatLocalTime(person.state, now);
@@ -244,6 +322,12 @@ const BusinessCard = ({
   const receivedAt = person.lead_created_at || person.created_at;
   const saleAmount = annualizedSaleAmount(person.policies);
   const age = computeAge(person.date_of_birth);
+  // Only the admin needs to see who else's lead this is — but for every
+  // vendor and lifecycle stage, not just GSQ leads. Creative (the ad
+  // source) only ever exists for GSQ-sourced leads, so it stays scoped.
+  const showAgentAttribution = isAdmin;
+  const showCreativeAttribution =
+    isAdmin && person.lead_vendor_id === GSQ_LEAD_VENDOR_ID;
 
   const notesStatusIndicator = (
     <Typography
@@ -300,20 +384,16 @@ const BusinessCard = ({
                 sx={{ p: 0.25, ml: -0.5 }}
                 inputProps={{ 'aria-label': `Select ${fullName}` }}
               />
-              <Link
-                component='button'
-                underline='hover'
-                onClick={() => onOpenDrawer(person.id)}
+              <Typography
                 sx={{
                   fontWeight: 700,
                   fontSize: '1rem',
-                  textAlign: 'left',
                   minWidth: 0,
                   overflowWrap: 'anywhere',
                 }}
               >
                 {fullName}
-              </Link>
+              </Typography>
               <Chip
                 label={person.lifecycle_status}
                 size='small'
@@ -355,7 +435,11 @@ const BusinessCard = ({
               <Stack direction='row' spacing={0.5} alignItems='center'>
                 <Typography
                   variant='body2'
-                  sx={{ fontFamily: MONO, fontSize: '0.8rem', overflowWrap: 'anywhere' }}
+                  sx={{
+                    fontFamily: MONO,
+                    fontSize: '0.8rem',
+                    overflowWrap: 'anywhere',
+                  }}
                 >
                   {person.email}
                 </Typography>
@@ -378,6 +462,40 @@ const BusinessCard = ({
               mono
             />
             <LabeledValue label='Local time' value={localTime} mono />
+
+            {/* Client profile fields are no longer collected on new records
+            (the dialog fields were removed), but agents filled these in for
+            older ones — show only what's actually there instead of a wall
+            of dashes. */}
+            {hasIdentityFields && (
+              <Box
+                sx={{
+                  mt: 1,
+                  pt: 1,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                {addressLine && (
+                  <LabeledValue label='Address' value={addressLine} />
+                )}
+                {person.occupation && (
+                  <LabeledValue label='Occupation' value={person.occupation} />
+                )}
+                {person.marital_status && (
+                  <LabeledValue
+                    label='Marital status'
+                    value={titleCase(person.marital_status)}
+                  />
+                )}
+                {person.annual_income && (
+                  <LabeledValue
+                    label='Annual income'
+                    value={formatCurrency(person.annual_income, 0)}
+                  />
+                )}
+              </Box>
+            )}
           </Stack>
         </Grid>
 
@@ -433,6 +551,49 @@ const BusinessCard = ({
                 </Box>
               </Tooltip>
             ))}
+            {isSale && hasNoPolicies ? (
+              <Button
+                fullWidth
+                size='small'
+                variant='outlined'
+                color='warning'
+                startIcon={<AssignmentTurnedInOutlinedIcon />}
+                onClick={() => onAddPolicy?.(person)}
+                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+              >
+                Add Policy
+              </Button>
+            ) : isSale ? (
+              <Button
+                fullWidth
+                size='small'
+                variant='outlined'
+                disabled
+                startIcon={<AssignmentTurnedInOutlinedIcon />}
+                sx={{
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  '&.Mui-disabled': {
+                    color: 'success.main',
+                    borderColor: 'success.main',
+                    opacity: 0.9,
+                  },
+                }}
+              >
+                Sold
+              </Button>
+            ) : (
+              <Button
+                fullWidth
+                size='small'
+                variant='outlined'
+                startIcon={<AssignmentTurnedInOutlinedIcon />}
+                onClick={() => onMarkSold?.(person)}
+                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+              >
+                Mark Sold
+              </Button>
+            )}
           </Stack>
         </Grid>
 
@@ -441,13 +602,20 @@ const BusinessCard = ({
           <ColumnHeading>Funnel Data</ColumnHeading>
           <Box component='ul' sx={{ m: 0, pl: 2 }}>
             <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>Age: </Box>
+              <Box component='span' sx={{ color: 'text.secondary' }}>
+                Age:{' '}
+              </Box>
               <b>{age ?? '—'}</b>
-              <Box component='span' sx={{ color: 'text.secondary' }}> · Smoker: </Box>
+              <Box component='span' sx={{ color: 'text.secondary' }}>
+                {' '}
+                · Smoker:{' '}
+              </Box>
               <b>{formatBool(person.smoker)}</b>
             </Bullet>
             <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>Face amount: </Box>
+              <Box component='span' sx={{ color: 'text.secondary' }}>
+                Face amount:{' '}
+              </Box>
               <b>
                 {person.face_amount
                   ? formatCurrency(person.face_amount, 0)
@@ -455,25 +623,53 @@ const BusinessCard = ({
               </b>
             </Bullet>
             <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>Beneficiary: </Box>
-              <b>{person.beneficiary || '—'}</b>
+              <Box component='span' sx={{ color: 'text.secondary' }}>
+                Premium:{' '}
+              </Box>
+              <b>{premiumLabel(person) || '—'}</b>
             </Bullet>
             <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>BMI: </Box>
+              <Box component='span' sx={{ color: 'text.secondary' }}>
+                Beneficiary:{' '}
+              </Box>
+              <b>{titleCase(person.beneficiary) || '—'}</b>
+            </Bullet>
+            <Bullet>
+              <Box component='span' sx={{ color: 'text.secondary' }}>
+                BMI:{' '}
+              </Box>
               <b>{build || '—'}</b>
             </Bullet>
             <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>BP medication: </Box>
-              <b>{formatBool(person.blood_pressure_medication)}</b>
+              <Box component='span' sx={{ color: 'text.secondary' }}>
+                Health class:{' '}
+              </Box>
+              <b>{healthClassLabel(person.health_class) || '—'}</b>
             </Bullet>
             {showMore && (
               <>
                 <Bullet>
-                  <Box component='span' sx={{ color: 'text.secondary' }}>Cholesterol: </Box>
-                  <b>{formatBool(person.cholesterol_medication)}</b>
+                  <Box component='span' sx={{ color: 'text.secondary' }}>
+                    Carrier:{' '}
+                  </Box>
+                  <b>{cleanSelection(person.selected_carrier) || '—'}</b>
                 </Bullet>
                 <Bullet>
-                  <Box component='span' sx={{ color: 'text.secondary' }}>Reason: </Box>
+                  <Box component='span' sx={{ color: 'text.secondary' }}>
+                    Plan:{' '}
+                  </Box>
+                  <b>{cleanSelection(person.selected_plan) || '—'}</b>
+                </Bullet>
+                <Bullet>
+                  <Box component='span' sx={{ color: 'text.secondary' }}>
+                    Availability:{' '}
+                  </Box>
+                  <b>{titleCase(person.availability) || '—'}</b>
+                </Bullet>
+                <Bullet>
+                  <Box component='span' sx={{ color: 'text.secondary' }}>
+                    Reason:{' '}
+                  </Box>
                   <b>{person.why || '—'}</b>
                 </Bullet>
               </>
@@ -510,24 +706,71 @@ const BusinessCard = ({
               value={receivedAt ? new Date(receivedAt).toLocaleString() : null}
               mono
             />
-            <LabeledValue label='Source' value={person.lead_vendor_name} />
+            <LabeledValue
+              label='Source'
+              value={formatVendorName(person.lead_vendor_name)}
+            />
+            <LabeledValue
+              label='Verified'
+              value={formatBool(person.verified)}
+            />
             <LabeledValue
               label='Sale amount'
-              value={saleAmount ? formatCurrency(saleAmount) : 'Not set'}
+              value={saleAmount ? formatCurrency(saleAmount) : null}
               mono={Boolean(saleAmount)}
             />
-            {isSale && (
-              <Box sx={{ pt: 0.75 }}>
-                <Chip
-                  label='Sold'
-                  size='small'
-                  sx={{
-                    bgcolor: '#E6F1EC',
-                    color: 'success.main',
-                    fontWeight: 700,
-                    fontSize: '0.675rem',
-                  }}
+            {latestPolicy && (
+              <ButtonBase
+                onClick={() => onEditPolicy?.(person, latestPolicy)}
+                aria-label='View or edit policy'
+                sx={{
+                  my: 1,
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1.5,
+                  bgcolor: 'grey.100',
+                  alignSelf: 'flex-start',
+                  '&:hover': { bgcolor: 'grey.200' },
+                }}
+              >
+                <Stack direction='row' spacing={1} alignItems='center'>
+                  <ArticleOutlinedIcon
+                    sx={{ fontSize: 14, color: 'text.secondary' }}
+                  />
+                  <Typography
+                    variant='body2'
+                    sx={{
+                      fontFamily: MONO,
+                      fontSize: '0.8rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    #{latestPolicy.policy_number}
+                    {person.policies.length > 1 &&
+                      ` (+${person.policies.length - 1} more)`}
+                  </Typography>
+                </Stack>
+              </ButtonBase>
+            )}
+            {showAgentAttribution && (
+              <Box
+                sx={{
+                  mt: 1,
+                  pt: 0.75,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <LabeledValue
+                  label='Agent'
+                  value={person.agent_name || 'Unassigned'}
                 />
+                {showCreativeAttribution && (
+                  <LabeledValue
+                    label='Creative'
+                    value={person.gsq_source || '—'}
+                  />
+                )}
               </Box>
             )}
           </Stack>

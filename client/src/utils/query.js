@@ -120,6 +120,7 @@ const getBusinessRecords = async ({
   search = '',
   status = 'all',
   gsqOnly = false,
+  agentId,
 } = {}) => {
   const response = await apiClient.request({
     method: 'GET',
@@ -132,6 +133,9 @@ const getBusinessRecords = async ({
       search: search || undefined,
       status: status === 'all' ? undefined : status,
       gsqOnly: gsqOnly ? 'true' : undefined,
+      // Superuser-only: view the list scoped to a specific agent instead of
+      // the caller's own. Ignored server-side for anyone else.
+      agentId: agentId || undefined,
     },
   });
   return response.data;
@@ -146,10 +150,16 @@ const getPerson = async (id) => {
   return response.data?.data;
 };
 
-const getBusinessMetrics = async () => {
+const getBusinessMetrics = async ({ gsqOnly = false, agentId } = {}) => {
   const response = await apiClient.request({
     method: 'GET',
     url: '/business/metrics',
+    params: {
+      gsqOnly: gsqOnly ? 'true' : undefined,
+      // Superuser-only: view metrics scoped to a specific agent instead of
+      // the caller's own. Ignored server-side for anyone else.
+      agentId: agentId || undefined,
+    },
   });
   return response.data?.data;
 };

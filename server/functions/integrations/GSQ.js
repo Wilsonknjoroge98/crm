@@ -89,8 +89,13 @@ const inboundGSQ = async (req, res) => {
       priority: null,
       availability: lead.availability ?? null,
       why: lead.why ?? null,
-      cholesterol_medication: lead.cholesterolMedication ?? false,
-      blood_pressure_medication: lead.bloodPressureMedication ?? false,
+      // The funnel now asks one health-tier question (health_class) instead
+      // of these two flags. GSQ no longer sends cholesterolMedication or
+      // bloodPressureMedication, so default to null (unknown) rather than
+      // false (confirmed no) to avoid recording a false negative.
+      cholesterol_medication: lead.cholesterolMedication ?? null,
+      blood_pressure_medication: lead.bloodPressureMedication ?? null,
+      health_class: lead.healthClass ?? null,
       verified: lead.verified ?? false,
       height_feet: lead.heightFeet ? parseInt(lead.heightFeet) : null,
       height_inches: lead.heightInches ? parseInt(lead.heightInches) : null,

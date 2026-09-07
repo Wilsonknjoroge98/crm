@@ -67,6 +67,12 @@ describe('parsePremium', () => {
       '$50.25 – $75.50',
       { raw: null, min: 50.25, max: 75.5 },
     ],
+    ['open-ended bucket', '100+', { raw: null, min: 100, max: null }],
+    [
+      'currency open-ended bucket',
+      '$100 +',
+      { raw: null, min: 100, max: null },
+    ],
     ['empty string', '', { raw: null, min: null, max: null }],
     ['missing value', undefined, { raw: null, min: null, max: null }],
     [
@@ -211,4 +217,38 @@ describe('inboundGSQ premium payload', () => {
       message: 'Lead created successfully',
     });
   });
+
+  test.each([
+    ['omitted', undefined, null],
+    ['provided', 'RP', 'RP'],
+  ])(
+    'passes healthClass through as health_class when %s',
+    async (_label, healthClass, expected) => {
+      const insert = jest.fn().mockResolvedValue({ error: null });
+      mockSupabaseFrom.mockImplementation((table) => {
+        if (table === 'lead_vendors') {
+          return makeLookupQuery({ data: { id: 'vendor-id' }, error: null });
+        }
+        if (table === 'agents') {
+          return makeLookupQuery({ data: { id: 'agent-id' }, error: null });
+        }
+        if (table === 'leads') {
+          return { insert };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const request = makeRequest('67.35');
+      if (healthClass !== undefined) {
+        request.body.healthClass = healthClass;
+      }
+
+      const res = makeResponse();
+      await inboundGSQ(request, res);
+
+      expect(insert).toHaveBeenCalledWith(
+        expect.objectContaining({ health_class: expected }),
+      );
+    },
+  );
 });

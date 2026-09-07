@@ -16,6 +16,13 @@ alter table public.leads
   add column if not exists premium_max numeric,
   add column if not exists availability text;
 
+-- The funnel replaced its cholesterol/blood-pressure-medication questions
+-- with one health-tier question. Values are the funnel's own codes: PP
+-- (excellent), P (great), RP (good), R (fair). Nullable/unconstrained since
+-- older leads and any not-yet-migrated ingestion path won't set it.
+alter table public.leads
+  add column if not exists health_class text;
+
 -- Inline card notes autosave against whichever record the person currently
 -- is: the client row after conversion, the lead row before it.
 alter table public.leads
@@ -142,6 +149,7 @@ select
   l.weight_lbs,
   l.cholesterol_medication,
   l.blood_pressure_medication,
+  l.health_class,
   l.face_amount,
   l.premium,
   l.selected_plan,

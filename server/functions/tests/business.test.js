@@ -44,6 +44,27 @@ const EXPECTED_LIST_FIELDS = [
   'lead_vendor_name',
   'lead_created_at',
   'created_at',
+  'availability',
+  'health_class',
+  'address',
+  'city',
+  'zip',
+  'occupation',
+  'marital_status',
+  'annual_income',
+  'premium',
+  'premium_min',
+  'premium_max',
+  'selected_carrier',
+  'selected_plan',
+  'agent_id',
+  'gsq_source',
+  'sold',
+  'priority',
+  'gsq_id',
+  'gsq_live_transfer',
+  'client_created_at',
+  'updated_at',
 ].join(',');
 // The page query must not ask for `policies`: combined with ORDER BY it makes
 // PostgreSQL build the rollup for every row in the view before paging.
@@ -74,6 +95,7 @@ const EXPECTED_DETAIL_FIELDS = [
   'weight_lbs',
   'cholesterol_medication',
   'blood_pressure_medication',
+  'health_class',
   'face_amount',
   'premium',
   'premium_min',
@@ -204,20 +226,24 @@ const makeSupabase = (results) => {
 };
 
 // Fake Firestore for the Stripe order lookup: docsByEmail maps a queried
-// email to the stripe_orders docs it should return.
+// email to the stripe_orders docs it should return. An unfiltered `.get()`
+// (the superuser path) returns every doc across every email, as if reading
+// the whole collection.
 const makeFirestore = (docsByEmail = {}, options = {}) => {
   const calls = [];
+  const toDocs = (data) => data.map((doc) => ({ data: () => doc }));
   const db = {
     collection: (name) => ({
+      get: async () => {
+        calls.push({ name });
+        if (options.error) throw options.error;
+        return { docs: toDocs(Object.values(docsByEmail).flat()) };
+      },
       where: (field, op, value) => ({
         get: async () => {
           calls.push({ name, field, op, value });
           if (options.error) throw options.error;
-          return {
-            docs: (docsByEmail[value] || []).map((data) => ({
-              data: () => data,
-            })),
-          };
+          return { docs: toDocs(docsByEmail[value] || []) };
         },
       }),
     }),
@@ -857,6 +883,69 @@ describe('GET /people', () => {
     ).toBe(false);
   });
 
+  test('resolves the issued-to agent name for the admin', async () => {
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            {
+              id: 'person-1',
+              agent_id: 'agent-9',
+              lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+            },
+          ],
+          error: null,
+          count: 1,
+        },
+        rollupFor([{ id: 'person-1' }]),
+      ],
+      agents: [
+        {
+          data: [{ id: 'agent-9', first_name: 'Jane', last_name: 'Doe' }],
+          error: null,
+        },
+      ],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: SUPERUSER_ID }),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0]).toMatchObject({
+      agent_id: 'agent-9',
+      agent_name: 'Jane Doe',
+    });
+
+    const agentsQuery = findQuery(supabase, 'agents');
+    expect(agentsQuery.calls).toContainEqual({
+      method: 'in',
+      args: ['id', ['agent-9']],
+    });
+  });
+
+  test('skips the agent name lookup for non-superusers', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [], error: null }],
+      business: [
+        {
+          data: [{ id: 'person-1', agent_id: 'agent-1' }],
+          error: null,
+          count: 1,
+        },
+        rollupFor([{ id: 'person-1' }]),
+      ],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1' }),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0].agent_name).toBeUndefined();
+    expect(supabase.from).not.toHaveBeenCalledWith('agents');
+  });
+
   test('returns 400 for invalid pagination without querying Supabase', async () => {
     const supabase = makeSupabase({});
     const response = await request(
@@ -977,8 +1066,11 @@ describe('GET /business/metrics', () => {
         },
       ],
     });
+    // Superuser lead spend is account-wide, not scoped to their own email,
+    // so docs under other purchasing emails must still be counted.
     const firestore = makeFirestore({
       'super@example.com': [{ amountPaid: 50 }],
+      'agent-1@example.com': [{ amountPaid: 25 }],
     });
 
     const response = await request(
@@ -994,10 +1086,13 @@ describe('GET /business/metrics', () => {
       leadsDelivered: 10,
       closedSales: 1,
       totalClosed: 100,
-      leadSpend: 50,
-      roiNet: 50,
-      roiMultiplier: 2,
+      leadSpend: 75,
+      roiNet: 25,
+      roiMultiplier: 1.33,
     });
+
+    // The Stripe lookup reads the whole collection, unfiltered by email.
+    expect(firestore.calls).toEqual([{ name: 'stripe_orders' }]);
 
     // No ownership lookups for the superuser.
     expect(findQuery(supabase, 'agent_clients')).toBeUndefined();
@@ -1006,6 +1101,95 @@ describe('GET /business/metrics', () => {
       method: 'eq',
       args: ['agent_id', SUPERUSER_ID],
     });
+  });
+
+  test('scopes leadsDelivered, closedSales, and totalClosed to the GSQ vendor when gsqOnly is set', async () => {
+    const supabase = makeSupabase({
+      leads: [{ data: null, error: null, count: 4 }],
+      business: [{ data: [{ client_id: 'client-1' }], error: null }],
+      policies: [
+        {
+          data: [{ premium_amount: 10, premium_frequency: 'monthly' }],
+          error: null,
+        },
+      ],
+    });
+    const firestore = makeFirestore({
+      'agent-1@example.com': [{ amountPaid: 20 }],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1', email: 'agent-1@example.com' }, firestore),
+    ).get('/business/metrics?gsqOnly=true');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      leadsDelivered: 4,
+      closedSales: 1,
+      totalClosed: 120,
+      leadSpend: 20,
+      roiNet: 100,
+      roiMultiplier: 6,
+    });
+
+    const leadsQuery = findQuery(supabase, 'leads');
+    expect(leadsQuery.calls).toContainEqual({
+      method: 'eq',
+      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+    });
+
+    // Policies come through the client-id lookup (not fetchAllPolicies), so
+    // the GSQ vendor filter on `business` applies even for this agent.
+    const visibleIdsQuery = findQuery(supabase, 'business');
+    expect(visibleIdsQuery.calls).toContainEqual({
+      method: 'eq',
+      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+    });
+  });
+
+  test('superuser gsqOnly skips the fetchAllPolicies fast path for the vendor-filtered client lookup', async () => {
+    const supabase = makeSupabase({
+      leads: [{ data: null, error: null, count: 9 }],
+      business: [{ data: [{ client_id: 'client-1' }], error: null }],
+      policies: [
+        {
+          data: [{ premium_amount: 100, premium_frequency: 'annually' }],
+          error: null,
+        },
+      ],
+    });
+    const firestore = makeFirestore({
+      'super@example.com': [{ amountPaid: 50 }],
+    });
+
+    const response = await request(
+      makeApp(
+        supabase,
+        { id: SUPERUSER_ID, email: 'super@example.com' },
+        firestore,
+      ),
+    ).get('/business/metrics?gsqOnly=true');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      leadsDelivered: 9,
+      closedSales: 1,
+      totalClosed: 100,
+      leadSpend: 50,
+      roiNet: 50,
+      roiMultiplier: 2,
+    });
+
+    // The superuser still hits `business` to scope client ids to the vendor,
+    // with no ownership `or` filter applied.
+    const visibleIdsQuery = findQuery(supabase, 'business');
+    expect(visibleIdsQuery.calls).toContainEqual({
+      method: 'eq',
+      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+    });
+    expect(visibleIdsQuery.calls).not.toContainEqual(
+      expect.objectContaining({ method: 'or' }),
+    );
   });
 
   test('reports a null multiplier when there is no spend', async () => {

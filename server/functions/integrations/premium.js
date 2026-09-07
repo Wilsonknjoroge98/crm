@@ -9,6 +9,8 @@ const RANGE_PATTERN = new RegExp(
   `^${AMOUNT_PATTERN}\\s*[-–—]\\s*${AMOUNT_PATTERN}$`,
 );
 const SINGLE_AMOUNT_PATTERN = new RegExp(`^${AMOUNT_PATTERN}$`);
+// Open-ended bucket, e.g. "100+": at least this much, no known ceiling.
+const OPEN_ENDED_PATTERN = new RegExp(`^${AMOUNT_PATTERN}\\s*\\+$`);
 
 const parsePremium = (value) => {
   if (value === null || value === undefined) {
@@ -45,6 +47,14 @@ const parsePremium = (value) => {
     }
 
     return { ...EMPTY_PREMIUM };
+  }
+
+  const openEndedMatch = normalized.match(OPEN_ENDED_PATTERN);
+  if (openEndedMatch) {
+    const min = Number(openEndedMatch[1]);
+    return Number.isFinite(min) && min >= 0
+      ? { raw: null, min, max: null }
+      : { ...EMPTY_PREMIUM };
   }
 
   const singleMatch = normalized.match(SINGLE_AMOUNT_PATTERN);
