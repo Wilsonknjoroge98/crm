@@ -30,9 +30,9 @@ const {
   carriersRouter,
   insightsRouter,
   gsqRouter,
-  commissionsRouter,
   bulkUploadRouter,
   businessRouter,
+  offersRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -68,9 +68,9 @@ app.use('/expenses', expensesRouter);
 app.use('/leaderboard', leaderboardRouter);
 app.use('/insights', insightsRouter);
 app.use('/gsq', gsqRouter);
-app.use('/commissions', commissionsRouter);
 app.use('/bulk-upload', bulkUploadRouter);
 app.use('/business', businessRouter);
+app.use('/offers', offersRouter);
 
 app.get('/ad-spend', async (req, res) => {
   const { startDate, endDate, mode } = req.query;

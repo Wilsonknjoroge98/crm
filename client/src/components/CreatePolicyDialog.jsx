@@ -80,7 +80,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       { first_name: '', last_name: '', relationship: '', phone: '', share: '' },
     ],
     contingent_beneficiaries: [],
-    notes: '',
     split_policy: '',
     split_agent_id: undefined,
     split_agent_share: undefined,
@@ -240,7 +239,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   useEffect(() => {
     if (!form) return;
     const modifiedForm = { ...form };
-    delete modifiedForm.notes;
 
     console.log('Validating form', modifiedForm);
 

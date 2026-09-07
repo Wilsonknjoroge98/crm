@@ -49,6 +49,8 @@ const Policies = () => {
     { label: 'Policy Number', key: 'policy_number' },
     { label: 'Client Name', key: 'client_name' },
     { label: 'Carrier', key: 'carrier_name' },
+    { label: 'Product', key: 'product_name' },
+    { label: 'Created At', key: 'created_at' },
     { label: 'Writing Agent', key: 'writing_agent_name' },
     { label: 'Premium Amount', key: 'premium_amount' },
     { label: 'Coverage Amount', key: 'coverage_amount' },

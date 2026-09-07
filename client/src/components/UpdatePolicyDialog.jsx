@@ -167,7 +167,6 @@ const UpdatePolicyDialog = ({
   useEffect(() => {
     if (!form) return;
     const modifiedForm = { ...form };
-    delete modifiedForm.notes;
 
     const hasEmptyFields = Object.keys(modifiedForm).some((key) => {
       return (
@@ -341,9 +340,9 @@ const UpdatePolicyDialog = ({
             ) : (
               <TextField
                 select
-                name='carrier'
+                name='carrier_id'
                 label='Carrier'
-                value={form.carrier}
+                value={form.carrier_id}
                 onChange={handleChange}
                 fullWidth
                 required
@@ -363,15 +362,15 @@ const UpdatePolicyDialog = ({
             ) : (
               <TextField
                 select
-                name='product'
+                name='product_id'
                 label='Product'
-                value={form.product}
+                value={form.product_id}
                 onChange={handleChange}
                 fullWidth
                 required
               >
                 {products
-                  .filter((p) => p.carrier_id === form.carrier)
+                  .filter((p) => p.carrier_id === form.carrier_id)
                   .map((product) => (
                     <MenuItem key={product.id} value={product.id}>
                       {product.name}

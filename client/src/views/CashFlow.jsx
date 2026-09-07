@@ -22,7 +22,6 @@ import { useState, useEffect } from 'react';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getCommissions,
   getStripeCharges,
   getAdSpend,
   getAllExpenses,
@@ -43,13 +42,6 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 
 const CashFlowSummary = () => {
   const queryClient = useQueryClient();
-  const [inflow, setInflow] = useState({
-    totalCommissions: 5000,
-    directCommissions: 3000,
-    overridingCommissions: 0,
-    splitCommissions: 0,
-    leadPurchases: 2000,
-  });
   const [expenses, setExpenses] = useState([
     { name: 'Meta Ads', amount: 1000 },
   ]);
@@ -83,25 +75,6 @@ const CashFlowSummary = () => {
     mutationFn: (expenseId) => deleteExpense({ expenseId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
-    },
-  });
-
-  const {
-    data: commissionsData = {},
-    refetch: refetchCommissions,
-    isLoading: isCommissionsLoading,
-    isFetching: isCommissionsFetching,
-  } = useQuery({
-    queryKey: ['commissions'],
-    staleTime: 1000 * 60 * 5,
-    queryFn: () =>
-      getCommissions({
-        startDate,
-        endDate,
-      }),
-
-    onError: (error) => {
-      console.error('Error fetching commissions data:', error);
     },
   });
 
@@ -150,16 +123,8 @@ const CashFlowSummary = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  const isLoading =
-    isCommissionsLoading ||
-    isExpensesLoading ||
-    isStripeLoading ||
-    isAdSpendLoading;
+  const isLoading = isExpensesLoading || isStripeLoading || isAdSpendLoading;
 
-  const totalCommissions = commissionsData?.total || 0;
-  const directCommissions = commissionsData?.direct || 0;
-  const overridingCommissions = commissionsData?.overriding || 0;
-  const splitCommissions = commissionsData?.split || 0;
   const stripe = stripeData?.total || 0;
   const adSpend = adSpendData?.total || 0;
 
@@ -167,7 +132,7 @@ const CashFlowSummary = () => {
     (a, b) => (b?.amount || 0) - (a?.amount || 0),
   );
 
-  const totalInflow = totalCommissions + stripe;
+  const totalInflow = stripe;
   const manualExpensesTotal = sortedExpenses.reduce(
     (sum, e) => sum + (e.amount || 0),
     0,
@@ -246,7 +211,6 @@ const CashFlowSummary = () => {
                 startIcon={<RefreshIcon />}
                 onClick={() =>
                   Promise.all([
-                    refetchCommissions(),
                     refetchStripe(),
                     refetchAdSpend(),
                     refetchExpenses(),
@@ -289,66 +253,6 @@ const CashFlowSummary = () => {
                   </Typography>
                 )}
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Commissions</Typography>
-                {isCommissionsLoading || isCommissionsFetching ? (
-                  <Skeleton width={80} height={30} />
-                ) : (
-                  <Typography variant='subtitle1' fontWeight={600}>
-                    $
-                    {totalCommissions?.toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </Typography>
-                )}
-              </Box>
-              {!isCommissionsLoading && !isCommissionsFetching && (
-                <Box sx={{ pl: 2, mb: 0.5 }}>
-                  <Box
-                    sx={{ display: 'flex', justifyContent: 'space-between' }}
-                  >
-                    <Typography variant='caption' color='text.secondary'>
-                      Direct
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      $
-                      {directCommissions?.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{ display: 'flex', justifyContent: 'space-between' }}
-                  >
-                    <Typography variant='caption' color='text.secondary'>
-                      Override
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      $
-                      {overridingCommissions?.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{ display: 'flex', justifyContent: 'space-between' }}
-                  >
-                    <Typography variant='caption' color='text.secondary'>
-                      Split
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      $
-                      {splitCommissions?.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
 
               <Divider sx={{ my: 1 }} />
 
