@@ -32,7 +32,19 @@ import { useLocation } from 'react-router-dom';
 import { toTitleCase, formatPhone } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
 
-const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
+// Client-only fields a lead won't have yet; not required to convert a lead
+// into a client. Sent as null (not '') so numeric columns like
+// annual_income don't reject an empty string.
+const OPTIONAL_CLIENT_FIELDS = [
+  'address',
+  'city',
+  'zip',
+  'occupation',
+  'marital_status',
+  'annual_income',
+];
+
+const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) => {
   const { pathname } = useLocation();
   const initialForm = {
     first_name: '',
@@ -48,7 +60,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     zip: '',
     occupation: '',
     annual_income: '',
-    notes: '',
     live_transfer: undefined,
   };
 
@@ -80,16 +91,16 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.date_of_birth || '',
-        lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
-        marital_status: '',
-        address: '',
-        city: '',
-        state: '',
-        zip: '',
-        occupation: '',
-        annual_income: '',
-        notes: '',
-        live_transfer: undefined,
+        lead_vendor_id:
+          lead.lead_vendor_id || '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+        marital_status: lead.marital_status || '',
+        address: lead.address || '',
+        city: lead.city || '',
+        state: lead.state || '',
+        zip: lead.zip || '',
+        occupation: lead.occupation || '',
+        annual_income: lead.annual_income || '',
+        live_transfer: lead.gsq_live_transfer ?? undefined,
       });
     }
   }, [lead]);
@@ -105,7 +116,10 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
     error,
   } = useMutation({
     mutationFn: postClient,
-    onSuccess: () => {
+    onSuccess: (client) => {
+      if (typeof onCreated === 'function') {
+        onCreated(client);
+      }
       if (typeof refetchClients === 'function') {
         refetchClients();
       }
@@ -207,10 +221,12 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   };
 
   const handleSubmit = () => {
-    console.log('Submitting form:', form);
-    createClient({
-      data: { ...form },
+    const data = { ...form };
+    OPTIONAL_CLIENT_FIELDS.forEach((field) => {
+      if (data[field] === '') data[field] = null;
     });
+    console.log('Submitting form:', data);
+    createClient({ data });
   };
 
   const handleDateChange = (name, value) => {
@@ -227,7 +243,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
   useEffect(() => {
     const modifiedForm = { ...form };
     console.log('Modified Form:', modifiedForm);
-    delete modifiedForm.notes;
+    OPTIONAL_CLIENT_FIELDS.forEach((field) => delete modifiedForm[field]);
 
     if (form.lead_vendor_id !== import.meta.env.VITE_GSQ_LEAD_VENDOR_ID) {
       delete modifiedForm.live_transfer;
@@ -244,21 +260,13 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
-      <DialogTitle
-        sx={{
-          fontWeight: 700,
-          fontSize: '1.5rem',
-          pb: 1,
-        }}
-      >
-        New Client
-      </DialogTitle>
-      <DialogContent sx={{ mt: 1 }}>
-        <Grid container spacing={2} p={2}>
-          <Grid item size={12}>
+      <DialogTitle>New Client</DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ pt: 1 }}>
+          <Grid size={12}>
             <SectionHeader title='Lead information' />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             {leadVendorsLoading ? (
               <Skeleton variant='rounded' height={56} />
             ) : (
@@ -282,7 +290,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             )}
           </Grid>
           {form.lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' && (
-            <Grid size={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl error={true} fullWidth>
                 <Alert severity='warning'>Is this a live transfer lead?</Alert>
 
@@ -320,10 +328,10 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             </Grid>
           )}
 
-          <Grid item size={12}>
+          <Grid size={12}>
             <SectionHeader title='Personal Information' />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='first_name'
               label='First Name'
@@ -333,7 +341,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               required
             />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='last_name'
               label='Last Name'
@@ -344,7 +352,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             />
           </Grid>
 
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='email'
               label='Email'
@@ -357,7 +365,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               required
             />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='phone'
               label='Phone'
@@ -370,7 +378,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             />
           </Grid>
 
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <DatePicker
               label='Date of Birth'
               format='MM/DD/YYYY'
@@ -386,15 +394,14 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               }}
             />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               select
               name='marital_status'
-              label='Marital Status'
+              label='Marital Status (Optional)'
               value={form.marital_status}
               onChange={handleChange}
               fullWidth
-              required
             >
               {maritalOptions.map((status) => (
                 <MenuItem key={status} value={status}>
@@ -405,33 +412,31 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
           </Grid>
 
           {/* Section 2: Address */}
-          <Grid item size={12}>
+          <Grid size={12}>
             <SectionHeader title='Location' />
           </Grid>
 
-          <Grid size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='address'
-              label='Street Address'
+              label='Street Address (Optional)'
               value={form.address}
               onChange={handleChange}
               fullWidth
-              required
               inputRef={inputRef}
             />
           </Grid>
 
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='city'
-              label='City'
+              label='City (Optional)'
               value={form.city}
               onChange={handleChange}
               fullWidth
-              required
             />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='state'
               id='outlined-select-currency'
@@ -450,42 +455,39 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
               ))}
             </TextField>
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='zip'
-              label='Zip Code'
+              label='Zip Code (Optional)'
               value={form.zip}
               onChange={handleChange}
               error={zipCodeError}
               helperText={zipCodeError ? 'Invalid zip code' : ''}
               fullWidth
-              required
             />
           </Grid>
 
-          <Grid item size={12}>
-            <SectionHeader title='Employment & Financials' />
+          <Grid size={12}>
+            <SectionHeader title='Employment & Financials (Optional)' />
           </Grid>
 
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               name='occupation'
-              label='Occupation'
+              label='Occupation (Optional)'
               value={form.occupation}
               onChange={handleChange}
               fullWidth
-              required
             />
           </Grid>
-          <Grid item size={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <NumericFormat
               style={{ width: '100%' }}
               name='annual_income'
-              label='Annual Income'
+              label='Annual Income (Optional)'
               value={form.annual_income}
               thousandSeparator=','
               customInput={TextField}
-              required
               onValueChange={(values) => {
                 const { value } = values; // raw value without formatting
                 setForm((prev) => ({ ...prev, annual_income: value }));
@@ -500,22 +502,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
             />
           </Grid>
 
-          <Grid item size={12}>
-            <SectionHeader title='Additional Notes' />
-          </Grid>
-
-          <Grid item size={12}>
-            <TextField
-              name='notes'
-              label='Notes'
-              value={form.notes}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-            />
-          </Grid>
-
           {error && (
             <Alert severity='error' sx={{ mb: 2, width: '100%', p: 2 }}>
               {error.message}
@@ -524,7 +510,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients }) => {
         </Grid>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
         <Button
           onClick={handleSubmit}

@@ -112,6 +112,108 @@ const getLeads = async ({ data }) => {
   }
 };
 
+const getBusinessRecords = async ({
+  page = 1,
+  limit = 25,
+  sort = 'created_at',
+  direction = 'desc',
+  search = '',
+  status = 'all',
+  gsqOnly = false,
+  agentId,
+} = {}) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/business',
+    params: {
+      page,
+      limit,
+      sort,
+      direction,
+      search: search || undefined,
+      status: status === 'all' ? undefined : status,
+      gsqOnly: gsqOnly ? 'true' : undefined,
+      // Superuser-only: view the list scoped to a specific agent instead of
+      // the caller's own. Ignored server-side for anyone else.
+      agentId: agentId || undefined,
+    },
+  });
+  return response.data;
+};
+
+const getPerson = async (id) => {
+  if (!id) throw new Error('Missing person ID');
+  const response = await apiClient.request({
+    method: 'GET',
+    url: `/business/${id}`,
+  });
+  return response.data?.data;
+};
+
+const getBusinessMetrics = async ({ gsqOnly = false, agentId } = {}) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/business/metrics',
+    params: {
+      gsqOnly: gsqOnly ? 'true' : undefined,
+      // Superuser-only: view metrics scoped to a specific agent instead of
+      // the caller's own. Ignored server-side for anyone else.
+      agentId: agentId || undefined,
+    },
+  });
+  return response.data?.data;
+};
+
+const saveBusinessNotes = async ({ personId, notes }) => {
+  if (!personId) throw new Error('Missing person ID');
+  const response = await apiClient.request({
+    method: 'PATCH',
+    url: `/business/${personId}/notes`,
+    data: { notes },
+  });
+  return response.data?.data;
+};
+
+const subscribeReleaseNotifications = async ({ email } = {}) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/business/release-notifications',
+    data: { email },
+  });
+  return response.data?.data;
+};
+
+const postLead = async (lead) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/leads',
+    data: { lead },
+  });
+  return response.data?.data;
+};
+
+const patchLead = async ({ leadId, lead }) => {
+  if (!leadId || !lead) throw new Error('Missing lead update data');
+  const response = await apiClient.request({
+    method: 'PATCH',
+    url: `/leads/${leadId}`,
+    data: { lead },
+  });
+  return response.data?.data;
+};
+
+const deleteBusinessRecords = async (ids) => {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error('Select at least one person');
+  }
+  const response = await apiClient.request({
+    method: 'DELETE',
+    url: '/business',
+    data: { ids },
+  });
+  return response.data;
+};
+
 const patchAccount = async ({ data }) => {
   // Don't log data here since account updates can include API keys.
   const options = {
@@ -1017,6 +1119,14 @@ export {
   getAllExpenses,
   getAdSpend,
   getLeads,
+  getBusinessRecords,
+  getPerson,
+  getBusinessMetrics,
+  saveBusinessNotes,
+  subscribeReleaseNotifications,
+  postLead,
+  patchLead,
+  deleteBusinessRecords,
   patchAccount,
   getInsurDialConfig,
   patchInsurDialConfig,

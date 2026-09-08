@@ -296,21 +296,6 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
             />
           </Grid>
 
-          <Grid item size={12}>
-            <Divider sx={{ my: 2 }} />
-          </Grid>
-
-          <Grid item size={12}>
-            <TextField
-              name='notes'
-              label='Notes'
-              value={form.notes}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-            />
-          </Grid>
         </Grid>
       </DialogContent>
 

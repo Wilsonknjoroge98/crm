@@ -7,8 +7,6 @@ import {
   Avatar,
   Box,
   Stack,
-  Button,
-  Chip,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
@@ -16,6 +14,7 @@ import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import InviteAgentDialog from './InviteAgentDialog';
 import ProfilePopover from './ProfilePopover';
 import OffersPopover, { FREE_LEAD_OFFERS } from './OffersPopover';
+import Pill from './Pill';
 
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -27,23 +26,16 @@ import { supabase } from '../utils/supabase';
 import { apiClient, getOffers } from '../utils/query';
 
 const drawerWidth = 220;
+const MONO = '"JetBrains Mono", monospace';
 
-// Shared pill styling — the offer chip is the reference style; the invite
-// button converges to it so both nav actions read as one quiet, airy family.
-const navPillSx = {
-  height: 28,
-  borderRadius: '14px',
-  bgcolor: 'grey.100',
-  color: 'text.secondary',
+const navPillSx = { px: 2.5, py: 1 };
+
+const pillLabelSx = {
+  fontFamily: MONO,
   fontWeight: 600,
   fontSize: '0.72rem',
   letterSpacing: '0.04em',
-  border: '1px solid transparent',
-  transition: 'all 0.15s ease',
-  '&:hover': {
-    bgcolor: 'grey.200',
-    color: 'text.primary',
-  },
+  color: 'inherit',
 };
 
 export default function NavBar() {
@@ -134,46 +126,35 @@ export default function NavBar() {
         <Toolbar>
           <Box sx={{ flexGrow: 1 }} />
 
-          <Chip
+          <Pill
             icon={
               <LocalOfferOutlinedIcon
-                sx={{
-                  fontSize: '0.85rem !important',
-                  color: 'inherit !important',
-                }}
+                sx={{ fontSize: '0.85rem', color: 'inherit' }}
               />
             }
-            label={`${offers.length + FREE_LEAD_OFFERS.length} Offer${
-              offers.length + FREE_LEAD_OFFERS.length !== 1 ? 's' : ''
-            }`}
-            size='small'
             onClick={(event) => setOffersAnchorEl(event.currentTarget)}
-            sx={{
-              ...navPillSx,
-              mr: 1.5,
-              cursor: 'pointer',
-              px: 0.5,
-            }}
-          />
+            sx={{ ...navPillSx, mr: 1.5 }}
+          >
+            <Typography component='span' sx={pillLabelSx}>
+              {`${offers.length + FREE_LEAD_OFFERS.length} Offer${
+                offers.length + FREE_LEAD_OFFERS.length !== 1 ? 's' : ''
+              }`}
+            </Typography>
+          </Pill>
 
-          <Button
-            startIcon={
-              <PersonAddOutlinedIcon sx={{ fontSize: '0.85rem !important' }} />
+          <Pill
+            icon={
+              <PersonAddOutlinedIcon
+                sx={{ fontSize: '0.85rem', color: 'inherit' }}
+              />
             }
             onClick={() => setInviteOpen(true)}
-            sx={{
-              ...navPillSx,
-              mr: 2,
-              minWidth: 'auto',
-              padding: '0 14px',
-              '&:hover': {
-                ...navPillSx['&:hover'],
-                boxShadow: 'none',
-              },
-            }}
+            sx={{ ...navPillSx, mr: 2 }}
           >
-            Invite Agent
-          </Button>
+            <Typography component='span' sx={pillLabelSx}>
+              Invite Agent
+            </Typography>
+          </Pill>
 
           <Stack
             direction='row'

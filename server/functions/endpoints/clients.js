@@ -44,7 +44,6 @@ clientRouter.get('/all', async (req, res) => {
                 agent_clients!agent_clients_client_id_fkey (
                     agent_id,
                     client_id,
-                    agent_notes,
                     agents!agent_clients_agent_id_fkey (
                         id,
                         first_name,
@@ -80,14 +79,13 @@ clientRouter.get('/all', async (req, res) => {
         const agent_name = a
           ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
           : null;
-        const notes = ac?.agent_notes ?? null;
         const gsq_source = leads?.gsq_source ?? null;
         const policyData = (policies || []).map((p) => ({
           id: p.id,
           carrier: p.carriers?.name || null,
           policyNumber: p.policy_number,
         }));
-        return { ...client, agent_name, notes, gsq_source, policyData };
+        return { ...client, agent_name, gsq_source, policyData };
       },
     );
 
@@ -128,7 +126,6 @@ clientRouter.get('/', async (req, res) => {
           `
                 *,
                 agent_clients!agent_clients_client_id_fkey (
-                    agent_notes,
                     agents!agent_clients_agent_id_fkey ( first_name, last_name )
                 ),
                 leads!clients_lead_id_fkey ( gsq_source ),
@@ -176,7 +173,6 @@ clientRouter.get('/', async (req, res) => {
           return {
             ...client,
             agent_name: agentname,
-            notes: ac?.agent_notes ?? null,
             gsq_source: gsqSource ?? null,
             policyData,
           };
@@ -188,7 +184,7 @@ clientRouter.get('/', async (req, res) => {
 
     const { data: agentLinks, error: linksError } = await supabaseService
       .from('agent_clients')
-      .select('client_id, agent_notes')
+      .select('client_id')
       .eq('agent_id', req.agent.id);
 
     if (linksError) {
@@ -212,9 +208,6 @@ clientRouter.get('/', async (req, res) => {
       .maybeSingle();
 
     const clientIds = agentLinks.map((l) => l.client_id);
-    const notesByClientId = Object.fromEntries(
-      agentLinks.map((l) => [l.client_id, l.agent_notes ?? null]),
-    );
 
     const { data: clients, error } = await supabaseService
       .from('clients')
@@ -260,7 +253,6 @@ clientRouter.get('/', async (req, res) => {
           ? `${agentData.first_name ?? ''} ${agentData.last_name ?? ''}`.trim() ||
             null
           : null,
-        notes: notesByClientId[client.id] ?? null,
         gsq_source: gsqSource,
         policyData,
       };
@@ -293,7 +285,6 @@ clientRouter.post('/', async (req, res) => {
   // eslint-disable-next-line camelcase,no-unused-vars
   const {
     lead_vendor_id: leadVendorId,
-    notes,
     live_transfer: liveTransfer,
     ...client
   } = req.body.client;
@@ -303,7 +294,6 @@ clientRouter.post('/', async (req, res) => {
     route: '/client',
     method: 'POST',
     lead_vendor_id: leadVendorId,
-    notes,
     live_transfer: liveTransfer,
     client,
   });
@@ -361,6 +351,7 @@ clientRouter.post('/', async (req, res) => {
         lead_vendor_id: leadVendorId,
         gsq_live_transfer: liveTransfer || false,
         gsq_source: hyrosSource,
+        health_class: client.health_class ?? null,
       })
       .select('id')
       .maybeSingle();
@@ -432,7 +423,6 @@ clientRouter.post('/', async (req, res) => {
     .insert({
       agent_id: req.agent.id,
       client_id: newClient.id,
-      agent_notes: notes || null,
     });
 
   if (agentClientError) {
@@ -474,7 +464,6 @@ clientRouter.patch('/', async (req, res) => {
       .json({ error: 'Missing clientId or client payload' });
   }
 
-  const { notes } = client;
   const clientFields = Object.fromEntries(
     EDITABLE_CLIENT_FIELDS.filter((key) => key in client).map((key) => [
       key,
@@ -489,7 +478,6 @@ clientRouter.patch('/', async (req, res) => {
       requesterId: req.agent?.id,
       targetClientId: clientId,
       client: client,
-      hasNotes: notes !== undefined,
     });
 
     const { data: updatedClient, error } = await supabaseService
@@ -519,25 +507,6 @@ clientRouter.patch('/', async (req, res) => {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    if (notes !== undefined) {
-      const { error: notesError } = await supabaseService
-        .from('agent_clients')
-        .update({ agent_notes: notes })
-        .eq('client_id', clientId)
-        .eq('agent_id', req.agent.id);
-
-      if (notesError) {
-        logger.error('Error updating agent_notes in clients.js', {
-          route: '/clients',
-          method: 'PATCH',
-          requesterId: req.agent?.id,
-          targetClientId: clientId,
-          error: notesError,
-        });
-        return res.status(500).json({ error: 'Failed to update notes' });
-      }
-    }
-
     logger.log('Updated client successfully', {
       route: '/clients',
       method: 'PATCH',
@@ -545,7 +514,7 @@ clientRouter.patch('/', async (req, res) => {
       targetClientId: clientId,
     });
 
-    return res.status(200).json({ ...updatedClient[0], notes: notes ?? null });
+    return res.status(200).json(updatedClient[0]);
   } catch (error) {
     logger.error('Unexpected error updating client in clients.js', {
       route: '/clients',

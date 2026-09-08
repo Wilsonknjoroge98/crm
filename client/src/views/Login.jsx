@@ -41,7 +41,7 @@ const Login = () => {
         password,
       });
       if (error) throw error;
-      navigate('/clients');
+      navigate('/business');
     } catch {
       setErrorMsg(
         'We\u2019re unable to verify your credentials. Please try again.',

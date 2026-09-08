@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import App from '../App';
 import { MoonLoader } from 'react-spinners';
 
@@ -11,6 +11,7 @@ const Insights = lazy(() => import('../views/Insights'));
 const Premiums = lazy(() => import('../views/Premiums'));
 const CashFlow = lazy(() => import('../views/CashFlow'));
 const Leads = lazy(() => import('../views/Leads'));
+const Business = lazy(() => import('../views/Business'));
 const BulkUpload = lazy(() => import('../views/BulkUpload'));
 const Purchase = lazy(() => import('../views/Purchase'));
 const Leaderboard = lazy(() => import('../views/Leaderboard'));
@@ -29,6 +30,10 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
+      {
+        index: true,
+        element: <Navigate to='/business' replace />,
+      },
       {
         path: '/premiums',
         element: (
@@ -200,6 +205,27 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: '/business',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <Business />
+          </Suspense>
+        ),
+      },
+      {
         path: '/leads',
         element: (
           <Suspense
@@ -285,7 +311,6 @@ const router = createBrowserRouter([
       },
       {
         path: '/clients',
-        index: true,
         element: (
           <Suspense
             fallback={

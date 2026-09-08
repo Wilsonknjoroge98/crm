@@ -1,4 +1,5 @@
 const { supabaseService } = require('../../services/supabase');
+const { parsePremium } = require('../../integrations/premium');
 const { resolveImportRows } = require('./database_conflict_validation');
 const POLICY_FIELDS = [
   'Policy Number',
@@ -71,6 +72,7 @@ function parseBoolean(raw) {
 // Builders translate CSV column names into database column names.
 function buildLead(row, agentId, leadVendorId) {
   const { firstName, lastName } = splitName(value(row, 'Full Name'));
+  const premiumParsed = parsePremium(value(row, 'Lead Premium'));
   return {
     'first_name': firstName,
     'last_name': lastName,
@@ -81,6 +83,9 @@ function buildLead(row, agentId, leadVendorId) {
     'agent_id': agentId,
     'sold': true,
     'lead_vendor_id': leadVendorId,
+    'premium': premiumParsed.raw,
+    'premium_min': premiumParsed.min,
+    'premium_max': premiumParsed.max,
     'smoker': parseBoolean(value(row, 'Smoker')),
     'height_feet': parseInteger(value(row, 'Height (Feet)')),
     'height_inches': parseInteger(value(row, 'Height (Inches)')),
@@ -402,4 +407,4 @@ function importError(message, error) {
   };
 }
 
-module.exports = { importBook };
+module.exports = { buildLead, importBook };

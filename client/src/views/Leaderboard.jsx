@@ -104,7 +104,7 @@ const WinnerCard = ({
             fontFamily={MONO}
             fontWeight={700}
             variant='subtitle1'
-            color='success.contrastText'
+            color='success.main'
           >
             {currency.format(champion.premiumAmount)}
           </Typography>
@@ -217,7 +217,7 @@ const PodiumCard = ({ row, rank }) => {
           size='small'
           sx={{
             bgcolor: 'success.light',
-            color: 'success.contrastText',
+            color: 'success.main',
             fontFamily: SANS,
           }}
         />

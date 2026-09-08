@@ -231,20 +231,6 @@ const Purchase = () => {
           </Card>
         </Stack>
       </Stack>
-
-      <Stack spacing={0.5} mt={4}>
-        <Typography variant='body2' color='text.secondary'>
-          Get <strong>2 free leads</strong> when your clients leave a review{' '}
-          <Link
-            href='https://g.page/r/Cae_g-5KWKUtEAI/review'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            here
-          </Link>
-          .
-        </Typography>
-      </Stack>
     </Container>
   );
 };

@@ -15,6 +15,7 @@ const leaderboardRouter = require('./leaderboard');
 const insightsRouter = require('./insights');
 const gsqRouter = require('./gsq');
 const bulkUploadRouter = require('./bulk_upload');
+const businessRouter = require('./business');
 const offersRouter = require('./offers');
 
 module.exports = {
@@ -35,5 +36,6 @@ module.exports = {
   insightsRouter,
   gsqRouter,
   bulkUploadRouter,
+  businessRouter,
   offersRouter,
 };

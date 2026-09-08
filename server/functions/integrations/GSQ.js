@@ -2,6 +2,7 @@ const { Firestore } = require('firebase-admin/firestore');
 const { getHyrosSource } = require('./hyros');
 const { supabaseService } = require('../services/supabase');
 const logger = require('firebase-functions/logger');
+const { parsePremium } = require('./premium');
 
 const inboundGSQ = async (req, res) => {
   try {
@@ -65,6 +66,7 @@ const inboundGSQ = async (req, res) => {
     agentId = agent.id;
 
     const lead = { ...req.body };
+    const premiumParsed = parsePremium(lead.premium);
 
     const payload = {
       first_name: firstName,
@@ -78,18 +80,22 @@ const inboundGSQ = async (req, res) => {
       face_amount: lead.faceAmount
         ? Number(lead.faceAmount.split('-')[0]) || null
         : null,
-      premium_max: lead.premium?.includes('-')
-        ? Number(lead.premium.split('-')[1]) || null
-        : null,
-      premium: lead.premium ? parseFloat(lead.premium) : null,
+      premium_min: premiumParsed.min,
+      premium_max: premiumParsed.max,
+      premium: premiumParsed.raw,
       selected_plan: lead.selectedPlan ?? null,
       selected_carrier: lead.selectedCarrier ?? null,
       beneficiary: lead.beneficiary ?? null,
       priority: null,
       availability: lead.availability ?? null,
       why: lead.why ?? null,
-      cholesterol_medication: lead.cholesterolMedication ?? false,
-      blood_pressure_medication: lead.bloodPressureMedication ?? false,
+      // The funnel now asks one health-tier question (health_class) instead
+      // of these two flags. GSQ no longer sends cholesterolMedication or
+      // bloodPressureMedication, so default to null (unknown) rather than
+      // false (confirmed no) to avoid recording a false negative.
+      cholesterol_medication: lead.cholesterolMedication ?? null,
+      blood_pressure_medication: lead.bloodPressureMedication ?? null,
+      health_class: lead.healthClass ?? null,
       verified: lead.verified ?? false,
       height_feet: lead.heightFeet ? parseInt(lead.heightFeet) : null,
       height_inches: lead.heightInches ? parseInt(lead.heightInches) : null,

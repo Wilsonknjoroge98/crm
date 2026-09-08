@@ -31,6 +31,7 @@ const {
   insightsRouter,
   gsqRouter,
   bulkUploadRouter,
+  businessRouter,
   offersRouter,
 } = require('./endpoints');
 
@@ -68,6 +69,7 @@ app.use('/leaderboard', leaderboardRouter);
 app.use('/insights', insightsRouter);
 app.use('/gsq', gsqRouter);
 app.use('/bulk-upload', bulkUploadRouter);
+app.use('/business', businessRouter);
 app.use('/offers', offersRouter);
 
 app.get('/ad-spend', async (req, res) => {
