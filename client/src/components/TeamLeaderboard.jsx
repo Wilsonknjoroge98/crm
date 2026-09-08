@@ -78,13 +78,24 @@ const TeamLeaderboard = ({
       ) : (
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
           <Table>
-            <TableHead sx={{ bgcolor: 'action.hover' }}>
+            <TableHead sx={{ bgcolor: 'grey.50' }}>
               <TableRow>
-                <TableCell sortDirection={sortDir}>Agent</TableCell>
-                <TableCell>Total Premium</TableCell>
+                <TableCell
+                  sx={{ color: 'text.secondary', fontWeight: 600 }}
+                  sortDirection={sortDir}
+                >
+                  Agent
+                </TableCell>
+                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  Total Premium
+                </TableCell>
                 {/* <TableCell>Clients</TableCell> */}
-                <TableCell>Policies</TableCell>
-                <TableCell>Avg Premium</TableCell>
+                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  Policies
+                </TableCell>
+                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  Avg Premium
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

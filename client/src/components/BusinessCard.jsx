@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
-  ButtonBase,
   Checkbox,
   Chip,
   Grid,
@@ -24,6 +23,7 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import Pill from './Pill';
 import { useMutation } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
 import { saveBusinessNotes } from '../utils/query';
@@ -242,6 +242,7 @@ const BusinessCard = ({
   isAdmin,
   selected,
   onToggleSelect,
+  releaseNotificationSeen,
   onQuickAction,
   onMarkSold,
   onAddPolicy,
@@ -520,13 +521,20 @@ const BusinessCard = ({
             {QUICK_ACTIONS.map(([label, Icon]) => (
               <Tooltip
                 key={label}
-                title='Integrated sendblue texter / dialer coming soon - click to get notified'
+                title={
+                  releaseNotificationSeen
+                    ? ''
+                    : 'Integrated sendblue texter / dialer coming soon - click to get notified'
+                }
               >
                 {/* span wrapper so the tooltip and click work on a disabled button */}
                 <Box
                   component='span'
-                  onClick={onQuickAction}
-                  sx={{ display: 'flex', cursor: 'pointer' }}
+                  onClick={releaseNotificationSeen ? undefined : onQuickAction}
+                  sx={{
+                    display: 'flex',
+                    cursor: releaseNotificationSeen ? 'default' : 'pointer',
+                  }}
                 >
                   <Button
                     fullWidth
@@ -538,12 +546,16 @@ const BusinessCard = ({
                       justifyContent: 'flex-start',
                       pointerEvents: 'none',
                       textTransform: 'none',
-                      // Disabled per spec, but keep the mockup's readable look.
-                      '&.Mui-disabled': {
-                        color: 'text.primary',
-                        borderColor: '#E0E0E0',
-                        opacity: 0.9,
-                      },
+                      // Before the agent has seen the release notification,
+                      // keep the mockup's readable "click me" look; once
+                      // seen, fall back to MUI's normal disabled styling.
+                      ...(!releaseNotificationSeen && {
+                        '&.Mui-disabled': {
+                          color: 'text.primary',
+                          borderColor: '#E0E0E0',
+                          opacity: 0.9,
+                        },
+                      }),
                     }}
                   >
                     {label}
@@ -720,37 +732,29 @@ const BusinessCard = ({
               mono={Boolean(saleAmount)}
             />
             {latestPolicy && (
-              <ButtonBase
+              <Pill
                 onClick={() => onEditPolicy?.(person, latestPolicy)}
                 aria-label='View or edit policy'
-                sx={{
-                  my: 1,
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1.5,
-                  bgcolor: 'grey.100',
-                  alignSelf: 'flex-start',
-                  '&:hover': { bgcolor: 'grey.200' },
-                }}
-              >
-                <Stack direction='row' spacing={1} alignItems='center'>
+                sx={{ my: 1, alignSelf: 'flex-start' }}
+                icon={
                   <ArticleOutlinedIcon
                     sx={{ fontSize: 14, color: 'text.secondary' }}
                   />
-                  <Typography
-                    variant='body2'
-                    sx={{
-                      fontFamily: MONO,
-                      fontSize: '0.8rem',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    #{latestPolicy.policy_number}
-                    {person.policies.length > 1 &&
-                      ` (+${person.policies.length - 1} more)`}
-                  </Typography>
-                </Stack>
-              </ButtonBase>
+                }
+              >
+                <Typography
+                  variant='body2'
+                  sx={{
+                    fontFamily: MONO,
+                    fontSize: '0.8rem',
+                    color: 'text.secondary',
+                  }}
+                >
+                  #{latestPolicy.policy_number}
+                  {person.policies.length > 1 &&
+                    ` (+${person.policies.length - 1} more)`}
+                </Typography>
+              </Pill>
             )}
             {showAgentAttribution && (
               <Box

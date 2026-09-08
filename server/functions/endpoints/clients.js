@@ -351,6 +351,7 @@ clientRouter.post('/', async (req, res) => {
         lead_vendor_id: leadVendorId,
         gsq_live_transfer: liveTransfer || false,
         gsq_source: hyrosSource,
+        health_class: client.health_class ?? null,
       })
       .select('id')
       .maybeSingle();

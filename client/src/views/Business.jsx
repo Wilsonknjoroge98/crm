@@ -40,7 +40,9 @@ import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import BusinessCard from '../components/BusinessCard';
-import ReleaseNotificationDialog from '../components/ReleaseNotificationDialog';
+import ReleaseNotificationDialog, {
+  STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
+} from '../components/ReleaseNotificationDialog';
 
 const SANS = '"Inter", sans-serif';
 const LOCAL_TIME_TICK_MS = 30000;
@@ -273,6 +275,16 @@ const Business = () => {
   const [editingPolicy, setEditingPolicy] = useState(null);
   const [editPolicyOpen, setEditPolicyOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  // Once an agent has seen the release notification once, don't reopen it —
+  // the triggering buttons fall back to a plain disabled look.
+  const [releaseNotificationSeen, setReleaseNotificationSeen] = useState(
+    () => localStorage.getItem(RELEASE_NOTIFICATION_STORAGE_KEY) === 'true',
+  );
+  const handleOpenReleaseDialog = () => {
+    localStorage.setItem(RELEASE_NOTIFICATION_STORAGE_KEY, 'true');
+    setReleaseNotificationSeen(true);
+    setReleaseDialogOpen(true);
+  };
   // Single ticking clock shared by every card's local-time display.
   const [now, setNow] = useState(() => new Date());
 
@@ -535,12 +547,20 @@ const Business = () => {
               {['Disposition tags', 'Automations'].map((label) => (
                 <Tooltip
                   key={label}
-                  title='Coming soon - click to get notified'
+                  title={
+                    releaseNotificationSeen
+                      ? ''
+                      : 'Coming soon - click to get notified'
+                  }
                 >
                   <Box
                     component='span'
-                    onClick={() => setReleaseDialogOpen(true)}
-                    sx={{ cursor: 'pointer' }}
+                    onClick={
+                      releaseNotificationSeen
+                        ? undefined
+                        : handleOpenReleaseDialog
+                    }
+                    sx={{ cursor: releaseNotificationSeen ? 'default' : 'pointer' }}
                   >
                     <Button
                       size='small'
@@ -550,11 +570,13 @@ const Business = () => {
                       sx={{
                         textTransform: 'none',
                         pointerEvents: 'none',
-                        '&.Mui-disabled': {
-                          color: 'text.primary',
-                          borderColor: '#E0E0E0',
-                          opacity: 0.9,
-                        },
+                        ...(!releaseNotificationSeen && {
+                          '&.Mui-disabled': {
+                            color: 'text.primary',
+                            borderColor: '#E0E0E0',
+                            opacity: 0.9,
+                          },
+                        }),
                       }}
                     >
                       {label}
@@ -636,7 +658,8 @@ const Business = () => {
                 isAdmin={isAdmin}
                 selected={selectedById.has(person.id)}
                 onToggleSelect={toggleSelected}
-                onQuickAction={() => setReleaseDialogOpen(true)}
+                releaseNotificationSeen={releaseNotificationSeen}
+                onQuickAction={handleOpenReleaseDialog}
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}

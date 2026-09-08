@@ -271,7 +271,9 @@ const attachPolicies = async (supabase, rows) => {
 // admin sees another agent's name here, so callers should skip this for
 // non-superusers rather than pay for a lookup nobody's allowed to see.
 const attachAgentNames = async (supabase, rows) => {
-  const agentIds = [...new Set(rows.map((row) => row.agent_id).filter(Boolean))];
+  const agentIds = [
+    ...new Set(rows.map((row) => row.agent_id).filter(Boolean)),
+  ];
   if (agentIds.length === 0) return rows;
 
   const { data, error } = await supabase
@@ -348,11 +350,7 @@ const parsePositiveInteger = (value, fallback, field, maximum) => {
 
 // Validates every list-endpoint query param; bad input throws -> 400.
 const parsePeopleQuery = (query) => {
-  const page = parsePositiveInteger(
-    query.page,
-    DEFAULT_PAGE,
-    'page',
-  );
+  const page = parsePositiveInteger(query.page, DEFAULT_PAGE, 'page');
   const limit = parsePositiveInteger(
     query.limit,
     DEFAULT_LIMIT,
@@ -477,12 +475,8 @@ const findSearchMatches = async ({
   if (leadResult.error) throw leadResult.error;
   if (clientResult.error) throw clientResult.error;
 
-  const leadIds = [
-    ...new Set((leadResult.data || []).map(({ id }) => id)),
-  ];
-  const clientIds = [
-    ...new Set((clientResult.data || []).map(({ id }) => id)),
-  ];
+  const leadIds = [...new Set((leadResult.data || []).map(({ id }) => id))];
+  const clientIds = [...new Set((clientResult.data || []).map(({ id }) => id))];
 
   return {
     leadIds,
@@ -494,10 +488,7 @@ const findSearchMatches = async ({
   };
 };
 
-const applySearchFilter = (
-  query,
-  { leadIds, clientIds, directPatterns },
-) => {
+const applySearchFilter = (query, { leadIds, clientIds, directPatterns }) => {
   if (directPatterns) {
     return applyContainsFilters(query, 'search_text', directPatterns);
   }
@@ -738,7 +729,9 @@ const createBusinessRouter = ({
         requesterId: agentId,
         error,
       });
-      return res.status(500).json({ error: 'Failed to fetch business records' });
+      return res
+        .status(500)
+        .json({ error: 'Failed to fetch business records' });
     }
   });
 
@@ -895,7 +888,7 @@ const createBusinessRouter = ({
       const { error } = await supabase
         .from('release_notifications_subscribers')
         .upsert(
-          { email, feature: 'business_quick_actions', agent_id: agentId },
+          { email, feature: 'crm_texter_dialer', agent_id: agentId },
           { onConflict: 'email,feature', ignoreDuplicates: true },
         );
       if (error) throw error;
@@ -1035,7 +1028,9 @@ const createBusinessRouter = ({
         count: ids.length,
         error,
       });
-      return res.status(500).json({ error: 'Failed to delete business records' });
+      return res
+        .status(500)
+        .json({ error: 'Failed to delete business records' });
     }
   });
 

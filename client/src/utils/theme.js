@@ -13,9 +13,20 @@ export const createAppTheme = () => {
       },
 
       // 1. BRAND GOLD (Primary CTAs & Leaderboard Badges)
+      // NOTE: `main`/`contrastText` are the deliberate brand-gold accent
+      // (CTA buttons via color='action', leaderboard/rank accents). We do
+      // NOT touch `active`/`disabled*` — only `hover`/`selected`/`focus`,
+      // which MUI reads as raw background colors for the *default* hover
+      // state of unrelated components (MenuItem, ListItemButton, Chip,
+      // TableRow, Autocomplete, PaginationItem, Skeleton...). Left alone,
+      // those all render solid gold on hover — replaced here with a quiet,
+      // warm-neutral wash (tinted off text.primary) for the airy, editorial
+      // feel used across the Leaderboard and BusinessCard.
       action: {
         main: '#D4AF37', // Metallic Executive Gold
-        hover: '#C29F2D',
+        hover: alpha('#1C1A17', 0.04),
+        selected: alpha('#1C1A17', 0.08),
+        focus: alpha('#1C1A17', 0.12),
         contrastText: '#000000',
       },
 

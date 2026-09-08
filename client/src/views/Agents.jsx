@@ -147,7 +147,7 @@ const Agents = () => {
         sx={{ boxShadow: 0, border: 'none', backgroundColor: 'transparent' }}
       >
         <Table>
-          <TableHead sx={{ bgcolor: 'action.hover' }}>
+          <TableHead sx={{ bgcolor: 'grey.50' }}>
             <TableRow>
               <TableCell
                 sx={{

@@ -19,9 +19,14 @@ import {
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 
+const STORAGE_KEY = 'release_notification_dialer_seen';
+
 // Opened by the disabled quick-action buttons (Call / Text / Disposition /
 // Appointment) on the Business cards. The server records the signup against
-// the logged-in account's email.
+// the logged-in account's email. Once shown, callers should record
+// STORAGE_KEY in localStorage so an agent only ever sees this once — after
+// that the triggering buttons render as plain disabled controls instead of
+// reopening this dialog.
 const ReleaseNotificationDialog = ({ open, onClose }) => {
   const [optedIn, setOptedIn] = useState(false);
 
@@ -53,8 +58,8 @@ const ReleaseNotificationDialog = ({ open, onClose }) => {
       </DialogTitle>
       <DialogContent>
         <Typography color='text.secondary' sx={{ mb: 2 }}>
-          The integrated sendblue texter / dialer — one-click Call, Text,
-          Disposition, and Appointment actions — is on the way.
+          The integrated sendblue texter / dialer, Text, Disposition, and
+          Appointment actions is on the way.
         </Typography>
         <FormControlLabel
           control={
@@ -80,4 +85,5 @@ const ReleaseNotificationDialog = ({ open, onClose }) => {
   );
 };
 
+export { STORAGE_KEY };
 export default ReleaseNotificationDialog;
