@@ -61,13 +61,13 @@ const Login = () => {
       }}
     >
       <Stack spacing={4} sx={{ width: '100%', maxWidth: 360, px: 2 }}>
-        {agency && (
+        {/* {agency && (
           <Box
             component='img'
             src={`${agency}_logo.png`}
             sx={{ maxHeight: 200, alignSelf: 'center', objectFit: 'contain' }}
           />
-        )}
+        )} */}
 
         <Stack spacing={0.5}>
           <Typography variant='h5' fontWeight={600}>
