@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Container,
   Fade,
   InputAdornment,
@@ -288,6 +289,8 @@ const Business = () => {
   // Single ticking clock shared by every card's local-time display.
   const [now, setNow] = useState(() => new Date());
 
+  const clearSelection = () => setSelectedById(new Map());
+
   useEffect(() => {
     const timer = window.setInterval(
       () => setNow(new Date()),
@@ -298,6 +301,7 @@ const Business = () => {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      setSelectedById(new Map());
       setSearch(searchInput.trim());
       setPage(0);
     }, 300);
@@ -307,6 +311,7 @@ const Business = () => {
   const {
     data: businessResponse,
     isLoading,
+    isPlaceholderData,
     error: businessError,
   } = useQuery({
     queryKey: ['business', page, pageSize, search, statusFilter, gsqOnly],
@@ -345,6 +350,9 @@ const Business = () => {
     () => [...selectedById.values()],
     [selectedById],
   );
+  const selectedOnPage = rows.filter((row) => selectedById.has(row.id)).length;
+  const pageSelected = rows.length > 0 && selectedOnPage === rows.length;
+  const selectionDisabled = isPlaceholderData || Boolean(businessError);
 
   const refreshBusiness = async () => {
     await Promise.all([
@@ -377,6 +385,17 @@ const Business = () => {
       } else {
         next.set(person.id, person);
       }
+      return next;
+    });
+  };
+
+  const selectPage = (checked) => {
+    setSelectedById((current) => {
+      const next = new Map(current);
+      rows.forEach((person) => {
+        if (checked) next.set(person.id, person);
+        else next.delete(person.id);
+      });
       return next;
     });
   };
@@ -449,6 +468,7 @@ const Business = () => {
               size='small'
               checked={gsqOnly}
               onChange={(event) => {
+                clearSelection();
                 setGsqOnly(event.target.checked);
                 setPage(0);
               }}
@@ -515,7 +535,10 @@ const Business = () => {
                 variant='outlined'
                 size='small'
                 value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
+                onChange={(event) => {
+                  clearSelection();
+                  setSearchInput(event.target.value);
+                }}
                 placeholder='Search name, email, or phone'
                 sx={{ width: { xs: '100%', sm: 360 } }}
                 slotProps={{
@@ -534,6 +557,7 @@ const Business = () => {
                 size='small'
                 onChange={(event, value) => {
                   if (!value) return;
+                  clearSelection();
                   setStatusFilter(value);
                   setPage(0);
                 }}
@@ -611,6 +635,7 @@ const Business = () => {
             sx={{ px: 0.5 }}
           >
             <Typography
+              component='div'
               variant='caption'
               sx={{
                 fontFamily: SANS,
@@ -620,7 +645,18 @@ const Business = () => {
                 color: 'text.secondary',
               }}
             >
-              {selectedIds.length} selected
+              <Stack direction='row' spacing={0.5} alignItems='center' flexWrap='wrap'>
+                <Checkbox
+                  size='small'
+                  checked={pageSelected}
+                  indeterminate={selectedOnPage > 0 && !pageSelected}
+                  disabled={selectionDisabled || !rows.length}
+                  onChange={(_, checked) => selectPage(checked)}
+                  slotProps={{ input: { 'aria-label': 'Select this page' } }}
+                  sx={{ p: 0.5 }}
+                />
+                <span>{selectedIds.length} selected</span>
+              </Stack>
             </Typography>
             <Typography
               variant='caption'
@@ -657,6 +693,7 @@ const Business = () => {
                 now={now}
                 isAdmin={isAdmin}
                 selected={selectedById.has(person.id)}
+                selectionDisabled={selectionDisabled}
                 onToggleSelect={toggleSelected}
                 releaseNotificationSeen={releaseNotificationSeen}
                 onQuickAction={handleOpenReleaseDialog}
@@ -672,9 +709,13 @@ const Business = () => {
               component='div'
               count={rowCount}
               page={page}
-              onPageChange={(event, nextPage) => setPage(nextPage)}
+              onPageChange={(event, nextPage) => {
+                clearSelection();
+                setPage(nextPage);
+              }}
               rowsPerPage={pageSize}
               onRowsPerPageChange={(event) => {
+                clearSelection();
                 setPageSize(Number(event.target.value));
                 setPage(0);
               }}

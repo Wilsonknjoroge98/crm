@@ -241,6 +241,7 @@ const BusinessCard = ({
   now,
   isAdmin,
   selected,
+  selectionDisabled = false,
   onToggleSelect,
   releaseNotificationSeen,
   onQuickAction,
@@ -381,6 +382,7 @@ const BusinessCard = ({
               <Checkbox
                 size='small'
                 checked={selected}
+                disabled={selectionDisabled}
                 onChange={() => onToggleSelect(person)}
                 sx={{ p: 0.25, ml: -0.5 }}
                 inputProps={{ 'aria-label': `Select ${fullName}` }}
