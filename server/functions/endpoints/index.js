@@ -17,6 +17,7 @@ const gsqRouter = require('./gsq');
 const bulkUploadRouter = require('./bulk_upload');
 const businessRouter = require('./business');
 const offersRouter = require('./offers');
+const { createAdPublishRouter } = require('./adPublish');
 
 module.exports = {
   agentRouter,
@@ -38,4 +39,5 @@ module.exports = {
   bulkUploadRouter,
   businessRouter,
   offersRouter,
+  createAdPublishRouter,
 };

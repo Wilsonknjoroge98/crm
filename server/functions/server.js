@@ -33,6 +33,7 @@ const {
   bulkUploadRouter,
   businessRouter,
   offersRouter,
+  createAdPublishRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -71,6 +72,7 @@ app.use('/gsq', gsqRouter);
 app.use('/bulk-upload', bulkUploadRouter);
 app.use('/business', businessRouter);
 app.use('/offers', offersRouter);
+app.use('/ad-publish', createAdPublishRouter());
 
 app.get('/ad-spend', async (req, res) => {
   const { startDate, endDate, mode } = req.query;

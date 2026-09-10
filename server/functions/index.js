@@ -12,7 +12,7 @@ const expressApp = require('./server.js');
 
 exports.app = functions.https.onRequest(
   {
-    timeoutSeconds: 120,
+    timeoutSeconds: 360,
     memory: '512MiB',
     secrets: [
       'GSQ_SERVICE_ACCOUNT_KEY',
