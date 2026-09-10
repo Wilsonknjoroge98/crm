@@ -284,7 +284,7 @@ const createMetaMarketingClient = ({
         name: requireText(name, 'name'),
         object_story_spec: {
           page_id: config.pageId,
-          instagram_user_id: config.instagramUserId,
+          // instagram_user_id: config.instagramUserId,
         },
         asset_feed_spec: assetFeedSpec,
         url_tags: requireText(urlTags, 'urlTags'),

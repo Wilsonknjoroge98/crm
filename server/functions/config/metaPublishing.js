@@ -24,7 +24,7 @@ const getMetaPublishingConfig = (env = process.env) => {
       '',
     ),
     pageId: requireEnv(META_PUBLISHING_ENV.pageId, env),
-    instagramUserId: requireEnv(META_PUBLISHING_ENV.instagramUserId, env),
+    // instagramUserId: requireEnv(META_PUBLISHING_ENV.instagramUserId, env),
     testingCampaignId: requireEnv(META_PUBLISHING_ENV.testingCampaignId, env),
     pixelId: requireEnv(META_PUBLISHING_ENV.pixelId, env),
     destinationUrl: requireEnv(META_PUBLISHING_ENV.destinationUrl, env),
