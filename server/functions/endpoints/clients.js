@@ -314,11 +314,12 @@ clientRouter.post('/', async (req, res) => {
 
   let leadId = null;
 
-  const { data: existingLead, error: existingLeadError } = await supabaseService
+  const { data: existingLeads, error: existingLeadError } = await supabaseService
     .from('leads')
     .select('id, gsq_source')
     .eq('phone', client.phone)
-    .maybeSingle();
+    .order('created_at', { ascending: false })
+    .limit(1);
 
   if (existingLeadError) {
     logger.error('Error checking for existing lead in clients.js', {
@@ -330,6 +331,8 @@ clientRouter.post('/', async (req, res) => {
     });
     return res.status(500).json({ error: 'Failed to check existing leads' });
   }
+
+  const existingLead = existingLeads?.[0] || null;
 
   if (!existingLead) {
     let hyrosSource = null;
