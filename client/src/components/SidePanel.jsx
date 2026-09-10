@@ -315,7 +315,7 @@ const SidePanel = () => {
       </Box>
 
       {/* Footer / Branding */}
-      <Stack
+      {/* <Stack
         direction='row'
         justifyContent='center'
         alignItems='center'
@@ -329,7 +329,7 @@ const SidePanel = () => {
             sx={{ maxWidth: 200 }}
           />
         )}
-      </Stack>
+      </Stack> */}
     </Drawer>
   );
 };

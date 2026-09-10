@@ -54,81 +54,36 @@ const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 // TEMPORARY TEST OVERRIDE — remove after testing. Superuser-only: scopes the
 // list and metrics queries to this agent instead of the caller's own.
 
-// One row per business record, so a person with multiple policies only gets
-// the most recent one's fields (the view already orders policies newest
-// first) plus a count so nothing is silently dropped.
-const formatBeneficiaries = (policy) =>
-  (policy?.beneficiaries || [])
-    .map(
-      (b) =>
-        `${[b.first_name, b.last_name].filter(Boolean).join(' ')} (${
-          b.relationship || '—'
-        }, ${b.allocation_percent ?? '—'}%, ${b.beneficiary_type})`,
-    )
-    .join('; ');
-
-// [label, accessor] rather than [field, label]: policy and beneficiary
-// columns are computed from `person.policies`, not a flat field lookup.
-const CSV_COLUMNS = [
-  ['Business ID', (p) => p.id],
-  ['Lead ID', (p) => p.lead_id],
-  ['Client ID', (p) => p.client_id],
-  ['Lifecycle', (p) => p.lifecycle_status],
+// Same columns Clients.jsx exported before the business view replaced the
+// separate Clients/Policies pages — one row per person, one row per policy.
+const CLIENT_CSV_COLUMNS = [
   ['First Name', (p) => p.first_name],
   ['Last Name', (p) => p.last_name],
   ['Email', (p) => p.email],
   ['Phone', (p) => p.phone],
   ['Date of Birth', (p) => p.date_of_birth],
-  ['State', (p) => p.state],
   ['Address', (p) => p.address],
   ['City', (p) => p.city],
-  ['Zip', (p) => p.zip],
+  ['State', (p) => p.state],
+  ['Zip Code', (p) => p.zip],
   ['Occupation', (p) => p.occupation],
-  ['Marital Status', (p) => p.marital_status],
   ['Annual Income', (p) => p.annual_income],
-  ['Agent ID', (p) => p.agent_id],
-  ['Sold', (p) => p.sold],
-  ['Verified', (p) => p.verified],
-  ['Smoker', (p) => p.smoker],
-  ['Height (feet)', (p) => p.height_feet],
-  ['Height (inches)', (p) => p.height_inches],
-  ['Weight (lbs)', (p) => p.weight_lbs],
-  ['Cholesterol Medication', (p) => p.cholesterol_medication],
-  ['Blood Pressure Medication', (p) => p.blood_pressure_medication],
-  ['Health Class', (p) => p.health_class],
-  ['Face Amount', (p) => p.face_amount],
-  ['Premium', (p) => p.premium],
-  ['Premium Min', (p) => p.premium_min],
-  ['Premium Max', (p) => p.premium_max],
-  ['Selected Carrier', (p) => p.selected_carrier],
-  ['Selected Plan', (p) => p.selected_plan],
-  ['Beneficiary', (p) => p.beneficiary],
-  ['Priority', (p) => p.priority],
-  ['Why', (p) => p.why],
-  ['Availability', (p) => p.availability],
-  ['Lead Vendor ID', (p) => p.lead_vendor_id],
-  ['Lead Vendor Name', (p) => p.lead_vendor_name],
-  ['GSQ Source', (p) => p.gsq_source],
-  ['GSQ ID', (p) => p.gsq_id],
-  ['GSQ Live Transfer', (p) => p.gsq_live_transfer],
-  ['Notes', (p) => p.notes],
-  ['Lead Created At', (p) => p.lead_created_at],
-  ['Client Created At', (p) => p.client_created_at],
-  ['Created At', (p) => p.created_at],
-  ['Updated At', (p) => p.updated_at],
-  ['Policy Count', (p) => (p.policies || []).length],
-  ['Policy Number', (p) => p.policies?.[0]?.policy_number],
-  ['Policy Status', (p) => p.policies?.[0]?.policy_status],
-  ['Carrier', (p) => p.policies?.[0]?.carrier_name],
-  ['Product', (p) => p.policies?.[0]?.product_name],
-  ['Coverage Amount', (p) => p.policies?.[0]?.coverage_amount],
-  ['Premium Amount', (p) => p.policies?.[0]?.premium_amount],
-  ['Premium Frequency', (p) => p.policies?.[0]?.premium_frequency],
-  ['Effective Date', (p) => p.policies?.[0]?.effective_date],
-  ['Sold Date', (p) => p.policies?.[0]?.sold_date],
-  ['Draft Day', (p) => p.policies?.[0]?.draft_day],
-  ['Split Policy', (p) => p.policies?.[0]?.split_policy],
-  ['Policy Beneficiaries', (p) => formatBeneficiaries(p.policies?.[0])],
+];
+
+const POLICY_CSV_COLUMNS = [
+  ['Policy Number', (row) => row.policy_number],
+  ['Client Name', (row) => row.client_name],
+  ['Carrier', (row) => row.carrier_name],
+  ['Product', (row) => row.product_name],
+  ['Created At', (row) => row.created_at],
+  ['Writing Agent', (row) => row.writing_agent_name],
+  ['Premium Amount', (row) => row.premium_amount],
+  ['Coverage Amount', (row) => row.coverage_amount],
+  ['Status', (row) => row.policy_status],
+  ['Effective Date', (row) => row.effective_date],
+  ['Sold Date', (row) => row.sold_date],
+  ['Draft Day', (row) => row.draft_day],
+  ['Premium Frequency', (row) => row.premium_frequency],
 ];
 
 const formatCurrency = (value) =>
@@ -150,20 +105,52 @@ const escapeCsv = (value) => {
   return `"${normalized.replaceAll('"', '""')}"`;
 };
 
-const downloadRows = (rows) => {
-  const header = CSV_COLUMNS.map(([label]) => escapeCsv(label)).join(',');
+const buildCsv = (columns, rows) => {
+  const header = columns.map(([label]) => escapeCsv(label)).join(',');
   const body = rows.map((row) =>
-    CSV_COLUMNS.map(([, getValue]) => escapeCsv(getValue(row))).join(','),
+    columns.map(([, getValue]) => escapeCsv(getValue(row))).join(','),
   );
-  const blob = new Blob([[header, ...body].join('\n')], {
-    type: 'text/csv;charset=utf-8',
-  });
+  return [header, ...body].join('\n');
+};
+
+const downloadCsv = (filename, content) => {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `business-${new Date().toISOString().slice(0, 10)}.csv`;
+  anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+};
+
+// Splits the selection back into a clients file and a policies file — the
+// same two downloads Clients.jsx/Policies.jsx produced before both were
+// folded into this unified Business view.
+const downloadClientsAndPolicies = (rows, agents) => {
+  const agentNameById = new Map(
+    (agents || []).map((agent) => [
+      agent.id,
+      [agent.first_name, agent.last_name].filter(Boolean).join(' ') || null,
+    ]),
+  );
+
+  const policyRows = rows.flatMap((person) => {
+    const clientName =
+      [person.first_name, person.last_name].filter(Boolean).join(' ') ||
+      null;
+    return (person.policies || []).map((policy) => ({
+      ...policy,
+      client_name: clientName,
+      writing_agent_name: agentNameById.get(policy.writing_agent_id) ?? null,
+    }));
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  downloadCsv(`clients_${today}.csv`, buildCsv(CLIENT_CSV_COLUMNS, rows));
+  downloadCsv(
+    `policies_${today}.csv`,
+    buildCsv(POLICY_CSV_COLUMNS, policyRows),
+  );
 };
 
 const formatMultiplier = (value) =>
@@ -794,7 +781,7 @@ const Business = () => {
             <Button
               color='inherit'
               startIcon={<DownloadOutlinedIcon />}
-              onClick={() => downloadRows(selectedRows)}
+              onClick={() => downloadClientsAndPolicies(selectedRows, agents)}
             >
               Download as .csv
             </Button>
