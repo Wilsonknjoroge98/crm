@@ -67,9 +67,6 @@ const AdPublish = () => {
   const [assets, setAssets] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState('');
-  const [primaryText, setPrimaryText] = useState('');
-  const [headline, setHeadline] = useState('');
-  const [description, setDescription] = useState('');
   const [dailyBudget, setDailyBudget] = useState('10');
 
   const budget = Number(dailyBudget);
@@ -81,9 +78,6 @@ const AdPublish = () => {
     assets.length > 0 &&
     isBudgetValid &&
     !isOverBudget &&
-    primaryText.trim() &&
-    headline.trim() &&
-    description.trim() &&
     assets.every(({ adName, initials }) => adName.trim() && initials.trim());
   const hasVideo = assets.some(({ file }) => file.type.startsWith('video/'));
 
@@ -96,13 +90,7 @@ const AdPublish = () => {
 
   const handlePublish = () => {
     if (!isFormValid || isPending) return;
-    publish({
-      assets,
-      dailyBudget,
-      primaryText,
-      headline,
-      description,
-    });
+    publish({ assets, dailyBudget });
   };
 
   const addFiles = (fileList) => {
@@ -164,41 +152,6 @@ const AdPublish = () => {
             Create one paused Meta ad set and ad for each creative asset.
           </Typography>
         </Box>
-
-        <Paper variant='outlined' sx={{ p: { xs: 2, md: 3 } }}>
-          <Stack spacing={2.5}>
-            <Box>
-              <Typography variant='h6'>Ad copy</Typography>
-              <Typography variant='body2' color='text.secondary'>
-                These fields will be used for every creative in this batch.
-              </Typography>
-            </Box>
-            <TextField
-              label='Primary text'
-              value={primaryText}
-              onChange={(event) => setPrimaryText(event.target.value)}
-              disabled={isPending}
-              multiline
-              minRows={4}
-            />
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField
-                label='Headline'
-                value={headline}
-                onChange={(event) => setHeadline(event.target.value)}
-                disabled={isPending}
-                fullWidth
-              />
-              <TextField
-                label='Description'
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                disabled={isPending}
-                fullWidth
-              />
-            </Stack>
-          </Stack>
-        </Paper>
 
         <Paper
           component='label'

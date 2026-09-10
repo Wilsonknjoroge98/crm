@@ -82,12 +82,6 @@ const parseDailyBudgetCents = (value) => {
   return cents;
 };
 
-const requireCopy = (value, label) => {
-  const copy = String(value ?? '').trim();
-  if (!copy) throw new Error(`${label} is required`);
-  return copy;
-};
-
 const parseAssetMetadata = (rawMetadata, files, agent) => {
   let metadata;
   try {
@@ -145,11 +139,6 @@ const parsePublishRequest = (req) => {
     files,
     dailyBudgetCents,
     metadata: parseAssetMetadata(req.body.assetMetadata, files, req.agent),
-    copy: {
-      primaryText: requireCopy(req.body.primaryText, 'Primary text'),
-      headline: requireCopy(req.body.headline, 'Headline'),
-      description: requireCopy(req.body.description, 'Description'),
-    },
   };
 };
 
@@ -164,7 +153,6 @@ const publishAsset = async ({
   client,
   file,
   metadata,
-  copy,
   dailyBudgetCents,
   publishedAt,
 }) => {
@@ -201,9 +189,6 @@ const publishAsset = async ({
       imageHash: uploadResult.imageHash,
       videoId: uploadResult.videoId,
       videoThumbnailUrl: uploadResult.thumbnailUrl,
-      primaryText: copy.primaryText,
-      headline: copy.headline,
-      description: copy.description,
       urlTags,
     });
 
@@ -253,7 +238,6 @@ const createAdPublishRouter = ({
             client,
             file,
             metadata: request.metadata[index],
-            copy: request.copy,
             dailyBudgetCents: request.dailyBudgetCents,
             publishedAt,
           }),

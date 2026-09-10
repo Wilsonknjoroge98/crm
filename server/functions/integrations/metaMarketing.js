@@ -1,11 +1,41 @@
 const axios = require('axios');
 const { getMetaPublishingConfig } = require('../config/metaPublishing');
+const { META_REGION_KEYS } = require('../shared/constants/meta_region_keys');
 
 const DEFAULT_VIDEO_POLL_INTERVAL_MS = 5000;
 const DEFAULT_VIDEO_POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+// We advertise everywhere in the US except New York, matching the bulk
+// upload workflow's state exclusion. The testing campaign is a Special Ad
+// Category, which rejects excluded_geo_locations entirely (#2909046), so we
+// target every state's region key directly instead of excluding NY from a
+// country-wide target.
 const DEFAULT_TARGETING = {
-  geo_locations: { countries: ['US'] },
+  geo_locations: {
+    regions: Object.entries(META_REGION_KEYS)
+      .filter(([state]) => state !== 'New York')
+      .map(([name, key]) => ({ key, name })),
+  },
 };
+
+// These tests only vary the image/video creative — copy is fixed so Meta's
+// dynamic creative optimization is isolating the asset, not the text.
+// Replace with approved, compliant final-expense ad copy before publishing.
+const CREATIVE_COPY = Object.freeze({
+  primaryTexts: [
+    'Seniors are discovering a better way to compare life insurance rates. ' +
+      'GetSeniorQuotes shows real quotes side-by-side.',
+    'Many seniors just want to see what life insurance costs, without the ' +
+      'constant calls. GetSeniorQuotes makes it easy to compare real ' +
+      'quotes online',
+  ],
+  headlines: [
+    'Compare 100+ Carriers',
+    'Life Insurance Made Simple',
+    'No Doctors, No Exam, No Hassle',
+  ],
+  descriptions: [],
+});
 
 const requireText = (value, field) => {
   if (typeof value !== 'string' || !value.trim()) {
@@ -57,13 +87,7 @@ const createMetaMarketingClient = ({
   const graphUrl = `https://graph.facebook.com/${config.graphApiVersion}`;
   const adAccountPath = `act_${config.adAccountId}`;
 
-  const makeRequest = async ({
-    method,
-    path,
-    data,
-    params,
-    headers,
-  }) => {
+  const makeRequest = async ({ method, path, data, params, headers }) => {
     const response = await request({
       method,
       url: `${graphUrl}/${path}`,
@@ -156,12 +180,7 @@ const createMetaMarketingClient = ({
     }
   };
 
-  const uploadVideo = async ({
-    buffer,
-    filename,
-    mimeType,
-    pollOptions,
-  }) => {
+  const uploadVideo = async ({ buffer, filename, mimeType, pollOptions }) => {
     const form = createFileForm({
       field: 'source',
       buffer,
@@ -198,6 +217,7 @@ const createMetaMarketingClient = ({
         bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
         billing_event: 'IMPRESSIONS',
         optimization_goal: 'OFFSITE_CONVERSIONS',
+        is_dynamic_creative: true,
         targeting,
         promoted_object: {
           pixel_id: config.pixelId,
@@ -210,14 +230,24 @@ const createMetaMarketingClient = ({
     return { adSetId: requireId(data, 'create_ad_set') };
   };
 
+  const uploadImageFromUrl = async (url) => {
+    const response = await request({
+      method: 'GET',
+      url,
+      responseType: 'arraybuffer',
+    });
+    return uploadImage({
+      buffer: Buffer.from(response.data),
+      filename: 'video-thumbnail.jpg',
+      mimeType: response.headers?.['content-type'] || 'image/jpeg',
+    });
+  };
+
   const createAdCreative = async ({
     name,
     imageHash,
     videoId,
     videoThumbnailUrl,
-    primaryText,
-    headline,
-    description,
     urlTags,
   }) => {
     if (Boolean(imageHash) === Boolean(videoId)) {
@@ -227,35 +257,24 @@ const createMetaMarketingClient = ({
       throw new TypeError('videoThumbnailUrl is required for video creatives');
     }
 
-    const callToAction = {
-      type: 'LEARN_MORE',
-      value: { link: config.destinationUrl },
+    const assetFeedSpec = {
+      bodies: CREATIVE_COPY.primaryTexts.map((text) => ({ text })),
+      titles: CREATIVE_COPY.headlines.map((text) => ({ text })),
+      descriptions: CREATIVE_COPY.descriptions.map((text) => ({ text })),
+      link_urls: [{ website_url: config.destinationUrl }],
+      call_to_action_types: ['GET_QUOTE'],
+      ad_formats: [imageHash ? 'SINGLE_IMAGE' : 'SINGLE_VIDEO'],
     };
-    const commonCreative = {
-      message: requireText(primaryText, 'primaryText'),
-      call_to_action: callToAction,
-    };
-    const objectStorySpec = imageHash
-      ? {
-          page_id: config.pageId,
-          link_data: {
-            ...commonCreative,
-            image_hash: String(imageHash),
-            link: config.destinationUrl,
-            name: requireText(headline, 'headline'),
-            description: requireText(description, 'description'),
-          },
-        }
-      : {
-          page_id: config.pageId,
-          video_data: {
-            ...commonCreative,
-            video_id: String(videoId),
-            image_url: requireText(videoThumbnailUrl, 'videoThumbnailUrl'),
-            title: requireText(headline, 'headline'),
-            link_description: requireText(description, 'description'),
-          },
-        };
+
+    if (imageHash) {
+      assetFeedSpec.images = [{ hash: String(imageHash) }];
+    } else {
+      const { imageHash: thumbnailHash } =
+        await uploadImageFromUrl(videoThumbnailUrl);
+      assetFeedSpec.videos = [
+        { video_id: String(videoId), thumbnail_hash: thumbnailHash },
+      ];
+    }
 
     const data = await makeRequest({
       method: 'POST',
@@ -263,8 +282,13 @@ const createMetaMarketingClient = ({
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: toFormBody({
         name: requireText(name, 'name'),
-        object_story_spec: objectStorySpec,
+        object_story_spec: {
+          page_id: config.pageId,
+          instagram_user_id: config.instagramUserId,
+        },
+        asset_feed_spec: assetFeedSpec,
         url_tags: requireText(urlTags, 'urlTags'),
+        contextual_multi_ads: { enroll_status: 'OPT_OUT' },
       }),
     });
     return { creativeId: requireId(data, 'create_ad_creative') };

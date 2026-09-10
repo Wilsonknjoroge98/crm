@@ -1090,19 +1090,10 @@ const getOffers = async () => {
   return response.data;
 };
 
-const publishAds = async ({
-  assets,
-  dailyBudget,
-  primaryText,
-  headline,
-  description,
-}) => {
+const publishAds = async ({ assets, dailyBudget }) => {
   const formData = new FormData();
   assets.forEach(({ file }) => formData.append('assets', file, file.name));
   formData.append('dailyBudget', dailyBudget);
-  formData.append('primaryText', primaryText.trim());
-  formData.append('headline', headline.trim());
-  formData.append('description', description.trim());
   formData.append(
     'assetMetadata',
     JSON.stringify(
