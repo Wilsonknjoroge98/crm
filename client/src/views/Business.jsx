@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Container,
   Fade,
   InputAdornment,
@@ -47,6 +48,9 @@ import ReleaseNotificationDialog, {
 const SANS = '"Inter", sans-serif';
 const LOCAL_TIME_TICK_MS = 30000;
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+// GSQ leads/clients stay selectable (export, etc.) but the backend refuses
+// to delete them, so bulk-delete messaging needs to call them out by name.
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 // TEMPORARY TEST OVERRIDE — remove after testing. Superuser-only: scopes the
 // list and metrics queries to this agent instead of the caller's own.
 
@@ -132,8 +136,7 @@ const downloadClientsAndPolicies = (rows, agents) => {
 
   const policyRows = rows.flatMap((person) => {
     const clientName =
-      [person.first_name, person.last_name].filter(Boolean).join(' ') ||
-      null;
+      [person.first_name, person.last_name].filter(Boolean).join(' ') || null;
     return (person.policies || []).map((policy) => ({
       ...policy,
       client_name: clientName,
@@ -275,6 +278,8 @@ const Business = () => {
   // Single ticking clock shared by every card's local-time display.
   const [now, setNow] = useState(() => new Date());
 
+  const clearSelection = () => setSelectedById(new Map());
+
   useEffect(() => {
     const timer = window.setInterval(
       () => setNow(new Date()),
@@ -285,6 +290,7 @@ const Business = () => {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      setSelectedById(new Map());
       setSearch(searchInput.trim());
       setPage(0);
     }, 300);
@@ -294,6 +300,7 @@ const Business = () => {
   const {
     data: businessResponse,
     isLoading,
+    isPlaceholderData,
     error: businessError,
   } = useQuery({
     queryKey: ['business', page, pageSize, search, statusFilter, gsqOnly],
@@ -332,6 +339,9 @@ const Business = () => {
     () => [...selectedById.values()],
     [selectedById],
   );
+  const selectedOnPage = rows.filter((row) => selectedById.has(row.id)).length;
+  const pageSelected = rows.length > 0 && selectedOnPage === rows.length;
+  const selectionDisabled = isPlaceholderData || Boolean(businessError);
 
   const refreshBusiness = async () => {
     await Promise.all([
@@ -342,10 +352,15 @@ const Business = () => {
 
   const { mutate: removeRecords, isPending: isDeleting } = useMutation({
     mutationFn: deleteBusinessRecords,
-    onSuccess: async () => {
-      enqueueSnackbar('Selected records deleted', SNACKBAR_SUCCESS_OPTIONS);
+    onSuccess: async (data) => {
+      const deletedCount = data?.deletedIds?.length || 0;
+      if (deletedCount > 0) {
+        enqueueSnackbar(
+          `${deletedCount} ${deletedCount === 1 ? 'record' : 'records'} deleted`,
+          SNACKBAR_SUCCESS_OPTIONS,
+        );
+      }
       setSelectedById(new Map());
-      setSelectedPersonId(null);
       await refreshBusiness();
     },
     onError: (error) => {
@@ -368,13 +383,45 @@ const Business = () => {
     });
   };
 
+  const selectPage = (checked) => {
+    setSelectedById((current) => {
+      const next = new Map(current);
+      rows.forEach((person) => {
+        if (checked) next.set(person.id, person);
+        else next.delete(person.id);
+      });
+      return next;
+    });
+  };
+
+  // GSQ-sourced people stay selectable (e.g. for CSV export) but the backend
+  // refuses to delete them, so the confirmation should say so rather than
+  // implying every selected record will go.
   const handleBulkDelete = () => {
     if (!selectedIds.length) return;
-    const confirmed = window.confirm(
-      `Delete ${selectedIds.length} selected ${
-        selectedIds.length === 1 ? 'record' : 'records'
-      } and their associated data?`,
-    );
+    const gsqSelectedCount = selectedRows.filter(
+      (row) => row.lead_vendor_id === GSQ_LEAD_VENDOR_ID,
+    ).length;
+    const deletableCount = selectedIds.length - gsqSelectedCount;
+
+    if (deletableCount === 0) {
+      enqueueSnackbar(
+        'Selected records are GSQ, which are kept for tracking and cannot be deleted',
+        SNACKBAR_ERROR_OPTIONS,
+      );
+      return;
+    }
+
+    const message =
+      gsqSelectedCount > 0
+        ? `${deletableCount} of the ${selectedIds.length} selected records ` +
+          `will be deleted. ${gsqSelectedCount} GSQ ${
+            gsqSelectedCount === 1 ? 'record is' : 'records are'
+          } kept for tracking and will be skipped.`
+        : `Delete ${selectedIds.length} selected ${
+            selectedIds.length === 1 ? 'record' : 'records'
+          } and their associated data?`;
+    const confirmed = window.confirm(message);
     if (confirmed) removeRecords(selectedIds);
   };
 
@@ -436,6 +483,7 @@ const Business = () => {
               size='small'
               checked={gsqOnly}
               onChange={(event) => {
+                clearSelection();
                 setGsqOnly(event.target.checked);
                 setPage(0);
               }}
@@ -502,7 +550,10 @@ const Business = () => {
                 variant='outlined'
                 size='small'
                 value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
+                onChange={(event) => {
+                  clearSelection();
+                  setSearchInput(event.target.value);
+                }}
                 placeholder='Search name, email, or phone'
                 sx={{ width: { xs: '100%', sm: 360 } }}
                 slotProps={{
@@ -521,6 +572,7 @@ const Business = () => {
                 size='small'
                 onChange={(event, value) => {
                   if (!value) return;
+                  clearSelection();
                   setStatusFilter(value);
                   setPage(0);
                 }}
@@ -547,7 +599,9 @@ const Business = () => {
                         ? undefined
                         : handleOpenReleaseDialog
                     }
-                    sx={{ cursor: releaseNotificationSeen ? 'default' : 'pointer' }}
+                    sx={{
+                      cursor: releaseNotificationSeen ? 'default' : 'pointer',
+                    }}
                   >
                     <Button
                       size='small'
@@ -598,6 +652,7 @@ const Business = () => {
             sx={{ px: 0.5 }}
           >
             <Typography
+              component='div'
               variant='caption'
               sx={{
                 fontFamily: SANS,
@@ -607,7 +662,23 @@ const Business = () => {
                 color: 'text.secondary',
               }}
             >
-              {selectedIds.length} selected
+              <Stack
+                direction='row'
+                spacing={0.5}
+                alignItems='center'
+                flexWrap='wrap'
+              >
+                <Checkbox
+                  size='small'
+                  checked={pageSelected}
+                  indeterminate={selectedOnPage > 0 && !pageSelected}
+                  disabled={selectionDisabled || !rows.length}
+                  onChange={(_, checked) => selectPage(checked)}
+                  slotProps={{ input: { 'aria-label': 'Select this page' } }}
+                  sx={{ p: 0.5 }}
+                />
+                <span>{selectedIds.length} selected</span>
+              </Stack>
             </Typography>
             <Typography
               variant='caption'
@@ -644,6 +715,7 @@ const Business = () => {
                 now={now}
                 isAdmin={isAdmin}
                 selected={selectedById.has(person.id)}
+                selectionDisabled={selectionDisabled}
                 onToggleSelect={toggleSelected}
                 releaseNotificationSeen={releaseNotificationSeen}
                 onQuickAction={handleOpenReleaseDialog}
@@ -659,9 +731,13 @@ const Business = () => {
               component='div'
               count={rowCount}
               page={page}
-              onPageChange={(event, nextPage) => setPage(nextPage)}
+              onPageChange={(event, nextPage) => {
+                clearSelection();
+                setPage(nextPage);
+              }}
               rowsPerPage={pageSize}
               onRowsPerPageChange={(event) => {
+                clearSelection();
                 setPageSize(Number(event.target.value));
                 setPage(0);
               }}

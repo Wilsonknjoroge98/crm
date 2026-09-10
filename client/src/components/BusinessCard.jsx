@@ -241,6 +241,7 @@ const BusinessCard = ({
   now,
   isAdmin,
   selected,
+  selectionDisabled = false,
   onToggleSelect,
   releaseNotificationSeen,
   onQuickAction,
@@ -327,8 +328,8 @@ const BusinessCard = ({
   // vendor and lifecycle stage, not just GSQ leads. Creative (the ad
   // source) only ever exists for GSQ-sourced leads, so it stays scoped.
   const showAgentAttribution = isAdmin;
-  const showCreativeAttribution =
-    isAdmin && person.lead_vendor_id === GSQ_LEAD_VENDOR_ID;
+  const isGsqProtected = person.lead_vendor_id === GSQ_LEAD_VENDOR_ID;
+  const showCreativeAttribution = isAdmin && isGsqProtected;
 
   const notesStatusIndicator = (
     <Typography
@@ -381,6 +382,7 @@ const BusinessCard = ({
               <Checkbox
                 size='small'
                 checked={selected}
+                disabled={selectionDisabled}
                 onChange={() => onToggleSelect(person)}
                 sx={{ p: 0.25, ml: -0.5 }}
                 inputProps={{ 'aria-label': `Select ${fullName}` }}

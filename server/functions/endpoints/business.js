@@ -907,6 +907,10 @@ const createBusinessRouter = ({
 
   // Bulk delete, all-or-nothing: cascades beneficiaries -> policies ->
   // agent links -> clients, then leads no other client still references.
+  // GSQ-sourced people are exempt: we buy those leads for tracking and must
+  // keep the record even after an agent works/converts/discards them, so any
+  // selected id on the GSQ vendor is silently dropped from the cascade
+  // rather than deleted alongside the rest.
   router.delete('/', async (req, res) => {
     const agentId = req.agent?.id;
     const isSuperuser = agentId === SUPERUSER_ID;
@@ -925,7 +929,7 @@ const createBusinessRouter = ({
     try {
       let peopleQuery = supabase
         .from('business')
-        .select('id,lead_id,client_id,lifecycle_status')
+        .select('id,lead_id,client_id,lifecycle_status,lead_vendor_id')
         .in('id', ids);
 
       if (!isSuperuser) {
@@ -940,14 +944,28 @@ const createBusinessRouter = ({
           .json({ error: 'One or more people were not found' });
       }
 
-      const clientIds = people
+      // GSQ leads/clients are tracked permanently and never eligible for
+      // deletion, regardless of who requests it or how they were converted.
+      const protectedIdSet = new Set(
+        people
+          .filter(
+            ({ lead_vendor_id: leadVendorId }) =>
+              leadVendorId === GSQ_LEAD_VENDOR_ID,
+          )
+          .map(({ id }) => id),
+      );
+      const deletablePeople = people.filter(
+        ({ id }) => !protectedIdSet.has(id),
+      );
+
+      const clientIds = deletablePeople
         .map(({ client_id: clientId }) => clientId)
         .filter(Boolean);
-      const saleLeadIds = people
+      const saleLeadIds = deletablePeople
         .filter(({ client_id: clientId }) => Boolean(clientId))
         .map(({ lead_id: leadId }) => leadId)
         .filter(Boolean);
-      const leadIdsToDelete = people
+      const leadIdsToDelete = deletablePeople
         .filter(({ client_id: clientId }) => !clientId)
         .map(({ lead_id: leadId }) => leadId)
         .filter(Boolean);
@@ -1013,13 +1031,20 @@ const createBusinessRouter = ({
         if (leadsError) throw leadsError;
       }
 
+      const deletedIds = deletablePeople.map(({ id }) => id);
+      const protectedIds = ids.filter((id) => protectedIdSet.has(id));
+
       logger.log('Deleted people successfully', {
         route: '/business',
         method: 'DELETE',
         requesterId: agentId,
-        count: ids.length,
+        count: deletedIds.length,
+        protectedCount: protectedIds.length,
       });
-      return res.status(200).json({ deletedIds: ids });
+      return res.status(200).json({
+        deletedIds,
+        ...(protectedIds.length > 0 ? { protectedIds } : {}),
+      });
     } catch (error) {
       logger.error('Failed to delete business records', {
         route: '/business',
@@ -1084,3 +1109,4 @@ module.exports.parsePeopleQuery = parsePeopleQuery;
 module.exports.buildSearchPatterns = buildSearchPatterns;
 module.exports.parseBulkPersonIds = parseBulkPersonIds;
 module.exports.annualizePremium = annualizePremium;
+module.exports.GSQ_LEAD_VENDOR_ID = GSQ_LEAD_VENDOR_ID;
