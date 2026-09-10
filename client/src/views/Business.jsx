@@ -136,8 +136,7 @@ const downloadClientsAndPolicies = (rows, agents) => {
 
   const policyRows = rows.flatMap((person) => {
     const clientName =
-      [person.first_name, person.last_name].filter(Boolean).join(' ') ||
-      null;
+      [person.first_name, person.last_name].filter(Boolean).join(' ') || null;
     return (person.policies || []).map((policy) => ({
       ...policy,
       client_name: clientName,
@@ -355,19 +354,10 @@ const Business = () => {
     mutationFn: deleteBusinessRecords,
     onSuccess: async (data) => {
       const deletedCount = data?.deletedIds?.length || 0;
-      const protectedCount = data?.protectedIds?.length || 0;
       if (deletedCount > 0) {
         enqueueSnackbar(
           `${deletedCount} ${deletedCount === 1 ? 'record' : 'records'} deleted`,
           SNACKBAR_SUCCESS_OPTIONS,
-        );
-      }
-      if (protectedCount > 0) {
-        enqueueSnackbar(
-          `${protectedCount} GSQ ${
-            protectedCount === 1 ? 'record is' : 'records are'
-          } kept for tracking and could not be deleted`,
-          SNACKBAR_ERROR_OPTIONS,
         );
       }
       setSelectedById(new Map());
@@ -416,7 +406,7 @@ const Business = () => {
 
     if (deletableCount === 0) {
       enqueueSnackbar(
-        'Selected records are GSQ leads/clients, which are kept for tracking and cannot be deleted',
+        'Selected records are GSQ, which are kept for tracking and cannot be deleted',
         SNACKBAR_ERROR_OPTIONS,
       );
       return;
