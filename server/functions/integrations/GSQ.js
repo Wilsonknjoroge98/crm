@@ -106,55 +106,59 @@ const inboundGSQ = async (req, res) => {
       lead_vendor_id: leadVendor.id,
     };
 
+    const { data: existingLeads, error: existingLeadError } =
+      await supabaseService
+        .from('leads')
+        .select('id, agent_id')
+        .eq('phone', payload.phone)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    if (existingLeadError) {
+      logger.error('Failed to check for existing lead:', {
+        error: existingLeadError,
+      });
+      return res
+        .status(500)
+        .send({ message: 'Failed to check existing leads' });
+    }
+
+    const existingLead = existingLeads?.[0] || null;
+
+    if (existingLead) {
+      if (existingLead.agent_id === agentId) {
+        return res.status(200).send({
+          message: 'Lead already exists and is assigned to this agent',
+        });
+      }
+
+      const { error: updateError } = await supabaseService
+        .from('leads')
+        .update({ agent_id: agentId })
+        .eq('id', existingLead.id);
+
+      if (updateError) {
+        logger.error('Failed to update existing lead:', {
+          error: updateError,
+        });
+        return res
+          .status(500)
+          .send({ message: 'Failed to update existing lead' });
+      }
+
+      return res.status(200).send({ message: 'Lead updated successfully' });
+    }
+
     const { error } = await supabaseService.from('leads').insert(payload);
 
     if (error) {
-      if (error.code === '23505') {
-        logger.info('Lead already exists:', error);
-
-        const { data: existingLead, error: leadError } = await supabaseService
-          .from('leads')
-          .select('id, created_at, agent_id')
-          .eq('phone', payload.phone)
-          .single();
-
-        if (existingLead?.agent_id === agentId) {
-          return res.status(200).send({
-            message: 'Lead already exists and is assigned to this agent',
-          });
-        }
-
-        if (leadError || !existingLead) {
-          logger.error('Failed to fetch existing lead:', { error: leadError });
-          return res
-            .status(500)
-            .send({ message: 'Failed to fetch existing lead' });
-        }
-
-        const { error: updateError } = await supabaseService
-          .from('leads')
-          .update({ agent_id: agentId })
-          .eq('id', existingLead.id);
-
-        if (updateError) {
-          logger.error('Failed to update existing lead:', {
-            error: updateError,
-          });
-          return res
-            .status(500)
-            .send({ message: 'Failed to update existing lead' });
-        }
-
-        return res.status(200).send({ message: 'Lead updated successfully' });
-      } else {
-        logger.error('Error inserting lead:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
-        return res.status(400).send({ message: 'Invalid request payload' });
-      }
+      logger.error('Error inserting lead:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return res.status(400).send({ message: 'Invalid request payload' });
     }
 
     res.status(201).send({ message: 'Lead created successfully' });
