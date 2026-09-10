@@ -12,7 +12,7 @@ const expressApp = require('./server.js');
 
 exports.app = functions.https.onRequest(
   {
-    timeoutSeconds: 120,
+    timeoutSeconds: 360,
     memory: '512MiB',
     secrets: [
       'GSQ_SERVICE_ACCOUNT_KEY',
@@ -24,6 +24,12 @@ exports.app = functions.https.onRequest(
       'META_CONVERSIONS_TOKEN',
       'META_CONVERSIONS_URL',
       'META_AD_ACCOUNT_IDS',
+      'META_PUBLISHING_AD_ACCOUNT_ID',
+      'META_PAGE_ID',
+      'META_INSTAGRAM_USER_ID',
+      'META_TESTING_CAMPAIGN_ID',
+      'META_PIXEL_ID',
+      'META_DESTINATION_URL',
       'META_MARKETING_ACCESS_TOKEN',
       'HYROS_SECRET_KEY',
     ],

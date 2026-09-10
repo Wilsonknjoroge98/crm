@@ -22,6 +22,7 @@ import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 
 import { useTheme } from '@mui/material/styles';
 
@@ -107,6 +108,9 @@ const SidePanel = () => {
       path: '/sales-analytics',
     },
   ];
+
+  const canPublishAds = ['admin', 'owner'].includes(agent?.role);
+  const isAdPublishActive = location.pathname === '/ad-publish';
 
   const authItems = [
     {
@@ -264,6 +268,27 @@ const SidePanel = () => {
                 );
               })}
             </List>
+
+            {canPublishAds && (
+              <List disablePadding>
+                <SectionLabel>MARKETING</SectionLabel>
+                <ListItem
+                  onClick={() => handleItemClick('/ad-publish')}
+                  sx={navItemSx(isAdPublishActive)}
+                >
+                  <ListItemIcon sx={navIconSx(isAdPublishActive)}>
+                    <CampaignOutlinedIcon />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <NavLabel isActive={isAdPublishActive}>
+                        Click + Publish
+                      </NavLabel>
+                    }
+                  />
+                </ListItem>
+              </List>
+            )}
 
             {/* AUTH SECTION */}
             <List disablePadding>

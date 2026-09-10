@@ -22,6 +22,7 @@ const SalesAnalytics = lazy(() => import('../views/SalesAnalytics'));
 const ResetPassword = lazy(() => import('../views/ResetPassword'));
 const ForgotPassword = lazy(() => import('../views/ForgotPassword'));
 const Profile = lazy(() => import('../views/Profile'));
+const AdPublish = lazy(() => import('../views/AdPublish'));
 import ErrorBoundary from '../views/ErrorBoundary';
 
 const router = createBrowserRouter([
@@ -432,6 +433,27 @@ const router = createBrowserRouter([
             }
           >
             <Profile />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/ad-publish',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <AdPublish />
           </Suspense>
         ),
       },

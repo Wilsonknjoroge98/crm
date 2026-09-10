@@ -158,22 +158,6 @@ offersRouter.get('/', async (req, res) => {
       const isEligible =
         !!promo.coupon?.valid && promo.metadata?.show === 'true' && notExpired;
 
-      if (!isEligible) {
-        logger.log('Excluding promotion code from offers', {
-          route: '/offers',
-          promotionCodeId: promo.id,
-          code: promo.code,
-          couponId: promo.coupon?.id,
-          couponValid: !!promo.coupon?.valid,
-          couponMetadata: promo.coupon?.metadata ?? null,
-          promotionCodeMetadata: promo.metadata ?? null,
-          expiresAt: promo.expires_at
-            ? dayjs.unix(promo.expires_at).toISOString()
-            : null,
-          notExpired,
-        });
-      }
-
       return isEligible;
     });
 
