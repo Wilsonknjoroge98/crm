@@ -14,6 +14,7 @@ const {
   parseBulkPersonIds,
   buildSearchPatterns,
   annualizePremium,
+  GSQ_LEAD_VENDOR_ID,
 } = require('../endpoints/business');
 
 // Independent copies of the API's projections. If a route starts selecting a
@@ -1796,5 +1797,115 @@ describe('DELETE /people', () => {
 
     expect(response.status).toBe(400);
     expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  const gsqLeadId = '55555555-5555-4555-8555-555555555555';
+
+  test('excludes GSQ-sourced people from the cascade and reports them as protected', async () => {
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            {
+              id: leadOnlyId,
+              lead_id: leadOnlyId,
+              client_id: null,
+              lifecycle_status: 'LEAD',
+              lead_vendor_id: 'some-other-vendor',
+            },
+            {
+              id: gsqLeadId,
+              lead_id: gsqLeadId,
+              client_id: null,
+              lifecycle_status: 'LEAD',
+              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            },
+          ],
+          error: null,
+        },
+      ],
+      leads: [{ data: null, error: null }],
+    });
+    const app = makeApp(supabase, { id: 'agent-1' });
+
+    const response = await request(app)
+      .delete('/business')
+      .send({ ids: [leadOnlyId, gsqLeadId] });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      deletedIds: [leadOnlyId],
+      protectedIds: [gsqLeadId],
+    });
+    expect(findQuery(supabase, 'leads').calls).toContainEqual({
+      method: 'in',
+      args: ['id', [leadOnlyId]],
+    });
+  });
+
+  test('deletes nothing and touches no cascade tables when every selected person is GSQ-sourced', async () => {
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            {
+              id: gsqLeadId,
+              lead_id: gsqLeadId,
+              client_id: null,
+              lifecycle_status: 'LEAD',
+              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+    const app = makeApp(supabase, { id: 'agent-1' });
+
+    const response = await request(app)
+      .delete('/business')
+      .send({ ids: [gsqLeadId] });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      deletedIds: [],
+      protectedIds: [gsqLeadId],
+    });
+    expect(supabase.from).not.toHaveBeenCalledWith('policies');
+    expect(supabase.from).not.toHaveBeenCalledWith('clients');
+    expect(supabase.from).not.toHaveBeenCalledWith('leads');
+  });
+
+  test('protects a GSQ-sourced SALE (converted client) from deletion', async () => {
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            {
+              id: clientId,
+              lead_id: saleLeadId,
+              client_id: clientId,
+              lifecycle_status: 'SALE',
+              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+    const app = makeApp(supabase, { id: SUPERUSER_ID });
+
+    const response = await request(app)
+      .delete('/business')
+      .send({ ids: [clientId] });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      deletedIds: [],
+      protectedIds: [clientId],
+    });
+    expect(supabase.from).not.toHaveBeenCalledWith('policies');
+    expect(supabase.from).not.toHaveBeenCalledWith('clients');
+    expect(supabase.from).not.toHaveBeenCalledWith('leads');
   });
 });

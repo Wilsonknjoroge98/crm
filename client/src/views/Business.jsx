@@ -48,6 +48,9 @@ import ReleaseNotificationDialog, {
 const SANS = '"Inter", sans-serif';
 const LOCAL_TIME_TICK_MS = 30000;
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
+// GSQ leads/clients stay selectable (export, etc.) but the backend refuses
+// to delete them, so bulk-delete messaging needs to call them out by name.
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 // TEMPORARY TEST OVERRIDE — remove after testing. Superuser-only: scopes the
 // list and metrics queries to this agent instead of the caller's own.
 
@@ -363,10 +366,24 @@ const Business = () => {
 
   const { mutate: removeRecords, isPending: isDeleting } = useMutation({
     mutationFn: deleteBusinessRecords,
-    onSuccess: async () => {
-      enqueueSnackbar('Selected records deleted', SNACKBAR_SUCCESS_OPTIONS);
+    onSuccess: async (data) => {
+      const deletedCount = data?.deletedIds?.length || 0;
+      const protectedCount = data?.protectedIds?.length || 0;
+      if (deletedCount > 0) {
+        enqueueSnackbar(
+          `${deletedCount} ${deletedCount === 1 ? 'record' : 'records'} deleted`,
+          SNACKBAR_SUCCESS_OPTIONS,
+        );
+      }
+      if (protectedCount > 0) {
+        enqueueSnackbar(
+          `${protectedCount} GSQ ${
+            protectedCount === 1 ? 'record is' : 'records are'
+          } kept for tracking and could not be deleted`,
+          SNACKBAR_ERROR_OPTIONS,
+        );
+      }
       setSelectedById(new Map());
-      setSelectedPersonId(null);
       await refreshBusiness();
     },
     onError: (error) => {
@@ -400,13 +417,34 @@ const Business = () => {
     });
   };
 
+  // GSQ-sourced people stay selectable (e.g. for CSV export) but the backend
+  // refuses to delete them, so the confirmation should say so rather than
+  // implying every selected record will go.
   const handleBulkDelete = () => {
     if (!selectedIds.length) return;
-    const confirmed = window.confirm(
-      `Delete ${selectedIds.length} selected ${
-        selectedIds.length === 1 ? 'record' : 'records'
-      } and their associated data?`,
-    );
+    const gsqSelectedCount = selectedRows.filter(
+      (row) => row.lead_vendor_id === GSQ_LEAD_VENDOR_ID,
+    ).length;
+    const deletableCount = selectedIds.length - gsqSelectedCount;
+
+    if (deletableCount === 0) {
+      enqueueSnackbar(
+        'Selected records are GSQ leads/clients, which are kept for tracking and cannot be deleted',
+        SNACKBAR_ERROR_OPTIONS,
+      );
+      return;
+    }
+
+    const message =
+      gsqSelectedCount > 0
+        ? `${deletableCount} of the ${selectedIds.length} selected records ` +
+          `will be deleted. ${gsqSelectedCount} GSQ ${
+            gsqSelectedCount === 1 ? 'record is' : 'records are'
+          } kept for tracking and will be skipped.`
+        : `Delete ${selectedIds.length} selected ${
+            selectedIds.length === 1 ? 'record' : 'records'
+          } and their associated data?`;
+    const confirmed = window.confirm(message);
     if (confirmed) removeRecords(selectedIds);
   };
 
@@ -584,7 +622,9 @@ const Business = () => {
                         ? undefined
                         : handleOpenReleaseDialog
                     }
-                    sx={{ cursor: releaseNotificationSeen ? 'default' : 'pointer' }}
+                    sx={{
+                      cursor: releaseNotificationSeen ? 'default' : 'pointer',
+                    }}
                   >
                     <Button
                       size='small'
@@ -645,7 +685,12 @@ const Business = () => {
                 color: 'text.secondary',
               }}
             >
-              <Stack direction='row' spacing={0.5} alignItems='center' flexWrap='wrap'>
+              <Stack
+                direction='row'
+                spacing={0.5}
+                alignItems='center'
+                flexWrap='wrap'
+              >
                 <Checkbox
                   size='small'
                   checked={pageSelected}
