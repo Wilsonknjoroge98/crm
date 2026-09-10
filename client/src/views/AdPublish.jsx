@@ -4,21 +4,31 @@ import {
   Button,
   CircularProgress,
   Container,
+  Divider,
   IconButton,
   InputAdornment,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined';
+import { useMutation } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAgent } from '../hooks/useAgent';
+import { publishAds } from '../utils/query';
 
 const MAX_TOTAL_DAILY_BUDGET = 500;
 const MAX_TOTAL_UPLOAD_BYTES = 30 * 1024 * 1024;
@@ -65,6 +75,35 @@ const AdPublish = () => {
   const budget = Number(dailyBudget);
   const total = Number.isFinite(budget) && budget > 0 ? assets.length * budget : 0;
   const isOverBudget = total > MAX_TOTAL_DAILY_BUDGET;
+  const isBudgetValid =
+    /^\d+(\.\d{1,2})?$/.test(dailyBudget.trim()) && budget > 0;
+  const isFormValid =
+    assets.length > 0 &&
+    isBudgetValid &&
+    !isOverBudget &&
+    primaryText.trim() &&
+    headline.trim() &&
+    description.trim() &&
+    assets.every(({ adName, initials }) => adName.trim() && initials.trim());
+  const hasVideo = assets.some(({ file }) => file.type.startsWith('video/'));
+
+  const {
+    mutate: publish,
+    isPending,
+    data: results,
+    error: publishError,
+  } = useMutation({ mutationFn: publishAds });
+
+  const handlePublish = () => {
+    if (!isFormValid || isPending) return;
+    publish({
+      assets,
+      dailyBudget,
+      primaryText,
+      headline,
+      description,
+    });
+  };
 
   const addFiles = (fileList) => {
     const selected = Array.from(fileList || []);
@@ -138,6 +177,7 @@ const AdPublish = () => {
               label='Primary text'
               value={primaryText}
               onChange={(event) => setPrimaryText(event.target.value)}
+              disabled={isPending}
               multiline
               minRows={4}
             />
@@ -146,12 +186,14 @@ const AdPublish = () => {
                 label='Headline'
                 value={headline}
                 onChange={(event) => setHeadline(event.target.value)}
+                disabled={isPending}
                 fullWidth
               />
               <TextField
                 label='Description'
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
+                disabled={isPending}
                 fullWidth
               />
             </Stack>
@@ -167,7 +209,7 @@ const AdPublish = () => {
           onDrop={(event) => {
             event.preventDefault();
             setIsDragging(false);
-            addFiles(event.dataTransfer.files);
+            if (!isPending) addFiles(event.dataTransfer.files);
           }}
           sx={{
             minHeight: 210,
@@ -186,6 +228,7 @@ const AdPublish = () => {
             accept='image/*,video/*'
             multiple
             hidden
+            disabled={isPending}
             onChange={(event) => {
               addFiles(event.target.files);
               event.target.value = '';
@@ -229,6 +272,7 @@ const AdPublish = () => {
                       <IconButton
                         size='small'
                         aria-label={'Remove ' + asset.file.name}
+                        disabled={isPending}
                         onClick={() =>
                           setAssets((current) =>
                             current.filter((item) => item.id !== asset.id),
@@ -248,6 +292,7 @@ const AdPublish = () => {
                       <TextField
                         label='Initials'
                         value={asset.initials}
+                        disabled={isPending}
                         onChange={(event) =>
                           updateAsset(asset.id, 'initials', event.target.value)
                         }
@@ -255,6 +300,7 @@ const AdPublish = () => {
                       <TextField
                         label='Ad Name'
                         value={asset.adName}
+                        disabled={isPending}
                         onChange={(event) =>
                           updateAsset(asset.id, 'adName', event.target.value)
                         }
@@ -286,7 +332,8 @@ const AdPublish = () => {
               type='number'
               value={dailyBudget}
               onChange={(event) => setDailyBudget(event.target.value)}
-              error={isOverBudget}
+              disabled={isPending}
+              error={isOverBudget || (dailyBudget !== '' && !isBudgetValid)}
               slotProps={{
                 input: {
                   startAdornment: (
@@ -321,14 +368,81 @@ const AdPublish = () => {
           </Alert>
         )}
 
+        {publishError && (
+          <Alert severity='error'>
+            {publishError.response?.data?.error ||
+              publishError.message ||
+              'The publishing request failed.'}
+          </Alert>
+        )}
+
+        {isPending && (
+          <Paper variant='outlined' sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              <Typography variant='subtitle1'>Publishing ads</Typography>
+              <LinearProgress />
+              <Typography variant='body2' color='text.secondary'>
+                {hasVideo
+                  ? 'Uploading assets and waiting for Meta to process video.'
+                  : 'Uploading assets and creating paused Meta ads.'}
+              </Typography>
+            </Stack>
+          </Paper>
+        )}
+
+        {Array.isArray(results) && (
+          <Paper variant='outlined' sx={{ p: { xs: 2, md: 3 } }}>
+            <Typography variant='h6'>Publishing results</Typography>
+            <List disablePadding sx={{ mt: 1 }}>
+              {results.map((result, index) => (
+                <Box key={`${result.filename}-${index}`}>
+                  {index > 0 && <Divider component='li' />}
+                  <ListItem disableGutters alignItems='flex-start'>
+                    <ListItemIcon sx={{ minWidth: 40, mt: 0.5 }}>
+                      {result.success ? (
+                        <CheckCircleOutlineIcon color='success' />
+                      ) : (
+                        <ErrorOutlineIcon color='error' />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={result.filename}
+                      secondary={
+                        result.success
+                          ? [
+                              result.imageHash &&
+                                `Image hash: ${result.imageHash}`,
+                              result.videoId && `Video ID: ${result.videoId}`,
+                              `Ad set ID: ${result.adSetId}`,
+                              `Creative ID: ${result.creativeId}`,
+                              `Ad ID: ${result.adId}`,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')
+                          : result.error
+                      }
+                      slotProps={{
+                        secondary: {
+                          color: result.success ? 'text.secondary' : 'error',
+                        },
+                      }}
+                    />
+                  </ListItem>
+                </Box>
+              ))}
+            </List>
+          </Paper>
+        )}
+
         <Stack direction='row' justifyContent='flex-end'>
           <Button
             variant='contained'
             color='action'
             startIcon={<CampaignOutlinedIcon />}
-            disabled
+            disabled={!isFormValid || isPending}
+            onClick={handlePublish}
           >
-            Publish ads
+            {isPending ? 'Publishing...' : 'Publish ads'}
           </Button>
         </Stack>
       </Stack>

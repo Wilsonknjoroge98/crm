@@ -1090,6 +1090,33 @@ const getOffers = async () => {
   return response.data;
 };
 
+const publishAds = async ({
+  assets,
+  dailyBudget,
+  primaryText,
+  headline,
+  description,
+}) => {
+  const formData = new FormData();
+  assets.forEach(({ file }) => formData.append('assets', file, file.name));
+  formData.append('dailyBudget', dailyBudget);
+  formData.append('primaryText', primaryText.trim());
+  formData.append('headline', headline.trim());
+  formData.append('description', description.trim());
+  formData.append(
+    'assetMetadata',
+    JSON.stringify(
+      assets.map(({ adName, initials }) => ({
+        adName: adName.trim(),
+        initials: initials.trim(),
+      })),
+    ),
+  );
+
+  const response = await apiClient.post('/ad-publish', formData);
+  return response.data;
+};
+
 export {
   getClients,
   getPolicies,
@@ -1147,4 +1174,5 @@ export {
   getHierarchy,
   getEvents,
   getOffers,
+  publishAds,
 };
