@@ -906,7 +906,7 @@ const createBusinessRouter = ({
   });
 
   // Bulk delete, all-or-nothing: cascades beneficiaries -> policies ->
-  // agent links -> clients, then leads no other client still references.
+  // clients, then leads no other client still references.
   // GSQ-sourced people are exempt: we buy those leads for tracking and must
   // keep the record even after an agent works/converts/discards them, so any
   // selected id on the GSQ vendor is silently dropped from the cascade
@@ -991,12 +991,6 @@ const createBusinessRouter = ({
           .delete()
           .in('client_id', clientIds);
         if (policiesError) throw policiesError;
-
-        const { error: agentClientsError } = await supabase
-          .from('agent_clients')
-          .delete()
-          .in('client_id', clientIds);
-        if (agentClientsError) throw agentClientsError;
 
         const { error: clientsError } = await supabase
           .from('clients')
