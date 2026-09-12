@@ -385,7 +385,7 @@ const validateClientConflicts = async ({ phoneGroups, clientGroups, agentId }) =
 
   const { data: clients, error } = await queryInChunks({
     table: 'clients',
-    select: 'id, phone, first_name, last_name, agent_clients!agent_clients_client_id_fkey ( agent_id )',
+    select: 'id, phone, first_name, last_name, agent_id',
     column: 'phone',
     values: phones,
   });
@@ -399,9 +399,7 @@ const validateClientConflicts = async ({ phoneGroups, clientGroups, agentId }) =
 
   clientGroupsByPhone.forEach((matchingClients, phone) => {
     const ownedClients = matchingClients
-      .filter((client) => (client.agent_clients || []).some(
-        (agentClient) => agentClient.agent_id === agentId,
-      ));
+      .filter((client) => client.agent_id === agentId);
 
     if (!ownedClients.length) return;
 

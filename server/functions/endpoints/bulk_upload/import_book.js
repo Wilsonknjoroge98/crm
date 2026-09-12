@@ -95,9 +95,10 @@ function buildLead(row, agentId, leadVendorId) {
   };
 }
 
-function buildClient(row, leadId) {
+function buildClient(row, leadId, agentId) {
   const { firstName, lastName } = splitName(value(row, 'Full Name'));
   return {
+    'agent_id': agentId,
     'first_name': firstName,
     'last_name': lastName,
     'date_of_birth': value(row, 'Date of Birth'),
@@ -111,6 +112,7 @@ function buildClient(row, leadId) {
     'marital_status': value(row, 'Marital Status').toLowerCase(),
     'annual_income': parseNumber(value(row, 'Annual Income')),
     'lead_id': leadId || null,
+    'notes': value(row, 'Notes') || null,
   };
 }
 
@@ -232,7 +234,7 @@ async function insertClients({ plan, rowsWithLookups, leadIdByPhone, agentId }) 
 
   const clientsToCreate = plan.createClients.map(({ key, phone }) => {
     const rowWithLookups = lookupByKey.get(key);
-    return buildClient(rowWithLookups.row, leadIdByPhone.get(phone));
+    return buildClient(rowWithLookups.row, leadIdByPhone.get(phone), agentId);
   });
 
   if (!clientsToCreate.length) {
@@ -252,24 +254,6 @@ async function insertClients({ plan, rowsWithLookups, leadIdByPhone, agentId }) 
     )}`;
     clientIdByKey.set(key, client.id);
   });
-
-  const agentClientRows = (data || []).map((client) => {
-    const key = `${client.phone}|${normalizeString(
-      [client.first_name, client.last_name].filter(Boolean).join(' '),
-    )}`;
-    const row = lookupByKey.get(key).row;
-    return {
-      'agent_id': agentId,
-      'client_id': client.id,
-      'agent_notes': value(row, 'Notes') || null,
-    };
-  });
-
-  const { error: agentClientError } = await supabaseService
-    .from('agent_clients')
-    .insert(agentClientRows);
-
-  if (agentClientError) return { error: agentClientError };
 
   return { clientIdByKey, created: data?.length || 0 };
 }
@@ -407,4 +391,4 @@ function importError(message, error) {
   };
 }
 
-module.exports = { buildLead, importBook };
+module.exports = { buildLead, buildClient, importBook };
