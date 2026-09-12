@@ -62,3 +62,30 @@ describe('bulk-upload lead premiums', () => {
     });
   });
 });
+
+describe('bulk-upload client rows', () => {
+  test('owns the client and carries CSV notes onto the client row', () => {
+    const { buildClient } = require('../endpoints/bulk_upload/import_book');
+    const row = { ...makePersonRow('67.35'), Notes: 'Prefers evening calls' };
+
+    const client = buildClient(row, 'lead-id', 'agent-id');
+
+    expect(client).toEqual(
+      expect.objectContaining({
+        agent_id: 'agent-id',
+        lead_id: 'lead-id',
+        notes: 'Prefers evening calls',
+        first_name: 'TEST',
+        last_name: 'Premium Example',
+      }),
+    );
+  });
+
+  test('stores empty CSV notes as null', () => {
+    const { buildClient } = require('../endpoints/bulk_upload/import_book');
+
+    expect(buildClient(makePersonRow('67.35'), null, 'agent-id')).toEqual(
+      expect.objectContaining({ agent_id: 'agent-id', lead_id: null, notes: null }),
+    );
+  });
+});
