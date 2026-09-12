@@ -30,16 +30,14 @@ alter table public.leads
 alter table public.clients
   add column if not exists notes text;
 
--- One-time carry-over: agent_clients.agent_notes was the only place client
--- notes lived before this column existed. Every client has exactly one
--- agent_clients row in practice, so this is lossless. Only backfills rows
--- this script hasn't already touched, so re-running is a no-op.
-update public.clients c
-set notes = ac.agent_notes
-from public.agent_clients ac
-where ac.client_id = c.id
-  and c.notes is null
-  and ac.agent_notes is not null;
+-- Client ownership is a single column. The agent_clients join table it
+-- replaced (and the agent_notes carry-over that used to live here) are
+-- handled by sql/retire_agent_clients/migrate_client_ownership_data.sql, which must run before
+-- this script on a database that still has agent_clients data.
+alter table public.clients
+  add column if not exists agent_id uuid references public.agents(id);
+create index if not exists clients_agent_id_idx
+  on public.clients (agent_id);
 
 -- "Notify me when this is available" signups from the disabled quick-action
 -- buttons (Call / Text / Disposition / Appointment).
@@ -138,9 +136,12 @@ select
   l.agent_id,
 
   -- Lets the API scope ownership with one constant-size predicate instead of
-  -- listing every owned client id. Grouped rather than lateral so it is built
-  -- once per query, and an array so two agents on one client keep both.
-  coalesce(owners.owner_agent_ids, array[]::uuid[]) as owner_agent_ids,
+  -- listing every owned client id. owner_agent_ids is kept for one release so
+  -- code still filtering on the array works while the column-based code
+  -- deploys; drop it once nothing reads it.
+  c.agent_id as owner_agent_id,
+  case when c.agent_id is null then array[]::uuid[] else array[c.agent_id] end
+    as owner_agent_ids,
   l.sold,
   l.verified,
   l.smoker,
@@ -186,12 +187,6 @@ full outer join public.clients c
   on c.lead_id = l.id
 left join public.lead_vendors lv
   on lv.id = l.lead_vendor_id
-left join (
-  select client_id, array_agg(agent_id) as owner_agent_ids
-  from public.agent_clients
-  group by client_id
-) owners
-  on owners.client_id = c.id
 left join lateral (
   select json_agg(
     to_jsonb(p) ||
