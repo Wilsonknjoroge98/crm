@@ -575,6 +575,13 @@ const SALES_PRODUCTS = [
     baseUnitPrice: 60,
   },
   {
+    key: 'instant_form_lead',
+    name: 'Instant Form Leads',
+    leadType: 'instant_form_lead',
+    verifiedOnly: null,
+    baseUnitPrice: 25,
+  },
+  {
     key: 'fresh_mixed',
     name: 'Fresh Leads / Mixed',
     leadType: 'fresh_lead',
@@ -640,6 +647,7 @@ const SALES_CATEGORIES = [
   ['fresh_lead', 'Fresh Web Leads'],
   ['banked_lead', 'Banked Leads'],
   ['live_transfer', 'Live Transfers'],
+  ['instant_form_lead', 'Instant Form Leads'],
   ['aged_lead', 'Aged Leads'],
 ];
 
