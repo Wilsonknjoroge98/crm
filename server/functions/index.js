@@ -26,7 +26,6 @@ exports.app = functions.https.onRequest(
       'META_AD_ACCOUNT_IDS',
       'META_PUBLISHING_AD_ACCOUNT_ID',
       'META_PAGE_ID',
-      'META_INSTAGRAM_USER_ID',
       'META_TESTING_CAMPAIGN_ID',
       'META_PIXEL_ID',
       'META_DESTINATION_URL',
