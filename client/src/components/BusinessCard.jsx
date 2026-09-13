@@ -29,6 +29,7 @@ import { enqueueSnackbar } from 'notistack';
 import { saveBusinessNotes } from '../utils/query';
 import { SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 import { formatLocalTime } from '../utils/stateTimezones';
+import { toE164 } from '../utils/helpers';
 
 const SANS = '"Inter", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
@@ -245,6 +246,8 @@ const BusinessCard = ({
   onToggleSelect,
   releaseNotificationSeen,
   onQuickAction,
+  textEnabled = false,
+  onText,
   onMarkSold,
   onAddPolicy,
   onEditPolicy,
@@ -258,6 +261,10 @@ const BusinessCard = ({
   // of order and persist stale notes.
   const latestNotesRef = useRef(person.notes || '');
   const inFlightRef = useRef(false);
+
+  // only text goes live, call and appointment stay coming soon
+  const isLiveText = (label) => label === 'Text' && textEnabled;
+  const canText = Boolean(toE164(person.phone));
 
   // Reset when pagination swaps a different person into this card slot.
   useEffect(() => {
@@ -524,40 +531,56 @@ const BusinessCard = ({
               <Tooltip
                 key={label}
                 title={
-                  releaseNotificationSeen
-                    ? ''
-                    : 'Integrated sendblue texter / dialer coming soon - click to get notified'
+                  isLiveText(label)
+                    ? canText
+                      ? ''
+                      : 'No valid phone number on this record'
+                    : releaseNotificationSeen
+                      ? ''
+                      : 'Integrated sendblue texter / dialer coming soon - click to get notified'
                 }
               >
                 {/* span wrapper so the tooltip and click work on a disabled button */}
                 <Box
                   component='span'
-                  onClick={releaseNotificationSeen ? undefined : onQuickAction}
+                  onClick={
+                    isLiveText(label) || releaseNotificationSeen
+                      ? undefined
+                      : onQuickAction
+                  }
                   sx={{
                     display: 'flex',
-                    cursor: releaseNotificationSeen ? 'default' : 'pointer',
+                    cursor:
+                      isLiveText(label) || releaseNotificationSeen
+                        ? 'default'
+                        : 'pointer',
                   }}
                 >
                   <Button
                     fullWidth
                     size='small'
                     variant='outlined'
-                    disabled
+                    disabled={!(isLiveText(label) && canText)}
+                    onClick={
+                      isLiveText(label) ? () => onText?.(person) : undefined
+                    }
                     startIcon={<Icon />}
                     sx={{
                       justifyContent: 'flex-start',
-                      pointerEvents: 'none',
+                      pointerEvents:
+                        isLiveText(label) && canText ? 'auto' : 'none',
                       textTransform: 'none',
                       // Before the agent has seen the release notification,
                       // keep the mockup's readable "click me" look; once
                       // seen, fall back to MUI's normal disabled styling.
-                      ...(!releaseNotificationSeen && {
-                        '&.Mui-disabled': {
-                          color: 'text.primary',
-                          borderColor: '#E0E0E0',
-                          opacity: 0.9,
-                        },
-                      }),
+                      ...(!releaseNotificationSeen &&
+                        !isLiveText(label) && {
+                          '&.Mui-disabled': {
+                            color: 'text.primary',
+                            borderColor: '#E0E0E0',
+                            opacity: 0.9,
+                          },
+                        }),
                     }}
                   >
                     {label}

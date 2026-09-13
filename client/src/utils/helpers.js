@@ -37,6 +37,14 @@ export const formatPhone = (value) => {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 };
 
+export const toE164 = (phone) => {
+  if (phone === null || phone === undefined) return null;
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  if (digits.length !== 10) return null;
+  return `+1${digits}`;
+};
+
 export const toTitleCase = (str) =>
   str.replace(/\w\S*/g, (word) => {
     if (word === word.toUpperCase()) return word; // Preserve all-uppercase words (e.g., acronyms)

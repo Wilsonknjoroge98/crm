@@ -31,7 +31,9 @@ import {
   getBusinessRecords,
   getBusinessMetrics,
   getAgents,
+  getAccount,
 } from '../utils/query';
+import { useAgent } from '../hooks/useAgent';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
@@ -248,8 +250,9 @@ const CardSkeleton = () => (
 
 const Business = () => {
   const queryClient = useQueryClient();
-  const { user } = useSelector((state) => state.user);
+  const { user, isAuthenticated } = useSelector((state) => state.user);
   const isAdmin = user?.id === SUPERUSER_ID;
+  const agent = useAgent();
   const [gsqOnly, setGsqOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -331,6 +334,18 @@ const Business = () => {
     queryKey: ['agents'],
     queryFn: () => getAgents(),
   });
+
+  // same key as Profile so the gsq agent doc is shared from cache
+  const { data: account } = useQuery({
+    queryKey: ['account', user?.email, isAuthenticated],
+    queryFn: () => getAccount({ email: user?.email }),
+    staleTime: 1000 * 60 * 5,
+    refetchOnMount: false,
+    enabled: !!user?.email && isAuthenticated,
+  });
+  const textEnabled = Boolean(
+    account?.sendBlueEnabled && agent?.sendblue_number,
+  );
 
   const rows = businessResponse?.data || [];
   const rowCount = businessResponse?.pagination?.total || 0;
@@ -719,6 +734,7 @@ const Business = () => {
                 onToggleSelect={toggleSelected}
                 releaseNotificationSeen={releaseNotificationSeen}
                 onQuickAction={handleOpenReleaseDialog}
+                textEnabled={textEnabled}
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
