@@ -1,17 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
   CircularProgress,
   Drawer,
   IconButton,
+  InputAdornment,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useQuery } from '@tanstack/react-query';
+import SendIcon from '@mui/icons-material/Send';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { getMessages } from '../utils/query';
+import { getMessages, sendMessage } from '../utils/query';
 import { toE164 } from '../utils/helpers';
 
 const BORDER = '#E0E0E0';
@@ -90,7 +93,11 @@ const Bubble = ({ message }) => {
             color: outbound ? 'rgba(255, 255, 255, 0.7)' : 'text.disabled',
           }}
         >
-          {message.sentAt ? dayjs(message.sentAt).format('h:mm A') : ''}
+          {message.optimistic
+            ? 'Sending…'
+            : message.sentAt
+              ? dayjs(message.sentAt).format('h:mm A')
+              : ''}
         </Typography>
       </Box>
     </Box>
@@ -102,6 +109,54 @@ const MessagesDrawer = ({ open, person, onClose }) => {
   const name =
     [person?.first_name, person?.last_name].filter(Boolean).join(' ') || '—';
   const bottomRef = useRef(null);
+  const queryClient = useQueryClient();
+  const queryKey = ['messages', phone];
+  const [draft, setDraft] = useState('');
+  const [sendError, setSendError] = useState(null);
+
+  useEffect(() => {
+    setDraft('');
+    setSendError(null);
+  }, [phone]);
+
+  // optimistic bubble goes in right away, swapped for the real one on success, pulled and draft restored on failure
+  const { mutate: send, isPending: isSending } = useMutation({
+    mutationFn: sendMessage,
+    onMutate: async ({ content }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const optimistic = {
+        id: `optimistic-${Date.now()}`,
+        content,
+        outbound: true,
+        status: 'SENDING',
+        sentAt: new Date().toISOString(),
+        optimistic: true,
+      };
+      queryClient.setQueryData(queryKey, (old = []) => [...old, optimistic]);
+      setDraft('');
+      setSendError(null);
+      return { optimisticId: optimistic.id, content };
+    },
+    onSuccess: (created, variables, context) => {
+      queryClient.setQueryData(queryKey, (old = []) =>
+        old.map((m) => (m.id === context.optimisticId ? created : m)),
+      );
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error, variables, context) => {
+      queryClient.setQueryData(queryKey, (old = []) =>
+        old.filter((m) => m.id !== context?.optimisticId),
+      );
+      setDraft((current) => current || context?.content || '');
+      setSendError(error?.response?.data?.error || "Couldn't send, try again");
+    },
+  });
+
+  const handleSend = () => {
+    const content = draft.trim();
+    if (!content || isSending) return;
+    send({ phone, content });
+  };
 
   // sendblue is the source of truth and theres no inbound webhook, so poll while open
   const {
@@ -111,10 +166,12 @@ const MessagesDrawer = ({ open, person, onClose }) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['messages', phone],
+    queryKey,
     queryFn: () => getMessages({ phone }),
     enabled: open && Boolean(phone),
-    refetchInterval: open ? POLL_MS : false,
+    // pause polling mid send so a refetch cant wipe the optimistic bubble
+    refetchInterval: open && !isSending ? POLL_MS : false,
+    refetchOnWindowFocus: !isSending,
   });
 
   useEffect(() => {
@@ -134,6 +191,8 @@ const MessagesDrawer = ({ open, person, onClose }) => {
             width: { xs: '100%', sm: 420 },
             bgcolor: 'background.default',
             borderLeft: `1px solid ${BORDER}`,
+            display: 'flex',
+            flexDirection: 'column',
           },
         },
       }}
@@ -199,6 +258,57 @@ const MessagesDrawer = ({ open, person, onClose }) => {
             )}
             <div ref={bottomRef} />
           </Stack>
+        )}
+      </Box>
+
+      <Box
+        sx={{
+          flexShrink: 0,
+          p: 1.5,
+          bgcolor: '#FFFFFF',
+          borderTop: `1px solid ${BORDER}`,
+        }}
+      >
+        <TextField
+          fullWidth
+          size='small'
+          multiline
+          maxRows={4}
+          placeholder='Type a message...'
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              handleSend();
+            }
+          }}
+          slotProps={{
+            input: {
+              endAdornment: (
+                <InputAdornment position='end'>
+                  <IconButton
+                    size='small'
+                    onClick={handleSend}
+                    disabled={!draft.trim() || isSending}
+                    aria-label='Send message'
+                    sx={{ color: 'primary.main' }}
+                  >
+                    <SendIcon fontSize='small' />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        {sendError && (
+          <Typography
+            variant='caption'
+            color='error'
+            sx={{ display: 'block', mt: 0.5 }}
+          >
+            {sendError}
+          </Typography>
         )}
       </Box>
     </Drawer>

@@ -183,6 +183,15 @@ const getMessages = async ({ phone }) => {
   return response.data;
 };
 
+const sendMessage = async ({ phone, content }) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/messages',
+    data: { phone, content },
+  });
+  return response.data;
+};
+
 const subscribeReleaseNotifications = async ({ email } = {}) => {
   const response = await apiClient.request({
     method: 'POST',
@@ -1152,6 +1161,7 @@ export {
   saveBusinessNotes,
   subscribeReleaseNotifications,
   getMessages,
+  sendMessage,
   postLead,
   patchLead,
   deleteBusinessRecords,
