@@ -174,6 +174,15 @@ const saveBusinessNotes = async ({ personId, notes }) => {
   return response.data?.data;
 };
 
+const getMessages = async ({ phone }) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/messages',
+    params: { phone },
+  });
+  return response.data;
+};
+
 const subscribeReleaseNotifications = async ({ email } = {}) => {
   const response = await apiClient.request({
     method: 'POST',
@@ -1142,6 +1151,7 @@ export {
   getBusinessMetrics,
   saveBusinessNotes,
   subscribeReleaseNotifications,
+  getMessages,
   postLead,
   patchLead,
   deleteBusinessRecords,

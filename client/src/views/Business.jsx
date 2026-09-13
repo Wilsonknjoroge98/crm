@@ -43,6 +43,7 @@ import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import BusinessCard from '../components/BusinessCard';
+import MessagesDrawer from '../components/MessagesDrawer';
 import ReleaseNotificationDialog, {
   STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
 } from '../components/ReleaseNotificationDialog';
@@ -268,6 +269,7 @@ const Business = () => {
   const [editingPolicy, setEditingPolicy] = useState(null);
   const [editPolicyOpen, setEditPolicyOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [textTarget, setTextTarget] = useState(null);
   // Once an agent has seen the release notification once, don't reopen it —
   // the triggering buttons fall back to a plain disabled look.
   const [releaseNotificationSeen, setReleaseNotificationSeen] = useState(
@@ -735,6 +737,7 @@ const Business = () => {
                 releaseNotificationSeen={releaseNotificationSeen}
                 onQuickAction={handleOpenReleaseDialog}
                 textEnabled={textEnabled}
+                onText={setTextTarget}
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
@@ -812,6 +815,12 @@ const Business = () => {
       <ReleaseNotificationDialog
         open={releaseDialogOpen}
         onClose={() => setReleaseDialogOpen(false)}
+      />
+
+      <MessagesDrawer
+        open={Boolean(textTarget)}
+        person={textTarget}
+        onClose={() => setTextTarget(null)}
       />
 
       {clientDialogOpen && (
