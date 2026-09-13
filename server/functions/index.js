@@ -31,6 +31,8 @@ exports.app = functions.https.onRequest(
       'META_DESTINATION_URL',
       'META_MARKETING_ACCESS_TOKEN',
       'HYROS_SECRET_KEY',
+      'SEND_BLUE_API_KEY',
+      'SEND_BLUE_SECRET_KEY',
     ],
   },
   expressApp,
