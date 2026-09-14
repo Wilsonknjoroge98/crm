@@ -161,7 +161,7 @@ const formatMultiplier = (value) =>
 const formatSigned = (value) =>
   `${Number(value) < 0 ? '-' : '+'}${formatCurrency(Math.abs(Number(value) || 0))}`;
 
-const MetricCard = ({ label, value, subtext, accentColor = '#1C7EBB' }) => (
+const MetricCard = ({ label, value, subtext, accentColor }) => (
   <Paper
     variant='outlined'
     sx={{
@@ -526,27 +526,32 @@ const Business = () => {
                 label='Lead Spend'
                 value={formatCurrency(metrics?.leadSpend)}
                 subtext='All-time Stripe charges'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='Lead Count'
                 value={Number(metrics?.leadsDelivered || 0).toLocaleString()}
                 subtext='All-time'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='Closed Sales'
                 value={Number(metrics?.closedSales || 0).toLocaleString()}
                 subtext='All-time policies sold'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='Total Closed'
                 value={formatCurrency(metrics?.totalClosed)}
                 subtext='Annual premium, all-time'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='ROI Multiplier'
                 value={formatMultiplier(metrics?.roiMultiplier)}
                 subtext={`${formatSigned(metrics?.roiNet)} net`}
-                accentColor='#2E7D32'
+                accentColor='#3F6F5B' // #3F6F5B (Theme Forest Green)
+                valueColor='#3F6F5B' // Highlights the bottom-line metric
               />
             </>
           )}

@@ -264,7 +264,9 @@ const BusinessCard = ({
 
   // only text goes live, call and appointment stay coming soon
   const isLiveText = (label) => label === 'Text' && textEnabled;
+
   const canText = Boolean(toE164(person.phone));
+  console.log(person.phone, toE164(person.phone));
 
   // Reset when pagination swaps a different person into this card slot.
   useEffect(() => {
@@ -527,67 +529,103 @@ const BusinessCard = ({
         <Grid size={{ xs: 20, md: 3 }}>
           <ColumnHeading>Actions</ColumnHeading>
           <Stack spacing={1}>
-            {QUICK_ACTIONS.map(([label, Icon]) => (
-              <Tooltip
-                key={label}
-                title={
-                  isLiveText(label)
-                    ? canText
-                      ? ''
-                      : 'No valid phone number on this record'
-                    : releaseNotificationSeen
-                      ? ''
-                      : 'Integrated sendblue texter / dialer coming soon - click to get notified'
-                }
-              >
-                {/* span wrapper so the tooltip and click work on a disabled button */}
-                <Box
-                  component='span'
-                  onClick={
-                    isLiveText(label) || releaseNotificationSeen
-                      ? undefined
-                      : onQuickAction
+            {QUICK_ACTIONS.map(([label, Icon]) => {
+              const isTextAction = isLiveText(label);
+              const isEnabled = isTextAction && canText;
+
+              return (
+                <Tooltip
+                  key={label}
+                  title={
+                    isTextAction
+                      ? canText
+                        ? ''
+                        : 'No valid phone number on this record'
+                      : releaseNotificationSeen
+                        ? ''
+                        : 'Integrated sendblue texter / dialer coming soon - click to get notified'
                   }
-                  sx={{
-                    display: 'flex',
-                    cursor:
-                      isLiveText(label) || releaseNotificationSeen
-                        ? 'default'
-                        : 'pointer',
-                  }}
                 >
-                  <Button
-                    fullWidth
-                    size='small'
-                    variant='outlined'
-                    disabled={!(isLiveText(label) && canText)}
+                  <Box
+                    component='span'
                     onClick={
-                      isLiveText(label) ? () => onText?.(person) : undefined
+                      isTextAction || releaseNotificationSeen
+                        ? undefined
+                        : onQuickAction
                     }
-                    startIcon={<Icon />}
                     sx={{
-                      justifyContent: 'flex-start',
-                      pointerEvents:
-                        isLiveText(label) && canText ? 'auto' : 'none',
-                      textTransform: 'none',
-                      // Before the agent has seen the release notification,
-                      // keep the mockup's readable "click me" look; once
-                      // seen, fall back to MUI's normal disabled styling.
-                      ...(!releaseNotificationSeen &&
-                        !isLiveText(label) && {
-                          '&.Mui-disabled': {
-                            color: 'text.primary',
-                            borderColor: '#E0E0E0',
-                            opacity: 0.9,
-                          },
-                        }),
+                      display: 'flex',
+                      width: '100%',
+                      cursor:
+                        isTextAction || releaseNotificationSeen
+                          ? 'default'
+                          : 'pointer',
                     }}
                   >
-                    {label}
-                  </Button>
-                </Box>
-              </Tooltip>
-            ))}
+                    <Button
+                      fullWidth
+                      size='small'
+                      variant='outlined'
+                      disabled={!isEnabled}
+                      onClick={
+                        isTextAction ? () => onText?.(person) : undefined
+                      }
+                      startIcon={
+                        <Icon
+                          sx={{
+                            fontSize: '1rem !important',
+                            color: isEnabled
+                              ? '#007AFF' // Signature iMessage blue icon
+                              : 'text.disabled',
+                            transition: 'color 0.15s ease',
+                          }}
+                        />
+                      }
+                      sx={{
+                        justifyContent: 'flex-start',
+                        textTransform: 'none',
+                        fontSize: '0.8125rem',
+                        fontWeight: isEnabled ? 600 : 500,
+                        py: 0.6,
+                        px: 1.25,
+                        borderRadius: 1.5,
+                        pointerEvents: isEnabled ? 'auto' : 'none',
+
+                        // --- Enabled Active Text Button ---
+                        ...(isEnabled && {
+                          bgcolor: '#FFFFFF',
+                          color: 'text.primary',
+                          borderColor: '#D1D5DB',
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                          '&:hover': {
+                            bgcolor: '#F0F7FF',
+                            borderColor: '#007AFF',
+                            color: '#007AFF',
+                            '& .MuiButton-startIcon svg': {
+                              color: '#007AFF',
+                            },
+                          },
+                        }),
+
+                        // --- Disabled / Coming Soon Buttons ---
+                        ...(!isEnabled && {
+                          '&.Mui-disabled': {
+                            bgcolor: 'transparent',
+                            borderColor: '#E5E7EB',
+                            color: releaseNotificationSeen
+                              ? 'text.disabled'
+                              : 'text.secondary',
+                            opacity: releaseNotificationSeen ? 0.6 : 0.85,
+                          },
+                        }),
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  </Box>
+                </Tooltip>
+              );
+            })}
             {isSale && hasNoPolicies ? (
               <Button
                 fullWidth
