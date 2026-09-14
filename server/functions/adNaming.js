@@ -30,7 +30,7 @@ const formatPublishDate = (publishedAt = new Date()) => {
   const [month, day, year] = formatted.split('/');
 
   return {
-    display: `${day}/${month}/${year}`,
+    display: `${month}/${day}/${year}`,
     slug: `${month}_${day}_${year}`,
   };
 };

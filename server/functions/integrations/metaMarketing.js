@@ -221,8 +221,7 @@ const createMetaMarketingClient = ({
         targeting,
         promoted_object: {
           pixel_id: config.pixelId,
-          custom_event_type: 'OTHER',
-          custom_event_str: 'TextVerified',
+          custom_event_type: 'LEAD',
         },
         status: 'PAUSED',
       }),

@@ -59,7 +59,7 @@ const publishDate = () => {
   })
     .format(new Date())
     .split('/');
-  return [day, month, year].join('/');
+  return [month, day, year].join('/');
 };
 
 const AdPublish = () => {
