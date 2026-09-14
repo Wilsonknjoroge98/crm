@@ -31,7 +31,9 @@ import {
   getBusinessRecords,
   getBusinessMetrics,
   getAgents,
+  getAccount,
 } from '../utils/query';
+import { useAgent } from '../hooks/useAgent';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
@@ -41,6 +43,7 @@ import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import BusinessCard from '../components/BusinessCard';
+import MessagesDrawer from '../components/MessagesDrawer';
 import ReleaseNotificationDialog, {
   STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
 } from '../components/ReleaseNotificationDialog';
@@ -158,7 +161,7 @@ const formatMultiplier = (value) =>
 const formatSigned = (value) =>
   `${Number(value) < 0 ? '-' : '+'}${formatCurrency(Math.abs(Number(value) || 0))}`;
 
-const MetricCard = ({ label, value, subtext, accentColor = '#1C7EBB' }) => (
+const MetricCard = ({ label, value, subtext, accentColor }) => (
   <Paper
     variant='outlined'
     sx={{
@@ -248,8 +251,9 @@ const CardSkeleton = () => (
 
 const Business = () => {
   const queryClient = useQueryClient();
-  const { user } = useSelector((state) => state.user);
+  const { user, isAuthenticated } = useSelector((state) => state.user);
   const isAdmin = user?.id === SUPERUSER_ID;
+  const agent = useAgent();
   const [gsqOnly, setGsqOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -265,6 +269,7 @@ const Business = () => {
   const [editingPolicy, setEditingPolicy] = useState(null);
   const [editPolicyOpen, setEditPolicyOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [textTarget, setTextTarget] = useState(null);
   // Once an agent has seen the release notification once, don't reopen it —
   // the triggering buttons fall back to a plain disabled look.
   const [releaseNotificationSeen, setReleaseNotificationSeen] = useState(
@@ -331,6 +336,18 @@ const Business = () => {
     queryKey: ['agents'],
     queryFn: () => getAgents(),
   });
+
+  // same key as Profile so the gsq agent doc is shared from cache
+  const { data: account } = useQuery({
+    queryKey: ['account', user?.email, isAuthenticated],
+    queryFn: () => getAccount({ email: user?.email }),
+    staleTime: 1000 * 60 * 5,
+    refetchOnMount: false,
+    enabled: !!user?.email && isAuthenticated,
+  });
+  const textEnabled = Boolean(
+    account?.sendBlueEnabled && agent?.sendblue_number,
+  );
 
   const rows = businessResponse?.data || [];
   const rowCount = businessResponse?.pagination?.total || 0;
@@ -509,27 +526,32 @@ const Business = () => {
                 label='Lead Spend'
                 value={formatCurrency(metrics?.leadSpend)}
                 subtext='All-time Stripe charges'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='Lead Count'
                 value={Number(metrics?.leadsDelivered || 0).toLocaleString()}
                 subtext='All-time'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='Closed Sales'
                 value={Number(metrics?.closedSales || 0).toLocaleString()}
                 subtext='All-time policies sold'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='Total Closed'
                 value={formatCurrency(metrics?.totalClosed)}
                 subtext='Annual premium, all-time'
+                accentColor='#1C7EBB'
               />
               <MetricCard
                 label='ROI Multiplier'
                 value={formatMultiplier(metrics?.roiMultiplier)}
                 subtext={`${formatSigned(metrics?.roiNet)} net`}
-                accentColor='#2E7D32'
+                accentColor='#3F6F5B' // #3F6F5B (Theme Forest Green)
+                valueColor='#3F6F5B' // Highlights the bottom-line metric
               />
             </>
           )}
@@ -719,6 +741,8 @@ const Business = () => {
                 onToggleSelect={toggleSelected}
                 releaseNotificationSeen={releaseNotificationSeen}
                 onQuickAction={handleOpenReleaseDialog}
+                textEnabled={textEnabled}
+                onText={setTextTarget}
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
@@ -796,6 +820,12 @@ const Business = () => {
       <ReleaseNotificationDialog
         open={releaseDialogOpen}
         onClose={() => setReleaseDialogOpen(false)}
+      />
+
+      <MessagesDrawer
+        open={Boolean(textTarget)}
+        person={textTarget}
+        onClose={() => setTextTarget(null)}
       />
 
       {clientDialogOpen && (
