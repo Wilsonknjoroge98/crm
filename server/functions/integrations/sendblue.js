@@ -1,4 +1,6 @@
 const axios = require('axios');
+const logger = require('firebase-functions/logger');
+const { supabaseService } = require('../services/supabase');
 
 const SENDBLUE_BASE_URL = 'https://api.sendblue.co';
 
@@ -82,4 +84,45 @@ const sendMessage = async ({ fromNumber, toNumber, content }) => {
   return toMessage(response.data);
 };
 
-module.exports = { toE164, fetchMessages, sendMessage };
+const isFromSendblue = (req) =>
+  Boolean(process.env.SEND_BLUE_WEBHOOK_SECRET) &&
+  req.headers['sb-signing-secret'] === process.env.SEND_BLUE_WEBHOOK_SECRET;
+
+const inboundSendblue = async (req, res) => {
+  if (!isFromSendblue(req)) {
+    logger.warn('Rejected sendblue webhook, bad secret');
+    return res.status(401).send({ message: 'Unauthorized' });
+  }
+
+  const m = req.body || {};
+  const number = toE164(m.number || (m.is_outbound ? m.to_number : m.from_number));
+  // outbound events come with sendblue_number null, our line is only in from_number
+  const line = m.sendblue_number || (m.is_outbound ? m.from_number : m.to_number);
+  if (!m.message_handle || !number || !line) {
+    logger.warn('Ignored sendblue webhook, missing fields', { body: m });
+    return res.status(400).send({ message: 'Missing required fields' });
+  }
+
+  // upsert so retry is a no op
+  const { error } = await supabaseService.from('messages').upsert(
+    {
+      message_handle: m.message_handle,
+      sendblue_number: line,
+      number,
+      content: m.content ?? '',
+      is_outbound: Boolean(m.is_outbound),
+      status: m.status ?? null,
+      error_message: m.error_message || null,
+      sent_at: m.date_sent || m.date_updated || null,
+    },
+    { onConflict: 'message_handle' },
+  );
+
+  if (error) {
+    logger.error('Sendblue webhook upsert failed', { error });
+    return res.status(500).send({ message: 'Failed to store message' });
+  }
+  return res.status(200).send({ message: 'OK' });
+};
+
+module.exports = { toE164, fetchMessages, sendMessage, inboundSendblue };

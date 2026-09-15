@@ -20,11 +20,35 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { getMessages, sendMessage } from '../utils/query';
 import { toE164, stringToColor } from '../utils/helpers';
+import { supabase } from '../utils/supabase';
 
 const SERIF = '"Libre Baskerville", serif';
 const SANS = '"Inter", sans-serif';
 const BORDER = '#E5E7EB';
-const POLL_MS = 8000;
+
+const rowToMessage = (row) => ({
+  id: row.message_handle,
+  content: row.content ?? '',
+  outbound: Boolean(row.is_outbound),
+  status: row.status ?? null,
+  sentAt: row.sent_at,
+  error: row.error_message || null,
+});
+
+const upsertMessage = (list, message) =>
+  list.some((m) => m.id === message.id)
+    ? list.map((m) => (m.id === message.id ? message : m))
+    : [...list, message];
+
+const statusLabel = (message) => {
+  if (!message.outbound) return null;
+  if (message.status === 'DELIVERED') return 'Delivered';
+  if (message.status === 'SENT') return 'Sent';
+  if (message.status === 'ERROR' || message.status === 'DECLINED') {
+    return message.error ? `Failed: ${message.error}` : 'Failed';
+  }
+  return 'Sending…';
+};
 
 const displayPhone = (phone) => {
   const e164 = toE164(phone);
@@ -117,11 +141,12 @@ const Bubble = ({ message }) => {
           letterSpacing: '0.02em',
         }}
       >
-        {message.optimistic
-          ? 'Delivering…'
-          : message.sentAt
-            ? dayjs(message.sentAt).format('h:mm A')
-            : ''}
+        {[
+          statusLabel(message),
+          message.sentAt ? dayjs(message.sentAt).format('h:mm A') : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       </Typography>
     </Box>
   );
@@ -161,7 +186,10 @@ const MessagesDrawer = ({ open, person, onClose }) => {
     },
     onSuccess: (created, variables, context) => {
       queryClient.setQueryData(queryKey, (old = []) =>
-        old.map((m) => (m.id === context.optimisticId ? created : m)),
+        upsertMessage(
+          old.filter((m) => m.id !== context.optimisticId),
+          created,
+        ),
       );
       queryClient.invalidateQueries({ queryKey });
     },
@@ -190,9 +218,35 @@ const MessagesDrawer = ({ open, person, onClose }) => {
     queryKey,
     queryFn: () => getMessages({ phone }),
     enabled: open && Boolean(phone),
-    refetchInterval: open && !isSending ? POLL_MS : false,
     refetchOnWindowFocus: !isSending,
   });
+
+  useEffect(() => {
+    const number = toE164(phone);
+    if (!open || !number) return undefined;
+    const channel = supabase
+      .channel(`messages:${number}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `number=eq.${number}`,
+        },
+        (payload) => {
+          if (!payload.new?.message_handle) return;
+          queryClient.setQueryData(queryKey, (old = []) =>
+            upsertMessage(old, rowToMessage(payload.new)),
+          );
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, phone]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
