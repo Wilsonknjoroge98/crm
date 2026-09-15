@@ -2,6 +2,7 @@ const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/scheduler');
 
 const { inboundGSQ } = require('./integrations/GSQ');
+const { inboundSendblue } = require('./integrations/sendblue');
 const { updatePolicyStatus } = require('./jobs/update_policy_status');
 const {
   weeklyLeaderboard,
@@ -43,6 +44,13 @@ exports.newLead = functions.https.onRequest(
     secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
   },
   inboundGSQ,
+);
+
+exports.sendblueWebhook = functions.https.onRequest(
+  {
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY', 'SEND_BLUE_WEBHOOK_SECRET'],
+  },
+  inboundSendblue,
 );
 
 exports.updatePolicyStatus = onSchedule(
