@@ -61,7 +61,11 @@ export default function ProfilePopover({
           >
             {getInitials(agentData?.name)}
           </Avatar>
-          <Typography variant='subtitle1' fontWeight={600}>
+          <Typography
+            variant='subtitle1'
+            fontWeight={600}
+            fontFamily='Libre Baskerville, serif'
+          >
             {agentData?.first_name} {agentData?.last_name}
           </Typography>
         </Stack>

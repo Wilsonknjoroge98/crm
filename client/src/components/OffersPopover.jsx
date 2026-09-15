@@ -1,215 +1,363 @@
+import { useState } from 'react';
 import {
-  Menu,
   Box,
-  Stack,
-  Typography,
-  Divider,
+  Button,
+  Card,
   Chip,
-  Link,
+  Popover,
+  Stack,
+  Tooltip,
+  Typography,
 } from '@mui/material';
-import NorthEastIcon from '@mui/icons-material/NorthEast';
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
+import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
+const SERIF = '"Libre Baskerville", serif';
+const SANS = '"Inter", sans-serif';
+const MONO = '"JetBrains Mono", monospace';
+const BORDER = '#E5E7EB';
 
-// Not a Stripe discount — a standing referral incentive, so it's hardcoded
-// rather than fetched. Agents get 2 free fresh leads per positive Google
-// review a client leaves for GetSeniorQuotes.com.
 export const FREE_LEAD_OFFERS = [
   {
-    id: 'free-leads-google-review',
+    id: 'google-review-bounty',
     title: '2 Fresh Leads',
-    description: 'When a client leaves a positive Google review',
-    linkLabel: 'Here',
-    linkUrl: 'https://g.page/r/Cae_g-5KWKUtEAE/review',
+    badge: 'Review Bounty',
+    description:
+      'Earn 2 free verified leads when a client leaves a positive Google review.',
+    actionLabel: 'Copy Review Link',
+    url: 'https://g.page/r/Cae_g-5KWKUtEAE/review',
   },
 ];
 
-const OfferItem = ({ offer }) => {
-  const expiresEst = offer.expires_at
-    ? dayjs(offer.expires_at).tz('America/New_York')
-    : null;
+const OffersPopover = ({ anchorEl, offers = [], onClose }) => {
+  const [copiedCode, setCopiedCode] = useState(null);
+  const open = Boolean(anchorEl);
+  const totalCount = offers.length + FREE_LEAD_OFFERS.length;
+
+  const handleCopy = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      // Clipboard write failed (blocked permission, insecure context, etc.) —
+      // leave copiedCode untouched so the UI doesn't falsely claim success.
+    }
+  };
 
   return (
-    <Box sx={{ px: 2.5, py: 2 }}>
-      <Stack spacing={0.75}>
-        <Typography
-          variant='subtitle1'
-          sx={{
-            fontFamily: '"Libre Baskerville", serif',
-            fontWeight: 700,
-            fontSize: '1rem',
-            lineHeight: 1.25,
-            color: 'text.primary',
-          }}
-        >
-          {offer.title}
-        </Typography>
-
-        {offer.description && (
+    <Popover
+      open={open}
+      anchorEl={anchorEl}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      slotProps={{
+        paper: {
+          sx: {
+            width: 360,
+            p: 2,
+            mt: 1,
+            borderRadius: 3,
+            bgcolor: '#FBFBFA',
+            border: `1px solid ${BORDER}`,
+            boxShadow:
+              '0 12px 32px -4px rgba(5, 17, 24, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04)',
+          },
+        },
+      }}
+    >
+      {/* Header */}
+      <Stack
+        direction='row'
+        justifyContent='space-between'
+        alignItems='center'
+        mb={2}
+      >
+        <Stack direction='row' spacing={1} alignItems='center'>
+          <LocalOfferOutlinedIcon
+            sx={{ fontSize: '1.1rem', color: 'action.main' }}
+          />
           <Typography
-            variant='body2'
-            noWrap
-            sx={{
-              color: 'text.secondary',
-              fontSize: '0.8125rem',
-              lineHeight: 1.5,
-            }}
+            fontFamily={SERIF}
+            fontWeight={700}
+            fontSize='0.95rem'
+            color='primary.main'
           >
-            {offer.description}
+            Special Offers
           </Typography>
-        )}
+        </Stack>
+        <Chip
+          label={`${totalCount} Active`}
+          size='small'
+          sx={{
+            height: 20,
+            fontSize: '0.625rem',
+            fontWeight: 700,
+            bgcolor: 'success.light',
+            color: 'success.main',
+            borderRadius: 1,
+          }}
+        />
+      </Stack>
 
-        {(offer.code || offer.expires_at || offer.linkUrl) && (
-          <Stack spacing={0.5} sx={{ pt: 0.75 }}>
-            <Stack direction='row' spacing={1.25} alignItems='center'>
-              {offer.code && (
-                <Chip
-                  label={offer.code}
-                  size='small'
-                  sx={{
-                    fontFamily: '"Libre Baskerville", serif',
-                    fontWeight: 600,
-                    fontSize: '0.72rem',
-                    letterSpacing: '0.08em',
-                    borderRadius: '4px',
-                    bgcolor: 'grey.50',
-                    color: 'text.primary',
-                    border: '1px solid',
-                    borderColor: 'grey.300',
-                    height: 22,
-                    '& .MuiChip-label': {
-                      px: 1,
-                    },
-                  }}
-                />
-              )}
+      <Stack spacing={1.5}>
+        {/* Dynamic Discount Offers */}
+        {offers.length > 0 ? (
+          offers.map((offer) => (
+            <Card
+              key={offer.id || offer.code}
+              variant='outlined'
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: '#FFFFFF',
+                borderColor: BORDER,
+                borderTop: '3px solid #D4AF37',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+              }}
+            >
+              <Typography
+                variant='caption'
+                sx={{
+                  fontFamily: SANS,
+                  fontWeight: 700,
+                  fontSize: '0.65rem',
+                  letterSpacing: '0.06em',
+                  color: '#B78103',
+                  textTransform: 'uppercase',
+                  display: 'block',
+                  mb: 0.5,
+                }}
+              >
+                {offer.badge || 'Discount'}
+              </Typography>
 
-              {offer.linkUrl && (
-                <Link
-                  href={offer.linkUrl}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  underline='hover'
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 0.4,
-                    fontWeight: 600,
-                    fontSize: '0.75rem',
-                    color: 'accent.main',
-                  }}
-                >
-                  {offer.linkLabel || 'Learn More'}
-                  <NorthEastIcon sx={{ fontSize: '0.7rem' }} />
-                </Link>
-              )}
-            </Stack>
+              <Typography
+                variant='h6'
+                sx={{
+                  fontFamily: SERIF,
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  color: 'primary.main',
+                }}
+              >
+                {offer.title || (
+                  <>
+                    <Box component='span' sx={{ fontFamily: MONO, mr: 0.5 }}>
+                      {offer.discount || '25%'}
+                    </Box>
+                    Off
+                  </>
+                )}
+              </Typography>
 
-            {offer.expires_at && (
               <Typography
                 variant='caption'
                 sx={{
                   color: 'text.secondary',
-                  fontSize: '0.72rem',
-                  letterSpacing: '0.02em',
+                  display: 'block',
+                  my: 1,
+                  whiteSpace: 'pre-line',
                 }}
               >
-                Expires {expiresEst.format('MMM D, h:mm A')}{' '}
-                {expiresEst.offsetName('short')}
+                {offer.description ||
+                  '91–180 Day Aged Leads (Verified & Unverified).'}
               </Typography>
-            )}
-          </Stack>
-        )}
-      </Stack>
-    </Box>
-  );
-};
 
-export default function OffersPopover({ anchorEl, offers = [], onClose }) {
-  return (
-    <Menu
-      anchorEl={anchorEl}
-      open={Boolean(anchorEl)}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      PaperProps={{
-        elevation: 4,
-        sx: {
-          width: 320,
-          maxHeight: 420,
-          borderRadius: 1.5,
-          border: '1px solid',
-          borderColor: 'divider',
-          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.06)',
-          p: 0,
-        },
-      }}
-    >
-      {/* Discounts */}
-      <Box sx={{ px: 2.5, py: 1.75 }}>
-        <Typography
-          variant='overline'
-          sx={{
-            letterSpacing: '0.14em',
-            color: 'text.secondary',
-            fontSize: '0.65rem',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-          }}
-        >
-          Discounts
-        </Typography>
-      </Box>
+              <Stack
+                direction='row'
+                justifyContent='space-between'
+                alignItems='center'
+                mt={1.5}
+                pt={1.25}
+                sx={{ borderTop: '1px solid #F0F0F0' }}
+              >
+                <Tooltip
+                  title={
+                    copiedCode === (offer.code || 'RAS25')
+                      ? 'Copied!'
+                      : 'Click to copy code'
+                  }
+                >
+                  <Button
+                    size='small'
+                    variant='outlined'
+                    onClick={() => handleCopy(offer.code || 'RAS25')}
+                    endIcon={
+                      copiedCode === (offer.code || 'RAS25') ? (
+                        <CheckRoundedIcon
+                          sx={{
+                            fontSize: '0.75rem !important',
+                            color: 'success.main',
+                          }}
+                        />
+                      ) : (
+                        <ContentCopyIcon
+                          sx={{ fontSize: '0.75rem !important' }}
+                        />
+                      )
+                    }
+                    sx={{
+                      py: 0.25,
+                      px: 1,
+                      fontSize: '0.75rem',
+                      fontFamily: MONO,
+                      fontWeight: 700,
+                      color: 'primary.main',
+                      bgcolor: '#FFFDF5',
+                      borderColor:
+                        copiedCode === (offer.code || 'RAS25')
+                          ? 'success.main'
+                          : 'rgba(212, 175, 55, 0.4)',
+                      borderStyle: 'dashed',
+                      borderRadius: 1,
+                      '&:hover': {
+                        borderColor: '#D4AF37',
+                        bgcolor: '#FFF9E6',
+                      },
+                    }}
+                  >
+                    {offer.code || 'RAS25'}
+                  </Button>
+                </Tooltip>
 
-      <Divider sx={{ borderColor: 'grey.100' }} />
-
-      <Stack divider={<Divider sx={{ borderColor: 'grey.100' }} />}>
-        {offers.map((offer) => (
-          <OfferItem key={offer.id} offer={offer} />
-        ))}
-
-        {offers.length === 0 && (
-          <Box sx={{ px: 3, py: 4 }}>
+                <Button
+                  size='small'
+                  disabled={!offer.linkUrl}
+                  href={offer.linkUrl || undefined}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  endIcon={
+                    <ArrowForwardRoundedIcon
+                      sx={{ fontSize: '0.85rem !important' }}
+                    />
+                  }
+                  sx={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'primary.main',
+                    p: 0,
+                    '&:hover': {
+                      bgcolor: 'transparent',
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  {offer.linkLabel || 'Shop Leads'}
+                </Button>
+              </Stack>
+            </Card>
+          ))
+        ) : (
+          <Card
+            variant='outlined'
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              bgcolor: '#FFFFFF',
+              borderColor: BORDER,
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+              textAlign: 'center',
+            }}
+          >
             <Typography
               variant='body2'
-              color='text.secondary'
-              textAlign='center'
-              sx={{ fontStyle: 'italic', fontSize: '0.85rem' }}
+              sx={{ color: 'text.secondary', fontStyle: 'italic' }}
             >
               No active discounts right now.
             </Typography>
-          </Box>
+          </Card>
         )}
-      </Stack>
 
-      {/* Free Leads */}
-      <Box sx={{ px: 2.5, py: 1.75 }}>
-        <Typography
-          variant='overline'
-          sx={{
-            letterSpacing: '0.14em',
-            color: 'text.secondary',
-            fontSize: '0.65rem',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-          }}
-        >
-          Free Leads
-        </Typography>
-      </Box>
+        {/* Free Lead Offers */}
+        {FREE_LEAD_OFFERS.map((freeOffer) => (
+          <Card
+            key={freeOffer.id}
+            variant='outlined'
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              bgcolor: '#FFFFFF',
+              borderColor: BORDER,
+              borderTop: '3px solid #3F6F5B',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+            }}
+          >
+            <Typography
+              variant='caption'
+              sx={{
+                fontFamily: SANS,
+                fontWeight: 700,
+                fontSize: '0.65rem',
+                letterSpacing: '0.06em',
+                color: 'success.main',
+                textTransform: 'uppercase',
+                display: 'block',
+                mb: 0.5,
+              }}
+            >
+              {freeOffer.badge}
+            </Typography>
 
-      <Divider sx={{ borderColor: 'grey.100' }} />
+            <Typography
+              variant='h6'
+              sx={{
+                fontFamily: SERIF,
+                fontWeight: 700,
+                lineHeight: 1.2,
+                color: 'primary.main',
+              }}
+            >
+              {freeOffer.title}
+            </Typography>
 
-      <Stack divider={<Divider sx={{ borderColor: 'grey.100' }} />}>
-        {FREE_LEAD_OFFERS.map((offer) => (
-          <OfferItem key={offer.id} offer={offer} />
+            <Typography
+              variant='caption'
+              sx={{ color: 'text.secondary', display: 'block', my: 1 }}
+            >
+              {freeOffer.description}
+            </Typography>
+
+            <Button
+              fullWidth
+              size='small'
+              variant='outlined'
+              onClick={() => handleCopy(freeOffer.url)}
+              endIcon={
+                copiedCode === freeOffer.url ? (
+                  <CheckRoundedIcon
+                    sx={{
+                      fontSize: '0.85rem !important',
+                      color: 'success.main',
+                    }}
+                  />
+                ) : (
+                  <ContentCopyIcon sx={{ fontSize: '0.85rem !important' }} />
+                )
+              }
+              sx={{
+                mt: 1,
+                py: 0.5,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'primary.main',
+                borderColor:
+                  copiedCode === freeOffer.url ? 'success.main' : BORDER,
+                bgcolor: '#F9FAFB',
+                borderRadius: 1,
+                '&:hover': { bgcolor: '#FFFFFF', borderColor: '#D1D5DB' },
+              }}
+            >
+              {copiedCode === freeOffer.url ? 'Copied!' : freeOffer.actionLabel}
+            </Button>
+          </Card>
         ))}
       </Stack>
-    </Menu>
+    </Popover>
   );
-}
+};
+
+export default OffersPopover;

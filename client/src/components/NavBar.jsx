@@ -7,6 +7,7 @@ import {
   Avatar,
   Box,
   Stack,
+  Button,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
@@ -123,44 +124,121 @@ export default function NavBar() {
           borderBottom: '1px solid #E0E0E0',
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ minHeight: 64, px: 3 }}>
           <Box sx={{ flexGrow: 1 }} />
 
-          <Pill
-            icon={
-              <LocalOfferOutlinedIcon
-                sx={{ fontSize: '0.85rem', color: 'inherit' }}
-              />
-            }
+          {/* 1. Offers Trigger Button */}
+          <Button
+            size='small'
+            variant='outlined'
             onClick={(event) => setOffersAnchorEl(event.currentTarget)}
-            sx={{ ...navPillSx, mr: 1.5 }}
-          >
-            <Typography component='span' sx={pillLabelSx}>
-              {`${offers.length + FREE_LEAD_OFFERS.length} Offer${
-                offers.length + FREE_LEAD_OFFERS.length !== 1 ? 's' : ''
-              }`}
-            </Typography>
-          </Pill>
-
-          <Pill
-            icon={
-              <PersonAddOutlinedIcon
-                sx={{ fontSize: '0.85rem', color: 'inherit' }}
+            startIcon={
+              <LocalOfferOutlinedIcon
+                sx={{
+                  fontSize: '0.95rem !important',
+                  color: Boolean(offersAnchorEl)
+                    ? 'action.main'
+                    : 'text.secondary',
+                  transition: 'color 0.15s ease',
+                }}
               />
             }
-            onClick={() => setInviteOpen(true)}
-            sx={{ ...navPillSx, mr: 2 }}
+            sx={{
+              mr: 1.5,
+              py: 0.5,
+              px: 1.25,
+              borderRadius: 1.5,
+              textTransform: 'none',
+              bgcolor: '#FFFFFF',
+              borderColor: Boolean(offersAnchorEl) ? 'action.main' : '#E5E7EB',
+              color: 'text.primary',
+              boxShadow: Boolean(offersAnchorEl)
+                ? '0 0 0 1px #D4AF37, 0 1px 3px rgba(0, 0, 0, 0.05)'
+                : '0 1px 2px rgba(0, 0, 0, 0.03)',
+              '&:hover': {
+                borderColor: 'action.main',
+                bgcolor: '#FFFFFF',
+              },
+            }}
           >
-            <Typography component='span' sx={pillLabelSx}>
-              Invite Agent
-            </Typography>
-          </Pill>
+            <Stack direction='row' spacing={0.75} alignItems='center'>
+              <Box
+                component='span'
+                sx={{
+                  px: 0.6,
+                  py: 0.1,
+                  borderRadius: 1,
+                  fontSize: '0.675rem',
+                  fontWeight: 700,
+                  fontFamily: MONO,
+                  bgcolor: 'rgba(212, 175, 55, 0.15)',
+                  color: '#7A5400',
+                }}
+              >
+                {offers.length + FREE_LEAD_OFFERS.length}
+              </Box>
+              <Typography
+                component='span'
+                sx={{
+                  fontFamily: '"Inter", sans-serif',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                }}
+              >
+                {`Offer${offers.length + FREE_LEAD_OFFERS.length !== 1 ? 's' : ''}`}
+              </Typography>
+            </Stack>
+          </Button>
 
+          {/* 2. Invite Agent Button */}
+          <Button
+            size='small'
+            variant='outlined'
+            onClick={() => setInviteOpen(true)}
+            startIcon={
+              <PersonAddOutlinedIcon
+                sx={{
+                  fontSize: '0.95rem !important',
+                  color: 'text.secondary',
+                }}
+              />
+            }
+            sx={{
+              mr: 2.5,
+              py: 0.5,
+              px: 1.5,
+              borderRadius: 1.5,
+              textTransform: 'none',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              fontFamily: '"Inter", sans-serif',
+              color: 'text.primary',
+              bgcolor: '#FFFFFF',
+              borderColor: '#E5E7EB',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+              '&:hover': {
+                borderColor: '#051118',
+                bgcolor: '#F9FAFB',
+              },
+            }}
+          >
+            Invite Agent
+          </Button>
+
+          {/* 3. User Profile Trigger */}
           <Stack
             direction='row'
-            spacing={1}
+            spacing={1.25}
             alignItems='center'
-            sx={{ cursor: 'pointer' }}
+            sx={{
+              cursor: 'pointer',
+              p: 0.5,
+              pr: 1,
+              borderRadius: 2,
+              transition: 'background-color 0.15s ease',
+              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.03)' },
+            }}
             onClick={handleAvatarClick}
           >
             {user && agentData && accountResolved && (
@@ -169,25 +247,36 @@ export default function NavBar() {
                   alt={agentData?.name}
                   src={avatarSrc || undefined}
                   sx={{
-                    width: 36,
-                    height: 36,
+                    width: 34,
+                    height: 34,
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
                     color: '#fff',
                     bgcolor: stringToColor(agentData?.name || ''),
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <Typography variant='caption' textAlign='center'>
+                  <Typography variant='caption' sx={{ fontWeight: 700 }}>
                     {getInitials(
                       agentData?.first_name + ' ' + agentData?.last_name,
                     )}
                   </Typography>
                 </Avatar>
-                <Typography variant='body2'>
+                <Typography
+                  variant='body2'
+                  sx={{
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    fontFamily: 'Libre Baskerville, serif',
+                  }}
+                >
                   {agentData?.first_name} {agentData?.last_name}
                 </Typography>
               </>
             )}
-
-            <ArrowDropDownIcon />
+            <ArrowDropDownIcon
+              sx={{ color: 'text.secondary', fontSize: '1.25rem' }}
+            />
           </Stack>
 
           <ProfilePopover

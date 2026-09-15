@@ -33,6 +33,7 @@ const PRODUCT_LEAD_TYPES = {
   prod_TrcCUyw2JjEZ7e: ['aged_lead', 'Unverified'], // 31+ Day Aged LEAD - UNVERIFIED
   prod_V7V3Ld6JNVrnxV: ['aged_lead_91_180', 'Verified'], // 91-180 Day Aged LEAD - VERIFIED
   prod_V7V2C48Cyk47vv: ['aged_lead_91_180', 'Unverified'], // 91-180 Day Aged LEAD - UNVERIFIED
+  prod_VC1iDcZ6isnsD2: ['instant_form_lead', 'Verified'], // INSTANT FORM LEAD
 };
 
 const LEAD_TYPE_LABELS = {
@@ -41,6 +42,20 @@ const LEAD_TYPE_LABELS = {
   banked_lead: 'Banked Leads',
   aged_lead: '31+ Day Aged Leads',
   aged_lead_91_180: '91-180 Day Aged Leads',
+  instant_form_lead: 'Instant Form Leads',
+};
+
+// Badge/category shown on the offer card — grouped separately from
+// LEAD_TYPE_LABELS because some types (e.g. instant form leads, which are
+// freshly generated rather than aged) share a category with a type that has
+// a different display label.
+const LEAD_TYPE_BADGES = {
+  fresh_lead: 'Fresh Leads Discount',
+  live_transfer: 'Live Transfer Discount',
+  banked_lead: 'Banked Leads Discount',
+  aged_lead: 'Aged Leads Discount',
+  aged_lead_91_180: 'Aged Leads Discount',
+  instant_form_lead: 'Fresh Leads Discount',
 };
 
 // Storefront per lead type. fresh_lead splits by qualifier (Mixed vs
@@ -55,6 +70,7 @@ const LEAD_TYPE_URLS = {
   banked_lead: 'https://fexdigital.com/fresh/store',
   aged_lead: 'https://fexdigital.com/aged/store?tier=second', // 31-90 days
   aged_lead_91_180: 'https://fexdigital.com/aged/store?tier=third', // 91+ days
+  instant_form_lead: 'https://buy.stripe.com/3cIdR92i033NboS4696Ri0A',
 };
 
 const describeProduct = (productId) => {
@@ -79,7 +95,28 @@ const describeCoupon = (coupon) => {
   logger.log('Describing coupon for product IDs:', productIds);
   if (!productIds?.length) return null;
   const labels = [...new Set(productIds.map(describeProduct).filter(Boolean))];
-  return labels.length ? labels.join(', ') : null;
+  // Newline (not ", ") so the client can render each product on its own
+  // line instead of wrapping mid-phrase across a comma.
+  return labels.length ? labels.join(',\n') : null;
+};
+
+// Only shown when every product the coupon applies to shares the same
+// category — a mixed-category coupon falls back to a generic "Discount"
+// badge rather than guessing.
+const describeBadge = (coupon) => {
+  const productIds = coupon?.applies_to?.products;
+  if (!productIds?.length) return null;
+  const badges = [
+    ...new Set(
+      productIds
+        .map((id) => {
+          const entry = PRODUCT_LEAD_TYPES[id];
+          return entry ? LEAD_TYPE_BADGES[entry[0]] : null;
+        })
+        .filter(Boolean),
+    ),
+  ];
+  return badges.length === 1 ? badges[0] : 'Discount';
 };
 
 // Only surface a "Shop" link when every product the coupon applies to
@@ -165,6 +202,7 @@ offersRouter.get('/', async (req, res) => {
       .map((promo) => ({
         id: promo.id,
         title: formatCouponTitle(promo.coupon),
+        badge: describeBadge(promo.coupon),
         description: describeCoupon(promo.coupon),
         code: promo.code,
         linkUrl: getCouponUrl(promo.coupon),
