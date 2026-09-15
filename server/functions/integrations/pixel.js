@@ -16,7 +16,7 @@ const hash = (data) => {
   return `${crypto.createHash('sha256').update(data).digest('hex')}`;
 };
 
-const sendPurchaseToMeta = async (ap, lead, client, policy) => {
+const sendPurchaseToMeta = async (ap, lead, client) => {
   if (!lead || !lead.email || !lead.name || !lead.phone || !lead.state) {
     console.error('Missing lead information');
     return;
@@ -24,16 +24,6 @@ const sendPurchaseToMeta = async (ap, lead, client, policy) => {
 
   if (!client) {
     console.error('Missing client information');
-    return;
-  }
-
-  if (!policy) {
-    console.error('Missing policy information');
-    return;
-  }
-
-  if (!policy.premiumAmount) {
-    console.error('Missing policy premium amount');
     return;
   }
 
@@ -70,12 +60,11 @@ const sendPurchaseToMeta = async (ap, lead, client, policy) => {
           currency: 'USD',
           value: ap,
           content_type: 'product',
-          content_name: `${policy.carrier} - ${policy.policyType}`,
           contents: [
             {
               id: `purchase-${lead.email}-${eventTime}`,
               quantity: 1,
-              item_price: policy.premiumAmount * 12,
+              item_price: ap,
             },
           ],
         },
