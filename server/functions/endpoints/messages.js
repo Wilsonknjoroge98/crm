@@ -5,6 +5,7 @@ const {
   fetchMessages,
   sendMessage,
 } = require('../integrations/sendblue');
+const { supabaseService } = require('../services/supabase');
 
 // eslint-disable-next-line new-cap
 const messagesRouter = express.Router();
@@ -19,6 +20,40 @@ const requireLine = (req, res) => {
     return null;
   }
   return line;
+};
+
+// Will need to rewrite if/when we drop agent_clients
+const requireOwnership = async (req, res, number) => {
+  const digits = number.slice(2);
+  const variants = [digits, `1${digits}`, number];
+  const [leads, clients] = await Promise.all([
+    supabaseService
+      .from('leads')
+      .select('id')
+      .eq('agent_id', req.agent.id)
+      .in('phone', variants)
+      .limit(1),
+    supabaseService
+      .from('clients')
+      .select('id, agent_clients!agent_clients_client_id_fkey!inner(agent_id)')
+      .eq('agent_clients.agent_id', req.agent.id)
+      .in('phone', variants)
+      .limit(1),
+  ]);
+  const error = leads.error || clients.error;
+  if (error) {
+    logger.error('Ownership check failed in endpoints/messages.js', {
+      requesterId: req.agent?.id,
+      error,
+    });
+    res.status(500).json({ error: 'Failed to verify lead ownership' });
+    return false;
+  }
+  if (!leads.data.length && !clients.data.length) {
+    res.status(403).json({ error: 'This number is not one of your leads' });
+    return false;
+  }
+  return true;
 };
 
 const sendblueFailure = (res, error, route, method, req, fallback) => {
@@ -42,6 +77,7 @@ messagesRouter.get('/', async (req, res) => {
   if (!number) {
     return res.status(400).json({ error: 'A valid phone number is required' });
   }
+  if (!(await requireOwnership(req, res, number))) return;
 
   try {
     const messages = await fetchMessages({ number, sendblueNumber: line });
@@ -75,6 +111,7 @@ messagesRouter.post('/', async (req, res) => {
   if (content.length > MAX_CONTENT_LENGTH) {
     return res.status(400).json({ error: 'Message is too long' });
   }
+  if (!(await requireOwnership(req, res, number))) return;
 
   try {
     const message = await sendMessage({
