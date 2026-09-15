@@ -447,14 +447,6 @@ const Business = () => {
     setClientDialogOpen(true);
   };
 
-  // Recovery path for a SALE record whose client was created but never got
-  // a policy (dialog cancelled, request failed, etc.) — skips straight to
-  // CreatePolicyDialog instead of going through CreateClientDialog again.
-  const handleAddPolicy = (person) => {
-    setPolicyClient({ ...person, id: person.client_id });
-    setPolicyDialogOpen(true);
-  };
-
   // The view's policy JSON carries raw carrier_id/product_id (from
   // to_jsonb(policies)), but UpdatePolicyDialog's carrier/product selects
   // bind to `carrier`/`product` — remap so they prefill correctly.
@@ -744,7 +736,6 @@ const Business = () => {
                 textEnabled={textEnabled}
                 onText={setTextTarget}
                 onMarkSold={handleMarkSold}
-                onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
               />
             ))

@@ -249,7 +249,6 @@ const BusinessCard = ({
   textEnabled = false,
   onText,
   onMarkSold,
-  onAddPolicy,
   onEditPolicy,
 }) => {
   const [notes, setNotes] = useState(person.notes || '');
@@ -311,9 +310,6 @@ const BusinessCard = ({
   );
 
   const isSale = person.lifecycle_status === 'SALE';
-  // A client can exist with no policy yet (creating one was skipped or
-  // failed) — surface a way back in rather than stranding the record.
-  const hasNoPolicies = (person.policies || []).length === 0;
   // Policies are ordered most-recent-first by the view; that's the one
   // worth surfacing prominently when there's more than one.
   const latestPolicy = person.policies?.[0] || null;
@@ -626,19 +622,7 @@ const BusinessCard = ({
                 </Tooltip>
               );
             })}
-            {isSale && hasNoPolicies ? (
-              <Button
-                fullWidth
-                size='small'
-                variant='outlined'
-                color='warning'
-                startIcon={<AssignmentTurnedInOutlinedIcon />}
-                onClick={() => onAddPolicy?.(person)}
-                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
-              >
-                Add Policy
-              </Button>
-            ) : isSale ? (
+            {isSale ? (
               <Button
                 fullWidth
                 size='small'
