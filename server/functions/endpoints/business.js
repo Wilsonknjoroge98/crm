@@ -285,6 +285,28 @@ const attachAgentNames = async (supabase, rows) => {
   }));
 };
 
+// only unverified leads can have a refund, so most pages skip this query
+const attachRefundStatus = async (supabase, rows) => {
+  const leadIds = rows
+    .filter((row) => row.verified === false && row.lead_id)
+    .map((row) => row.lead_id);
+  if (leadIds.length === 0) return rows;
+
+  const { data, error } = await supabase
+    .from('leads')
+    .select('id,refund_status')
+    .in('id', leadIds);
+  if (error) throw error;
+
+  const statusByLeadId = new Map(
+    (data || []).map(({ id, refund_status: status }) => [id, status]),
+  );
+  return rows.map((row) => ({
+    ...row,
+    refund_status: statusByLeadId.get(row.lead_id) ?? null,
+  }));
+};
+
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
 const fetchClientPremiumsForClientIds = async (supabase, clientIds) => {
   const clients = [];
@@ -678,6 +700,7 @@ const createBusinessRouter = ({
       if (error) throw error;
 
       let rows = await attachPolicies(supabase, data || []);
+      rows = await attachRefundStatus(supabase, rows);
       if (isSuperuser) {
         rows = await attachAgentNames(supabase, rows);
       }

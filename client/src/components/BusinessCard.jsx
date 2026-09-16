@@ -23,6 +23,7 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
 import Pill from './Pill';
 import { useMutation } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
@@ -123,6 +124,12 @@ const formatBuild = ({
 
 const formatBool = (value) =>
   value === true ? 'Yes' : value === false ? 'No' : '—';
+
+const REFUND_STATUS_LABELS = {
+  requested: 'Refund requested',
+  approved: 'Refund approved',
+  denied: 'Refund denied',
+};
 
 // Some funnel submissions send the literal string "None" for an unmade
 // selection instead of leaving the field blank — treat it as no value.
@@ -251,6 +258,7 @@ const BusinessCard = ({
   onMarkSold,
   onAddPolicy,
   onEditPolicy,
+  onRequestRefund,
 }) => {
   const [notes, setNotes] = useState(person.notes || '');
   const [noteStatus, setNoteStatus] = useState('idle');
@@ -341,6 +349,9 @@ const BusinessCard = ({
   const showAgentAttribution = isAdmin;
   const isGsqProtected = person.lead_vendor_id === GSQ_LEAD_VENDOR_ID;
   const showCreativeAttribution = isAdmin && isGsqProtected;
+  // strict false, null means a non gsq lead that was never verified either way
+  const canRequestRefund = person.verified === false;
+  const refundLabel = REFUND_STATUS_LABELS[person.refund_status] || null;
 
   const notesStatusIndicator = (
     <Typography
@@ -671,6 +682,43 @@ const BusinessCard = ({
                 Mark Sold
               </Button>
             )}
+            {canRequestRefund && refundLabel ? (
+              <Button
+                fullWidth
+                size='small'
+                variant='outlined'
+                disabled
+                startIcon={<ReplayOutlinedIcon />}
+                sx={{
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  '&.Mui-disabled': {
+                    color:
+                      person.refund_status === 'denied'
+                        ? 'error.main'
+                        : person.refund_status === 'approved'
+                          ? 'success.main'
+                          : 'text.secondary',
+                    borderColor: 'divider',
+                    opacity: 0.9,
+                  },
+                }}
+              >
+                {refundLabel}
+              </Button>
+            ) : canRequestRefund ? (
+              <Button
+                fullWidth
+                size='small'
+                variant='outlined'
+                color='warning'
+                startIcon={<ReplayOutlinedIcon />}
+                onClick={() => onRequestRefund?.(person)}
+                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+              >
+                Request Refund
+              </Button>
+            ) : null}
           </Stack>
         </Grid>
 

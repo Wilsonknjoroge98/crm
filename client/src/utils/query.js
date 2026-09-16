@@ -164,6 +164,16 @@ const getBusinessMetrics = async ({ gsqOnly = false, agentId } = {}) => {
   return response.data?.data;
 };
 
+const requestRefund = async ({ leadId }) => {
+  if (!leadId) throw new Error('Missing lead ID');
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/refunds',
+    data: { leadId },
+  });
+  return response.data?.data;
+};
+
 const saveBusinessNotes = async ({ personId, notes }) => {
   if (!personId) throw new Error('Missing person ID');
   const response = await apiClient.request({
@@ -1158,6 +1168,7 @@ export {
   getPerson,
   getBusinessMetrics,
   saveBusinessNotes,
+  requestRefund,
   subscribeReleaseNotifications,
   getMessages,
   sendMessage,
