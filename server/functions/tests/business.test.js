@@ -13,7 +13,6 @@ const {
   parsePeopleQuery,
   parseBulkPersonIds,
   buildSearchPatterns,
-  annualizePremium,
   GSQ_LEAD_VENDOR_ID,
 } = require('../endpoints/business');
 
@@ -394,26 +393,6 @@ describe('parseBulkPersonIds', () => {
     ],
   ])('rejects invalid bulk IDs', (body, message) => {
     expect(() => parseBulkPersonIds(body)).toThrow(message);
-  });
-});
-
-describe('business metrics helpers', () => {
-  test.each([
-    ['weekly', 52],
-    ['monthly', 12],
-    ['quarterly', 4],
-    ['semi-annually', 2],
-    ['semi-annual', 2],
-    ['annually', 1],
-    ['annual', 1],
-    [null, 12],
-  ])('annualizes a %s premium', (frequency, expected) => {
-    expect(
-      annualizePremium({
-        premium_amount: 1,
-        premium_frequency: frequency,
-      }),
-    ).toBe(expected);
   });
 });
 
@@ -1002,14 +981,11 @@ describe('GET /business/metrics', () => {
           error: null,
         },
       ],
-      policies: [
+      clients: [
         {
           data: [
-            { premium_amount: 10, premium_frequency: 'monthly' },
-            { premium_amount: 20, premium_frequency: 'quarterly' },
-            { premium_amount: 30, premium_frequency: 'semi-annually' },
-            { premium_amount: 40, premium_frequency: 'annually' },
-            { premium_amount: 5, premium_frequency: 'weekly' },
+            { id: 'client-1', monthly_premium: 10 },
+            { id: 'client-2', monthly_premium: 20 },
           ],
           error: null,
         },
@@ -1031,11 +1007,11 @@ describe('GET /business/metrics', () => {
     expect(response.body).toEqual({
       data: {
         leadsDelivered: 3,
-        closedSales: 5,
-        totalClosed: 560,
+        closedSales: 2,
+        totalClosed: 360,
         leadSpend: 156,
-        roiNet: 404,
-        roiMultiplier: 3.59,
+        roiNet: 204,
+        roiMultiplier: 2.31,
       },
     });
 
@@ -1057,12 +1033,12 @@ describe('GET /business/metrics', () => {
     });
   });
 
-  test('superuser skips ownership scoping and reads all policies', async () => {
+  test('superuser skips ownership scoping and reads all clients', async () => {
     const supabase = makeSupabase({
       leads: [{ data: null, error: null, count: 10 }],
-      policies: [
+      clients: [
         {
-          data: [{ premium_amount: 100, premium_frequency: 'annually' }],
+          data: [{ id: 'client-1', monthly_premium: 100 }],
           error: null,
         },
       ],
@@ -1086,10 +1062,10 @@ describe('GET /business/metrics', () => {
     expect(response.body.data).toEqual({
       leadsDelivered: 10,
       closedSales: 1,
-      totalClosed: 100,
+      totalClosed: 1200,
       leadSpend: 75,
-      roiNet: 25,
-      roiMultiplier: 1.33,
+      roiNet: 1125,
+      roiMultiplier: 16,
     });
 
     // The Stripe lookup reads the whole collection, unfiltered by email.
@@ -1108,9 +1084,9 @@ describe('GET /business/metrics', () => {
     const supabase = makeSupabase({
       leads: [{ data: null, error: null, count: 4 }],
       business: [{ data: [{ client_id: 'client-1' }], error: null }],
-      policies: [
+      clients: [
         {
-          data: [{ premium_amount: 10, premium_frequency: 'monthly' }],
+          data: [{ id: 'client-1', monthly_premium: 10 }],
           error: null,
         },
       ],
@@ -1139,8 +1115,8 @@ describe('GET /business/metrics', () => {
       args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
     });
 
-    // Policies come through the client-id lookup (not fetchAllPolicies), so
-    // the GSQ vendor filter on `business` applies even for this agent.
+    // Clients come through the client-id lookup (not fetchAllClientPremiums),
+    // so the GSQ vendor filter on `business` applies even for this agent.
     const visibleIdsQuery = findQuery(supabase, 'business');
     expect(visibleIdsQuery.calls).toContainEqual({
       method: 'eq',
@@ -1148,13 +1124,13 @@ describe('GET /business/metrics', () => {
     });
   });
 
-  test('superuser gsqOnly skips the fetchAllPolicies fast path for the vendor-filtered client lookup', async () => {
+  test('superuser gsqOnly skips the all-clients fast path for the vendor-filtered lookup', async () => {
     const supabase = makeSupabase({
       leads: [{ data: null, error: null, count: 9 }],
       business: [{ data: [{ client_id: 'client-1' }], error: null }],
-      policies: [
+      clients: [
         {
-          data: [{ premium_amount: 100, premium_frequency: 'annually' }],
+          data: [{ id: 'client-1', monthly_premium: 100 }],
           error: null,
         },
       ],
@@ -1175,10 +1151,10 @@ describe('GET /business/metrics', () => {
     expect(response.body.data).toEqual({
       leadsDelivered: 9,
       closedSales: 1,
-      totalClosed: 100,
+      totalClosed: 1200,
       leadSpend: 50,
-      roiNet: 50,
-      roiMultiplier: 2,
+      roiNet: 1150,
+      roiMultiplier: 24,
     });
 
     // The superuser still hits `business` to scope client ids to the vendor,

@@ -17,16 +17,6 @@ const MAX_NOTES_LENGTH = 10000;
 const METRICS_PAGE_SIZE = 1000;
 const METRICS_ID_CHUNK_SIZE = 100;
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
-// Payments per year by premium_frequency; unknown frequencies assume monthly.
-const PREMIUM_ANNUAL_MULTIPLIERS = {
-  'weekly': 52,
-  'monthly': 12,
-  'quarterly': 4,
-  'semi-annually': 2,
-  'semi-annual': 2,
-  'annually': 1,
-  'annual': 1,
-};
 // Card rows surface contact, notes, and the underwriting summary directly,
 // so the list projection carries what the drawer alone used to need.
 // `policies` is deliberately absent: the view builds it with a per-row lateral,
@@ -296,40 +286,30 @@ const attachAgentNames = async (supabase, rows) => {
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
-const fetchPoliciesForClientIds = async (supabase, clientIds) => {
-  const policies = [];
+const fetchClientPremiumsForClientIds = async (supabase, clientIds) => {
+  const clients = [];
   for (const clientIdChunk of chunkValues(clientIds)) {
-    policies.push(
+    clients.push(
       ...(await fetchAllRows(() =>
         supabase
-          .from('policies')
-          .select('id,client_id,premium_amount,premium_frequency')
-          .in('client_id', clientIdChunk)
+          .from('clients')
+          .select('id,monthly_premium')
+          .in('id', clientIdChunk)
           .order('id', { ascending: true }),
       )),
     );
   }
-  return policies;
+  return clients;
 };
 
-// Superusers see every policy, so the client-id intersection is skipped.
-const fetchAllPolicies = async (supabase) =>
+// Superusers see every client, so the client-id intersection is skipped.
+const fetchAllClientPremiums = async (supabase) =>
   fetchAllRows(() =>
     supabase
-      .from('policies')
-      .select('id,client_id,premium_amount,premium_frequency')
+      .from('clients')
+      .select('id,monthly_premium')
       .order('id', { ascending: true }),
   );
-
-// Total Closed annualizes by payment frequency (weekly x52, quarterly x4, ...).
-const annualizePremium = ({
-  premium_amount: amount,
-  premium_frequency: frequency,
-}) => {
-  const multiplier =
-    PREMIUM_ANNUAL_MULTIPLIERS[String(frequency || '').toLowerCase()] ?? 12;
-  return (Number(amount) || 0) * multiplier;
-};
 
 const parsePositiveInteger = (value, fallback, field, maximum) => {
   if (value === undefined) return fallback;
@@ -761,33 +741,38 @@ const createBusinessRouter = ({
         leadsQuery = leadsQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
       }
 
-      // The superuser's fast path (fetchAllPolicies, no client-id join) only
-      // applies when every policy is in scope; gsqOnly needs the same
+      // The superuser's fast path (fetchAllClientPremiums, no client-id join)
+      // only applies when every client is in scope; gsqOnly needs the same
       // client-id filter regular agents use, just without the ownership leg.
-      const fetchPolicies = async () => {
-        if (isSuperuser && !gsqOnly) return fetchAllPolicies(supabase);
+      const fetchClients = async () => {
+        if (isSuperuser && !gsqOnly) return fetchAllClientPremiums(supabase);
         const visibleClientIds = await fetchVisibleClientIds({
           supabase,
           agentId,
           isSuperuser,
           gsqOnly,
         });
-        return fetchPoliciesForClientIds(supabase, visibleClientIds);
+        return fetchClientPremiumsForClientIds(supabase, visibleClientIds);
       };
 
       // Not gated on gsqOnly: every dollar in stripe_orders was already spent
       // buying GSQ leads, so it's the same total whichever way the switch is set.
-      const [leadsResult, policies, leadSpendRaw] = await Promise.all([
+      const [leadsResult, clients, leadSpendRaw] = await Promise.all([
         leadsQuery,
-        fetchPolicies(),
+        fetchClients(),
         fetchStripeLeadSpend(createFirestore, agentEmail, isSuperuser),
       ]);
       if (leadsResult.error) throw leadsResult.error;
 
       const leadsDelivered = leadsResult.count ?? 0;
+      // clients.monthly_premium is the sale value captured at close, treated
+      // as a flat monthly figure (ap = premium * 12) same as everywhere else
+      // it's used — unlike policies, it carries no premium_frequency, so a
+      // client with an unbackfilled/unset value contributes $0 here rather
+      // than being dropped from closedSales.
       const totalClosed = Number(
-        policies
-          .reduce((total, policy) => total + annualizePremium(policy), 0)
+        clients
+          .reduce((total, c) => total + (Number(c.monthly_premium) || 0) * 12, 0)
           .toFixed(2),
       );
       const leadSpend = Number(leadSpendRaw.toFixed(2));
@@ -795,7 +780,7 @@ const createBusinessRouter = ({
       return res.status(200).json({
         data: {
           leadsDelivered,
-          closedSales: policies.length,
+          closedSales: clients.length,
           totalClosed,
           leadSpend,
           roiNet: Number((totalClosed - leadSpend).toFixed(2)),
@@ -1108,5 +1093,4 @@ module.exports.createBusinessRouter = createBusinessRouter;
 module.exports.parsePeopleQuery = parsePeopleQuery;
 module.exports.buildSearchPatterns = buildSearchPatterns;
 module.exports.parseBulkPersonIds = parseBulkPersonIds;
-module.exports.annualizePremium = annualizePremium;
 module.exports.GSQ_LEAD_VENDOR_ID = GSQ_LEAD_VENDOR_ID;
