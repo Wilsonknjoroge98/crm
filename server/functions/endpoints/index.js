@@ -19,6 +19,7 @@ const businessRouter = require('./business');
 const offersRouter = require('./offers');
 const { createAdPublishRouter } = require('./adPublish');
 const messagesRouter = require('./messages');
+const refundsRouter = require('./refunds');
 
 module.exports = {
   agentRouter,
@@ -42,4 +43,5 @@ module.exports = {
   offersRouter,
   createAdPublishRouter,
   messagesRouter,
+  refundsRouter,
 };
