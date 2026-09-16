@@ -447,9 +447,11 @@ const Business = () => {
     setClientDialogOpen(true);
   };
 
-  // Recovery path for a SALE record whose client was created but never got
-  // a policy (dialog cancelled, request failed, etc.) — skips straight to
-  // CreatePolicyDialog instead of going through CreateClientDialog again.
+  // Policy upload is no longer required at time of sale (carrier policy
+  // details usually aren't confirmed until well after close), so this is
+  // the routine path for most SALE clients, not a failure recovery — skips
+  // straight to CreatePolicyDialog instead of going through
+  // CreateClientDialog again.
   const handleAddPolicy = (person) => {
     setPolicyClient({ ...person, id: person.client_id });
     setPolicyDialogOpen(true);

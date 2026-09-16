@@ -60,6 +60,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     zip: '',
     occupation: '',
     annual_income: '',
+    monthly_premium: '',
     live_transfer: undefined,
   };
 
@@ -100,6 +101,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
         zip: lead.zip || '',
         occupation: lead.occupation || '',
         annual_income: lead.annual_income || '',
+        monthly_premium: '',
         live_transfer: lead.gsq_live_transfer ?? undefined,
       });
     }
@@ -468,7 +470,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
           </Grid>
 
           <Grid size={12}>
-            <SectionHeader title='Employment & Financials (Optional)' />
+            <SectionHeader title='Employment & Financials' />
           </Grid>
 
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -491,6 +493,29 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
               onValueChange={(values) => {
                 const { value } = values; // raw value without formatting
                 setForm((prev) => ({ ...prev, annual_income: value }));
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <NumericFormat
+              style={{ width: '100%' }}
+              name='monthly_premium'
+              label='Monthly Premium'
+              value={form.monthly_premium}
+              thousandSeparator=','
+              decimalScale={2}
+              customInput={TextField}
+              required
+              onValueChange={(values) => {
+                const { value } = values;
+                setForm((prev) => ({ ...prev, monthly_premium: value }));
               }}
               slotProps={{
                 input: {

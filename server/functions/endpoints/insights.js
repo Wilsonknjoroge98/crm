@@ -23,7 +23,9 @@ insightsRouter.get('/', async (req, res) => {
 
     const { data: clients, error: clientsError } = await supabaseService
       .from('clients')
-      .select('id, leads!clients_lead_id_fkey ( gsq_source )')
+      .select(
+        'id, monthly_premium, leads!clients_lead_id_fkey ( gsq_source )',
+      )
       .gte('created_at', since)
       .lt('created_at', untilExclusive)
       .limit(10000);
@@ -36,6 +38,12 @@ insightsRouter.get('/', async (req, res) => {
     }
 
     const salesBySource = {};
+    // client.monthly_premium is the sale value captured at close, so it's
+    // available for every client in the window — unlike policies, which are
+    // optional and often entered well after the fact. Grouped by the same
+    // client-created_at window as salesBySource so both halves of the
+    // average agree on what counts as "in range."
+    const premiumsBySource = {};
     let unknownClients = 0;
 
     for (const client of clients || []) {
@@ -46,6 +54,10 @@ insightsRouter.get('/', async (req, res) => {
       const source = client.leads?.gsq_source;
       if (source) {
         salesBySource[source] = (salesBySource[source] || 0) + 1;
+        const monthly = Number(client.monthly_premium);
+        if (!isNaN(monthly) && monthly > 0) {
+          (premiumsBySource[source] ??= []).push(monthly);
+        }
       } else {
         unknownClients++;
       }
@@ -53,39 +65,6 @@ insightsRouter.get('/', async (req, res) => {
 
     const totalSales =
       Object.values(salesBySource).reduce((s, n) => s + n, 0) || 1;
-
-    // -------------------------------------------------------------------------
-    // POLICIES — filtered by sold_date, source derived via client → lead
-    // -------------------------------------------------------------------------
-    const { data: policies, error: policiesError } = await supabaseService
-      .from('policies')
-      .select(
-        `
-        premium_amount,
-        clients!policies_client_id_fkey (
-          leads!clients_lead_id_fkey ( gsq_source )
-        )
-      `,
-      )
-      .gte('sold_date', since)
-      .lte('sold_date', until)
-      .limit(10000);
-
-    if (policiesError) {
-      logger.error('Error fetching policies in insights', {
-        error: policiesError,
-      });
-      return res.status(500).json({ error: 'Failed to fetch policies' });
-    }
-
-    // Group policies by gsq_source (skip those without one)
-    const policiesBySource = {};
-    for (const policy of policies || []) {
-      const source = policy.clients?.leads?.gsq_source;
-      if (!source) continue;
-      if (!policiesBySource[source]) policiesBySource[source] = [];
-      policiesBySource[source].push(policy);
-    }
 
     // -------------------------------------------------------------------------
     // META — fetch all ads, then pull spend/leads per matched ad
@@ -190,11 +169,8 @@ insightsRouter.get('/', async (req, res) => {
           ? +((verifiedLeads / totalLeads) * 100).toFixed(2)
           : null;
 
-      const matched = policiesBySource[creative] || [];
-      const totalAnnual = matched.reduce((sum, p) => {
-        const monthly = Number(p.premium_amount);
-        return sum + (isNaN(monthly) ? 0 : monthly * 12);
-      }, 0);
+      const matched = premiumsBySource[creative] || [];
+      const totalAnnual = matched.reduce((sum, monthly) => sum + monthly * 12, 0);
       const averagePremium =
         matched.length > 0 ? totalAnnual / matched.length : 0;
 

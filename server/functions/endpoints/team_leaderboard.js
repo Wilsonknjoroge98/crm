@@ -60,65 +60,74 @@ teamLeaderboardRouter.get('/', async (req, res) => {
 
     const downlineIdList = [...downlineIds];
 
-    // Single bulk policies query for the entire downline
-    let policiesQuery = supabaseService
-      .from('policies')
+    // Single bulk clients query for the entire downline.
+    // clients.monthly_premium is the sale value captured at close, so it's
+    // available for every client, unlike policies (now optional and often
+    // entered well after the sale). agent_clients has no split-commission
+    // concept, so a split deal currently credits 100% to whichever agent
+    // is on agent_clients rather than being divided like policies were.
+    const clientSelect = 'monthly_premium, agent_clients!agent_clients_client_id_fkey!inner(agent_id)';
+    let clientsQuery = supabaseService
+      .from('clients')
       .select(
         filterGsq
-          ? 'writing_agent_id, premium_amount, clients!policies_client_id_fkey!inner(leads!clients_lead_id_fkey!inner(lead_vendor_id))'
-          : 'writing_agent_id, premium_amount',
+          ? `${clientSelect}, leads!clients_lead_id_fkey!inner(lead_vendor_id)`
+          : clientSelect,
       )
-      .in('writing_agent_id', downlineIdList)
+      .in('agent_clients.agent_id', downlineIdList)
       .limit(50000);
 
     if (filterGsq) {
-      policiesQuery = policiesQuery.eq(
-        'clients.leads.lead_vendor_id',
+      clientsQuery = clientsQuery.eq(
+        'leads.lead_vendor_id',
         GSQ_LEAD_VENDOR_ID,
       );
     }
 
     if (startDate && endDate) {
-      policiesQuery = policiesQuery
-        .gte('sold_date', startDate)
-        .lte('sold_date', endDate);
+      clientsQuery = clientsQuery
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
     }
 
-    const { data: allPolicies, error: policiesError } = await policiesQuery;
+    const { data: allClients, error: clientsError } = await clientsQuery;
 
-    if (policiesError) {
-      logger.error('Error fetching policies in endpoints/team_leaderboard.js', {
+    if (clientsError) {
+      logger.error('Error fetching clients in endpoints/team_leaderboard.js', {
         route: '/team-leaderboard',
         method: 'GET',
         requesterId: req.agent?.id,
-        error: policiesError,
+        error: clientsError,
       });
-      return res.status(500).json({ error: 'Failed to fetch policies' });
+      return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
-    // Group policies by agent in JS
-    const policiesByAgent = {};
-    for (const policy of allPolicies || []) {
-      const aid = policy.writing_agent_id;
-      if (!policiesByAgent[aid]) policiesByAgent[aid] = [];
-      policiesByAgent[aid].push(policy);
+    // Group clients by agent in JS
+    const clientsByAgent = {};
+    for (const client of allClients || []) {
+      const aid = client.agent_clients?.[0]?.agent_id;
+      if (!aid) continue;
+      if (!clientsByAgent[aid]) clientsByAgent[aid] = [];
+      clientsByAgent[aid].push(client);
     }
 
     const teamLeaderboard = downlineAgents.map((agent) => {
       const agentName =
         `${agent.first_name || ''} ${agent.last_name || ''}`.trim();
-      const agentPolicies = policiesByAgent[agent.id] || [];
-      const totalPolicies = agentPolicies.length;
-      const totalPremium = agentPolicies.reduce(
-        (sum, p) => sum + (Number(p.premium_amount) || 0),
+      // "policies" here is really a count of clients in the window, kept
+      // as-is since the frontend reads this field name.
+      const agentClients = clientsByAgent[agent.id] || [];
+      const totalClients = agentClients.length;
+      const totalPremium = agentClients.reduce(
+        (sum, c) => sum + (Number(c.monthly_premium) || 0),
         0,
       );
       return {
         agentId: agent.id,
         name: agentName,
-        policies: totalPolicies,
+        policies: totalClients,
         premium: totalPremium * 12,
-        avgPremium: totalPolicies > 0 ? (totalPremium * 12) / totalPolicies : 0,
+        avgPremium: totalClients > 0 ? (totalPremium * 12) / totalClients : 0,
       };
     });
 

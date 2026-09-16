@@ -3,6 +3,8 @@ const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
 const { markSoldInGSQ } = require('../integrations/GSQ');
 const { getHyrosSource } = require('../integrations/hyros');
+const { Firestore } = require('firebase-admin/firestore');
+const { sendPurchaseToMeta } = require('../integrations/pixel');
 
 // eslint-disable-next-line new-cap
 const clientRouter = express.Router();
@@ -448,6 +450,34 @@ clientRouter.post('/', async (req, res) => {
     leadId,
     liveTransfer: !!liveTransfer,
   });
+
+  try {
+    const ap = Number(newClient.monthly_premium) * 12;
+
+    if (ap > 0 && newClient.phone) {
+      const gsqDb = new Firestore({
+        projectId: process.env.GSQ_PROJECT_ID,
+        credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+      });
+
+      const gsqSnapshot = await gsqDb
+        .collection('leads')
+        .where('phone', '==', newClient.phone)
+        .limit(1)
+        .get();
+
+      if (!gsqSnapshot.empty) {
+        await sendPurchaseToMeta(ap, gsqSnapshot.docs[0].data(), newClient);
+      }
+    }
+  } catch (error) {
+    logger.error(
+      'Error sending purchase event to Meta in endpoints/clients.js',
+      {
+        error,
+      },
+    );
+  }
 
   return res.status(201).json(newClient);
 });

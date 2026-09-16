@@ -311,8 +311,10 @@ const BusinessCard = ({
   );
 
   const isSale = person.lifecycle_status === 'SALE';
-  // A client can exist with no policy yet (creating one was skipped or
-  // failed) — surface a way back in rather than stranding the record.
+  // Policy upload is optional as of the sale-value-at-close change — carrier
+  // policy details typically aren't available until well after the client
+  // record exists, so most SALE clients will sit here with no policy for a
+  // while. Surface a way to add one whenever it's ready.
   const hasNoPolicies = (person.policies || []).length === 0;
   // Policies are ordered most-recent-first by the view; that's the one
   // worth surfacing prominently when there's more than one.
