@@ -316,6 +316,23 @@ const dismissUnmatchedReview = async ({ reviewId }) => {
   return response.data;
 };
 
+const getRefunds = async () => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/refunds',
+  });
+  return response.data?.data;
+};
+
+// action is 'approve' or 'deny'
+const reviewRefund = async ({ leadId, action }) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: `/refunds/${leadId}/${action}`,
+  });
+  return response.data?.data;
+};
+
 const getAccount = async ({ email }) => {
   console.log('Getting client account', email);
 
@@ -1182,6 +1199,8 @@ export {
   getUnmatchedReviews,
   matchReview,
   dismissUnmatchedReview,
+  getRefunds,
+  reviewRefund,
   postError,
   getInvites,
   createInvite,
