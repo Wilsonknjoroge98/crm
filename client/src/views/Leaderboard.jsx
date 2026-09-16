@@ -304,10 +304,9 @@ const Leaderboard = () => {
     isSuccess,
     refetch,
   } = useQuery({
-    queryKey: ['premiumLeaderboard', startDate, endDate, agent?.org_id],
-    queryFn: () =>
-      getPremiumLeaderboard({ agency: agent?.org_id, startDate, endDate }),
-    enabled: !!agent?.org_id,
+    queryKey: ['premiumLeaderboard', startDate, endDate, agent?.id],
+    queryFn: () => getPremiumLeaderboard({ startDate, endDate }),
+    enabled: !!agent?.id,
   });
 
   const lastMonthStart = dayjs()
@@ -319,19 +318,13 @@ const Leaderboard = () => {
     .endOf('month')
     .format('YYYY-MM-DD');
   const { data: lastMonthRows = [], isPending: lastMonthPending } = useQuery({
-    queryKey: [
-      'premiumLeaderboard',
-      lastMonthStart,
-      lastMonthEnd,
-      agent?.org_id,
-    ],
+    queryKey: ['premiumLeaderboard', lastMonthStart, lastMonthEnd, agent?.id],
     queryFn: () =>
       getPremiumLeaderboard({
-        agency: agent?.org_id,
         startDate: lastMonthStart,
         endDate: lastMonthEnd,
       }),
-    enabled: !!agent?.org_id,
+    enabled: !!agent?.id,
   });
 
   const lastWeekStart = dayjs()
@@ -343,14 +336,13 @@ const Leaderboard = () => {
     .endOf('week')
     .format('YYYY-MM-DD');
   const { data: lastWeekRows = [], isPending: lastWeekPending } = useQuery({
-    queryKey: ['premiumLeaderboard', lastWeekStart, lastWeekEnd, agent?.org_id],
+    queryKey: ['premiumLeaderboard', lastWeekStart, lastWeekEnd, agent?.id],
     queryFn: () =>
       getPremiumLeaderboard({
-        agency: agent?.org_id,
         startDate: lastWeekStart,
         endDate: lastWeekEnd,
       }),
-    enabled: !!agent?.org_id,
+    enabled: !!agent?.id,
   });
 
   const handleStartChange = (val) =>

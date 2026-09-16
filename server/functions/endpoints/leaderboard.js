@@ -7,22 +7,20 @@ const { isValidDate } = require('../helpers');
 const leaderboardRouter = express.Router();
 
 leaderboardRouter.get('/', async (req, res) => {
-  const { startDate, endDate, orgId } = req.query;
+  const { startDate, endDate } = req.query;
 
   try {
     logger.log('Fetching premium leaderboard', {
       route: '/leaderboard',
       method: 'GET',
       requesterId: req.agent?.id,
-      orgId,
       startDate,
       endDate,
     });
 
     const { data: agents, error: agentsError } = await supabaseService
       .from('agents')
-      .select('id, first_name, last_name')
-      .eq('org_id', orgId);
+      .select('id, first_name, last_name');
 
     if (agentsError) {
       logger.error('Error fetching agents in endpoints/leaderboard.js', {
@@ -37,24 +35,29 @@ leaderboardRouter.get('/', async (req, res) => {
 
     const agentIds = agents.map((a) => a.id);
 
-    // Fetch policies for all agents in the org filtered by sold_date
+    // Fetch clients for every agent, filtered by created_at.
+    // clients.monthly_premium is the sale value captured at close, so it's
+    // available for every client, unlike policies (now optional and often
+    // entered well after the sale). agent_clients has no split-commission
+    // concept, so a split deal currently credits 100% to whichever agent
+    // is on agent_clients rather than being divided like policies were.
     let query = supabaseService
-      .from('policies')
+      .from('clients')
       .select(
-        'writing_agent_id, premium_amount, split_agent_id, split_agent_share',
+        'monthly_premium, agent_clients!agent_clients_client_id_fkey!inner(agent_id)',
       )
-      .in('writing_agent_id', agentIds);
+      .in('agent_clients.agent_id', agentIds);
 
-    if (startDate) query = query.gte('sold_date', startDate);
-    if (endDate) query = query.lte('sold_date', endDate);
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
 
-    const { data: policies, error: policiesError } = await query;
+    const { data: clients, error: clientsError } = await query;
 
-    if (policiesError) {
-      logger.error('Error fetching policies in endpoints/leaderboard.js', {
-        error: policiesError,
+    if (clientsError) {
+      logger.error('Error fetching clients in endpoints/leaderboard.js', {
+        error: clientsError,
       });
-      return res.status(500).json({ error: 'Failed to fetch policies' });
+      return res.status(500).json({ error: 'Failed to fetch clients' });
     }
 
     // Build agent lookup map
@@ -67,30 +70,15 @@ leaderboardRouter.get('/', async (req, res) => {
       };
     }
 
-    // Aggregate premium_amount * 12 per agent, accounting for splits
-    for (const policy of policies || []) {
-      const writingAgentId = policy.writing_agent_id;
-      if (!agentMap[writingAgentId]) continue;
+    // Aggregate monthly_premium * 12 per agent
+    for (const client of clients || []) {
+      const agentId = client.agent_clients?.[0]?.agent_id;
+      if (!agentId || !agentMap[agentId]) continue;
 
-      const annualPremium = Number(policy.premium_amount || 0) * 12;
-      const splitShare = policy.split_agent_id
-        ? Number(policy.split_agent_share || 0)
-        : 0;
-      const writingShare = 100 - splitShare;
+      const annualPremium = Number(client.monthly_premium || 0) * 12;
 
-      agentMap[writingAgentId].count += 1;
-      agentMap[writingAgentId].premiumAmount +=
-        annualPremium * (writingShare / 100);
-
-      if (
-        splitShare > 0 &&
-        policy.split_agent_id &&
-        agentMap[policy.split_agent_id]
-      ) {
-        agentMap[policy.split_agent_id].count += 1;
-        agentMap[policy.split_agent_id].premiumAmount +=
-          annualPremium * (splitShare / 100);
-      }
+      agentMap[agentId].count += 1;
+      agentMap[agentId].premiumAmount += annualPremium;
     }
 
     // Filter out agents with no sales and sort by premiumAmount desc

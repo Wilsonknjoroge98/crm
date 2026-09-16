@@ -330,14 +330,13 @@ const getAccount = async ({ email }) => {
   }
 };
 
-const getPremiumLeaderboard = async ({ startDate, endDate, agency }) => {
+const getPremiumLeaderboard = async ({ startDate, endDate }) => {
   const options = {
     method: 'GET',
     url: '/leaderboard',
     params: {
       startDate,
       endDate,
-      orgId: agency,
     },
   };
 

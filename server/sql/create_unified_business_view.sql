@@ -133,6 +133,7 @@ select
   c.occupation,
   c.marital_status,
   c.annual_income,
+  c.monthly_premium,
 
   -- Lead/underwriting fields.
   l.agent_id,

@@ -62,6 +62,13 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
   const [disabled, setDisabled] = useState(true);
   const { user } = useSelector((state) => state.user);
 
+  // client.monthly_premium is the one sale value the agent gave us for this
+  // client, not per-policy — only trustworthy as a stand-in for premium_amount
+  // when this is their first policy. A client with a policy already has that
+  // figure spoken for, so a second policy still asks for its own premium.
+  const isFirstPolicy =
+    (client?.policies || client?.policyData || []).length === 0;
+
   const initialForm = {
     policy_number: '',
     client_id: client?.id || '',
@@ -69,7 +76,10 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
     carrier: '',
     policy_status: 'Active',
     coverage_amount: '',
-    premium_amount: '',
+    premium_amount:
+      isFirstPolicy && client?.monthly_premium
+        ? String(client.monthly_premium)
+        : '',
     lead_vendor_id: client?.lead_vendor_id || 'GetSeniorQuotes.com',
     product: '',
     premium_frequency: 'monthly',

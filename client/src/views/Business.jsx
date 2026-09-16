@@ -447,6 +447,16 @@ const Business = () => {
     setClientDialogOpen(true);
   };
 
+  // Policy upload is no longer required at time of sale (carrier policy
+  // details usually aren't confirmed until well after close), so this is
+  // the routine path for most SALE clients, not a failure recovery — skips
+  // straight to CreatePolicyDialog instead of going through
+  // CreateClientDialog again.
+  const handleAddPolicy = (person) => {
+    setPolicyClient({ ...person, id: person.client_id });
+    setPolicyDialogOpen(true);
+  };
+
   // The view's policy JSON carries raw carrier_id/product_id (from
   // to_jsonb(policies)), but UpdatePolicyDialog's carrier/product selects
   // bind to `carrier`/`product` — remap so they prefill correctly.
@@ -736,6 +746,7 @@ const Business = () => {
                 textEnabled={textEnabled}
                 onText={setTextTarget}
                 onMarkSold={handleMarkSold}
+                onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
               />
             ))
