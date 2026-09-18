@@ -294,17 +294,19 @@ const attachRefundStatus = async (supabase, rows) => {
 
   const { data, error } = await supabase
     .from('leads')
-    .select('id,refund_status')
+    .select('id,refund_status,refund_denial_reason')
     .in('id', leadIds);
   if (error) throw error;
 
-  const statusByLeadId = new Map(
-    (data || []).map(({ id, refund_status: status }) => [id, status]),
-  );
-  return rows.map((row) => ({
-    ...row,
-    refund_status: statusByLeadId.get(row.lead_id) ?? null,
-  }));
+  const refundById = new Map((data || []).map((lead) => [lead.id, lead]));
+  return rows.map((row) => {
+    const refund = refundById.get(row.lead_id);
+    return {
+      ...row,
+      refund_status: refund?.refund_status ?? null,
+      refund_denial_reason: refund?.refund_denial_reason ?? null,
+    };
+  });
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.

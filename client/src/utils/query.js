@@ -316,19 +316,23 @@ const dismissUnmatchedReview = async ({ reviewId }) => {
   return response.data;
 };
 
-const getRefunds = async () => {
+// status is 'requested' (default, the pending queue), 'approved', 'denied',
+// or 'all' — every outcome is terminal, so these are the complete history
+const getRefunds = async ({ status } = {}) => {
   const response = await apiClient.request({
     method: 'GET',
     url: '/refunds',
+    params: status ? { status } : undefined,
   });
   return response.data?.data;
 };
 
-// action is 'approve' or 'deny'
-const reviewRefund = async ({ leadId, action }) => {
+// action is 'approve' or 'deny'; reason is only used (and optional) for deny
+const reviewRefund = async ({ leadId, action, reason }) => {
   const response = await apiClient.request({
     method: 'POST',
     url: `/refunds/${leadId}/${action}`,
+    data: action === 'deny' ? { reason } : undefined,
   });
   return response.data?.data;
 };

@@ -23,7 +23,6 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
-import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
 import Pill from './Pill';
 import { useMutation } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
@@ -125,10 +124,20 @@ const formatBuild = ({
 const formatBool = (value) =>
   value === true ? 'Yes' : value === false ? 'No' : '—';
 
-const REFUND_STATUS_LABELS = {
-  requested: 'Refund requested',
-  approved: 'Refund approved',
-  denied: 'Refund denied',
+// Refund is an administrative property of the lead, not a quick action, so
+// it lives in Lead Info under Verified rather than the Actions column.
+// Every outcome is terminal — a denied refund can't be re-requested, so it
+// gets the same locked badge as pending/approved (its reason surfaces in a
+// tooltip instead of an active control).
+const REFUND_BADGE_LABELS = {
+  requested: 'REFUND PENDING',
+  approved: 'REFUNDED',
+  denied: 'REFUND DENIED',
+};
+const REFUND_BADGE_COLOR = {
+  requested: 'warning',
+  approved: 'success',
+  denied: 'error',
 };
 
 // Some funnel submissions send the literal string "None" for an unmade
@@ -349,9 +358,23 @@ const BusinessCard = ({
   const showAgentAttribution = isAdmin;
   const isGsqProtected = person.lead_vendor_id === GSQ_LEAD_VENDOR_ID;
   const showCreativeAttribution = isAdmin && isGsqProtected;
-  // strict false, null means a non gsq lead that was never verified either way
-  const canRequestRefund = person.verified === false;
-  const refundLabel = REFUND_STATUS_LABELS[person.refund_status] || null;
+  // Refunds only exist for GSQ leads — crediting one means crediting the
+  // agent's counters in GSQ's own Firestore, which only exists for leads
+  // that actually came from GSQ. strict false, null means a non-gsq lead
+  // that was never verified either way. Once sold (converted to a client,
+  // or a policy attached directly) the lead is no longer eligible even if
+  // it was never marked verified.
+  const canRequestRefund =
+    isGsqProtected && person.verified === false && !isSale && !person.sold;
+  const refundBadgeLabel = REFUND_BADGE_LABELS[person.refund_status] || null;
+  const refundBadgeColor = REFUND_BADGE_COLOR[person.refund_status] || 'default';
+  const isRefundDenied = person.refund_status === 'denied';
+  // Pending or approved refunds are conceptually still "the client backed
+  // out" — selling a lead that's mid-refund would credit the agent in GSQ
+  // and simultaneously log a sale on the same lead. A denied refund clears
+  // this since the lead is confirmed to still be theirs to sell.
+  const isRefundLocked =
+    person.refund_status === 'requested' || person.refund_status === 'approved';
 
   const notesStatusIndicator = (
     <Typography
@@ -671,54 +694,28 @@ const BusinessCard = ({
                 Sold
               </Button>
             ) : (
-              <Button
-                fullWidth
-                size='small'
-                variant='outlined'
-                startIcon={<AssignmentTurnedInOutlinedIcon />}
-                onClick={() => onMarkSold?.(person)}
-                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+              <Tooltip
+                title={
+                  isRefundLocked
+                    ? 'A refund is pending or approved for this lead — resolve it before marking sold'
+                    : ''
+                }
               >
-                Mark Sold
-              </Button>
+                <span>
+                  <Button
+                    fullWidth
+                    size='small'
+                    variant='outlined'
+                    disabled={isRefundLocked}
+                    startIcon={<AssignmentTurnedInOutlinedIcon />}
+                    onClick={() => onMarkSold?.(person)}
+                    sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+                  >
+                    Mark Sold
+                  </Button>
+                </span>
+              </Tooltip>
             )}
-            {canRequestRefund && refundLabel ? (
-              <Button
-                fullWidth
-                size='small'
-                variant='outlined'
-                disabled
-                startIcon={<ReplayOutlinedIcon />}
-                sx={{
-                  justifyContent: 'flex-start',
-                  textTransform: 'none',
-                  '&.Mui-disabled': {
-                    color:
-                      person.refund_status === 'denied'
-                        ? 'error.main'
-                        : person.refund_status === 'approved'
-                          ? 'success.main'
-                          : 'text.secondary',
-                    borderColor: 'divider',
-                    opacity: 0.9,
-                  },
-                }}
-              >
-                {refundLabel}
-              </Button>
-            ) : canRequestRefund ? (
-              <Button
-                fullWidth
-                size='small'
-                variant='outlined'
-                color='warning'
-                startIcon={<ReplayOutlinedIcon />}
-                onClick={() => onRequestRefund?.(person)}
-                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
-              >
-                Request Refund
-              </Button>
-            ) : null}
           </Stack>
         </Grid>
 
@@ -839,6 +836,50 @@ const BusinessCard = ({
               label='Verified'
               value={formatBool(person.verified)}
             />
+            {canRequestRefund && refundBadgeLabel ? (
+              <Tooltip
+                title={
+                  isRefundDenied && person.refund_denial_reason
+                    ? `Reason: ${person.refund_denial_reason}`
+                    : ''
+                }
+              >
+                <Chip
+                  label={refundBadgeLabel}
+                  size='small'
+                  sx={{
+                    alignSelf: 'flex-start',
+                    mt: 0.25,
+                    mb: 0.25,
+                    bgcolor: `${refundBadgeColor}.light`,
+                    color: `${refundBadgeColor}.main`,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    fontWeight: 700,
+                    fontSize: '0.675rem',
+                  }}
+                />
+              </Tooltip>
+            ) : canRequestRefund ? (
+              <Link
+                component='button'
+                type='button'
+                onClick={() => onRequestRefund?.(person)}
+                underline='hover'
+                sx={{
+                  alignSelf: 'flex-start',
+                  mt: 0.25,
+                  mb: 0.25,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'warning.main',
+                  cursor: 'pointer',
+                  '&:hover': { color: 'warning.main' },
+                }}
+              >
+                Request Refund
+              </Link>
+            ) : null}
             <LabeledValue
               label='Sale amount'
               value={saleAmount ? formatCurrency(saleAmount) : null}

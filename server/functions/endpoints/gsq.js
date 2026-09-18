@@ -8,6 +8,7 @@ const {
   Timestamp,
 } = require('firebase-admin/firestore');
 const { supabaseService } = require('../services/supabase');
+const { SUPER_ADMIN_EMAIL } = require('../integrations/GSQ');
 
 // eslint-disable-next-line new-cap
 const gsqRouter = express.Router();
@@ -140,7 +141,6 @@ gsqRouter.patch('/insurdial-config', async (req, res) => {
 });
 
 gsqRouter.get('/', async (req, res) => {
-  const SUPER_ADMIN_EMAIL = 'info@fexdigital.com';
   const { data: authData, error: authError } =
     await req.supabase.auth.getUser();
   const authenticatedEmail = authData?.user?.email;
@@ -222,7 +222,7 @@ gsqRouter.get('/', async (req, res) => {
 
     return res.status(200).send({
       name: 'Admin',
-      email: 'info@fexdigital.com',
+      email: SUPER_ADMIN_EMAIL,
       outstandingLeads,
       verified,
       unverified,
