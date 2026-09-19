@@ -360,7 +360,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-17T23:59:59Z',
+            lead_created_at: '2026-09-18T23:59:59Z',
           },
           error: null,
         },
@@ -374,7 +374,7 @@ describe('POST /refunds', () => {
     const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/september 18, 2026/i);
+    expect(res.body.error).toMatch(/september 19, 2026/i);
     // no claim/update was ever attempted — rejected before the claim write
     expect(supabase.callCount()).toBe(1);
   });
@@ -396,7 +396,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-18T00:00:00Z',
+            lead_created_at: '2026-09-19T00:00:00Z',
           },
           error: null,
         },
@@ -447,7 +447,7 @@ describe('POST /refunds', () => {
     const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/september 18, 2026/i);
+    expect(res.body.error).toMatch(/september 19, 2026/i);
   });
 
   test('is permanently blocked by a prior denial — no double jeopardy', async () => {

@@ -18,7 +18,7 @@ const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 // The refund flow only applies to leads generated on or after this date —
 // leads that dripped in earlier were never sold as refund-eligible.
-const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-18T00:00:00Z');
+const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-19T00:00:00Z');
 
 // requester/reviewer come through fks on refund_requested_by/refund_reviewed_by,
 // leads has several fks to agents so each needs its own alias
@@ -144,7 +144,7 @@ const createRefundsRouter = ({
       if (!(generatedAt >= REFUND_ELIGIBILITY_CUTOFF)) {
         return res.status(400).json({
           error:
-            'Only leads generated on or after September 18, 2026 are eligible for a refund',
+            'Only leads generated on or after September 19, 2026 are eligible for a refund',
         });
       }
 

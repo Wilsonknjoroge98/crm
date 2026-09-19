@@ -38,7 +38,7 @@ const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 // Mirrors the server's cutoff in server/functions/endpoints/refunds.js —
 // leads generated before this date were never sold as refund-eligible, so
 // the request action shouldn't even appear for them.
-const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-18T00:00:00Z');
+const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-19T00:00:00Z');
 
 // Call/Text/Appointment aren't built yet, so they stay disabled placeholders
 // that route into the "notify me" signup. Mark Sold already has a real flow
