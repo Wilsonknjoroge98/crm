@@ -7,6 +7,7 @@ const {
   applyOwnershipFilter,
   findOwnedPerson,
 } = require('./business_access');
+const STATE_ABBREV_MAP = require('../shared/constants/state_abbrev_map');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -385,7 +386,22 @@ const parsePeopleQuery = (query) => {
   const status = normalizedStatus ? normalizedStatus.toUpperCase() : null;
   const gsqOnly = query.gsqOnly === 'true';
 
-  return { page, limit, sortBy, sortOrder, search, status, gsqOnly };
+  if (query.state !== undefined && typeof query.state !== 'string') {
+    throw new QueryValidationError('state must be a string');
+  }
+  const states = [
+    ...new Set(
+      (query.state || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (states.some((value) => !Object.hasOwn(STATE_ABBREV_MAP, value))) {
+    throw new QueryValidationError('Unsupported state');
+  }
+
+  return { page, limit, sortBy, sortOrder, search, status, gsqOnly, states };
 };
 
 // Contains-search: every whitespace-separated term becomes an escaped
@@ -493,6 +509,7 @@ const applyPeopleFilters = ({
   searchMatches,
   status,
   gsqOnly,
+  states,
 }) => {
   let filteredQuery = query;
 
@@ -510,6 +527,14 @@ const applyPeopleFilters = ({
 
   if (gsqOnly) {
     filteredQuery = filteredQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+  }
+
+  // prod has a sprinkle of two-letter codes next to the full names, match both
+  if (states.length > 0) {
+    filteredQuery = filteredQuery.in(
+      'state',
+      states.flatMap((value) => [value, STATE_ABBREV_MAP[value]]),
+    );
   }
 
   return filteredQuery;
@@ -601,7 +626,7 @@ const createBusinessRouter = ({
       throw error;
     }
 
-    const { page, limit, sortBy, sortOrder, search, status, gsqOnly } =
+    const { page, limit, sortBy, sortOrder, search, status, gsqOnly, states } =
       parsedQuery;
     const { agentId, isSuperuser } = await resolveAgentScope(req, supabase);
 
@@ -639,6 +664,7 @@ const createBusinessRouter = ({
         searchMatches,
         status,
         gsqOnly,
+        states,
       });
 
       const offset = (page - 1) * limit;
@@ -660,6 +686,7 @@ const createBusinessRouter = ({
           searchMatches,
           status,
           gsqOnly,
+          states,
         });
         const { error: countError, count: filteredCount } = await countQuery;
         if (countError) throw countError;

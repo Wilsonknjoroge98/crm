@@ -320,6 +320,7 @@ describe('parsePeopleQuery', () => {
       search: '',
       status: null,
       gsqOnly: false,
+      states: [],
     });
   });
 
@@ -333,6 +334,7 @@ describe('parsePeopleQuery', () => {
         search: ' (555) 123-4567 ',
         status: ' Sale ',
         gsqOnly: 'true',
+        state: ' Texas , Georgia,Texas ',
       }),
     ).toEqual({
       page: 2,
@@ -342,6 +344,7 @@ describe('parsePeopleQuery', () => {
       search: '5551234567',
       status: 'SALE',
       gsqOnly: true,
+      states: ['Texas', 'Georgia'],
     });
   });
 
@@ -355,6 +358,8 @@ describe('parsePeopleQuery', () => {
     [{ search: '---' }, 'search must include letters or numbers'],
     [{ status: 'converted' }, 'status must be lead or sale'],
     [{ status: ['lead'] }, 'status must be lead or sale'],
+    [{ state: 'Texas,Nowhere' }, 'Unsupported state'],
+    [{ state: ['Texas'] }, 'state must be a string'],
   ])('rejects invalid query input', (query, message) => {
     expect(() => parsePeopleQuery(query)).toThrow(message);
   });
@@ -554,6 +559,32 @@ describe('GET /people', () => {
         { method: 'eq', args: ['lifecycle_status', 'SALE'] },
       ]),
     );
+  });
+
+  test('matches both spellings of every requested state', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [
+        { data: [{ client_id: 'client-1' }], error: null },
+      ],
+      business: [
+        {
+          data: [{ id: 'person-1', state: 'TX' }],
+          error: null,
+          count: 1,
+        },
+        rollupFor([{ id: 'person-1' }]),
+      ],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1' }),
+    ).get('/business?state=Texas,Georgia');
+
+    expect(response.status).toBe(200);
+    expect(findQuery(supabase, 'business').calls).toContainEqual({
+      method: 'in',
+      args: ['state', ['Texas', 'TX', 'Georgia', 'GA']],
+    });
   });
 
   test('limits the list to GSQ-sourced people when gsqOnly is set', async () => {

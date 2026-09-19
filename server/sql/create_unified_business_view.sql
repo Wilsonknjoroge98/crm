@@ -98,6 +98,27 @@ alter table public.clients
     )
   ) stored;
 
+-- same person = same trimmed name + digits-only phone. phone alone isn't enough,
+-- spouses share it
+alter table public.leads
+  add column if not exists identity_key text
+  generated always as (
+    lower(trim(coalesce(first_name, ''))) || '|' ||
+    lower(trim(coalesce(last_name, ''))) || '|' ||
+    regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g')
+  ) stored;
+
+alter table public.clients
+  add column if not exists identity_key text
+  generated always as (
+    lower(trim(coalesce(first_name, ''))) || '|' ||
+    lower(trim(coalesce(last_name, ''))) || '|' ||
+    regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g')
+  ) stored;
+
+create index if not exists clients_identity_key_idx
+  on public.clients (identity_key);
+
 create extension if not exists pg_trgm;
 
 create index if not exists leads_people_search_text_idx
@@ -229,7 +250,17 @@ left join lateral (
   left join public.products product
     on product.id = p.product_id
   where p.client_id = c.id
-) policy_rollup on true;
+) policy_rollup on true
+-- a person is a SALE once any client exists for them, so a lead-only row is
+-- dropped when a client with the same identity_key exists. no phone = no identity, keep it
+where c.id is not null
+  or l.phone is null
+  or regexp_replace(l.phone, '[^0-9]', '', 'g') = ''
+  or not exists (
+    select 1
+    from public.clients same_person
+    where same_person.identity_key = l.identity_key
+  );
 
 comment on view public.business is
   'Unified lead/client identity with policies aggregated as JSON.';
