@@ -16,6 +16,10 @@ const {
 // which only exists for leads that actually came from GSQ.
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
+// The refund flow only applies to leads generated on or after this date —
+// leads that dripped in earlier were never sold as refund-eligible.
+const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-18T00:00:00Z');
+
 // requester/reviewer come through fks on refund_requested_by/refund_reviewed_by,
 // leads has several fks to agents so each needs its own alias
 const REQUESTED_BY = 'requested_by:agents!leads_refund_requested_by_fkey';
@@ -75,7 +79,7 @@ const createRefundsRouter = ({
       let query = supabase
         .from('leads')
         .select(
-          'id,first_name,last_name,email,phone,verified,sold,refund_status,agent_id,gsq_id,lead_vendor_id',
+          'id,first_name,last_name,email,phone,verified,sold,refund_status,agent_id,gsq_id,lead_vendor_id,lead_created_at,created_at',
         )
         .eq('id', leadId);
       if (agentId !== SUPERUSER_ID) query = query.eq('agent_id', agentId);
@@ -132,6 +136,16 @@ const createRefundsRouter = ({
               'Only the agent this lead was first issued to can request a refund',
           });
         }
+      }
+
+      // lead_created_at is when the funnel submission actually happened;
+      // created_at is only a fallback for rows that predate that column.
+      const generatedAt = new Date(lead.lead_created_at || lead.created_at);
+      if (!(generatedAt >= REFUND_ELIGIBILITY_CUTOFF)) {
+        return res.status(400).json({
+          error:
+            'Only leads generated on or after September 18, 2026 are eligible for a refund',
+        });
       }
 
       // Claim the request first, guarded so a double click is a 409, not

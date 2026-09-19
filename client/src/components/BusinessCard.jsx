@@ -35,6 +35,10 @@ const SANS = '"Inter", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
 const NOTES_DEBOUNCE_MS = 800;
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+// Mirrors the server's cutoff in server/functions/endpoints/refunds.js —
+// leads generated before this date were never sold as refund-eligible, so
+// the request action shouldn't even appear for them.
+const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-18T00:00:00Z');
 
 // Call/Text/Appointment aren't built yet, so they stay disabled placeholders
 // that route into the "notify me" signup. Mark Sold already has a real flow
@@ -363,9 +367,18 @@ const BusinessCard = ({
   // that actually came from GSQ. strict false, null means a non-gsq lead
   // that was never verified either way. Once sold (converted to a client,
   // or a policy attached directly) the lead is no longer eligible even if
-  // it was never marked verified.
-  const canRequestRefund =
+  // it was never marked verified. This gates both the request action and
+  // showing a prior refund's status badge, so it stays independent of the
+  // cutoff below — a lead already carrying refund history should still
+  // show it even if that history predates the cutoff.
+  const isRefundRelevant =
     isGsqProtected && person.verified === false && !isSale && !person.sold;
+  // receivedAt (lead_created_at, falling back to created_at) is when the
+  // refund offer applies from — leads that dripped in before the cutoff
+  // were never sold as refund-eligible, so only gate the request action.
+  const wasGeneratedAfterCutoff =
+    Boolean(receivedAt) && new Date(receivedAt) >= REFUND_ELIGIBILITY_CUTOFF;
+  const canRequestRefund = isRefundRelevant && wasGeneratedAfterCutoff;
   const refundBadgeLabel = REFUND_BADGE_LABELS[person.refund_status] || null;
   const refundBadgeColor = REFUND_BADGE_COLOR[person.refund_status] || 'default';
   const isRefundDenied = person.refund_status === 'denied';
@@ -836,7 +849,7 @@ const BusinessCard = ({
               label='Verified'
               value={formatBool(person.verified)}
             />
-            {canRequestRefund && refundBadgeLabel ? (
+            {isRefundRelevant && refundBadgeLabel ? (
               <Tooltip
                 title={
                   isRefundDenied && person.refund_denial_reason

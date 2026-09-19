@@ -253,6 +253,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            lead_created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
@@ -291,6 +292,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            lead_created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
@@ -341,6 +343,113 @@ describe('POST /refunds', () => {
     expect(claimUpdate.refund_status).toBe('requested');
   });
 
+  test('rejects a lead generated before the refund eligibility cutoff', async () => {
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            id: 'lead-1',
+            first_name: 'Ada',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '2025550100',
+            verified: false,
+            sold: false,
+            refund_status: null,
+            agent_id: 'agent-1',
+            gsq_id: 'gsq-1',
+            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            lead_created_at: '2026-09-17T23:59:59Z',
+          },
+          error: null,
+        },
+      },
+    ]);
+    const createFirestore = makeFirestore({
+      leadsDocs: { 'gsq-1': { issuedTo: 'agent-1@example.com' } },
+    });
+    const app = makeApp({ supabase, createFirestore });
+
+    const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/september 18, 2026/i);
+    // no claim/update was ever attempted — rejected before the claim write
+    expect(supabase.callCount()).toBe(1);
+  });
+
+  test('accepts a lead generated exactly on the refund eligibility cutoff', async () => {
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            id: 'lead-1',
+            first_name: 'Ada',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '2025550100',
+            verified: false,
+            sold: false,
+            refund_status: null,
+            agent_id: 'agent-1',
+            gsq_id: 'gsq-1',
+            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            lead_created_at: '2026-09-18T00:00:00Z',
+          },
+          error: null,
+        },
+      },
+      {
+        table: 'leads',
+        result: {
+          data: { id: 'lead-1', refund_status: 'requested' },
+          error: null,
+        },
+      },
+      { table: 'leads', result: { data: { id: 'lead-1' }, error: null } },
+    ]);
+    const createFirestore = makeFirestore({
+      leadsDocs: { 'gsq-1': { issuedTo: 'agent-1@example.com' } },
+    });
+    const app = makeApp({ supabase, createFirestore });
+
+    const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+    expect(res.status).toBe(201);
+  });
+
+  test('falls back to created_at when lead_created_at is missing, and rejects if that predates the cutoff', async () => {
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            id: 'lead-1',
+            verified: false,
+            sold: false,
+            refund_status: null,
+            agent_id: 'agent-1',
+            gsq_id: 'gsq-1',
+            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            created_at: '2026-09-01T00:00:00Z',
+          },
+          error: null,
+        },
+      },
+    ]);
+    const createFirestore = makeFirestore({
+      leadsDocs: { 'gsq-1': { issuedTo: 'agent-1@example.com' } },
+    });
+    const app = makeApp({ supabase, createFirestore });
+
+    const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/september 18, 2026/i);
+  });
+
   test('is permanently blocked by a prior denial — no double jeopardy', async () => {
     const supabase = makeSupabase([
       {
@@ -386,6 +495,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            lead_created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
@@ -457,6 +567,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            lead_created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
