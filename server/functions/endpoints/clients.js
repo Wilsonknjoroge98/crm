@@ -43,14 +43,10 @@ clientRouter.get('/all', async (req, res) => {
       .select(
         `
                 *,
-                agent_clients!agent_clients_client_id_fkey (
-                    agent_id,
-                    client_id,
-                    agents!agent_clients_agent_id_fkey (
-                        id,
-                        first_name,
-                        last_name
-                    )
+                agents!clients_agent_id_fkey (
+                    id,
+                    first_name,
+                    last_name
                 ),
                 leads!clients_lead_id_fkey (
                     gsq_source
@@ -62,7 +58,7 @@ clientRouter.get('/all', async (req, res) => {
                 )
             `,
       )
-      .eq('agent_clients.agent_id', req.agent.id);
+      .eq('agent_id', req.agent.id);
 
     if (error) {
       logger.error('Error fetching clients in endpoints/clients.js', {
@@ -75,9 +71,7 @@ clientRouter.get('/all', async (req, res) => {
     }
 
     const mapped = (clients || []).map(
-      ({ agent_clients, leads, policies, ...client }) => {
-        const ac = agent_clients?.[0];
-        const a = ac?.agents;
+      ({ agents: a, leads, policies, ...client }) => {
         const agent_name = a
           ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
           : null;
@@ -127,9 +121,7 @@ clientRouter.get('/', async (req, res) => {
         .select(
           `
                 *,
-                agent_clients!agent_clients_client_id_fkey (
-                    agents!agent_clients_agent_id_fkey ( first_name, last_name )
-                ),
+                agents!clients_agent_id_fkey ( first_name, last_name ),
                 leads!clients_lead_id_fkey ( gsq_source ),
                 policies!policies_client_id_fkey ( id, policy_number, carriers ( name ) )
             `,
@@ -158,9 +150,7 @@ clientRouter.get('/', async (req, res) => {
       }
 
       const mapped = (clients || []).map(
-        ({ agent_clients: agentClients, leads, policies, ...client }) => {
-          const ac = agentClients?.[0];
-          const a = ac?.agents;
+        ({ agents: a, leads, policies, ...client }) => {
           const agentname = a
             ? `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || null
             : null;
@@ -184,32 +174,11 @@ clientRouter.get('/', async (req, res) => {
       return res.status(200).json(mapped);
     }
 
-    const { data: agentLinks, error: linksError } = await supabaseService
-      .from('agent_clients')
-      .select('client_id')
-      .eq('agent_id', req.agent.id);
-
-    if (linksError) {
-      logger.error('Error fetching agent_clients in endpoints/clients.js', {
-        route: '/clients',
-        method: 'GET',
-        requesterId: req.agent.id,
-        error: linksError,
-      });
-      return res.status(500).json({ error: 'Failed to fetch clients' });
-    }
-
-    if (!agentLinks?.length) {
-      return res.status(200).json([]);
-    }
-
     const { data: agentData, error: agentError } = await supabaseService
       .from('agents')
       .select('first_name, last_name')
       .eq('id', req.agent.id)
       .maybeSingle();
-
-    const clientIds = agentLinks.map((l) => l.client_id);
 
     const { data: clients, error } = await supabaseService
       .from('clients')
@@ -226,7 +195,7 @@ clientRouter.get('/', async (req, res) => {
                 )
             `,
       )
-      .in('id', clientIds)
+      .eq('agent_id', req.agent.id)
       .order('created_at', { ascending: false })
       .limit(10000);
 
@@ -396,6 +365,7 @@ clientRouter.post('/', async (req, res) => {
     .insert({
       ...client,
       lead_id: leadId,
+      agent_id: req.agent.id,
     })
     .select('*')
     .maybeSingle();
@@ -421,25 +391,6 @@ clientRouter.post('/', async (req, res) => {
       leadId,
     });
     return res.status(500).json({ error: 'Failed to create client' });
-  }
-
-  const { error: agentClientError } = await supabaseService
-    .from('agent_clients')
-    .insert({
-      agent_id: req.agent.id,
-      client_id: newClient.id,
-    });
-
-  if (agentClientError) {
-    logger.error('Error creating agent_clients record in clients.js', {
-      route: '/client',
-      method: 'POST',
-      requesterId: req.agent?.id,
-      clientId: newClient.id,
-      leadId,
-      error: agentClientError,
-    });
-    return res.status(500).json({ error: 'Failed to link client to agent' });
   }
 
   logger.log('Created client successfully', {

@@ -290,7 +290,7 @@ describe('people ownership helpers', () => {
         method: 'or',
         args: [
           'and(client_id.is.null,agent_id.eq.agent-1),' +
-            'owner_agent_ids.cs.{agent-1}',
+            'owner_agent_id.eq.agent-1',
         ],
       },
     ]);
@@ -458,7 +458,7 @@ describe('GET /people', () => {
           method: 'or',
           args: [
             'and(client_id.is.null,agent_id.eq.agent-1),' +
-              'owner_agent_ids.cs.{agent-1}',
+              'owner_agent_id.eq.agent-1',
           ],
         },
         {
@@ -820,7 +820,7 @@ describe('GET /people', () => {
           method: 'or',
           args: [
             'and(client_id.is.null,agent_id.eq.agent-1),' +
-              'owner_agent_ids.cs.{agent-1}',
+              'owner_agent_id.eq.agent-1',
           ],
         },
         {
@@ -1436,7 +1436,7 @@ describe('GET /people/:id', () => {
           method: 'or',
           args: [
             'and(client_id.is.null,agent_id.eq.agent-1),' +
-              'owner_agent_ids.cs.{agent-1}',
+              'owner_agent_id.eq.agent-1',
           ],
         },
         {
@@ -1465,7 +1465,7 @@ describe('GET /people/:id', () => {
       method: 'or',
       args: [
         'and(client_id.is.null,agent_id.eq.agent-1),' +
-          'owner_agent_ids.cs.{agent-1}',
+          'owner_agent_id.eq.agent-1',
       ],
     });
   });
@@ -1676,7 +1676,7 @@ describe('DELETE /people', () => {
       method: 'or',
       args: [
         'and(client_id.is.null,agent_id.eq.agent-1),' +
-          'owner_agent_ids.cs.{agent-1}',
+          'owner_agent_id.eq.agent-1',
       ],
     });
     expect(supabase.from).not.toHaveBeenCalledWith('policies');
