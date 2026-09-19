@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -37,6 +38,7 @@ import { useAgent } from '../hooks/useAgent';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
+  STATES,
 } from '../utils/constants';
 import NewLeadDialog from '../components/NewLeadDialog';
 import CreateClientDialog from '../components/CreateClientDialog';
@@ -258,6 +260,7 @@ const Business = () => {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [stateFilter, setStateFilter] = useState([]);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [selectedById, setSelectedById] = useState(new Map());
@@ -308,7 +311,15 @@ const Business = () => {
     isPlaceholderData,
     error: businessError,
   } = useQuery({
-    queryKey: ['business', page, pageSize, search, statusFilter, gsqOnly],
+    queryKey: [
+      'business',
+      page,
+      pageSize,
+      search,
+      statusFilter,
+      stateFilter,
+      gsqOnly,
+    ],
     queryFn: () =>
       getBusinessRecords({
         page: page + 1,
@@ -318,6 +329,7 @@ const Business = () => {
         direction: 'desc',
         search,
         status: statusFilter,
+        state: stateFilter,
         gsqOnly,
       }),
     placeholderData: (previous) => previous,
@@ -606,6 +618,23 @@ const Business = () => {
                 <ToggleButton value='lead'>Leads</ToggleButton>
                 <ToggleButton value='sale'>Sales</ToggleButton>
               </ToggleButtonGroup>
+              <Autocomplete
+                multiple
+                size='small'
+                options={STATES}
+                value={stateFilter}
+                limitTags={2}
+                disableCloseOnSelect
+                onChange={(event, value) => {
+                  clearSelection();
+                  setStateFilter(value);
+                  setPage(0);
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder='State' />
+                )}
+                sx={{ width: { xs: '100%', sm: 320 } }}
+              />
               {/* Placeholder filters from BUSINESS_VIEW.png; same coming-soon
                   treatment as the card action buttons. */}
               {['Disposition tags', 'Automations'].map((label) => (
