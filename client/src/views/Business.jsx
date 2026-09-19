@@ -313,7 +313,8 @@ const Business = () => {
       getBusinessRecords({
         page: page + 1,
         limit: pageSize,
-        sort: 'created_at',
+        // newest lead first. created_at flips to the sale date once they buy
+        sort: 'lead_created_at',
         direction: 'desc',
         search,
         status: statusFilter,

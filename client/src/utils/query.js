@@ -115,7 +115,7 @@ const getLeads = async ({ data }) => {
 const getBusinessRecords = async ({
   page = 1,
   limit = 25,
-  sort = 'created_at',
+  sort = 'lead_created_at',
   direction = 'desc',
   search = '',
   status = 'all',
