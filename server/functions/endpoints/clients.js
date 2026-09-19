@@ -300,8 +300,6 @@ clientRouter.post('/', async (req, res) => {
     client,
   });
 
-  await markSoldInGSQ(client.phone, client.email);
-
   if (!client?.email || !client?.phone) {
     logger.warn('Missing required client fields in clients.js', {
       route: '/client',
@@ -318,7 +316,7 @@ clientRouter.post('/', async (req, res) => {
 
   const { data: existingLeads, error: existingLeadError } = await supabaseService
     .from('leads')
-    .select('id, gsq_source')
+    .select('id, gsq_source, refund_status')
     .eq('phone', client.phone)
     .order('created_at', { ascending: false })
     .limit(1);
@@ -335,6 +333,22 @@ clientRouter.post('/', async (req, res) => {
   }
 
   const existingLead = existingLeads?.[0] || null;
+
+  // A pending or approved refund means GSQ still owes (or has already paid)
+  // a replacement credit for this lead; converting it to a client here would
+  // let the same lead be both refunded and sold. Checked before
+  // markSoldInGSQ so a blocked request never touches GSQ's sold flag either.
+  if (
+    existingLead?.refund_status === 'requested' ||
+    existingLead?.refund_status === 'approved'
+  ) {
+    return res.status(400).json({
+      error:
+        'A refund is pending or approved for this lead — resolve it before marking sold',
+    });
+  }
+
+  await markSoldInGSQ(client.phone, client.email);
 
   if (!existingLead) {
     let hyrosSource = null;

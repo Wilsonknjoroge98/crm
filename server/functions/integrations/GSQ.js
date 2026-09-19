@@ -4,6 +4,12 @@ const { supabaseService } = require('../services/supabase');
 const logger = require('firebase-functions/logger');
 const { parsePremium } = require('./premium');
 
+// GSQ sends this literal email for leads issued to the platform itself
+// rather than a specific agent; ingestion and refunds both need to treat it
+// as the house account below.
+const GSQ_PLATFORM_EMAIL = 'hello@getseniorquotes.com';
+const SUPER_ADMIN_EMAIL = 'info@fexdigital.com';
+
 const inboundGSQ = async (req, res) => {
   try {
     const auth = req.headers['authorization']?.split(' ')[1];
@@ -41,11 +47,9 @@ const inboundGSQ = async (req, res) => {
       .eq('name', 'GetSeniorQuotes.com')
       .single();
 
-    const GSQ_PLATFORM_EMAIL = 'hello@getseniorquotes.com';
-
     // If the lead is issued to the GSQ platform email, override the email to match company
     if (issuedTo === GSQ_PLATFORM_EMAIL) {
-      issuedTo = 'info@fexdigital.com';
+      issuedTo = SUPER_ADMIN_EMAIL;
     }
 
     let agentId = null;
@@ -109,7 +113,7 @@ const inboundGSQ = async (req, res) => {
     const { data: existingLeads, error: existingLeadError } =
       await supabaseService
         .from('leads')
-        .select('id, agent_id')
+        .select('id, agent_id, gsq_id')
         .eq('phone', payload.phone)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -126,7 +130,19 @@ const inboundGSQ = async (req, res) => {
     const existingLead = existingLeads?.[0] || null;
 
     if (existingLead) {
-      if (existingLead.agent_id === agentId) {
+      // A resubmission for this phone always carries the gsq doc id of its
+      // *current* lead doc (the 30-day duplicate window in gsq/lead.js means
+      // a resubmission past that window is a brand-new doc with its own
+      // issuedTo, not a mutation of the old one). Refresh gsq_id here too,
+      // not just agent_id — otherwise it stays pinned to the very first doc
+      // this phone ever produced, and refund eligibility (which dereferences
+      // gsq_id to read that doc's issuedTo) ends up checking a stale,
+      // superseded doc instead of the one the current agent was actually
+      // issued.
+      if (
+        existingLead.agent_id === agentId &&
+        existingLead.gsq_id === payload.gsq_id
+      ) {
         return res.status(200).send({
           message: 'Lead already exists and is assigned to this agent',
         });
@@ -134,7 +150,7 @@ const inboundGSQ = async (req, res) => {
 
       const { error: updateError } = await supabaseService
         .from('leads')
-        .update({ agent_id: agentId })
+        .update({ agent_id: agentId, gsq_id: payload.gsq_id })
         .eq('id', existingLead.id);
 
       if (updateError) {
@@ -201,4 +217,9 @@ const markSoldInGSQ = async (phone, email) => {
   }
 };
 
-module.exports = { inboundGSQ, markSoldInGSQ };
+module.exports = {
+  inboundGSQ,
+  markSoldInGSQ,
+  GSQ_PLATFORM_EMAIL,
+  SUPER_ADMIN_EMAIL,
+};
