@@ -164,7 +164,15 @@ gsqRouter.get('/', async (req, res) => {
   let liveTransfers = 0;
   liveTransfers = liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
 
-  const data = { ...snapshot.data(), liveTransfers };
+  const instantFormsSnapshot = await db
+    .collection('instant_forms')
+    .doc(email)
+    .get();
+
+  let instantForms = 0;
+  instantForms = instantFormsSnapshot?.data()?.outstandingInstantForms || 0;
+
+  const data = { ...snapshot.data(), liveTransfers, instantForms };
 
   if (!snapshot.exists && email !== SUPER_ADMIN_EMAIL) {
     return res.status(404).send({ message: 'Agent not found' });
@@ -174,6 +182,9 @@ gsqRouter.get('/', async (req, res) => {
     const liveTransfersRef = db.collection('live_transfers');
     const liveTransfersSnap = await liveTransfersRef.get();
     const liveTransfersDocs = liveTransfersSnap.docs.map((doc) => doc.data());
+
+    const instantFormsSnap = await db.collection('instant_forms').get();
+    const instantFormsDocs = instantFormsSnap.docs.map((doc) => doc.data());
 
     const agentCollection = db.collection('agents');
 
@@ -220,6 +231,11 @@ gsqRouter.get('/', async (req, res) => {
       0,
     );
 
+    instantForms = instantFormsDocs.reduce(
+      (acc, curr) => acc + (curr.outstandingInstantForms || 0),
+      0,
+    );
+
     return res.status(200).send({
       name: 'Admin',
       email: SUPER_ADMIN_EMAIL,
@@ -227,6 +243,7 @@ gsqRouter.get('/', async (req, res) => {
       verified,
       unverified,
       liveTransfers,
+      instantForms,
     });
   }
 

@@ -439,6 +439,7 @@ const AccountDetails = ({ data, defaultTab }) => {
                 ['Verified Leads', data?.verified ?? 0],
                 ['Unverified Leads', data?.unverified ?? 0],
                 ['Live Transfers', data?.liveTransfers ?? 0],
+                ['Instant Form Leads', data?.instantForms ?? 0],
               ].map(([label, value]) => (
                 <Stack
                   key={label}
