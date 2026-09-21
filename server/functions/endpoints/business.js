@@ -72,6 +72,8 @@ const BUSINESS_LIST_FIELDS = [
   // everyone since both already live on the view.
   'agent_id',
   'gsq_source',
+  // meta form answers, shown under show more on the card
+  'raw_fields',
   // Not rendered on the card, but the CSV export covers every lead/client
   // column, so the list projection needs to carry them too.
   'sold',
@@ -121,6 +123,7 @@ const BUSINESS_DETAIL_FIELDS = [
   'priority',
   'why',
   'gsq_source',
+  'raw_fields',
   'gsq_id',
   'gsq_live_transfer',
   'lead_vendor_id',

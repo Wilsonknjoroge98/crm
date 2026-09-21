@@ -10,6 +10,15 @@ const { parsePremium } = require('./premium');
 const GSQ_PLATFORM_EMAIL = 'hello@getseniorquotes.com';
 const SUPER_ADMIN_EMAIL = 'info@fexdigital.com';
 
+const parseYesNo = (value) => {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (['yes', 'y', 'true'].includes(normalized)) return true;
+  if (['no', 'n', 'false'].includes(normalized)) return false;
+  return null;
+};
+
 const inboundGSQ = async (req, res) => {
   try {
     const auth = req.headers['authorization']?.split(' ')[1];
@@ -26,13 +35,15 @@ const inboundGSQ = async (req, res) => {
 
     let issuedTo = req.body.issuedTo;
 
+    // set by gsq's meta webhook, the funnel callers never send it
+    const isInstantForm = req.body.leadType === 'instant_form';
+
     if (
       !firstName ||
       !lastName ||
       !email ||
       !phone ||
-      !gsqId ||
-      !dob ||
+      (!isInstantForm && (!gsqId || !dob)) ||
       !issuedTo ||
       !state ||
       sold === undefined
@@ -40,7 +51,7 @@ const inboundGSQ = async (req, res) => {
       return res.status(400).send({ message: 'Missing required fields' });
     }
 
-    const hyrosSource = await getHyrosSource(phone);
+    const hyrosSource = isInstantForm ? null : await getHyrosSource(phone);
     const { data: leadVendor } = await supabaseService
       .from('lead_vendors')
       .select('id')
@@ -110,6 +121,26 @@ const inboundGSQ = async (req, res) => {
       lead_vendor_id: leadVendor.id,
     };
 
+    // only these three answers get typed columns, everything else goes to raw_fields only
+    // gsq_id stays null, there's no gsq session behind a meta lead
+    const {
+      'do_you_use_tobacco?': tobacco,
+      'when_are_you_best_available?': availability,
+      'what_is_your_coverage_for?': why,
+      ...rawFields
+    } = lead.fields ?? {};
+    const instantFormColumns = isInstantForm
+      ? {
+          smoker: parseYesNo(tobacco),
+          availability: availability ?? null,
+          why: why ?? null,
+          gsq_source: lead.adId ?? null,
+          gsq_id: null,
+          raw_fields: rawFields,
+        }
+      : {};
+    Object.assign(payload, instantFormColumns);
+
     const { data: existingLeads, error: existingLeadError } =
       await supabaseService
         .from('leads')
@@ -139,7 +170,9 @@ const inboundGSQ = async (req, res) => {
       // gsq_id to read that doc's issuedTo) ends up checking a stale,
       // superseded doc instead of the one the current agent was actually
       // issued.
+      // instant forms have null gsq_id on both sides so this would match, and the row still needs the answers
       if (
+        !isInstantForm &&
         existingLead.agent_id === agentId &&
         existingLead.gsq_id === payload.gsq_id
       ) {
@@ -150,7 +183,11 @@ const inboundGSQ = async (req, res) => {
 
       const { error: updateError } = await supabaseService
         .from('leads')
-        .update({ agent_id: agentId, gsq_id: payload.gsq_id })
+        .update(
+          isInstantForm
+            ? { agent_id: agentId, ...instantFormColumns }
+            : { agent_id: agentId, gsq_id: payload.gsq_id },
+        )
         .eq('id', existingLead.id);
 
       if (updateError) {
