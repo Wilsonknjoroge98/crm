@@ -170,6 +170,12 @@ const titleCase = (value) =>
     ? value.replace(/\w\S*/g, (word) => word[0].toUpperCase() + word.slice(1))
     : value;
 
+// meta question keys look like "what_is_your_age?", make them readable for the card
+const formQuestionLabel = (key) => {
+  const words = key.replace(/\?$/, '').replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 // Mirrors the drawer's premiumLabel: a single amount, or a min/max range,
 // whichever the funnel captured.
 const premiumLabel = (person) => {
@@ -356,6 +362,7 @@ const BusinessCard = ({
   const receivedAt = person.lead_created_at || person.created_at;
   const saleAmount = annualizedSaleAmount(person.policies);
   const age = computeAge(person.date_of_birth);
+  const formAnswers = Object.entries(person.raw_fields ?? {});
   // Only the admin needs to see who else's lead this is — but for every
   // vendor and lifecycle stage, not just GSQ leads. Creative (the ad
   // source) only ever exists for GSQ-sourced leads, so it stays scoped.
@@ -807,6 +814,14 @@ const BusinessCard = ({
                   </Box>
                   <b>{person.why || '—'}</b>
                 </Bullet>
+                {formAnswers.map(([question, answer]) => (
+                  <Bullet key={question}>
+                    <Box component='span' sx={{ color: 'text.secondary' }}>
+                      {formQuestionLabel(question)}:{' '}
+                    </Box>
+                    <b>{String(answer ?? '').replace(/_/g, ' ').trim() || '—'}</b>
+                  </Bullet>
+                ))}
               </>
             )}
           </Box>
