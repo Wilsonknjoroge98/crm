@@ -181,7 +181,8 @@ select
 
   l.premium_min,
   l.premium_max,
-  l.availability
+  l.availability,
+  l.raw_fields
 from public.leads l
 full outer join public.clients c
   on c.lead_id = l.id
