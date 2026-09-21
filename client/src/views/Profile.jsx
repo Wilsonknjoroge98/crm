@@ -12,12 +12,15 @@ import AccountDetails from '../components/AccountDetails';
 import AgentCardIntroDialog, {
   STORAGE_KEY as AGENT_CARD_INTRO_STORAGE_KEY,
 } from '../components/AgentCardIntroDialog';
+import { useAgent } from '../hooks/useAgent';
 import { getAccount } from '../utils/query';
 
 const PRODUCER_PAGE_TAB_INDEX = 3;
 
 const Profile = () => {
   const { user, isAuthenticated } = useSelector((state) => state.user);
+  const agent = useAgent();
+  const displayName = agent?.name?.trim();
   const [introOpen, setIntroOpen] = useState(
     () => localStorage.getItem(AGENT_CARD_INTRO_STORAGE_KEY) !== 'true',
   );
@@ -32,8 +35,15 @@ const Profile = () => {
   return (
     <Container sx={{ mt: 4 }}>
       <AgentCardIntroDialog open={introOpen} setOpen={setIntroOpen} />
-      <Stack spacing={0.5} mb={3}>
-        <Typography variant='h4'>Agent Profile</Typography>
+      <Stack spacing={0.25} mb={3}>
+        <Typography variant='h4' sx={{ fontWeight: 700 }}>
+          {displayName || user?.email || 'Agent Profile'}
+        </Typography>
+        {displayName && user?.email && (
+          <Typography variant='body2' color='text.secondary'>
+            {user.email}
+          </Typography>
+        )}
       </Stack>
 
       {isLoading && (

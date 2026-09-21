@@ -163,6 +163,8 @@ gsqRouter.get('/', async (req, res) => {
 
   let liveTransfers = 0;
   liveTransfers = liveTransfersSnapshot?.data()?.outstandingLiveTransfers || 0;
+  const lastDialedDate = liveTransfersSnapshot?.data()?.lastDialedDate || null;
+  const lastBridgedDate = liveTransfersSnapshot?.data()?.lastBridgedDate || null;
 
   const instantFormsSnapshot = await db
     .collection('instant_forms')
@@ -172,7 +174,13 @@ gsqRouter.get('/', async (req, res) => {
   let instantForms = 0;
   instantForms = instantFormsSnapshot?.data()?.outstandingInstantForms || 0;
 
-  const data = { ...snapshot.data(), liveTransfers, instantForms };
+  const data = {
+    ...snapshot.data(),
+    liveTransfers,
+    lastDialedDate,
+    lastBridgedDate,
+    instantForms,
+  };
 
   if (!snapshot.exists && email !== SUPER_ADMIN_EMAIL) {
     return res.status(404).send({ message: 'Agent not found' });
