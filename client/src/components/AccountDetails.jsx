@@ -62,17 +62,10 @@ const STATUS_PILL_BASE = {
 
 const CRM_INTEGRATIONS = [
   {
-    key: 'insurDial',
-    label: 'InsurDial',
-    field: 'insurDialEnabled',
-    description: 'High-speed auto dialer and direct pipeline push.',
-    setupUrl: null,
-  },
-  {
     key: 'ringy',
     label: 'Ringy CRM',
     field: 'ringyEnabled',
-    description: 'Direct webhook ingest and campaign trigger integration.',
+    description: 'Large support network. Easy integration.',
     setupUrl:
       'https://docs.google.com/document/d/120EYPFnRJczO79oIkzEU7uARHvHJzFCFswnElkdxx9A/edit?tab=t.0',
   },
@@ -80,7 +73,8 @@ const CRM_INTEGRATIONS = [
     key: 'ghl',
     label: 'GoHighLevel (GHL)',
     field: 'ghlEnabled',
-    description: 'Sub-account webhook ingestion for agency automations.',
+    description:
+      'Streamlined integration process for sub-accounts. Just click and install.',
     setupUrl:
       'https://docs.google.com/document/d/1rtzU2BLKzsZnedzcLOvHWQAqS1nUMR85Iep3y1B53GY/edit?usp=sharing',
   },
@@ -88,9 +82,15 @@ const CRM_INTEGRATIONS = [
     key: 'sendblue',
     label: 'Sendblue SMS',
     field: 'sendBlueEnabled',
-    description:
-      'Native iMessage/SMS line attribution and direct two-way routing.',
+    description: 'Native iMessage line and fexdigital integration.',
     informational: true,
+  },
+  {
+    key: 'insurDial',
+    label: 'InsurDial',
+    field: 'insurDialEnabled',
+    description: 'High-speed dialer.',
+    setupUrl: null,
   },
 ];
 
@@ -491,7 +491,7 @@ const AccountDetails = ({ data, defaultTab }) => {
                       Lead Flow
                     </Typography>
                     <Chip
-                      label={deliver ? 'Delivering' : 'Paused'}
+                      label={deliver ? 'Active' : 'Paused'}
                       size='small'
                       sx={{
                         ...STATUS_PILL_BASE,
