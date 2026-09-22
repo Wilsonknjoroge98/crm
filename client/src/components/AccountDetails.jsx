@@ -82,7 +82,7 @@ const CRM_INTEGRATIONS = [
     key: 'sendblue',
     label: 'Sendblue SMS',
     field: 'sendBlueEnabled',
-    description: 'Native iMessage line and fexdigital integration.',
+    description: 'Native iMessage/SMS line. Automated AI texter / scheduler.',
     informational: true,
   },
   {
@@ -925,7 +925,7 @@ const AccountDetails = ({ data, defaultTab }) => {
 
                       {informational ? (
                         <Tooltip
-                          title='Sendblue lines are attributed natively. Contact support to modify your assigned number.'
+                          title='Contact info@fexdigital.com for additional information and onboarding instructions.'
                           arrow
                         >
                           <IconButton
