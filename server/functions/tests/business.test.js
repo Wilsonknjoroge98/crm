@@ -59,12 +59,15 @@ const EXPECTED_LIST_FIELDS = [
   'selected_plan',
   'agent_id',
   'gsq_source',
+  'raw_fields',
   'sold',
   'priority',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'client_created_at',
   'updated_at',
+  'monthly_premium',
 ].join(',');
 // The page query must not ask for `policies`: combined with ORDER BY it makes
 // PostgreSQL build the rollup for every row in the view before paging.
@@ -107,8 +110,10 @@ const EXPECTED_DETAIL_FIELDS = [
   'priority',
   'why',
   'gsq_source',
+  'raw_fields',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'lead_vendor_id',
   'lead_vendor_name',
   'notes',
@@ -116,6 +121,7 @@ const EXPECTED_DETAIL_FIELDS = [
   'client_created_at',
   'created_at',
   'updated_at',
+  'monthly_premium',
   'policies',
 ].join(',');
 const { applyOwnershipFilter } = require('../endpoints/business_access');

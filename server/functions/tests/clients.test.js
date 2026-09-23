@@ -82,62 +82,13 @@ const baseClient = {
 };
 
 describe('POST /client', () => {
-  test.each(['requested', 'approved'])(
-    'blocks marking a lead sold while its refund is %s',
-    async (refundStatus) => {
-      const supabase = makeSupabase([
-        {
-          result: {
-            data: [{ id: 'lead-1', gsq_source: null, refund_status: refundStatus }],
-            error: null,
-          },
-        },
-      ]);
-      const app = makeApp(supabase);
-
-      const res = await request(app)
-        .post('/client')
-        .send({ client: { ...baseClient, lead_vendor_id: 'other-vendor-id' } });
-
-      expect(res.status).toBe(400);
-      expect(res.body.error).toMatch(/refund/i);
-      // no client was created, and GSQ's sold flag was never touched
-      expect(supabase.callCount()).toBe(1);
-      expect(mockMarkSoldInGSQ).not.toHaveBeenCalled();
-    },
-  );
-
-  test('allows marking a lead sold once its refund was denied', async () => {
+  // Refund gating lives in the business card (mark-sold is disabled while a
+  // refund is requested or approved), not here.
+  test('marks the matching lead sold in GSQ and creates the client', async () => {
     const supabase = makeSupabase([
       {
         result: {
-          data: [{ id: 'lead-1', gsq_source: null, refund_status: 'denied' }],
-          error: null,
-        },
-      },
-      {
-        result: {
-          data: { id: 'client-1', phone: baseClient.phone, monthly_premium: 0 },
-          error: null,
-        },
-      },
-      { result: { data: null, error: null } },
-    ]);
-    const app = makeApp(supabase);
-
-    const res = await request(app)
-      .post('/client')
-      .send({ client: { ...baseClient, lead_vendor_id: 'other-vendor-id' } });
-
-    expect(res.status).toBe(201);
-    expect(mockMarkSoldInGSQ).toHaveBeenCalledWith(baseClient.phone, baseClient.email);
-  });
-
-  test('allows marking a lead sold when it was never refunded', async () => {
-    const supabase = makeSupabase([
-      {
-        result: {
-          data: [{ id: 'lead-1', gsq_source: null, refund_status: null }],
+          data: [{ id: 'lead-1', gsq_source: null }],
           error: null,
         },
       },
