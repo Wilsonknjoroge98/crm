@@ -19,6 +19,41 @@ const parseYesNo = (value) => {
   return null;
 };
 
+// Meta forms name their questions freely and gsq runs more than one form,
+// so the same concept arrives under different keys. Canonicalise before
+// splitting out the typed columns so every instant form lead lands the
+// same shape regardless of which form produced it. Unknown keys pass
+// through untouched.
+const FORM_KEY_ALIASES = {
+  'do_you_use_tobacco?': 'tobacco',
+  'when_are_you_best_available?': 'availability',
+  'what_is_your_coverage_for?': 'why',
+  'why_do_you_need_life_insurance?': 'why',
+  'how_much_coverage_do_you_want?': 'coverage',
+  'how_much_coverage_do_you_need?': 'coverage',
+  'how_soon_do_you_need_to_buy_coverage?': 'urgency',
+  'what_is_your_age?': 'age',
+  'select_your_sex_at_birth?': 'sex',
+};
+
+// The consent question's key is the whole disclosure paragraph and its
+// answer is free text ("I agree", "yes", sometimes a name) — no lead data.
+const isConsentKey = (key) => key.startsWith('you_will_be_contacted_by');
+
+const canonicalizeFormFields = (fields = {}) => {
+  const out = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (isConsentKey(key)) continue;
+    const answer = String(value ?? '').trim();
+    if (!answer) continue;
+    const canonical = FORM_KEY_ALIASES[key] ?? key;
+    // free-text age like "72 years." — keep the number
+    out[canonical] =
+      canonical === 'age' ? (answer.match(/\d+/)?.[0] ?? answer) : answer;
+  }
+  return out;
+};
+
 const inboundGSQ = async (req, res) => {
   try {
     const auth = req.headers['authorization']?.split(' ')[1];
@@ -38,14 +73,13 @@ const inboundGSQ = async (req, res) => {
     // set by gsq's meta webhook, the funnel callers never send it
     const isInstantForm = req.body.leadType === 'instant_form';
 
+    // meta forms don't always ask for email or state, and a single word
+    // full_name has no last name, gsq has already issued the lead by now
     if (
       !firstName ||
-      !lastName ||
-      !email ||
       !phone ||
-      (!isInstantForm && (!gsqId || !dob)) ||
+      (!isInstantForm && (!lastName || !email || !state || !gsqId || !dob)) ||
       !issuedTo ||
-      !state ||
       sold === undefined
     ) {
       return res.status(400).send({ message: 'Missing required fields' });
@@ -85,10 +119,10 @@ const inboundGSQ = async (req, res) => {
 
     const payload = {
       first_name: firstName,
-      last_name: lastName,
+      last_name: lastName || null,
       phone,
-      email,
-      state,
+      email: email || null,
+      state: state || null,
       sold: false,
       date_of_birth: dob,
       smoker: lead.smoker ?? false,
@@ -118,90 +152,32 @@ const inboundGSQ = async (req, res) => {
       agent_id: agentId,
       gsq_source: hyrosSource,
       gsq_id: lead.gsqId,
+      gsq_instant_form: isInstantForm,
       lead_vendor_id: leadVendor.id,
     };
 
-    // only these three answers get typed columns, everything else goes to raw_fields only
-    // gsq_id stays null, there's no gsq session behind a meta lead
-    const {
-      'do_you_use_tobacco?': tobacco,
-      'when_are_you_best_available?': availability,
-      'what_is_your_coverage_for?': why,
-      ...rawFields
-    } = lead.fields ?? {};
+    // only these three answers get typed columns; everything else (age, sex,
+    // coverage, urgency, and any question we don't know) goes to raw_fields
+    // under its canonical key. gsq_id stays null, there's no gsq session
+    // behind a meta lead
+    const { tobacco, availability, why, ...rawFields } = canonicalizeFormFields(
+      lead.fields,
+    );
     const instantFormColumns = isInstantForm
       ? {
           smoker: parseYesNo(tobacco),
           availability: availability ?? null,
           why: why ?? null,
-          gsq_source: lead.adId ?? null,
+          gsq_source: lead.adName ?? null,
           gsq_id: null,
           raw_fields: rawFields,
         }
       : {};
     Object.assign(payload, instantFormColumns);
 
-    const { data: existingLeads, error: existingLeadError } =
-      await supabaseService
-        .from('leads')
-        .select('id, agent_id, gsq_id')
-        .eq('phone', payload.phone)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-    if (existingLeadError) {
-      logger.error('Failed to check for existing lead:', {
-        error: existingLeadError,
-      });
-      return res
-        .status(500)
-        .send({ message: 'Failed to check existing leads' });
-    }
-
-    const existingLead = existingLeads?.[0] || null;
-
-    if (existingLead) {
-      // A resubmission for this phone always carries the gsq doc id of its
-      // *current* lead doc (the 30-day duplicate window in gsq/lead.js means
-      // a resubmission past that window is a brand-new doc with its own
-      // issuedTo, not a mutation of the old one). Refresh gsq_id here too,
-      // not just agent_id — otherwise it stays pinned to the very first doc
-      // this phone ever produced, and refund eligibility (which dereferences
-      // gsq_id to read that doc's issuedTo) ends up checking a stale,
-      // superseded doc instead of the one the current agent was actually
-      // issued.
-      // instant forms have null gsq_id on both sides so this would match, and the row still needs the answers
-      if (
-        !isInstantForm &&
-        existingLead.agent_id === agentId &&
-        existingLead.gsq_id === payload.gsq_id
-      ) {
-        return res.status(200).send({
-          message: 'Lead already exists and is assigned to this agent',
-        });
-      }
-
-      const { error: updateError } = await supabaseService
-        .from('leads')
-        .update(
-          isInstantForm
-            ? { agent_id: agentId, ...instantFormColumns }
-            : { agent_id: agentId, gsq_id: payload.gsq_id },
-        )
-        .eq('id', existingLead.id);
-
-      if (updateError) {
-        logger.error('Failed to update existing lead:', {
-          error: updateError,
-        });
-        return res
-          .status(500)
-          .send({ message: 'Failed to update existing lead' });
-      }
-
-      return res.status(200).send({ message: 'Lead updated successfully' });
-    }
-
+    // Dedup is gsq's job (30-day phone-issuance window ahead of this
+    // endpoint) — the phone column no longer has a unique constraint, so
+    // every inbound submission is a plain insert.
     const { error } = await supabaseService.from('leads').insert(payload);
 
     if (error) {
@@ -221,37 +197,56 @@ const inboundGSQ = async (req, res) => {
   }
 };
 
+// Every gsq collection that holds a sellable lead identity. The fexdigital
+// storefront only lists docs with sold == false, so once an agent sells a
+// phone every copy of it has to flip, not just the funnel doc.
+const GSQ_LEAD_COLLECTIONS = ['leads', 'instant_form_leads'];
+
+// gsq stores phones as 10 bare digits, crm clients can carry formatting
+const phoneVariants = (phone) => {
+  const raw = String(phone ?? '').trim();
+  let digits = raw.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  return [...new Set([raw, digits].filter(Boolean))];
+};
+
+const findLeadDocs = async (db, field, values) => {
+  if (values.length === 0) return [];
+  const snapshots = await Promise.all(
+    GSQ_LEAD_COLLECTIONS.map((name) =>
+      db.collection(name).where(field, 'in', values).get(),
+    ),
+  );
+  return snapshots.flatMap((snapshot) => snapshot.docs);
+};
+
 const markSoldInGSQ = async (phone, email) => {
   const db = new Firestore({
     projectId: 'life-quoter',
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
-  const leadPhoneSnapshot = await db
-    .collection('leads')
-    .where('phone', '==', phone)
-    .get();
+  let docs = await findLeadDocs(db, 'phone', phoneVariants(phone));
 
-  if (!leadPhoneSnapshot.empty) {
-    leadPhoneSnapshot.forEach(async (doc) => {
-      await doc.ref.update({ sold: true });
-    });
-
-    return;
+  // email is only a fallback when the phone matched nothing anywhere
+  if (docs.length === 0 && email) {
+    docs = await findLeadDocs(db, 'email', [email]);
   }
 
-  const leadByEmailSnapshot = await db
-    .collection('leads')
-    .where('email', '==', email)
-    .get();
+  const unsold = docs.filter((doc) => doc.data().sold !== true);
 
-  if (!leadByEmailSnapshot.empty) {
-    leadByEmailSnapshot.forEach(async (doc) => {
-      await doc.ref.update({ sold: true });
-    });
-
-    return;
+  // firestore caps a batch at 500 writes
+  for (let i = 0; i < unsold.length; i += 500) {
+    const batch = db.batch();
+    unsold.slice(i, i + 500).forEach((doc) => batch.update(doc.ref, { sold: true }));
+    await batch.commit();
   }
+
+  logger.info('Marked lead sold in GSQ', {
+    matched: docs.length,
+    updated: unsold.length,
+    collections: [...new Set(unsold.map((doc) => doc.ref.parent.id))],
+  });
 };
 
 module.exports = {

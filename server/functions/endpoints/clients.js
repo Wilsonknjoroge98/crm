@@ -300,7 +300,10 @@ clientRouter.post('/', async (req, res) => {
     client,
   });
 
-  if (!client?.email || !client?.phone) {
+  // phone is the only identity the pipeline needs (lead lookup + gsq sold
+  // flag both key on it); email is nullable in the db and instant form
+  // leads may arrive without one
+  if (!client?.phone) {
     logger.warn('Missing required client fields in clients.js', {
       route: '/client',
       method: 'POST',
@@ -311,12 +314,13 @@ clientRouter.post('/', async (req, res) => {
     });
     return res.status(400).json({ error: 'Missing required client fields' });
   }
+  client.email = client.email || null;
 
   let leadId = null;
 
   const { data: existingLeads, error: existingLeadError } = await supabaseService
     .from('leads')
-    .select('id, gsq_source, refund_status')
+    .select('id, gsq_source')
     .eq('phone', client.phone)
     .order('created_at', { ascending: false })
     .limit(1);
@@ -332,21 +336,10 @@ clientRouter.post('/', async (req, res) => {
     return res.status(500).json({ error: 'Failed to check existing leads' });
   }
 
+  // Refund state isn't checked here: the business card disables mark-sold
+  // while a refund is requested or approved, so a lead in that state never
+  // reaches this endpoint.
   const existingLead = existingLeads?.[0] || null;
-
-  // A pending or approved refund means GSQ still owes (or has already paid)
-  // a replacement credit for this lead; converting it to a client here would
-  // let the same lead be both refunded and sold. Checked before
-  // markSoldInGSQ so a blocked request never touches GSQ's sold flag either.
-  if (
-    existingLead?.refund_status === 'requested' ||
-    existingLead?.refund_status === 'approved'
-  ) {
-    return res.status(400).json({
-      error:
-        'A refund is pending or approved for this lead — resolve it before marking sold',
-    });
-  }
 
   await markSoldInGSQ(client.phone, client.email);
 

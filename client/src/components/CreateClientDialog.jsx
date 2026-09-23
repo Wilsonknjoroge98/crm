@@ -216,7 +216,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     } else if (name === 'zip') {
       setZipCodeError(!/^[0-9]{5}$/.test(value));
     } else if (name === 'email') {
-      setEmailError(!/^\S+@\S+\.\S+$/.test(value));
+      // email is optional (instant form leads may not have one) — only
+      // flag a value that's present but malformed
+      setEmailError(value !== '' && !/^\S+@\S+\.\S+$/.test(value));
     }
 
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -227,6 +229,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     OPTIONAL_CLIENT_FIELDS.forEach((field) => {
       if (data[field] === '') data[field] = null;
     });
+    if (data.email === '') data.email = null;
     console.log('Submitting form:', data);
     createClient({ data });
   };
@@ -246,6 +249,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     const modifiedForm = { ...form };
     console.log('Modified Form:', modifiedForm);
     OPTIONAL_CLIENT_FIELDS.forEach((field) => delete modifiedForm[field]);
+    // email may be blank, but a malformed one still blocks submit
+    delete modifiedForm.email;
 
     if (form.lead_vendor_id !== import.meta.env.VITE_GSQ_LEAD_VENDOR_ID) {
       delete modifiedForm.live_transfer;
@@ -253,12 +258,12 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     const hasEmptyFields = Object.keys(modifiedForm).some(
       (key) => modifiedForm[key] === undefined || modifiedForm[key] === '',
     );
-    if (hasEmptyFields) {
+    if (hasEmptyFields || emailError) {
       setDisabled(true);
     } else {
       setDisabled(false);
     }
-  }, [form]);
+  }, [form, emailError]);
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
@@ -364,7 +369,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
               helperText={emailError ? 'Invalid email address' : ''}
               type='email'
               fullWidth
-              required
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>

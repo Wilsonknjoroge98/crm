@@ -80,8 +80,11 @@ const BUSINESS_LIST_FIELDS = [
   'priority',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'client_created_at',
   'updated_at',
+  // the card's Sale amount: clients.monthly_premium captured at close
+  'monthly_premium',
 ].join(',');
 // Detail is a single row looked up by id with no ORDER BY, so the lateral runs
 // once and the rollup can stay in the projection.
@@ -126,6 +129,7 @@ const BUSINESS_DETAIL_FIELDS = [
   'raw_fields',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'lead_vendor_id',
   'lead_vendor_name',
   'notes',
@@ -133,6 +137,7 @@ const BUSINESS_DETAIL_FIELDS = [
   'client_created_at',
   'created_at',
   'updated_at',
+  'monthly_premium',
   'policies',
 ].join(',');
 // Whitelist keeps client-supplied sort fields from reaching PostgREST raw.

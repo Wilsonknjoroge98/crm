@@ -50,34 +50,19 @@ const QUICK_ACTIONS = [
   ['Appointment', EventOutlinedIcon],
 ];
 
-// Payments per year by premium_frequency; unknown frequencies assume monthly.
-// Mirrors the server's annualizePremium for the card's Sale amount readout.
-const PREMIUM_ANNUAL_MULTIPLIERS = {
-  weekly: 52,
-  monthly: 12,
-  quarterly: 4,
-  'semi-annually': 2,
-  'semi-annual': 2,
-  annually: 1,
-  annual: 1,
-};
-
-const annualizedSaleAmount = (policies) => {
-  if (!Array.isArray(policies) || policies.length === 0) return null;
-  const total = policies.reduce((sum, policy) => {
-    const multiplier =
-      PREMIUM_ANNUAL_MULTIPLIERS[
-        String(policy.premium_frequency || '').toLowerCase()
-      ] ?? 12;
-    return sum + (Number(policy.premium_amount) || 0) * multiplier;
-  }, 0);
-  return total > 0 ? total : null;
+// Sale amount comes from clients.monthly_premium, the sale value captured
+// at close, annualised the same way Total Closed and the leaderboards do
+// (a flat monthly figure × 12) — not from the policies rollup, which can
+// lag or disagree with what was actually recorded on the sale.
+const annualizedSaleAmount = (monthlyPremium) => {
+  const monthly = Number(monthlyPremium);
+  return monthly > 0 ? monthly * 12 : null;
 };
 
 // Display-only: the vendor's stored name is "GetSeniorQuotes.com", but the
-// card reads better without the domain suffix.
+// card's Lead Info column is narrow, so use the short brand.
 const formatVendorName = (value) =>
-  value === 'GetSeniorQuotes.com' ? 'GetSeniorQuotes' : value;
+  value === 'GetSeniorQuotes.com' ? 'GSQ' : value;
 
 const formatPhone = (value) => {
   const digits = String(value || '').replace(/\D/g, '');
@@ -176,6 +161,45 @@ const formQuestionLabel = (key) => {
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
+// Every closed-option answer, whether from the funnel (availability,
+// beneficiary, why) or a Meta form (raw_fields), arrives as a snake_case
+// token like "_final_expenses" or "$25_to_$50k". One formatter so they all
+// read the same on the card: underscores to spaces, "None" treated as
+// unanswered, sentence case. Display only — the stored value is untouched.
+const formatAnswer = (value) => {
+  if (value === null || value === undefined) return null;
+  const text = String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text || text.toLowerCase() === 'none') return null;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+// Canonical raw_fields keys written by the crm's inbound handler, which
+// folds each form's own question wording (want/need, coverage-for/why, …)
+// into these. They fill a standard row (when the typed column is empty)
+// instead of appearing as their own question, so an instant form lead reads
+// like a funnel lead. Anything not listed is a question we haven't mapped
+// yet and renders generically below, with its label truncated.
+const FORM_AGE_KEY = 'age';
+const FORM_SEX_KEY = 'sex';
+const FORM_COVERAGE_KEY = 'coverage';
+const FORM_URGENCY_KEY = 'urgency';
+const MAPPED_FORM_KEYS = new Set([
+  FORM_AGE_KEY,
+  FORM_SEX_KEY,
+  FORM_COVERAGE_KEY,
+  FORM_URGENCY_KEY,
+]);
+
+// Unmapped Meta questions can be a full sentence (or a paragraph); keep
+// the bullet on one line and let the tooltip carry the whole question.
+const MAX_QUESTION_LABEL = 36;
+const truncateLabel = (text) =>
+  text.length > MAX_QUESTION_LABEL
+    ? `${text.slice(0, MAX_QUESTION_LABEL - 1).trimEnd()}…`
+    : text;
+
+const hasValue = (value) => value !== null && value !== undefined && value !== '';
+
 // Mirrors the drawer's premiumLabel: a single amount, or a min/max range,
 // whichever the funnel captured.
 const premiumLabel = (person) => {
@@ -193,6 +217,48 @@ const premiumLabel = (person) => {
     return `${formatCurrency(person.premium_min, 0)}+`;
   }
   return null;
+};
+
+// Funnel Data rows in canonical order. The card shows the answered rows
+// first and keeps the blanks behind "Show more", so what the lead actually
+// told us is never pushed down by a column of dashes.
+const buildFunnelRows = (person) => {
+  const form = person.raw_fields ?? {};
+  const smoker =
+    person.smoker === true ? 'Yes' : person.smoker === false ? 'No' : null;
+  return [
+    {
+      label: 'Age',
+      value: computeAge(person.date_of_birth) ?? formatAnswer(form[FORM_AGE_KEY]),
+    },
+    { label: 'Smoker', value: smoker },
+    { label: 'Sex', value: formatAnswer(form[FORM_SEX_KEY]) },
+    {
+      label: 'Face amount',
+      value: person.face_amount
+        ? formatCurrency(person.face_amount, 0)
+        : formatAnswer(form[FORM_COVERAGE_KEY]),
+    },
+    { label: 'Premium', value: premiumLabel(person) },
+    { label: 'Beneficiary', value: formatAnswer(person.beneficiary) },
+    { label: 'BMI', value: formatBuild(person) },
+    { label: 'Health class', value: healthClassLabel(person.health_class) },
+    { label: 'Carrier', value: cleanSelection(person.selected_carrier) },
+    { label: 'Plan', value: cleanSelection(person.selected_plan) },
+    { label: 'Availability', value: formatAnswer(person.availability) },
+    { label: 'Urgency', value: formatAnswer(form[FORM_URGENCY_KEY]) },
+    { label: 'Reason', value: formatAnswer(person.why) },
+    ...Object.entries(form)
+      .filter(([key]) => !MAPPED_FORM_KEYS.has(key))
+      .map(([key, answer]) => {
+        const question = formQuestionLabel(key);
+        return {
+          label: truncateLabel(question),
+          title: question,
+          value: formatAnswer(answer),
+        };
+      }),
+  ];
 };
 
 const copyToClipboard = async (label, value) => {
@@ -338,6 +404,9 @@ const BusinessCard = ({
   );
 
   const isSale = person.lifecycle_status === 'SALE';
+  // Authoritative product-origin flag written by the crm's GSQ inbound
+  // handler; drives the column heading and the source line below.
+  const isInstantForm = person.gsq_instant_form === true;
   // Policy upload is optional as of the sale-value-at-close change — carrier
   // policy details typically aren't available until well after the client
   // record exists, so most SALE clients will sit here with no policy for a
@@ -358,11 +427,18 @@ const BusinessCard = ({
   const fullName =
     [person.first_name, person.last_name].filter(Boolean).join(' ') || '—';
   const localTime = formatLocalTime(person.state, now);
-  const build = formatBuild(person);
   const receivedAt = person.lead_created_at || person.created_at;
-  const saleAmount = annualizedSaleAmount(person.policies);
-  const age = computeAge(person.date_of_birth);
-  const formAnswers = Object.entries(person.raw_fields ?? {});
+  const saleAmount = annualizedSaleAmount(person.monthly_premium);
+  const funnelRows = buildFunnelRows(person);
+  const answeredRows = funnelRows.filter((row) => hasValue(row.value));
+  const unansweredRows = funnelRows.filter((row) => !hasValue(row.value));
+  // Nothing answered at all: show the standard rows as dashes rather than
+  // an empty column, and there's nothing for the toggle to reveal.
+  const visibleFunnelRows =
+    answeredRows.length === 0 || showMore
+      ? [...answeredRows, ...unansweredRows]
+      : answeredRows;
+  const canToggleFunnel = answeredRows.length > 0 && unansweredRows.length > 0;
   // Only the admin needs to see who else's lead this is — but for every
   // vendor and lifecycle stage, not just GSQ leads. Creative (the ad
   // source) only ever exists for GSQ-sourced leads, so it stays scoped.
@@ -739,112 +815,47 @@ const BusinessCard = ({
           </Stack>
         </Grid>
 
-        {/* Column 4: funnel data with show-more */}
+        {/* Column 4: funnel data — answered rows first, blanks behind show-more */}
         <Grid size={{ xs: 20, md: 4 }}>
-          <ColumnHeading>Funnel Data</ColumnHeading>
+          <ColumnHeading>
+            {isInstantForm ? 'Form Responses' : 'Funnel Data'}
+          </ColumnHeading>
           <Box component='ul' sx={{ m: 0, pl: 2 }}>
-            <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>
-                Age:{' '}
-              </Box>
-              <b>{age ?? '—'}</b>
-              <Box component='span' sx={{ color: 'text.secondary' }}>
-                {' '}
-                · Smoker:{' '}
-              </Box>
-              <b>{formatBool(person.smoker)}</b>
-            </Bullet>
-            <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>
-                Face amount:{' '}
-              </Box>
-              <b>
-                {person.face_amount
-                  ? formatCurrency(person.face_amount, 0)
-                  : '—'}
-              </b>
-            </Bullet>
-            <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>
-                Premium:{' '}
-              </Box>
-              <b>{premiumLabel(person) || '—'}</b>
-            </Bullet>
-            <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>
-                Beneficiary:{' '}
-              </Box>
-              <b>{titleCase(person.beneficiary) || '—'}</b>
-            </Bullet>
-            <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>
-                BMI:{' '}
-              </Box>
-              <b>{build || '—'}</b>
-            </Bullet>
-            <Bullet>
-              <Box component='span' sx={{ color: 'text.secondary' }}>
-                Health class:{' '}
-              </Box>
-              <b>{healthClassLabel(person.health_class) || '—'}</b>
-            </Bullet>
-            {showMore && (
-              <>
-                <Bullet>
-                  <Box component='span' sx={{ color: 'text.secondary' }}>
-                    Carrier:{' '}
-                  </Box>
-                  <b>{cleanSelection(person.selected_carrier) || '—'}</b>
-                </Bullet>
-                <Bullet>
-                  <Box component='span' sx={{ color: 'text.secondary' }}>
-                    Plan:{' '}
-                  </Box>
-                  <b>{cleanSelection(person.selected_plan) || '—'}</b>
-                </Bullet>
-                <Bullet>
-                  <Box component='span' sx={{ color: 'text.secondary' }}>
-                    Availability:{' '}
-                  </Box>
-                  <b>{titleCase(person.availability) || '—'}</b>
-                </Bullet>
-                <Bullet>
-                  <Box component='span' sx={{ color: 'text.secondary' }}>
-                    Reason:{' '}
-                  </Box>
-                  <b>{person.why || '—'}</b>
-                </Bullet>
-                {formAnswers.map(([question, answer]) => (
-                  <Bullet key={question}>
-                    <Box component='span' sx={{ color: 'text.secondary' }}>
-                      {formQuestionLabel(question)}:{' '}
-                    </Box>
-                    <b>{String(answer ?? '').replace(/_/g, ' ').trim() || '—'}</b>
-                  </Bullet>
-                ))}
-              </>
-            )}
+            {visibleFunnelRows.map((row) => (
+              <Bullet key={row.title ?? row.label}>
+                <Box
+                  component='span'
+                  title={row.title}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  {row.label}:{' '}
+                </Box>
+                <b>{hasValue(row.value) ? row.value : '—'}</b>
+              </Bullet>
+            ))}
           </Box>
-          <Link
-            component='button'
-            underline='none'
-            onClick={() => setShowMore((current) => !current)}
-            sx={{
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: 'text.secondary',
-              display: 'inline-flex',
-              alignItems: 'center',
-              mt: 0.5,
-            }}
-          >
-            {showMore ? 'Show less' : 'Show more'}
-            {showMore ? (
-              <ExpandLessIcon sx={{ fontSize: 16 }} />
-            ) : (
-              <ExpandMoreIcon sx={{ fontSize: 16 }} />
-            )}
-          </Link>
+          {canToggleFunnel && (
+            <Link
+              component='button'
+              underline='none'
+              onClick={() => setShowMore((current) => !current)}
+              sx={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: 'text.secondary',
+                display: 'inline-flex',
+                alignItems: 'center',
+                mt: 0.5,
+              }}
+            >
+              {showMore ? 'Show less' : `Show ${unansweredRows.length} more`}
+              {showMore ? (
+                <ExpandLessIcon sx={{ fontSize: 16 }} />
+              ) : (
+                <ExpandMoreIcon sx={{ fontSize: 16 }} />
+              )}
+            </Link>
+          )}
         </Grid>
 
         {/* Column 5: lead info */}
@@ -858,7 +869,13 @@ const BusinessCard = ({
             />
             <LabeledValue
               label='Source'
-              value={formatVendorName(person.lead_vendor_name)}
+              value={
+                isGsqProtected && person.lead_vendor_name
+                  ? `${formatVendorName(person.lead_vendor_name)} (${
+                      isInstantForm ? 'Instant Forms' : 'Funnel'
+                    })`
+                  : formatVendorName(person.lead_vendor_name)
+              }
             />
             <LabeledValue
               label='Verified'
