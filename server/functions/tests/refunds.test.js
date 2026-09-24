@@ -253,7 +253,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-20T00:00:00Z',
+            created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
@@ -292,7 +292,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-20T00:00:00Z',
+            created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
@@ -360,7 +360,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-18T23:59:59Z',
+            created_at: '2026-09-18T23:59:59Z',
           },
           error: null,
         },
@@ -396,7 +396,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-19T00:00:00Z',
+            created_at: '2026-09-19T00:00:00Z',
           },
           error: null,
         },
@@ -420,7 +420,7 @@ describe('POST /refunds', () => {
     expect(res.status).toBe(201);
   });
 
-  test('falls back to created_at when lead_created_at is missing, and rejects if that predates the cutoff', async () => {
+  test('rejects a lead with no created_at at all', async () => {
     const supabase = makeSupabase([
       {
         table: 'leads',
@@ -433,7 +433,6 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            created_at: '2026-09-01T00:00:00Z',
           },
           error: null,
         },
@@ -495,7 +494,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-20T00:00:00Z',
+            created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
@@ -567,7 +566,7 @@ describe('POST /refunds', () => {
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
-            lead_created_at: '2026-09-20T00:00:00Z',
+            created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },

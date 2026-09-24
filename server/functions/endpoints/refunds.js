@@ -79,7 +79,7 @@ const createRefundsRouter = ({
       let query = supabase
         .from('leads')
         .select(
-          'id,first_name,last_name,email,phone,verified,sold,refund_status,agent_id,gsq_id,lead_vendor_id,lead_created_at,created_at',
+          'id,first_name,last_name,email,phone,verified,sold,refund_status,agent_id,gsq_id,lead_vendor_id,created_at',
         )
         .eq('id', leadId);
       if (agentId !== SUPERUSER_ID) query = query.eq('agent_id', agentId);
@@ -138,9 +138,9 @@ const createRefundsRouter = ({
         }
       }
 
-      // lead_created_at is when the funnel submission actually happened;
-      // created_at is only a fallback for rows that predate that column.
-      const generatedAt = new Date(lead.lead_created_at || lead.created_at);
+      // created_at is when the funnel submission landed in the leads table
+      // (lead_created_at only exists as an alias on the unified business view).
+      const generatedAt = new Date(lead.created_at);
       if (!(generatedAt >= REFUND_ELIGIBILITY_CUTOFF)) {
         return res.status(400).json({
           error:
