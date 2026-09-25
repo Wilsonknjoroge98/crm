@@ -145,7 +145,8 @@ select
   coalesce(c.email, l.email) as email,
   coalesce(c.phone, l.phone) as phone,
   coalesce(c.date_of_birth, l.date_of_birth) as date_of_birth,
-  coalesce(c.state, l.state) as state,
+  -- trimmed so the state filter's case-insensitive match is exact
+  trim(coalesce(c.state, l.state)) as state,
 
   -- Client/profile fields.
   c.address,

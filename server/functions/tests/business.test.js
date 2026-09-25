@@ -561,7 +561,7 @@ describe('GET /people', () => {
     );
   });
 
-  test('matches both spellings of every requested state', async () => {
+  test('matches both spellings of every requested state, ignoring case', async () => {
     const supabase = makeSupabase({
       agent_clients: [
         { data: [{ client_id: 'client-1' }], error: null },
@@ -582,8 +582,10 @@ describe('GET /people', () => {
 
     expect(response.status).toBe(200);
     expect(findQuery(supabase, 'business').calls).toContainEqual({
-      method: 'in',
-      args: ['state', ['Texas', 'TX', 'Georgia', 'GA']],
+      method: 'or',
+      args: [
+        'state.ilike."Texas",state.ilike."TX",state.ilike."Georgia",state.ilike."GA"',
+      ],
     });
   });
 

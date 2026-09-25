@@ -529,11 +529,16 @@ const applyPeopleFilters = ({
     filteredQuery = filteredQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
   }
 
-  // prod has a sprinkle of two-letter codes next to the full names, match both
+  // prod has a sprinkle of two-letter codes next to the full names, match both.
+  // ilike with no wildcards is a case-insensitive equality check and the view
+  // trims the column. Values are whitelisted against STATE_ABBREV_MAP, so the
+  // quoting only covers names with spaces or periods.
   if (states.length > 0) {
-    filteredQuery = filteredQuery.in(
-      'state',
-      states.flatMap((value) => [value, STATE_ABBREV_MAP[value]]),
+    filteredQuery = filteredQuery.or(
+      states
+        .flatMap((value) => [value, STATE_ABBREV_MAP[value]])
+        .map((value) => `state.ilike."${value}"`)
+        .join(','),
     );
   }
 
