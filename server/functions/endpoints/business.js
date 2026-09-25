@@ -73,14 +73,19 @@ const BUSINESS_LIST_FIELDS = [
   // everyone since both already live on the view.
   'agent_id',
   'gsq_source',
+  // meta form answers, shown under show more on the card
+  'raw_fields',
   // Not rendered on the card, but the CSV export covers every lead/client
   // column, so the list projection needs to carry them too.
   'sold',
   'priority',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'client_created_at',
   'updated_at',
+  // the card's Sale amount: clients.monthly_premium captured at close
+  'monthly_premium',
 ].join(',');
 // Detail is a single row looked up by id with no ORDER BY, so the lateral runs
 // once and the rollup can stay in the projection.
@@ -122,8 +127,10 @@ const BUSINESS_DETAIL_FIELDS = [
   'priority',
   'why',
   'gsq_source',
+  'raw_fields',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'lead_vendor_id',
   'lead_vendor_name',
   'notes',
@@ -131,6 +138,7 @@ const BUSINESS_DETAIL_FIELDS = [
   'client_created_at',
   'created_at',
   'updated_at',
+  'monthly_premium',
   'policies',
 ].join(',');
 // Whitelist keeps client-supplied sort fields from reaching PostgREST raw.
@@ -284,6 +292,30 @@ const attachAgentNames = async (supabase, rows) => {
     ...row,
     agent_name: row.agent_id ? (nameById.get(row.agent_id) ?? null) : null,
   }));
+};
+
+// only unverified leads can have a refund, so most pages skip this query
+const attachRefundStatus = async (supabase, rows) => {
+  const leadIds = rows
+    .filter((row) => row.verified === false && row.lead_id)
+    .map((row) => row.lead_id);
+  if (leadIds.length === 0) return rows;
+
+  const { data, error } = await supabase
+    .from('leads')
+    .select('id,refund_status,refund_denial_reason')
+    .in('id', leadIds);
+  if (error) throw error;
+
+  const refundById = new Map((data || []).map((lead) => [lead.id, lead]));
+  return rows.map((row) => {
+    const refund = refundById.get(row.lead_id);
+    return {
+      ...row,
+      refund_status: refund?.refund_status ?? null,
+      refund_denial_reason: refund?.refund_denial_reason ?? null,
+    };
+  });
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
@@ -710,6 +742,7 @@ const createBusinessRouter = ({
       if (error) throw error;
 
       let rows = await attachPolicies(supabase, data || []);
+      rows = await attachRefundStatus(supabase, rows);
       if (isSuperuser) {
         rows = await attachAgentNames(supabase, rows);
       }

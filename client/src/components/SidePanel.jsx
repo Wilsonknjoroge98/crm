@@ -21,6 +21,7 @@ import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
+import CurrencyExchangeOutlinedIcon from '@mui/icons-material/CurrencyExchangeOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 
@@ -101,6 +102,11 @@ const SidePanel = () => {
       text: 'Review Triage',
       icon: <RateReviewOutlinedIcon />,
       path: '/review-triage',
+    },
+    {
+      text: 'Refunds',
+      icon: <CurrencyExchangeOutlinedIcon />,
+      path: '/refunds',
     },
     {
       text: 'Sales Analytics',

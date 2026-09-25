@@ -166,6 +166,16 @@ const getBusinessMetrics = async ({ gsqOnly = false, agentId } = {}) => {
   return response.data?.data;
 };
 
+const requestRefund = async ({ leadId }) => {
+  if (!leadId) throw new Error('Missing lead ID');
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/refunds',
+    data: { leadId },
+  });
+  return response.data?.data;
+};
+
 const saveBusinessNotes = async ({ personId, notes }) => {
   if (!personId) throw new Error('Missing person ID');
   const response = await apiClient.request({
@@ -306,6 +316,27 @@ const dismissUnmatchedReview = async ({ reviewId }) => {
     url: `/gsq/reviews/unmatched/${reviewId}`,
   });
   return response.data;
+};
+
+// status is 'requested' (default, the pending queue), 'approved', 'denied',
+// or 'all' — every outcome is terminal, so these are the complete history
+const getRefunds = async ({ status } = {}) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/refunds',
+    params: status ? { status } : undefined,
+  });
+  return response.data?.data;
+};
+
+// action is 'approve' or 'deny'; reason is only used (and optional) for deny
+const reviewRefund = async ({ leadId, action, reason }) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: `/refunds/${leadId}/${action}`,
+    data: action === 'deny' ? { reason } : undefined,
+  });
+  return response.data?.data;
 };
 
 const getAccount = async ({ email }) => {
@@ -1160,6 +1191,7 @@ export {
   getPerson,
   getBusinessMetrics,
   saveBusinessNotes,
+  requestRefund,
   subscribeReleaseNotifications,
   getMessages,
   sendMessage,
@@ -1173,6 +1205,8 @@ export {
   getUnmatchedReviews,
   matchReview,
   dismissUnmatchedReview,
+  getRefunds,
+  reviewRefund,
   postError,
   getInvites,
   createInvite,

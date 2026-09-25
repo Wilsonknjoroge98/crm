@@ -183,6 +183,7 @@ select
   l.gsq_source,
   l.gsq_id,
   l.gsq_live_transfer,
+  l.gsq_instant_form,
   l.lead_vendor_id,
   lv.name as lead_vendor_name,
 
@@ -203,7 +204,8 @@ select
 
   l.premium_min,
   l.premium_max,
-  l.availability
+  l.availability,
+  l.raw_fields
 from public.leads l
 full outer join public.clients c
   on c.lead_id = l.id

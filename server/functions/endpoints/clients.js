@@ -300,9 +300,10 @@ clientRouter.post('/', async (req, res) => {
     client,
   });
 
-  await markSoldInGSQ(client.phone, client.email);
-
-  if (!client?.email || !client?.phone) {
+  // phone is the only identity the pipeline needs (lead lookup + gsq sold
+  // flag both key on it); email is nullable in the db and instant form
+  // leads may arrive without one
+  if (!client?.phone) {
     logger.warn('Missing required client fields in clients.js', {
       route: '/client',
       method: 'POST',
@@ -313,6 +314,7 @@ clientRouter.post('/', async (req, res) => {
     });
     return res.status(400).json({ error: 'Missing required client fields' });
   }
+  client.email = client.email || null;
 
   let leadId = null;
 
@@ -334,7 +336,12 @@ clientRouter.post('/', async (req, res) => {
     return res.status(500).json({ error: 'Failed to check existing leads' });
   }
 
+  // Refund state isn't checked here: the business card disables mark-sold
+  // while a refund is requested or approved, so a lead in that state never
+  // reaches this endpoint.
   const existingLead = existingLeads?.[0] || null;
+
+  await markSoldInGSQ(client.phone, client.email);
 
   if (!existingLead) {
     let hyrosSource = null;

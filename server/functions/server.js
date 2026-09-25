@@ -35,6 +35,7 @@ const {
   offersRouter,
   createAdPublishRouter,
   messagesRouter,
+  refundsRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -75,6 +76,7 @@ app.use('/business', businessRouter);
 app.use('/offers', offersRouter);
 app.use('/ad-publish', createAdPublishRouter());
 app.use('/messages', messagesRouter);
+app.use('/refunds', refundsRouter);
 
 app.get('/ad-spend', async (req, res) => {
   const { startDate, endDate, mode } = req.query;

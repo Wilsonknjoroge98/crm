@@ -59,12 +59,15 @@ const EXPECTED_LIST_FIELDS = [
   'selected_plan',
   'agent_id',
   'gsq_source',
+  'raw_fields',
   'sold',
   'priority',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'client_created_at',
   'updated_at',
+  'monthly_premium',
 ].join(',');
 // The page query must not ask for `policies`: combined with ORDER BY it makes
 // PostgreSQL build the rollup for every row in the view before paging.
@@ -107,8 +110,10 @@ const EXPECTED_DETAIL_FIELDS = [
   'priority',
   'why',
   'gsq_source',
+  'raw_fields',
   'gsq_id',
   'gsq_live_transfer',
+  'gsq_instant_form',
   'lead_vendor_id',
   'lead_vendor_name',
   'notes',
@@ -116,6 +121,7 @@ const EXPECTED_DETAIL_FIELDS = [
   'client_created_at',
   'created_at',
   'updated_at',
+  'monthly_premium',
   'policies',
 ].join(',');
 const { applyOwnershipFilter } = require('../endpoints/business_access');
@@ -517,6 +523,74 @@ describe('GET /people', () => {
     expect(rollupQuery.calls.some((call) => call.method === 'order')).toBe(
       false,
     );
+  });
+
+  test('attaches refund status only for unverified leads, and skips the lookup otherwise', async () => {
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            { id: 'person-1', lead_id: 'lead-1', verified: false },
+            { id: 'person-2', lead_id: 'lead-2', verified: true },
+            { id: 'person-3', lead_id: null, verified: false },
+          ],
+          error: null,
+          count: 3,
+        },
+        rollupFor([{ id: 'person-1' }, { id: 'person-2' }, { id: 'person-3' }]),
+      ],
+      leads: [
+        {
+          data: [
+            {
+              id: 'lead-1',
+              refund_status: 'denied',
+              refund_denial_reason: 'Lead looks legitimate',
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: SUPERUSER_ID }),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([
+      {
+        id: 'person-1',
+        lead_id: 'lead-1',
+        verified: false,
+        policies: [],
+        refund_status: 'denied',
+        refund_denial_reason: 'Lead looks legitimate',
+      },
+      {
+        id: 'person-2',
+        lead_id: 'lead-2',
+        verified: true,
+        policies: [],
+        refund_status: null,
+        refund_denial_reason: null,
+      },
+      {
+        id: 'person-3',
+        lead_id: null,
+        verified: false,
+        policies: [],
+        refund_status: null,
+        refund_denial_reason: null,
+      },
+    ]);
+
+    // Only the one unverified, lead-backed row is looked up.
+    const refundQuery = findQuery(supabase, 'leads');
+    expect(refundQuery.calls).toContainEqual({
+      method: 'in',
+      args: ['id', ['lead-1']],
+    });
   });
 
   test('skips the rollup read entirely for an empty page', async () => {

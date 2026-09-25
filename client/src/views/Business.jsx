@@ -33,6 +33,7 @@ import {
   getBusinessMetrics,
   getAgents,
   getAccount,
+  requestRefund,
 } from '../utils/query';
 import { useAgent } from '../hooks/useAgent';
 import {
@@ -460,6 +461,30 @@ const Business = () => {
     setClientDialogOpen(true);
   };
 
+  const { mutate: submitRefund } = useMutation({
+    mutationFn: requestRefund,
+    onSuccess: () => {
+      enqueueSnackbar('Refund requested', SNACKBAR_SUCCESS_OPTIONS);
+      queryClient.invalidateQueries({ queryKey: ['business'] });
+    },
+    onError: (error) => {
+      enqueueSnackbar(
+        error?.response?.data?.error || 'Failed to request refund',
+        SNACKBAR_ERROR_OPTIONS,
+      );
+    },
+  });
+
+  const handleRequestRefund = (person) => {
+    const name = [person.first_name, person.last_name]
+      .filter(Boolean)
+      .join(' ');
+    const confirmed = window.confirm(
+      `Request a refund for ${name || 'this lead'}? The lead will be sent to the admins for review.`,
+    );
+    if (confirmed) submitRefund({ leadId: person.lead_id });
+  };
+
   // Policy upload is no longer required at time of sale (carrier policy
   // details usually aren't confirmed until well after close), so this is
   // the routine path for most SALE clients, not a failure recovery — skips
@@ -778,6 +803,7 @@ const Business = () => {
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
+                onRequestRefund={handleRequestRefund}
               />
             ))
           )}
