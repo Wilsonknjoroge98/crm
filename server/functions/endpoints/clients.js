@@ -318,10 +318,14 @@ clientRouter.post('/', async (req, res) => {
 
   let leadId = null;
 
+  // Only a lead issued to the requesting agent can be linked. A phone match
+  // on another agent's lead is left alone so one agent's sale never claims,
+  // or hides, a lead that belongs to someone else.
   const { data: existingLeads, error: existingLeadError } = await supabaseService
     .from('leads')
     .select('id, gsq_source')
     .eq('phone', client.phone)
+    .eq('agent_id', req.agent.id)
     .order('created_at', { ascending: false })
     .limit(1);
 

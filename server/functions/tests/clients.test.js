@@ -40,7 +40,8 @@ const clientRouter = require('../endpoints/clients');
 // on maybeSingle() or awaits the query object directly.
 const makeSupabase = (calls) => {
   let index = 0;
-  const from = jest.fn(() => {
+  const queries = [];
+  const from = jest.fn((table) => {
     const call = calls[index];
     index += 1;
     const result = call ? call.result : { data: null, error: null };
@@ -54,9 +55,10 @@ const makeSupabase = (calls) => {
       maybeSingle: jest.fn().mockResolvedValue(result),
       then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
     };
+    queries.push({ table, query });
     return query;
   });
-  return { from, callCount: () => index };
+  return { from, queries, callCount: () => index };
 };
 
 const makeApp = (supabase) => {
@@ -108,5 +110,55 @@ describe('POST /client', () => {
 
     expect(res.status).toBe(201);
     expect(mockMarkSoldInGSQ).toHaveBeenCalledWith(baseClient.phone, baseClient.email);
+  });
+
+  test('only links a lead issued to the requesting agent', async () => {
+    const supabase = makeSupabase([
+      { result: { data: [{ id: 'lead-1', gsq_source: null }], error: null } },
+      { result: { data: { id: 'client-1', phone: baseClient.phone }, error: null } },
+      { result: { data: null, error: null } },
+    ]);
+    const app = makeApp(supabase);
+
+    const res = await request(app)
+      .post('/client')
+      .send({ client: { ...baseClient, lead_vendor_id: 'other-vendor-id' } });
+
+    expect(res.status).toBe(201);
+    const [leadLookup] = supabase.queries;
+    expect(leadLookup.table).toBe('leads');
+    expect(leadLookup.query.eq).toHaveBeenCalledWith('phone', baseClient.phone);
+    expect(leadLookup.query.eq).toHaveBeenCalledWith('agent_id', 'agent-1');
+  });
+
+  test('creates a fresh sold lead when the only phone match belongs to another agent', async () => {
+    // The lookup is scoped to agent-1, so another agent's lead comes back as
+    // no rows and the route falls through to inserting its own lead.
+    const supabase = makeSupabase([
+      { result: { data: [], error: null } },
+      { result: { data: { id: 'lead-new' }, error: null } },
+      { result: { data: { id: 'client-1', phone: baseClient.phone }, error: null } },
+      { result: { data: null, error: null } },
+    ]);
+    const app = makeApp(supabase);
+
+    const res = await request(app)
+      .post('/client')
+      .send({ client: { ...baseClient, lead_vendor_id: 'other-vendor-id' } });
+
+    expect(res.status).toBe(201);
+    const [, leadInsert, clientInsert] = supabase.queries;
+    expect(leadInsert.table).toBe('leads');
+    expect(leadInsert.query.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: baseClient.phone,
+        agent_id: 'agent-1',
+        sold: true,
+      }),
+    );
+    expect(clientInsert.table).toBe('clients');
+    expect(clientInsert.query.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ lead_id: 'lead-new' }),
+    );
   });
 });
