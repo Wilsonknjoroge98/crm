@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -39,9 +38,10 @@ import { useAgent } from '../hooks/useAgent';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
-  STATES,
+  STATE_OPTIONS,
 } from '../utils/constants';
 import NewLeadDialog from '../components/NewLeadDialog';
+import StateFilter from '../components/StateFilter';
 import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
@@ -643,22 +643,14 @@ const Business = () => {
                 <ToggleButton value='lead'>Leads</ToggleButton>
                 <ToggleButton value='sale'>Sales</ToggleButton>
               </ToggleButtonGroup>
-              <Autocomplete
-                multiple
-                size='small'
-                options={STATES}
+              <StateFilter
                 value={stateFilter}
-                limitTags={2}
-                disableCloseOnSelect
-                onChange={(event, value) => {
+                options={STATE_OPTIONS}
+                onChange={(next) => {
                   clearSelection();
-                  setStateFilter(value);
+                  setStateFilter(next);
                   setPage(0);
                 }}
-                renderInput={(params) => (
-                  <TextField {...params} placeholder='State' />
-                )}
-                sx={{ width: { xs: '100%', sm: 320 } }}
               />
               {/* Placeholder filters from BUSINESS_VIEW.png; same coming-soon
                   treatment as the card action buttons. */}
