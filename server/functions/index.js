@@ -1,7 +1,7 @@
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/scheduler');
 
-const { inboundGSQ } = require('./integrations/GSQ');
+const { inboundGSQ, inboundSendblueNumber } = require('./integrations/GSQ');
 const { updatePolicyStatus } = require('./jobs/update_policy_status');
 const {
   weeklyLeaderboard,
@@ -44,6 +44,15 @@ exports.newLead = functions.https.onRequest(
     secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
   },
   inboundGSQ,
+);
+
+// gsq -> crm: agents.sendblue_number after gsq provisions a Sendblue line.
+// Authenticated with the same GSQ_TOKEN as newLead.
+exports.sendblueNumber = functions.https.onRequest(
+  {
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
+  },
+  inboundSendblueNumber,
 );
 
 exports.updatePolicyStatus = onSchedule(

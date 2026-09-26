@@ -29,7 +29,11 @@ jest.mock('../services/supabase', () => ({
   },
 }));
 
-const { inboundGSQ, markSoldInGSQ } = require('../integrations/GSQ');
+const {
+  inboundGSQ,
+  inboundSendblueNumber,
+  markSoldInGSQ,
+} = require('../integrations/GSQ');
 const { parsePremium } = require('../integrations/premium');
 
 const makeLookupQuery = (result) => {
@@ -446,5 +450,123 @@ describe('markSoldInGSQ', () => {
     await markSoldInGSQ('2025550199', 'someone@example.com');
 
     expect(mockFirestoreBatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('inboundSendblueNumber', () => {
+  const originalToken = process.env.GSQ_TOKEN;
+
+  const makeSyncRequest = (body, token = 'test-gsq-token') => ({
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+    body,
+  });
+
+  const mockAgentsTable = (lookupResult, updateResult = { error: null }) => {
+    const update = jest.fn(() => ({
+      eq: jest.fn().mockResolvedValue(updateResult),
+    }));
+    const ilike = jest.fn().mockResolvedValue(lookupResult);
+    mockSupabaseFrom.mockImplementation(() => ({
+      select: jest.fn(() => ({ ilike })),
+      update,
+    }));
+    return { ilike, update };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.GSQ_TOKEN = 'test-gsq-token';
+  });
+
+  afterAll(() => {
+    if (originalToken === undefined) {
+      delete process.env.GSQ_TOKEN;
+    } else {
+      process.env.GSQ_TOKEN = originalToken;
+    }
+  });
+
+  test('rejects a bad token', async () => {
+    const res = makeResponse();
+    await inboundSendblueNumber(
+      makeSyncRequest({ email: 'a@x.com', sendblueNumber: '+14155551234' }, 'nope'),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['missing email', { sendblueNumber: '+14155551234' }],
+    ['10 digit number', { email: 'a@x.com', sendblueNumber: '4155551234' }],
+    ['non-US number', { email: 'a@x.com', sendblueNumber: '+447700900123' }],
+  ])('rejects %s', async (_label, body) => {
+    const res = makeResponse();
+    await inboundSendblueNumber(makeSyncRequest(body), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+  });
+
+  test('updates the agent matched case-insensitively with wildcards escaped', async () => {
+    const { ilike, update } = mockAgentsTable({
+      data: [{ id: 'agent-1', sendblue_number: null }],
+      error: null,
+    });
+    const res = makeResponse();
+
+    await inboundSendblueNumber(
+      makeSyncRequest({ email: ' Jane_Doe@X.com ', sendblueNumber: '+14155551234' }),
+      res,
+    );
+
+    expect(ilike).toHaveBeenCalledWith('email', 'jane\\_doe@x.com');
+    expect(update).toHaveBeenCalledWith({ sendblue_number: '+14155551234' });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('is a no-op when the number is already set', async () => {
+    const { update } = mockAgentsTable({
+      data: [{ id: 'agent-1', sendblue_number: '+14155551234' }],
+      error: null,
+    });
+    const res = makeResponse();
+
+    await inboundSendblueNumber(
+      makeSyncRequest({ email: 'a@x.com', sendblueNumber: '+14155551234' }),
+      res,
+    );
+
+    expect(update).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('404s when no crm agent has the email', async () => {
+    const { update } = mockAgentsTable({ data: [], error: null });
+    const res = makeResponse();
+
+    await inboundSendblueNumber(
+      makeSyncRequest({ email: 'nobody@x.com', sendblueNumber: '+14155551234' }),
+      res,
+    );
+
+    expect(update).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('409s instead of guessing when several agents share the email', async () => {
+    const { update } = mockAgentsTable({
+      data: [{ id: 'agent-1' }, { id: 'agent-2' }],
+      error: null,
+    });
+    const res = makeResponse();
+
+    await inboundSendblueNumber(
+      makeSyncRequest({ email: 'dup@x.com', sendblueNumber: '+14155551234' }),
+      res,
+    );
+
+    expect(update).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 });
