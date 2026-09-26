@@ -44,7 +44,33 @@ const OPTIONAL_CLIENT_FIELDS = [
   'annual_income',
 ];
 
-const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) => {
+const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+
+// The only fields the dialog blocks submit on (matches the NOT NULL client
+// columns). A malformed email also blocks; the live-transfer answer is only
+// required for GSQ funnel leads (see below).
+const REQUIRED_CLIENT_FIELDS = [
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'date_of_birth',
+  'state',
+  'monthly_premium',
+];
+
+// Instant form leads come from a Meta lead form, never a live transfer, so
+// the question doesn't apply — answer it for the agent instead of leaving
+// live_transfer undefined (which silently kept Save disabled).
+const isInstantFormLead = (lead) => lead?.gsq_instant_form === true;
+
+const CreateClientDialog = ({
+  open,
+  setOpen,
+  lead,
+  refetchClients,
+  onCreated,
+}) => {
   const { pathname } = useLocation();
   const initialForm = {
     first_name: '',
@@ -53,7 +79,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     phone: '',
     date_of_birth: '',
     marital_status: '',
-    lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+    lead_vendor_id: GSQ_LEAD_VENDOR_ID,
     address: '',
     city: '',
     state: '',
@@ -92,8 +118,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.date_of_birth || '',
-        lead_vendor_id:
-          lead.lead_vendor_id || '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+        lead_vendor_id: lead.lead_vendor_id || GSQ_LEAD_VENDOR_ID,
         marital_status: lead.marital_status || '',
         address: lead.address || '',
         city: lead.city || '',
@@ -102,7 +127,9 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
         occupation: lead.occupation || '',
         annual_income: lead.annual_income || '',
         monthly_premium: '',
-        live_transfer: lead.gsq_live_transfer ?? undefined,
+        live_transfer: isInstantFormLead(lead)
+          ? false
+          : (lead.gsq_live_transfer ?? undefined),
       });
     }
   }, [lead]);
@@ -216,8 +243,8 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     } else if (name === 'zip') {
       setZipCodeError(!/^[0-9]{5}$/.test(value));
     } else if (name === 'email') {
-      // email is optional (instant form leads may not have one) — only
-      // flag a value that's present but malformed
+      // emptiness is handled by the required check; only flag a malformed
+      // value here so the field doesn't error while the user is typing
       setEmailError(value !== '' && !/^\S+@\S+\.\S+$/.test(value));
     }
 
@@ -229,7 +256,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     OPTIONAL_CLIENT_FIELDS.forEach((field) => {
       if (data[field] === '') data[field] = null;
     });
-    if (data.email === '') data.email = null;
     console.log('Submitting form:', data);
     createClient({ data });
   };
@@ -245,25 +271,19 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
     setForm(initialForm);
   };
 
-  useEffect(() => {
-    const modifiedForm = { ...form };
-    console.log('Modified Form:', modifiedForm);
-    OPTIONAL_CLIENT_FIELDS.forEach((field) => delete modifiedForm[field]);
-    // email may be blank, but a malformed one still blocks submit
-    delete modifiedForm.email;
+  const asksLiveTransfer =
+    form.lead_vendor_id === GSQ_LEAD_VENDOR_ID && !isInstantFormLead(lead);
 
-    if (form.lead_vendor_id !== import.meta.env.VITE_GSQ_LEAD_VENDOR_ID) {
-      delete modifiedForm.live_transfer;
-    }
-    const hasEmptyFields = Object.keys(modifiedForm).some(
-      (key) => modifiedForm[key] === undefined || modifiedForm[key] === '',
+  useEffect(() => {
+    const required = asksLiveTransfer
+      ? [...REQUIRED_CLIENT_FIELDS, 'live_transfer']
+      : REQUIRED_CLIENT_FIELDS;
+    const hasEmptyFields = required.some(
+      (key) =>
+        form[key] === undefined || form[key] === null || form[key] === '',
     );
-    if (hasEmptyFields || emailError) {
-      setDisabled(true);
-    } else {
-      setDisabled(false);
-    }
-  }, [form, emailError]);
+    setDisabled(hasEmptyFields || emailError);
+  }, [form, emailError, asksLiveTransfer]);
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
@@ -273,30 +293,60 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
           <Grid size={12}>
             <SectionHeader title='Lead information' />
           </Grid>
+          {/* The one financial the sale needs (drives the card's Sale amount
+              and annual premium), so it leads the form instead of sitting
+              buried among optional fields. */}
           <Grid size={{ xs: 12, sm: 6 }}>
-            {leadVendorsLoading ? (
-              <Skeleton variant='rounded' height={56} />
-            ) : (
-              <TextField
-                sx={{ width: '100%' }}
-                select
-                disabled={!!lead}
-                name='lead_vendor_id'
-                label='Lead Source'
-                value={form.lead_vendor_id}
-                onChange={handleChange}
-                fullWidth
-                required
-              >
-                {leadVendors.map((vendor) => (
-                  <MenuItem key={vendor.id} value={vendor.id}>
-                    {vendor.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
+            <NumericFormat
+              style={{ width: '100%' }}
+              name='monthly_premium'
+              label='Monthly Premium'
+              value={form.monthly_premium}
+              thousandSeparator=','
+              decimalScale={2}
+              customInput={TextField}
+              required
+              onValueChange={(values) => {
+                const { value } = values;
+                setForm((prev) => ({ ...prev, monthly_premium: value }));
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
+                },
+              }}
+            />
           </Grid>
-          {form.lead_vendor_id === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' && (
+          {/* Lead Source only matters when a client is keyed in by hand; a
+              converted lead already carries its vendor and the select would
+              just render locked. */}
+          {!lead && (
+            <Grid size={{ xs: 12, sm: 6 }}>
+              {leadVendorsLoading ? (
+                <Skeleton variant='rounded' height={56} />
+              ) : (
+                <TextField
+                  sx={{ width: '100%' }}
+                  select
+                  name='lead_vendor_id'
+                  label='Lead Source'
+                  value={form.lead_vendor_id}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                >
+                  {leadVendors.map((vendor) => (
+                    <MenuItem key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Grid>
+          )}
+          {asksLiveTransfer && (
             <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl error={true} fullWidth>
                 <Alert severity='warning'>Is this a live transfer lead?</Alert>
@@ -369,6 +419,7 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
               helperText={emailError ? 'Invalid email address' : ''}
               type='email'
               fullWidth
+              required
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -497,29 +548,6 @@ const CreateClientDialog = ({ open, setOpen, lead, refetchClients, onCreated }) 
               onValueChange={(values) => {
                 const { value } = values; // raw value without formatting
                 setForm((prev) => ({ ...prev, annual_income: value }));
-              }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <NumericFormat
-              style={{ width: '100%' }}
-              name='monthly_premium'
-              label='Monthly Premium'
-              value={form.monthly_premium}
-              thousandSeparator=','
-              decimalScale={2}
-              customInput={TextField}
-              required
-              onValueChange={(values) => {
-                const { value } = values;
-                setForm((prev) => ({ ...prev, monthly_premium: value }));
               }}
               slotProps={{
                 input: {

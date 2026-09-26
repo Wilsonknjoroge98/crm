@@ -45,6 +45,7 @@ import StateFilter from '../components/StateFilter';
 import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
+import UpdateClientDialog from '../components/UpdateClientDialog';
 import BusinessCard from '../components/BusinessCard';
 import MessagesDrawer from '../components/MessagesDrawer';
 import ReleaseNotificationDialog, {
@@ -272,6 +273,8 @@ const Business = () => {
   const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
   const [editPolicyOpen, setEditPolicyOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [editClientOpen, setEditClientOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [textTarget, setTextTarget] = useState(null);
   // Once an agent has seen the release notification once, don't reopen it —
@@ -508,6 +511,13 @@ const Business = () => {
         .join(' '),
     });
     setEditPolicyOpen(true);
+  };
+
+  // Same id remap as handleAddPolicy: the view row's id is the business
+  // row, the client record lives under client_id.
+  const handleEditClient = (person) => {
+    setEditingClient({ ...person, id: person.client_id });
+    setEditClientOpen(true);
   };
 
   return (
@@ -815,6 +825,7 @@ const Business = () => {
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
+                onEditClient={handleEditClient}
                 onRequestRefund={handleRequestRefund}
               />
             ))
@@ -937,6 +948,18 @@ const Business = () => {
           policy={editingPolicy}
           refetchPolicies={refreshBusiness}
           agents={agents}
+        />
+      )}
+
+      {editingClient && (
+        <UpdateClientDialog
+          open={editClientOpen}
+          setOpen={(nextOpen) => {
+            setEditClientOpen(nextOpen);
+            if (!nextOpen) setEditingClient(null);
+          }}
+          client={editingClient}
+          refetchClients={refreshBusiness}
         />
       )}
     </Container>

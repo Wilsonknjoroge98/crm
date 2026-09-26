@@ -23,6 +23,7 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import Pill from './Pill';
 import { useMutation } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
@@ -343,6 +344,7 @@ const BusinessCard = ({
   onMarkSold,
   onAddPolicy,
   onEditPolicy,
+  onEditClient,
   onRequestRefund,
 }) => {
   const [notes, setNotes] = useState(person.notes || '');
@@ -538,6 +540,28 @@ const BusinessCard = ({
               >
                 {fullName}
               </Typography>
+              {/* Edit trigger anchored to the name it modifies. Policy edits
+                  keep their own pill in the lead-info column. */}
+              {person.client_id && (
+                <Tooltip title='Edit client details'>
+                  <IconButton
+                    size='small'
+                    onClick={() => onEditClient?.(person)}
+                    aria-label='Edit client'
+                    sx={{
+                      p: 0.25,
+                      flexShrink: 0,
+                      color: 'text.disabled',
+                      '&:hover': {
+                        color: 'text.primary',
+                        bgcolor: 'transparent',
+                      },
+                    }}
+                  >
+                    <EditOutlinedIcon sx={{ fontSize: '0.8rem' }} />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Chip
                 label={person.lifecycle_status}
                 size='small'

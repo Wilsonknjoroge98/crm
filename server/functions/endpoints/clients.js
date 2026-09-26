@@ -28,6 +28,8 @@ const EDITABLE_CLIENT_FIELDS = [
   'zip',
   'occupation',
   'annual_income',
+  // the card's Sale amount; agents correct it after close
+  'monthly_premium',
 ];
 
 clientRouter.get('/all', async (req, res) => {

@@ -24,8 +24,40 @@ import { enqueueSnackbar } from 'notistack';
 
 const maritalOptions = ['single', 'married', 'divorced', 'widowed'];
 
+// Mirrors CreateClientDialog: the NOT NULL client columns plus the premium
+// the sale is recorded against. Everything else may be cleared.
+const REQUIRED_CLIENT_FIELDS = [
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'date_of_birth',
+  'state',
+  'monthly_premium',
+];
+const OPTIONAL_CLIENT_FIELDS = [
+  'address',
+  'city',
+  'zip',
+  'occupation',
+  'marital_status',
+  'annual_income',
+];
+const EDITABLE_CLIENT_FIELDS = [
+  ...REQUIRED_CLIENT_FIELDS,
+  ...OPTIONAL_CLIENT_FIELDS,
+];
+
+// Rows arrive with nulls for anything unset (and business-view rows carry
+// lead/policy columns too); controlled inputs want '' and only the editable
+// columns need to round-trip.
+const toForm = (client) =>
+  Object.fromEntries(
+    EDITABLE_CLIENT_FIELDS.map((key) => [key, client?.[key] ?? '']),
+  );
+
 const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
-  const [form, setForm] = useState({ ...client });
+  const [form, setForm] = useState(() => toForm(client));
   const [phoneError, setPhoneError] = useState(false);
   const [zipCodeError, setZipCodeError] = useState(false);
   const [emailError, setEmailError] = useState(false);
@@ -44,7 +76,10 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
   });
 
   useEffect(() => {
-    if (client) setForm({ ...client });
+    if (client) {
+      setForm(toForm(client));
+      setUpdatesMade(false);
+    }
   }, [client]);
 
   const standardizeAddress = (address) => {
@@ -85,7 +120,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
       setPhoneError(!/^\d{3}-?\d{3}-?\d{4}$/.test(value));
       value = value.replace(/-/g, '');
     } else if (name === 'zip') {
-      setZipCodeError(!/^[0-9]{5}$/.test(value));
+      setZipCodeError(value !== '' && !/^[0-9]{5}$/.test(value));
     } else if (name === 'email') {
       setEmailError(!/^\S+@\S+\.\S+$/.test(value));
     }
@@ -93,9 +128,19 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Numeric inputs bypass handleChange, so they flag the edit themselves.
+  const handleNumberChange = (name, value) => {
+    setUpdatesMade(true);
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = () => {
+    const data = { ...form };
+    OPTIONAL_CLIENT_FIELDS.forEach((field) => {
+      if (data[field] === '') data[field] = null;
+    });
     updateClient({
-      data: { clientId: client.id, client: form },
+      data: { clientId: client.id, client: data },
     });
   };
 
@@ -105,28 +150,11 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
 
   useEffect(() => {
     if (!form) return;
-    const keys = [
-      'first_name',
-      'last_name',
-      'email',
-      'phone',
-      'date_of_birth',
-      'marital_status',
-      'address',
-      'city',
-      'state',
-      'zip',
-      'occupation',
-      'annual_income',
-    ];
-
-    const hasEmpty = keys.some((k) => form[k] === '');
-    if (!updatesMade || hasEmpty) {
-      setDisabled(true);
-    } else {
-      setDisabled(false);
-    }
-  }, [form]);
+    const hasEmpty = REQUIRED_CLIENT_FIELDS.some(
+      (k) => form[k] === '' || form[k] === null || form[k] === undefined,
+    );
+    setDisabled(!updatesMade || hasEmpty || emailError || phoneError);
+  }, [form, updatesMade, emailError, phoneError]);
 
   if (!form) return null;
 
@@ -135,6 +163,32 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
       <DialogTitle sx={{ fontWeight: 700 }}>Update Client</DialogTitle>
       <DialogContent sx={{ mt: 1 }}>
         <Grid container spacing={2} p={2}>
+          {/* Leads the form for the same reason it does in CreateClientDialog:
+              it's the sale amount on the card and the one number most often
+              corrected after close. */}
+          <Grid item size={6}>
+            <NumericFormat
+              style={{ width: '100%' }}
+              name='monthly_premium'
+              label='Monthly Premium'
+              value={form.monthly_premium}
+              thousandSeparator=','
+              decimalScale={2}
+              customInput={TextField}
+              required
+              onValueChange={({ value }) =>
+                handleNumberChange('monthly_premium', value)
+              }
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position='start'>$</InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </Grid>
+          <Grid item size={6} />
           <Grid item size={6}>
             <TextField
               name='first_name'
@@ -198,11 +252,10 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
             <TextField
               select
               name='marital_status'
-              label='Marital Status'
+              label='Marital Status (Optional)'
               value={form.marital_status}
               onChange={handleChange}
               fullWidth
-              required
             >
               {maritalOptions.map((status) => (
                 <MenuItem key={status} value={status}>
@@ -219,21 +272,19 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid item size={6}>
             <TextField
               name='address'
-              label='Address'
+              label='Street Address (Optional)'
               value={form.address}
               onChange={handleChange}
               fullWidth
-              required
             />
           </Grid>
           <Grid item size={6}>
             <TextField
               name='city'
-              label='City'
+              label='City (Optional)'
               value={form.city}
               onChange={handleChange}
               fullWidth
-              required
             />
           </Grid>
           <Grid item size={6}>
@@ -244,6 +295,7 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
               value={form.state}
               onChange={handleChange}
               fullWidth
+              required
             >
               {STATES.map((option) => (
                 <MenuItem key={option} value={option}>
@@ -255,20 +307,19 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
           <Grid item size={6}>
             <TextField
               name='zip'
-              label='Zip Code'
+              label='Zip Code (Optional)'
               value={form.zip}
               onChange={handleChange}
               error={zipCodeError}
               helperText={zipCodeError ? 'Invalid zip code' : ''}
               fullWidth
-              required
             />
           </Grid>
 
           <Grid item size={6}>
             <TextField
               name='occupation'
-              label='Occupation'
+              label='Occupation (Optional)'
               value={form.occupation}
               onChange={handleChange}
               fullWidth
@@ -278,14 +329,13 @@ const UpdateClientDialog = ({ open, setOpen, client, refetchClients }) => {
             <NumericFormat
               style={{ width: '100%' }}
               name='annual_income'
-              label='Annual Income'
+              label='Annual Income (Optional)'
               value={form.annual_income}
               thousandSeparator=','
               customInput={TextField}
-              onValueChange={(values) => {
-                const { value } = values; // raw value without formatting
-                setForm((prev) => ({ ...prev, annual_income: value }));
-              }}
+              onValueChange={({ value }) =>
+                handleNumberChange('annual_income', value)
+              }
               slotProps={{
                 input: {
                   startAdornment: (
