@@ -1,11 +1,97 @@
 const axios = require('axios');
+const logger = require('firebase-functions/logger');
+const { Firestore } = require('firebase-admin/firestore');
 
 const SENDBLUE_BASE_URL = 'https://api.sendblue.co';
 
-const sendblueHeaders = () => ({
-  'sb-api-key-id': process.env.SEND_BLUE_API_KEY,
-  'sb-api-secret-key': process.env.SEND_BLUE_SECRET_KEY,
+// gsq writes each agent's Sendblue subaccount credentials here when it
+// provisions their line (gsq utils/sendblue.js), keyed by lowercased email
+const SENDBLUE_CONFIG_COLLECTION = 'sendblue_config';
+
+// Factory injectable so tests can stub the gsq Firestore
+const defaultCreateFirestore = () =>
+  new Firestore({
+    projectId: process.env.GSQ_PROJECT_ID,
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+
+let gsqDb = null;
+let createFirestore = defaultCreateFirestore;
+const getGsqDb = () => {
+  if (!gsqDb) gsqDb = createFirestore();
+  return gsqDb;
+};
+
+// tests only
+const setFirestoreFactory = (factory) => {
+  createFirestore = factory || defaultCreateFirestore;
+  gsqDb = null;
+};
+
+const sharedCredentials = () => ({
+  apiKey: process.env.SEND_BLUE_API_KEY,
+  apiSecret: process.env.SEND_BLUE_SECRET_KEY,
+  sendblueNumber: null,
+  source: 'shared_account',
 });
+
+/**
+ * Per-request lookup of the agent's Sendblue subaccount credentials from
+ * gsq's sendblue_config/{email}. Agents onboarded before per-agent
+ * subaccounts have no doc and stay on the shared account secrets.
+ * @param {string} email agent email (agents.email)
+ * @return {Promise<object>} { apiKey, apiSecret, sendblueNumber, source }
+ */
+const getSendblueCredentials = async (email) => {
+  const docId = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!docId) return sharedCredentials();
+
+  let data = null;
+  try {
+    const snap = await getGsqDb()
+      .collection(SENDBLUE_CONFIG_COLLECTION)
+      .doc(docId)
+      .get();
+    data = snap.exists ? snap.data() : null;
+  } catch (error) {
+    // Don't silently fall back to the shared account here: for a subaccount
+    // agent that would read/send through the wrong account
+    const wrapped = new Error('Failed to load Sendblue credentials');
+    wrapped.status = 503;
+    wrapped.cause = error;
+    throw wrapped;
+  }
+
+  if (data?.apiKey && data?.apiSecret) {
+    return {
+      apiKey: data.apiKey,
+      apiSecret: data.apiSecret,
+      sendblueNumber: data.sendblueNumber || null,
+      source: SENDBLUE_CONFIG_COLLECTION,
+    };
+  }
+
+  if (data) {
+    // doc exists but provisioning hasn't finished saving credentials
+    logger.warn('sendblue_config has no credentials yet', {
+      email: docId,
+      status: data.status || null,
+    });
+  }
+  return sharedCredentials();
+};
+
+const sendblueHeaders = (credentials) => {
+  if (!credentials?.apiKey || !credentials?.apiSecret) {
+    const missing = new Error('Sendblue credentials are not configured');
+    missing.status = 503;
+    throw missing;
+  }
+  return {
+    'sb-api-key-id': credentials.apiKey,
+    'sb-api-secret-key': credentials.apiSecret,
+  };
+};
 
 // sendblue wants e164, strip to 10 digits and drop a leading 1, anything else is not a phone
 const toE164 = (phone) => {
@@ -34,11 +120,17 @@ const toSendblueError = (error, fallback) => {
   return wrapped;
 };
 
-const fetchMessages = async ({ number, sendblueNumber, limit = 50 }) => {
+const fetchMessages = async ({
+  credentials,
+  number,
+  sendblueNumber,
+  limit = 50,
+}) => {
+  const headers = sendblueHeaders(credentials);
   let response;
   try {
     response = await axios.get(`${SENDBLUE_BASE_URL}/api/v2/messages`, {
-      headers: sendblueHeaders(),
+      headers,
       params: {
         number,
         sendblue_number: sendblueNumber,
@@ -59,13 +151,14 @@ const fetchMessages = async ({ number, sendblueNumber, limit = 50 }) => {
     .reverse();
 };
 
-const sendMessage = async ({ fromNumber, toNumber, content }) => {
+const sendMessage = async ({ credentials, fromNumber, toNumber, content }) => {
+  const headers = sendblueHeaders(credentials);
   let response;
   try {
     response = await axios.post(
       `${SENDBLUE_BASE_URL}/api/send-message`,
       { from_number: fromNumber, number: toNumber, content },
-      { headers: sendblueHeaders() },
+      { headers },
     );
   } catch (error) {
     throw toSendblueError(error, 'Failed to send message through Sendblue');
@@ -82,4 +175,11 @@ const sendMessage = async ({ fromNumber, toNumber, content }) => {
   return toMessage(response.data);
 };
 
-module.exports = { toE164, fetchMessages, sendMessage };
+module.exports = {
+  SENDBLUE_CONFIG_COLLECTION,
+  toE164,
+  getSendblueCredentials,
+  fetchMessages,
+  sendMessage,
+  setFirestoreFactory,
+};

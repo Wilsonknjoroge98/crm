@@ -197,6 +197,99 @@ const inboundGSQ = async (req, res) => {
   }
 };
 
+// Same rule as the agents_sendblue_number_e164 constraint, narrowed to US
+// numbers since every Sendblue line we provision is NANP.
+const US_E164 = /^\+1[2-9]\d{9}$/;
+
+// ilike without wildcards, so an email containing _ or % only matches itself
+const escapeLike = (value) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+// gsq's stripePurchase calls this after it provisions an agent's own
+// Sendblue subaccount + line, so agents.sendblue_number stays in sync
+// without a manual edit. Plain UPDATE, so redeliveries are idempotent.
+const inboundSendblueNumber = async (req, res) => {
+  try {
+    const auth = req.headers['authorization']?.split(' ')[1];
+
+    if (!auth || auth !== process.env.GSQ_TOKEN) {
+      logger.warn('Unauthorized sendblue number sync attempt');
+      return res.status(401).send({ message: 'Unauthorized' });
+    }
+
+    if (req.method !== 'POST') {
+      return res.status(405).send({ message: 'Method not allowed' });
+    }
+
+    const email = String(req.body?.email ?? '')
+      .trim()
+      .toLowerCase();
+    const sendblueNumber = String(req.body?.sendblueNumber ?? '').trim();
+
+    if (!email || !US_E164.test(sendblueNumber)) {
+      return res
+        .status(400)
+        .send({ message: 'email and a US E.164 sendblueNumber are required' });
+    }
+
+    const { data: agents, error: lookupError } = await supabaseService
+      .from('agents')
+      .select('id, sendblue_number')
+      .ilike('email', escapeLike(email));
+
+    if (lookupError) {
+      logger.error('sendblue number agent lookup failed', {
+        email,
+        code: lookupError.code,
+        message: lookupError.message,
+      });
+      return res.status(500).send({ message: 'Agent lookup failed' });
+    }
+
+    if (!agents || agents.length === 0) {
+      logger.warn('sendblue number sync: no crm agent for email', { email });
+      return res.status(404).send({ message: 'Agent not found' });
+    }
+
+    if (agents.length > 1) {
+      logger.error('sendblue number sync: multiple crm agents for email', {
+        email,
+        agentIds: agents.map((a) => a.id),
+      });
+      return res.status(409).send({ message: 'Multiple agents match email' });
+    }
+
+    const [agent] = agents;
+
+    if (agent.sendblue_number === sendblueNumber) {
+      return res.status(200).send({ message: 'Already up to date' });
+    }
+
+    const { error: updateError } = await supabaseService
+      .from('agents')
+      .update({ sendblue_number: sendblueNumber })
+      .eq('id', agent.id);
+
+    if (updateError) {
+      logger.error('sendblue number update failed', {
+        agentId: agent.id,
+        code: updateError.code,
+        message: updateError.message,
+      });
+      return res.status(500).send({ message: 'Failed to update agent' });
+    }
+
+    logger.info('sendblue number synced from gsq', {
+      agentId: agent.id,
+      previous: agent.sendblue_number ?? null,
+      sendblueNumber,
+    });
+    return res.status(200).send({ message: 'Sendblue number updated' });
+  } catch (error) {
+    logger.error('Error syncing sendblue number:', { error });
+    return res.status(500).send({ message: 'Error syncing sendblue number' });
+  }
+};
+
 // Every gsq collection that holds a sellable lead identity. The fexdigital
 // storefront only lists docs with sold == false, so once an agent sells a
 // phone every copy of it has to flip, not just the funnel doc.
@@ -251,6 +344,7 @@ const markSoldInGSQ = async (phone, email) => {
 
 module.exports = {
   inboundGSQ,
+  inboundSendblueNumber,
   markSoldInGSQ,
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,

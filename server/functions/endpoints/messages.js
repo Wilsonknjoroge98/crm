@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('firebase-functions/logger');
 const {
   toE164,
+  getSendblueCredentials,
   fetchMessages,
   sendMessage,
 } = require('../integrations/sendblue');
@@ -19,6 +20,33 @@ const requireLine = (req, res) => {
     return null;
   }
   return line;
+};
+
+// Credentials come from the agent's own Sendblue subaccount
+// (sendblue_config/{email}) on every request, shared account as fallback
+const loadCredentials = async (req, res, line, route, method) => {
+  try {
+    const credentials = await getSendblueCredentials(req.agent?.email);
+    if (credentials.sendblueNumber && credentials.sendblueNumber !== line) {
+      logger.warn('agents.sendblue_number differs from sendblue_config', {
+        route,
+        method,
+        requesterId: req.agent?.id,
+        agentLine: line,
+        configLine: credentials.sendblueNumber,
+      });
+    }
+    return credentials;
+  } catch (error) {
+    logger.error('Sendblue credential lookup failed in endpoints/messages.js', {
+      route,
+      method,
+      requesterId: req.agent?.id,
+      message: error.cause?.message || error.message,
+    });
+    res.status(503).json({ error: 'Messaging is temporarily unavailable' });
+    return null;
+  }
 };
 
 const sendblueFailure = (res, error, route, method, req, fallback) => {
@@ -43,8 +71,15 @@ messagesRouter.get('/', async (req, res) => {
     return res.status(400).json({ error: 'A valid phone number is required' });
   }
 
+  const credentials = await loadCredentials(req, res, line, '/messages', 'GET');
+  if (!credentials) return;
+
   try {
-    const messages = await fetchMessages({ number, sendblueNumber: line });
+    const messages = await fetchMessages({
+      credentials,
+      number,
+      sendblueNumber: line,
+    });
     return res.status(200).json(messages);
   } catch (error) {
     return sendblueFailure(
@@ -76,8 +111,18 @@ messagesRouter.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Message is too long' });
   }
 
+  const credentials = await loadCredentials(
+    req,
+    res,
+    line,
+    '/messages',
+    'POST',
+  );
+  if (!credentials) return;
+
   try {
     const message = await sendMessage({
+      credentials,
       fromNumber: line,
       toNumber: number,
       content,
