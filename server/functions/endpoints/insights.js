@@ -125,7 +125,10 @@ insightsRouter.get('/', async (req, res) => {
       }
     }
 
-    const countLeadsForCreative = async (creative, verifiedOnly) => {
+    const countLeadsForCreative = async (
+      creative,
+      { verifiedOnly = false, instantFormOnly = false } = {},
+    ) => {
       let query = supabaseService
         .from('leads')
         .select('id', { count: 'exact', head: true })
@@ -134,12 +137,14 @@ insightsRouter.get('/', async (req, res) => {
         .lt('created_at', untilExclusive);
 
       if (verifiedOnly) query = query.eq('verified', true);
+      if (instantFormOnly) query = query.eq('gsq_instant_form', true);
 
       const { count, error } = await query;
       if (error) {
-        logger.error('Error counting leads for verified % in insights', {
+        logger.error('Error counting leads for creative in insights', {
           creative,
           verifiedOnly,
+          instantFormOnly,
           error,
         });
         return null;
@@ -147,21 +152,51 @@ insightsRouter.get('/', async (req, res) => {
       return count ?? 0;
     };
 
+    // An ad is an instant form ad if the instant form webhook has ever
+    // written a lead under its name. Not limited to the date range, so an
+    // instant form ad with no leads in the window still counts as one
+    const isInstantFormAd = async (creative) => {
+      const { data, error } = await supabaseService
+        .from('leads')
+        .select('id')
+        .eq('gsq_source', creative)
+        .eq('gsq_instant_form', true)
+        .limit(1);
+
+      if (error) {
+        logger.error('Error checking instant form ad in insights', {
+          creative,
+          error,
+        });
+        return false;
+      }
+      return data.length > 0;
+    };
+
     const sources = [];
 
     for (const [creative, sales] of Object.entries(salesBySource)) {
       const adId = adsByName[creative];
-      let spend = 0;
-      let leads = 0;
 
-      if (adId) {
-        ({ spend, leads } = await getInsightsForAd(adId));
+      const [metaInsights, instantForm, totalLeads, verifiedLeads] =
+        await Promise.all([
+          adId ? getInsightsForAd(adId) : { spend: 0, leads: 0 },
+          isInstantFormAd(creative),
+          countLeadsForCreative(creative),
+          countLeadsForCreative(creative, { verifiedOnly: true }),
+        ]);
+      const { spend } = metaInsights;
+
+      // meta's lead action on instant form ads counts every submission,
+      // including ones our dedup drops, so key those off the leads table.
+      // null means the count query failed; fall back to meta's number
+      let leads = metaInsights.leads;
+      if (instantForm) {
+        const dbLeads = await countLeadsForCreative(creative, {
+          instantFormOnly: true,
+        });
+        if (dbLeads !== null) leads = dbLeads;
       }
-
-      const [totalLeads, verifiedLeads] = await Promise.all([
-        countLeadsForCreative(creative, false),
-        countLeadsForCreative(creative, true),
-      ]);
 
       // null means zero leads for the selected creative (denominator is 0)
       const verifiedPct =
