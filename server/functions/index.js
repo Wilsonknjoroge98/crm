@@ -41,7 +41,7 @@ exports.app = functions.https.onRequest(
 
 exports.newLead = functions.https.onRequest(
   {
-    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY', 'HYROS_SECRET_KEY'],
   },
   inboundGSQ,
 );

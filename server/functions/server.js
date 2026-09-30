@@ -8,8 +8,7 @@ const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 const logger = require('firebase-functions/logger');
-// eslint-disable-next-line no-unused-vars
-const { PRODUCT_RATES } = require('./constants');
+
 const { authMiddleware } = require('./middleware/auth');
 const { Firestore, Timestamp } = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
