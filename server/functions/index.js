@@ -41,7 +41,10 @@ exports.app = functions.https.onRequest(
 
 exports.newLead = functions.https.onRequest(
   {
-    secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
+    // HYROS_SECRET_KEY: inboundGSQ looks up the lead's ad source in Hyros.
+    // Without the binding the API-Key header is undefined and every lookup
+    // 401s, leaving leads.gsq_source empty.
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY', 'HYROS_SECRET_KEY'],
   },
   inboundGSQ,
 );

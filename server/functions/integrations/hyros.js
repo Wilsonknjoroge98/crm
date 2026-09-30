@@ -3,13 +3,27 @@ const logger = require('firebase-functions/logger');
 
 const hyrosAgent = axios.create({
   baseURL: 'https://api.hyros.com/v1/api/v1.0',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    'API-Key': process.env.HYROS_SECRET_KEY,
   },
 });
 
+// Read the key per request (not at module load) so it always reflects the
+// secret bound to the running function.
+hyrosAgent.interceptors.request.use((config) => {
+  config.headers['API-Key'] = process.env.HYROS_SECRET_KEY;
+  return config;
+});
+
 const getHyrosSource = async (phone) => {
+  if (!process.env.HYROS_SECRET_KEY) {
+    logger.error(
+      'HYROS_SECRET_KEY is not bound to this function — skipping Hyros lookup',
+    );
+    return null;
+  }
+
   const HYROS_BODY = {
     method: 'GET',
     url: '/leads',
@@ -35,7 +49,11 @@ const getHyrosSource = async (phone) => {
 
     return source;
   } catch (error) {
-    logger.error('Error fetching Hyros data:', error);
+    // Log status + body only; the full AxiosError dumps request config.
+    logger.error('Error fetching Hyros data', {
+      status: error.response?.status,
+      error: error.response?.data || error.message,
+    });
     return null;
   }
 };

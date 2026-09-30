@@ -12,8 +12,58 @@ const pixelClient = axios.create({
   },
 });
 
+// crypto.update() throws ERR_INVALID_ARG_TYPE on undefined/null, which used
+// to abort the whole Purchase event whenever one field (e.g. a one-word
+// name's last name, or a client without a zip) was missing. Return
+// undefined for empty values instead; JSON.stringify drops those keys.
 const hash = (data) => {
-  return `${crypto.createHash('sha256').update(data).digest('hex')}`;
+  if (data === undefined || data === null) return undefined;
+  const value = String(data).trim();
+  if (!value) return undefined;
+  return crypto.createHash('sha256').update(value).digest('hex');
+};
+
+// Meta CAPI normalization rules (lowercase, digits-only phone, 2-letter
+// state, 5-digit zip, YYYYMMDD dob) — unnormalized hashes don't match.
+const lower = (v) =>
+  v === undefined || v === null ? undefined : String(v).trim().toLowerCase();
+
+const normalizePhone = (phone) => {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  if (!digits) return undefined;
+  return digits.length === 10 ? `1${digits}` : digits;
+};
+
+const normalizeState = (state) => {
+  const value = String(state ?? '').trim();
+  if (!value) return undefined;
+  if (value.length === 2) return value.toLowerCase();
+  const match = Object.entries(STATE_ABBREV_MAP).find(
+    ([name]) => name.toLowerCase() === value.toLowerCase(),
+  );
+  return match ? match[1].toLowerCase() : value.toLowerCase();
+};
+
+const normalizeZip = (zip) => {
+  const digits = String(zip ?? '').replace(/\D/g, '');
+  return digits ? digits.slice(0, 5) : undefined;
+};
+
+const normalizeCity = (city) => {
+  const value = lower(city);
+  return value ? value.replace(/[^a-z]/g, '') : undefined;
+};
+
+const normalizeDob = (year, month, day) => {
+  if (!year || !month || !day) return undefined;
+  return `${year}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}`;
+};
+
+const genderOf = (sex) => {
+  const value = lower(sex);
+  if (value === 'male' || value === 'm') return 'm';
+  if (value === 'female' || value === 'f') return 'f';
+  return undefined;
 };
 
 const sendPurchaseToMeta = async (ap, lead, client) => {
@@ -33,6 +83,8 @@ const sendPurchaseToMeta = async (ap, lead, client) => {
   }
 
   const eventTime = Math.floor(Date.now() / 1000);
+  const [firstName, ...rest] = String(lead.name).trim().split(/\s+/);
+  const lastName = rest.length ? rest[rest.length - 1] : undefined;
 
   const META_PURCHASE_PAYLOAD = {
     data: [
@@ -45,16 +97,18 @@ const sendPurchaseToMeta = async (ap, lead, client) => {
         user_data: {
           client_ip_address: lead.ip,
           client_user_agent: lead.userAgent,
-          em: hash(lead.email),
-          fn: hash(lead.name.split(' ')[0]),
-          ln: hash(lead.name.split(' ')[1]),
-          ph: hash(lead.phone),
-          db: hash(`${lead.birthYear}${lead.birthMonth}${lead.birthDay}`),
-          country: hash('US'),
-          zp: hash(client.zip),
-          ct: hash(client.city),
-          st: hash(client.state),
-          ge: lead.sex === 'Male' ? hash('m') : hash('f'),
+          em: hash(lower(lead.email)),
+          fn: hash(lower(firstName)),
+          ln: hash(lower(lastName)),
+          ph: hash(normalizePhone(lead.phone)),
+          db: hash(
+            normalizeDob(lead.birthYear, lead.birthMonth, lead.birthDay),
+          ),
+          country: hash('us'),
+          zp: hash(normalizeZip(client.zip)),
+          ct: hash(normalizeCity(client.city)),
+          st: hash(normalizeState(client.state || lead.state)),
+          ge: hash(genderOf(lead.sex)),
         },
         custom_data: {
           currency: 'USD',
@@ -93,4 +147,4 @@ const sendPurchaseToMeta = async (ap, lead, client) => {
   }
 };
 
-module.exports = { sendPurchaseToMeta };
+module.exports = { sendPurchaseToMeta, hash, normalizePhone, normalizeState };

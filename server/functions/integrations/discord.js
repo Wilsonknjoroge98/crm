@@ -40,13 +40,29 @@ async function sendDiscordNotification(
       });
       return;
     }
-    const res = await axios.post(webhookUrl, payload);
+    const res = await axios.post(webhookUrl, payload, { timeout: 10000 });
     logger.log('Sent Discord notification', {
       route: 'sendDiscordNotification',
       status: res.status,
       data: payload,
     });
   } catch (error) {
+    // 10015 / 404 = the webhook was deleted in Discord. Retrying won't help;
+    // create a new webhook and update the secret that holds its URL.
+    if (
+      error.response?.status === 404 ||
+      error.response?.data?.code === 10015
+    ) {
+      logger.error(
+        'Discord webhook no longer exists (Unknown Webhook) — create a ' +
+          'new webhook in Discord and update the webhook URL secret',
+        {
+          route: 'sendDiscordNotification',
+          error: error.response?.data || error.message,
+        },
+      );
+      return;
+    }
     logger.error('Error sending Discord notification', {
       route: 'sendDiscordNotification',
       error: error.response?.data || error.message,

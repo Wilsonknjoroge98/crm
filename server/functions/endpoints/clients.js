@@ -487,7 +487,9 @@ clientRouter.post('/', async (req, res) => {
     logger.error(
       'Error sending purchase event to Meta in endpoints/clients.js',
       {
-        error,
+        clientId: newClient.id,
+        error: error.message,
+        code: error.code,
       },
     );
   }
