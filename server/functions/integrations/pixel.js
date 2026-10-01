@@ -12,8 +12,37 @@ const pixelClient = axios.create({
   },
 });
 
-const hash = (data) => {
-  return `${crypto.createHash('sha256').update(data).digest('hex')}`;
+// Meta wants trimmed, lowercased values hashed with sha256. Missing values
+// return undefined so the key is dropped from the payload instead of
+// crashing createHash().update() (clients only require phone now).
+const hash = (value) => {
+  if (value === undefined || value === null) return undefined;
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return undefined;
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+};
+
+const normalizePhone = (phone) => {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  if (!digits) return undefined;
+  return digits.length === 10 ? `1${digits}` : digits;
+};
+
+const normalizeState = (state) => {
+  if (!state) return undefined;
+  const trimmed = String(state).trim();
+  return STATE_ABBREV_MAP[trimmed] || trimmed;
+};
+
+const normalizeDob = (year, month, day) => {
+  if (!year || !month || !day) return undefined;
+  return `${year}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}`;
+};
+
+const normalizeGender = (sex) => {
+  if (sex === 'Male') return 'm';
+  if (sex === 'Female') return 'f';
+  return undefined;
 };
 
 const sendPurchaseToMeta = async (ap, lead, client) => {
@@ -33,6 +62,8 @@ const sendPurchaseToMeta = async (ap, lead, client) => {
   }
 
   const eventTime = Math.floor(Date.now() / 1000);
+  const [firstName, ...rest] = String(lead.name).trim().split(/\s+/);
+  const lastName = rest.length ? rest[rest.length - 1] : undefined;
 
   const META_PURCHASE_PAYLOAD = {
     data: [
@@ -46,15 +77,15 @@ const sendPurchaseToMeta = async (ap, lead, client) => {
           client_ip_address: lead.ip,
           client_user_agent: lead.userAgent,
           em: hash(lead.email),
-          fn: hash(lead.name.split(' ')[0]),
-          ln: hash(lead.name.split(' ')[1]),
-          ph: hash(lead.phone),
-          db: hash(`${lead.birthYear}${lead.birthMonth}${lead.birthDay}`),
+          fn: hash(firstName),
+          ln: hash(lastName),
+          ph: hash(normalizePhone(lead.phone)),
+          db: hash(normalizeDob(lead.birthYear, lead.birthMonth, lead.birthDay)),
           country: hash('US'),
-          zp: hash(client.zip),
-          ct: hash(client.city),
-          st: hash(client.state),
-          ge: lead.sex === 'Male' ? hash('m') : hash('f'),
+          zp: hash(client.zip ? String(client.zip).slice(0, 5) : undefined),
+          ct: hash(client.city ? String(client.city).replace(/[^a-zA-Z]/g, '') : undefined),
+          st: hash(normalizeState(client.state || lead.state)),
+          ge: hash(normalizeGender(lead.sex)),
         },
         custom_data: {
           currency: 'USD',

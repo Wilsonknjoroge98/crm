@@ -4,10 +4,6 @@ const dayjs = require('dayjs');
 const { WebClient } = require('@slack/web-api');
 const { supabaseService } = require('../services/supabase');
 const { buildPolicySlackPayload } = require('../integrations/slack');
-const {
-  buildPolicyDiscordPayload,
-  sendDiscordNotification,
-} = require('../integrations/discord');
 
 const slackTargets = [
   process.env.SLACK_BOT_TOKEN,
@@ -17,7 +13,6 @@ const slackTargets = [
 const policyRouter = express.Router();
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
-const FEARLESS_ORG_ID = '446316f9-021a-460a-9bac-f7116e1bfa62';
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 // Editable policy columns only. See clients.js EDITABLE_CLIENT_FIELDS: a
@@ -364,32 +359,16 @@ policyRouter.post('/', async (req, res) => {
       effectiveDate: eft,
     });
 
-    const discordPayload = buildPolicyDiscordPayload({
-      agentName,
-      product: productData?.name ?? 'Unknown',
-      annualPremium: ap,
-      carrier: carrierData?.name ?? 'Unknown',
-      effectiveDate: eft,
-    });
-
-    const slackPromise =
-      lead_vendor_id === GSQ_LEAD_VENDOR_ID
-        ? new WebClient(process.env.SLACK_BOT_TOKEN).chat.postMessage({
-            channel: '#sales',
-            text: payload.text,
-            blocks: payload.blocks,
-          })
-        : Promise.resolve();
-
-    const discordPromise =
-      req.agent.org_id === FEARLESS_ORG_ID
-        ? sendDiscordNotification(discordPayload)
-        : Promise.resolve();
-
-    await Promise.all([slackPromise, discordPromise]);
+    if (lead_vendor_id === GSQ_LEAD_VENDOR_ID) {
+      await new WebClient(process.env.SLACK_BOT_TOKEN).chat.postMessage({
+        channel: '#sales',
+        text: payload.text,
+        blocks: payload.blocks,
+      });
+    }
   } catch (err) {
     logger.error(
-      'Failed to send Slack/Discord notification in endpoints/policies.js',
+      'Failed to send Slack notification in endpoints/policies.js',
       {
         error: err,
       },
