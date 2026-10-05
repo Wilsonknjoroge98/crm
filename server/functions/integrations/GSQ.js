@@ -72,20 +72,24 @@ const inboundGSQ = async (req, res) => {
 
     // set by gsq's meta webhook, the funnel callers never send it
     const isInstantForm = req.body.leadType === 'instant_form';
+    // set by gsq's telnyxCallControl for a caller who was not a lead: all we
+    // know is the number, the state from its area code, the agent who took
+    // the call, and (when the site matched the tap) the ad they clicked
+    const isPhoneLead = req.body.leadType === 'phone';
 
     // meta forms don't always ask for email or state, and a single word
     // full_name has no last name, gsq has already issued the lead by now
     if (
       !firstName ||
       !phone ||
-      (!isInstantForm && (!lastName || !email || !state || !gsqId || !dob)) ||
+      (!isInstantForm && !isPhoneLead && (!lastName || !email || !state || !gsqId || !dob)) ||
       !issuedTo ||
       sold === undefined
     ) {
       return res.status(400).send({ message: 'Missing required fields' });
     }
 
-    const hyrosSource = isInstantForm ? null : await getHyrosSource(phone);
+    const hyrosSource = isInstantForm || isPhoneLead ? null : await getHyrosSource(phone);
     const { data: leadVendor } = await supabaseService
       .from('lead_vendors')
       .select('id')
@@ -174,6 +178,24 @@ const inboundGSQ = async (req, res) => {
         }
       : {};
     Object.assign(payload, instantFormColumns);
+
+    // A phone-in caller: credit the ad the site matched their tap to, or
+    // mark the source "phone" so these stop reading as blanks. The gsq
+    // session id is set when the tap was matched (so a later form submit on
+    // that session is the same person), else the Telnyx call id rides along.
+    if (isPhoneLead) {
+      Object.assign(payload, {
+        gsq_source: lead.adName ?? 'phone',
+        gsq_id: lead.gsqId ?? null,
+        verified: true,
+        date_of_birth: null,
+        raw_fields: {
+          source: 'phone',
+          call_control_id: lead.callControlId ?? null,
+          ad_id: lead.adId ?? null,
+        },
+      });
+    }
 
     // Dedup is gsq's job (30-day phone-issuance window ahead of this
     // endpoint) — the phone column no longer has a unique constraint, so
