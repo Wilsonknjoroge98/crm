@@ -24,7 +24,42 @@ const ResetPassword = lazy(() => import('../views/ResetPassword'));
 const ForgotPassword = lazy(() => import('../views/ForgotPassword'));
 const Profile = lazy(() => import('../views/Profile'));
 const AdPublish = lazy(() => import('../views/AdPublish'));
+const MarketplaceStore = lazy(() => import('../views/marketplace/Store'));
+const MarketplaceCart = lazy(() => import('../views/marketplace/Cart'));
+const MarketplaceCheckout = lazy(() => import('../views/marketplace/Checkout'));
+const MarketplaceOrderConfirmation = lazy(
+  () => import('../views/marketplace/OrderConfirmation'),
+);
+const MarketplacePrivacyPolicy = lazy(
+  () => import('../views/marketplace/PrivacyPolicy'),
+);
+const MarketplaceTermsOfService = lazy(
+  () => import('../views/marketplace/TermsOfService'),
+);
 import ErrorBoundary from '../views/ErrorBoundary';
+
+// Lead storefront pages, nested under the Marketplace tab (/purchase-leads).
+const marketplaceRoute = (path, Page) => ({
+  path: `/purchase-leads${path}`,
+  element: (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+          }}
+        >
+          <MoonLoader color='#1A1A1A' size={150} loading={true} />
+        </div>
+      }
+    >
+      <Page />
+    </Suspense>
+  ),
+});
 
 const router = createBrowserRouter([
   {
@@ -206,6 +241,15 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      marketplaceRoute('/:leadType/store', MarketplaceStore),
+      marketplaceRoute('/:leadType/cart', MarketplaceCart),
+      marketplaceRoute('/:leadType/checkout', MarketplaceCheckout),
+      marketplaceRoute(
+        '/:leadType/order-confirmation',
+        MarketplaceOrderConfirmation,
+      ),
+      marketplaceRoute('/privacy-policy', MarketplacePrivacyPolicy),
+      marketplaceRoute('/terms-of-service', MarketplaceTermsOfService),
       {
         path: '/insights',
         element: (

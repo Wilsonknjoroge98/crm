@@ -8,6 +8,8 @@ import {
   Stack,
   Button,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
+import { MARKETPLACE_PATH } from './marketplace/api.js';
 
 const Purchase = () => {
   return (
@@ -174,9 +176,8 @@ const Purchase = () => {
               <Button
                 variant='contained'
                 fullWidth
-                href='https://fexdigital.com/fresh/store'
-                target='_blank'
-                rel='noopener noreferrer'
+                component={RouterLink}
+                to={`${MARKETPLACE_PATH}/fresh/store`}
                 sx={{
                   backgroundColor: '#000',
                   color: '#fff',
@@ -215,9 +216,8 @@ const Purchase = () => {
               <Button
                 variant='contained'
                 fullWidth
-                href='https://fexdigital.com/aged/store'
-                target='_blank'
-                rel='noopener noreferrer'
+                component={RouterLink}
+                to={`${MARKETPLACE_PATH}/aged/store`}
                 sx={{
                   backgroundColor: '#000',
                   color: '#fff',
