@@ -1,14 +1,14 @@
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 
 // Lead-only rows belong to the lead's agent; sale rows belong solely to
-// agents linked through agent_clients. Lead reassignment (duplicate phones,
+// the client's owner (clients.agent_id). Lead reassignment (duplicate phones,
 // bulk import) must not grant access to another agent's client.
-// The sale half reads the view's owner_agent_ids array; listing the ids put one
+// The sale half reads the view's owner_agent_id; listing the ids put one
 // UUID per owned client in the URL, which overflowed the HTTP header limit.
 const applyOwnershipFilter = (query, agentId) =>
   query.or(
     `and(client_id.is.null,agent_id.eq.${agentId}),` +
-      `owner_agent_ids.cs.{${agentId}}`,
+      `owner_agent_id.eq.${agentId}`,
   );
 
 const findOwnedPerson = async (supabase, agentId, personId, fields) => {
