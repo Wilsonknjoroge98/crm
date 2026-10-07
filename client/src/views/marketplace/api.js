@@ -4,14 +4,13 @@ import { supabase } from '../../utils/supabase.js';
 export const MARKETPLACE_PATH = '/purchase-leads';
 
 // The storefront API is the `marketplace` Cloud Function in the GSQ project.
-const isDev = import.meta.env.MODE === 'development';
-const isStaging = window.location.hostname.includes('crm-dev-dde35');
-
-const API_BASE = isDev
-  ? 'http://127.0.0.1:5001/life-quoter/us-central1/marketplace'
-  : isStaging
-    ? 'https://us-central1-life-quoter-staging.cloudfunctions.net/marketplace'
-    : 'https://us-central1-life-quoter.cloudfunctions.net/marketplace';
+// Every environment, local dev and CRM staging included, uses production
+// GSQ: production holds the live Stripe products, the CRM build only
+// carries the live publishable key, and the GSQ emulator would collide
+// with the CRM's on port 5001. Orders placed from dev or staging are real
+// purchases.
+const API_BASE =
+  'https://us-central1-life-quoter.cloudfunctions.net/marketplace';
 
 /**
  * fetch() against the marketplace API, signed in as the current CRM user —

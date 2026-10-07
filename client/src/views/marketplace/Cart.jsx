@@ -1,24 +1,20 @@
-// Cart.jsx
+// Cart.jsx — review one segment's cart, then reserve the leads and open a
+// Stripe Checkout Session.
 import {
-  ThemeProvider,
-  Typography,
-  Button,
+  Alert,
   Box,
-  Stack,
-  Link,
+  Button,
   CircularProgress,
+  Container,
+  Divider,
+  IconButton,
+  Paper,
+  Stack,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import BoltIcon from '@mui/icons-material/Bolt';
-import LockIcon from '@mui/icons-material/Lock';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import CloseIcon from '@mui/icons-material/Close';
 import {
   useNavigate,
   useParams,
@@ -26,30 +22,28 @@ import {
   Link as RouterLink,
 } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import theme from './theme.js';
-import QtyInput from './QtyInput.jsx';
-import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
-
-const BLUE = '#233dff';
-const G50 = '#f9fafb';
-const G100 = '#f3f4f6';
-const G200 = '#e5e7eb';
-const G300 = '#d1d5db';
-const G400 = '#9ca3af';
-const G500 = '#6b7280';
-const G600 = '#4b5563';
-const G800 = '#1f2937';
-const G900 = '#111827';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { marketplaceFetch } from './api.js';
+import {
+  BORDER,
+  DIVIDER,
+  MONO,
+  LeadTypeChip,
+  OrderLines,
+  MarketplaceHeader,
+  QtyStepper,
+  SummaryRow,
+  cartKeyFor,
+  formatMoney,
+  getSegment,
+  labelSx,
+  readCart,
+  segmentPath,
+} from './ui.jsx';
 
 const MAX_LEADS_PER_ORDER = 500;
-
-function readCart(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key)) || {};
-  } catch {
-    return {};
-  }
-}
 
 function writeCart(key, cart) {
   localStorage.setItem(key, JSON.stringify(cart));
@@ -58,8 +52,6 @@ function writeCart(key, cart) {
 function cartToItems(cart, prices) {
   const verified = [];
   const unverified = [];
-  const verifiedPrice = prices.verified;
-  const unverifiedPrice = prices.unverified;
   Object.entries(cart).forEach(([state, q]) => {
     if (q.verified > 0)
       verified.push({
@@ -67,7 +59,7 @@ function cartToItems(cart, prices) {
         state,
         type: 'verified',
         qty: q.verified,
-        price: verifiedPrice,
+        price: prices.verified,
       });
     if (q.unverified > 0)
       unverified.push({
@@ -75,7 +67,7 @@ function cartToItems(cart, prices) {
         state,
         type: 'unverified',
         qty: q.unverified,
-        price: unverifiedPrice,
+        price: prices.unverified,
       });
   });
   return [...verified, ...unverified];
@@ -86,10 +78,9 @@ export default function Cart() {
   const { leadType } = useParams();
   const [searchParams] = useSearchParams();
   const tier = searchParams.get('tier') === 'third' ? 'third' : 'second';
-  const cartKey =
-    leadType === 'fresh'
-      ? `fex-cart-${leadType}`
-      : `fex-cart-${leadType}-${tier}`;
+  const segment = getSegment(leadType, tier);
+  const storePath = segmentPath(leadType, tier, 'store');
+  const cartKey = cartKeyFor(leadType, tier);
   const [cart, setCart] = useState(() => readCart(cartKey));
   // Orders go to the signed-in CRM user; the API takes the email from their
   // session, this copy is just for display.
@@ -167,8 +158,7 @@ export default function Cart() {
   );
 
   const items = prices ? cartToItems(cart, prices) : [];
-  const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
-  const total = subtotal;
+  const total = items.reduce((sum, i) => sum + i.qty * i.price, 0);
   const totalLeads = items.reduce((sum, i) => sum + i.qty, 0);
   const overLimit = totalLeads > MAX_LEADS_PER_ORDER;
 
@@ -181,9 +171,8 @@ export default function Cart() {
     const max = getMax(state, type);
     updateCart((prev) => {
       const current = prev[state] || { verified: 0, unverified: 0 };
-      const key = type === 'verified' ? 'verified' : 'unverified';
       const newQty = Math.min(Math.max(0, qty), max);
-      return { ...prev, [state]: { ...current, [key]: newQty } };
+      return { ...prev, [state]: { ...current, [type]: newQty } };
     });
   };
 
@@ -211,15 +200,13 @@ export default function Cart() {
     },
     onSuccess: () => {
       // A successful reservation shrinks the pool for everyone else.
-      // Mark inventory stale so the next render refetches.
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
   const checkoutLoading = checkoutMutation.isPending;
 
   const handleCheckout = async () => {
-    if (items.length === 0) return;
-    if (overLimit) return;
+    if (items.length === 0 || overLimit) return;
 
     setCheckoutError(null);
     try {
@@ -231,10 +218,9 @@ export default function Cart() {
       });
       // Persist order context across the Stripe redirect. /checkout state
       // is in history and survives only until the redirect to the payment
-      // provider; /order-confirmation lands on a fresh load and needs
-      // sessionId + email to call completeOrder. (With ui_mode: 'elements'
-      // the PaymentIntent is created lazily at confirm() time, so we don't
-      // have a paymentIntentId to stash — session.id is the stable handle.)
+      // provider; /order-confirmation lands on a fresh load. (With
+      // ui_mode: 'elements' the PaymentIntent is created lazily at confirm()
+      // time, so session.id is the stable handle.)
       sessionStorage.setItem(
         'fex-order-ctx',
         JSON.stringify({
@@ -243,752 +229,268 @@ export default function Cart() {
           ...(leadType === 'fresh' ? {} : { tier }),
         }),
       );
-      navigate(
-        leadType === 'fresh'
-          ? `${MARKETPLACE_PATH}/${leadType}/checkout`
-          : `${MARKETPLACE_PATH}/${leadType}/checkout?tier=${tier}`,
-        {
-          state: {
-            clientSecret: data.clientSecret,
-            sessionId: data.sessionId,
-            items,
-            total,
-            email: email.trim(),
-            // Absolute timestamp when the reservation expires. Persisted
-            // in history state so refresh / tab restore shows the real
-            // remaining time instead of resetting to a fresh 10:00.
-            // Kept in sync with server marketplaceReservedUntil via extendReservation.
-            deadline: Date.now() + 10 * 60 * 1000,
-          },
+      navigate(segmentPath(leadType, tier, 'checkout'), {
+        state: {
+          clientSecret: data.clientSecret,
+          sessionId: data.sessionId,
+          items,
+          total,
+          email: email.trim(),
+          // Absolute timestamp when the reservation expires. Persisted in
+          // history state so refresh / tab restore shows the real remaining
+          // time instead of resetting to a fresh 10:00. Kept in sync with
+          // server marketplaceReservedUntil via extendReservation.
+          deadline: Date.now() + 10 * 60 * 1000,
         },
-      );
+      });
     } catch (e) {
       setCheckoutError(e.message);
     }
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ width: '100%', bgcolor: '#f7f8fc' }}>
-        {/* Nav */}
-        <Box
-          component='header'
-          sx={{
-            borderBottom: '1px solid',
-            borderColor: G200,
-            bgcolor: '#fff',
-            position: 'sticky',
-            top: 0,
-            zIndex: 50,
-          }}
-        >
-          <Box
-            sx={{
-              maxWidth: 1152,
-              mx: 'auto',
-              px: 3,
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Stack direction='row' spacing={2} alignItems='center'>
-              <Link component={RouterLink} to={MARKETPLACE_PATH}>
-                <Box
-                  component='img'
-                  src='/fexdigital-logo.svg'
-                  alt='FEX Digital'
-                  sx={{ height: 36 }}
-                />
-              </Link>
-              <Box
-                sx={{
-                  bgcolor: leadType === 'fresh' ? BLUE : '#fff',
-                  color: leadType === 'fresh' ? '#fff' : G800,
-                  border: leadType === 'fresh' ? 'none' : '1px solid',
-                  borderColor: G300,
-                  fontSize: '0.7rem',
-                  fontWeight: leadType === 'fresh' ? 700 : 500,
-                  px: 1.25,
-                  py: 0.4,
-                  borderRadius: '999px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {leadType === 'fresh' ? 'Fresh' : 'Aged'}
-              </Box>
-              <Typography
-                sx={{
-                  fontSize: '0.8rem',
-                  color: leadType === 'fresh' ? BLUE : G800,
-                  fontWeight: 500,
-                }}
-              >
-                {leadType === 'fresh'
-                  ? 'Submitted within the last 72 hours'
-                  : tier === 'third'
-                    ? 'Submitted 91–180 days ago'
-                    : 'Submitted 31–90 days ago'}
-              </Typography>
-            </Stack>
-            <Box
-              sx={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                border: '1px solid',
-                borderColor: G200,
-                bgcolor: '#fff',
-                px: 2,
-                py: 1,
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: G800,
-              }}
+    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+      <Stack spacing={2.5}>
+        <MarketplaceHeader
+          subtitle={`Review your ${segment.label.toLowerCase()} order before checkout.`}
+          actions={
+            <Button
+              variant='outlined'
+              color='primary'
+              component={RouterLink}
+              to={storePath}
+              startIcon={<ArrowBackIcon />}
+              sx={{ whiteSpace: 'nowrap', borderColor: BORDER }}
             >
-              <ShoppingCartIcon sx={{ fontSize: 16 }} />
-              Cart
-              {items.length > 0 && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: -8,
-                    right: -8,
-                    bgcolor: leadType === 'fresh' ? BLUE : G800,
-                    color: '#fff',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    width: 20,
-                    height: 20,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {totalLeads > 99 ? '99+' : totalLeads}
-                </Box>
-              )}
-            </Box>
+              Continue Shopping
+            </Button>
+          }
+        />
+
+        {adjusted && (
+          <Alert severity='warning' onClose={() => setAdjusted(false)}>
+            Your cart was updated — some quantities were adjusted to match
+            current availability.
+          </Alert>
+        )}
+
+        {inventoryLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+            <CircularProgress color='inherit' />
           </Box>
-        </Box>
-
-        <Box sx={{ maxWidth: 1024, mx: 'auto', px: 3, py: 5 }}>
-          <Link
-            component={RouterLink}
-            to={`${MARKETPLACE_PATH}/${leadType}/store${leadType === 'fresh' ? '' : `?tier=${tier}`}`}
-            underline='none'
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              color: G500,
-              fontSize: '0.875rem',
-              mb: 2,
-              '&:hover': { color: G900 },
-              transition: 'color 0.15s',
-            }}
-          >
-            <ArrowBackIcon sx={{ fontSize: 15 }} /> Back to{' '}
-            {leadType === 'fresh' ? 'Fresh' : 'Aged'} Leads
-          </Link>
-          <Typography
-            sx={{ fontSize: '1.5rem', fontWeight: 700, color: G900, mb: 4 }}
-          >
-            Your Cart for {leadType === 'fresh' ? 'Fresh' : 'Aged'} Leads
-          </Typography>
-
-          {adjusted && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                bgcolor: '#fef9c3',
-                border: '1px solid',
-                borderColor: '#fde68a',
-                borderRadius: '12px',
-                px: 2,
-                py: 1.5,
-                mb: 3,
-              }}
-            >
-              <InfoOutlinedIcon sx={{ fontSize: 18, color: '#b45309' }} />
-              <Typography
-                sx={{
-                  flex: 1,
-                  fontSize: '0.875rem',
-                  color: '#92400e',
-                }}
-              >
-                Your cart was updated — some quantities were adjusted to match
-                current availability.
-              </Typography>
-              <Box
-                component='button'
-                onClick={() => setAdjusted(false)}
-                aria-label='Dismiss notice'
-                sx={{
-                  width: 28,
-                  height: 28,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#92400e',
-                  bgcolor: 'transparent',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  '&:hover': { bgcolor: '#fde68a' },
-                  transition: 'all 0.15s',
-                }}
-              >
-                <CloseIcon sx={{ fontSize: 16 }} />
-              </Box>
-            </Box>
-          )}
-
-          {inventoryLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-              <CircularProgress />
-            </Box>
-          ) : inventoryError ? (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                py: 8,
-                gap: 2,
-              }}
-            >
-              <Typography sx={{ color: G500, fontSize: '0.875rem' }}>
-                Failed to load inventory.
-              </Typography>
+        ) : inventoryError ? (
+          <Alert
+            severity='error'
+            action={
               <Button
-                variant='outlined'
+                color='inherit'
+                size='small'
                 onClick={() => refetchInventory()}
-                sx={{
-                  borderColor: G200,
-                  color: G800,
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  borderRadius: '8px',
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: G50 },
-                }}
               >
                 Retry
               </Button>
-            </Box>
-          ) : (
-            <Box
+            }
+          >
+            Failed to load inventory.
+          </Alert>
+        ) : (
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={3}
+            alignItems='flex-start'
+          >
+            {/* Line items */}
+            <Paper
+              variant='outlined'
               sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                gap: 4,
-                alignItems: 'flex-start',
+                flex: 3,
+                width: '100%',
+                borderRadius: 2,
+                overflow: 'hidden',
               }}
             >
-              {/* Left: Cart items */}
-              <Stack spacing={1.5} sx={{ flex: 3 }}>
-                {items.length === 0 ? (
-                  <Box
+              <Box
+                sx={{
+                  px: 2.5,
+                  py: 1.5,
+                  bgcolor: '#FAFAFA',
+                  borderBottom: `2px solid ${BORDER}`,
+                }}
+              >
+                <Typography sx={labelSx}>
+                  {segment.label} • {segment.window}
+                </Typography>
+              </Box>
+
+              {items.length === 0 ? (
+                <Box sx={{ p: 6, textAlign: 'center' }}>
+                  <Typography color='text.secondary'>
+                    Your cart is empty.
+                  </Typography>
+                  <Button
+                    component={RouterLink}
+                    to={storePath}
+                    color='primary'
+                    sx={{ mt: 1.5 }}
+                  >
+                    Browse {segment.label}
+                  </Button>
+                </Box>
+              ) : (
+                items.map((item) => (
+                  <Stack
+                    key={item.id}
+                    direction='row'
+                    alignItems='center'
+                    spacing={2}
                     sx={{
-                      bgcolor: '#fff',
-                      borderRadius: '16px',
-                      border: '1px solid',
-                      borderColor: G200,
-                      p: 6,
-                      textAlign: 'center',
+                      px: 2.5,
+                      py: 2,
+                      borderBottom: `1px solid ${DIVIDER}`,
+                      '&:last-of-type': { borderBottom: 'none' },
                     }}
                   >
-                    <Typography sx={{ color: G400, fontSize: '0.875rem' }}>
-                      Your cart is empty.
-                    </Typography>
-                    <Link
-                      component={RouterLink}
-                      to={`${MARKETPLACE_PATH}/${leadType}/store${leadType === 'fresh' ? '' : `?tier=${tier}`}`}
-                      underline='none'
-                      sx={{
-                        color: BLUE,
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        mt: 2,
-                        display: 'inline-block',
-                      }}
-                    >
-                      Browse Leads →
-                    </Link>
-                  </Box>
-                ) : (
-                  items.map((item) => (
-                    <Box
-                      key={item.id}
-                      sx={{
-                        bgcolor: '#fff',
-                        borderRadius: '16px',
-                        border: '1px solid',
-                        borderColor: G200,
-                        p: 2.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        '&:hover': { borderColor: G300 },
-                        transition: 'border-color 0.15s',
-                      }}
-                    >
-                      {/* Icon */}
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          bgcolor:
-                            item.type === 'verified' ? `${BLUE}1A` : G100,
-                        }}
-                      >
-                        {item.type === 'verified' ? (
-                          <VerifiedIcon sx={{ fontSize: 18, color: BLUE }} />
-                        ) : (
-                          <BoltIcon sx={{ fontSize: 18, color: G400 }} />
-                        )}
-                      </Box>
-
-                      {/* Info */}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Stack
-                          direction='row'
-                          spacing={1}
-                          alignItems='center'
-                          sx={{ mb: 0.25 }}
-                        >
-                          <Typography
-                            sx={{
-                              fontWeight: 600,
-                              fontSize: '0.875rem',
-                              color: G900,
-                            }}
-                          >
-                            {item.state}{' '}
-                            {leadType === 'fresh' ? 'Fresh' : 'Aged'}
-                          </Typography>
-                          <Box
-                            sx={{
-                              px: 1,
-                              py: 0.25,
-                              borderRadius: '999px',
-                              fontSize: '0.7rem',
-                              fontWeight: 500,
-                              bgcolor:
-                                item.type === 'verified' ? `${BLUE}1A` : G100,
-                              color: item.type === 'verified' ? BLUE : G500,
-                            }}
-                          >
-                            {item.type === 'verified'
-                              ? 'Verified'
-                              : 'Unverified'}
-                          </Box>
-                        </Stack>
-                        <Typography sx={{ fontSize: '0.75rem', color: G400 }}>
-                          ${item.price.toFixed(2)} per{' '}
-                          {leadType === 'fresh' ? 'fresh' : 'aged'} lead
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction='row' spacing={1} alignItems='center'>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {item.state}
                         </Typography>
-                      </Box>
-
-                      {/* Qty stepper */}
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          bgcolor: G50,
-                          borderRadius: '12px',
-                          border: '1px solid',
-                          borderColor: G200,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <Box
-                          component='button'
-                          onClick={() =>
-                            updateQty(item.state, item.type, item.qty - 1)
+                        <LeadTypeChip
+                          verified={item.type === 'verified'}
+                          label={
+                            item.type === 'verified' ? 'Verified' : 'Unverified'
                           }
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: G400,
-                            bgcolor: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            '&:hover': { color: G800, bgcolor: G100 },
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          −
-                        </Box>
-                        <QtyInput
-                          value={item.qty}
-                          max={getMax(item.state, item.type)}
-                          onChange={(n) => updateQty(item.state, item.type, n)}
-                          sx={{
-                            width: 40,
-                            height: 32,
-                            fontSize: '0.875rem',
-                            color: G900,
-                          }}
                         />
-                        <Box
-                          component='button'
-                          onClick={() =>
-                            updateQty(item.state, item.type, item.qty + 1)
-                          }
-                          disabled={item.qty >= getMax(item.state, item.type)}
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color:
-                              item.qty >= getMax(item.state, item.type)
-                                ? G300
-                                : G400,
-                            bgcolor: 'transparent',
-                            border: 'none',
-                            cursor:
-                              item.qty >= getMax(item.state, item.type)
-                                ? 'default'
-                                : 'pointer',
-                            '&:hover':
-                              item.qty < getMax(item.state, item.type)
-                                ? { color: G800, bgcolor: G100 }
-                                : {},
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          +
-                        </Box>
-                      </Box>
-
-                      {/* Line total */}
-                      <Typography
-                        sx={{
-                          fontSize: '0.875rem',
-                          fontWeight: 700,
-                          color: G900,
-                          width: 64,
-                          textAlign: 'right',
-                        }}
-                      >
-                        ${(item.qty * item.price).toFixed(2)}
+                      </Stack>
+                      <Typography variant='caption' color='text.secondary'>
+                        <Box component='span' sx={{ fontFamily: MONO }}>
+                          {formatMoney(item.price)}
+                        </Box>{' '}
+                        per {segment.unit}
                       </Typography>
-
-                      {/* Delete */}
-                      <Box
-                        component='button'
+                    </Box>
+                    <QtyStepper
+                      size='small'
+                      value={item.qty}
+                      max={getMax(item.state, item.type)}
+                      onChange={(n) => updateQty(item.state, item.type, n)}
+                    />
+                    <Typography
+                      sx={{
+                        fontFamily: MONO,
+                        fontWeight: 700,
+                        width: 88,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {formatMoney(item.qty * item.price)}
+                    </Typography>
+                    <Tooltip title='Remove'>
+                      <IconButton
+                        size='small'
                         aria-label={`Remove ${item.state} ${item.type}`}
                         onClick={() => updateQty(item.state, item.type, 0)}
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: G400,
-                          bgcolor: 'transparent',
-                          border: 'none',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          flexShrink: 0,
-                          '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' },
-                          transition: 'all 0.15s',
-                        }}
+                        sx={{ '&:hover': { color: 'error.main' } }}
                       >
-                        <DeleteOutlineIcon sx={{ fontSize: 18 }} />
-                      </Box>
-                    </Box>
-                  ))
-                )}
+                        <DeleteOutlineIcon fontSize='small' />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                ))
+              )}
+            </Paper>
+
+            {/* Order summary */}
+            <Paper
+              variant='outlined'
+              sx={{
+                flex: 2,
+                width: '100%',
+                p: 2.5,
+                borderRadius: 2,
+                position: { md: 'sticky' },
+                top: 16,
+              }}
+            >
+              <Typography sx={{ ...labelSx, mb: 1.5 }}>
+                Order Summary
+              </Typography>
+              {items.length > 0 ? (
+                <OrderLines items={items} />
+              ) : (
+                <Typography variant='body2' color='text.disabled'>
+                  No items
+                </Typography>
+              )}
+
+              <Divider sx={{ my: 2 }} />
+              <Stack spacing={1}>
+                <SummaryRow
+                  label={`${totalLeads} lead${totalLeads === 1 ? '' : 's'}`}
+                  value={formatMoney(total)}
+                />
+                <SummaryRow label='Total' value={formatMoney(total)} strong />
               </Stack>
 
-              {/* Right: Order summary */}
-              <Box sx={{ flex: 2 }}>
-                <Box
-                  sx={{
-                    bgcolor: '#fff',
-                    borderRadius: '16px',
-                    border: '1px solid',
-                    borderColor: G200,
-                    overflow: 'hidden',
-                    position: 'sticky',
-                    top: 88,
-                  }}
+              <Divider sx={{ my: 2 }} />
+              <Typography sx={{ ...labelSx, mb: 0.5 }}>Deliver To</Typography>
+              <Typography variant='body2' sx={{ fontWeight: 600 }}>
+                {email}
+              </Typography>
+              {leadType === 'fresh' && (
+                <Typography
+                  variant='caption'
+                  color='text.secondary'
+                  sx={{ display: 'block', mt: 0.5 }}
                 >
-                  {/* Line items */}
-                  <Box
-                    sx={{
-                      px: 3,
-                      pt: 3,
-                      pb: 2,
-                      borderBottom: '1px solid',
-                      borderColor: G100,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontWeight: 700,
-                        fontSize: '0.875rem',
-                        color: G900,
-                        mb: 2,
-                      }}
-                    >
-                      Order Summary
-                    </Typography>
-                    <Stack spacing={1.5}>
-                      {items.map((item) => (
-                        <Box
-                          key={item.id}
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <Stack
-                            direction='row'
-                            spacing={1}
-                            alignItems='center'
-                          >
-                            <Box
-                              sx={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: '50%',
-                                bgcolor: item.type === 'verified' ? BLUE : G300,
-                              }}
-                            />
-                            <Typography
-                              sx={{ fontSize: '0.875rem', color: G600 }}
-                            >
-                              {item.state}{' '}
-                              {leadType === 'fresh' ? 'Fresh' : 'Aged'} (
-                              {item.type === 'verified'
-                                ? 'Verified'
-                                : 'Unverified'}
-                              )
-                              <Box
-                                component='span'
-                                sx={{ color: G400, ml: 0.5 }}
-                              >
-                                ×{item.qty}
-                              </Box>
-                            </Typography>
-                          </Stack>
-                          <Typography
-                            sx={{
-                              fontSize: '0.875rem',
-                              fontWeight: 600,
-                              color: G900,
-                            }}
-                          >
-                            ${(item.qty * item.price).toFixed(2)}
-                          </Typography>
-                        </Box>
-                      ))}
-                      {items.length === 0 && (
-                        <Typography sx={{ fontSize: '0.875rem', color: G400 }}>
-                          No items
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Box>
+                  Leads are also sent automatically to any Ringy, GHL, SendBlue
+                  or InsurDial integration linked to this email.
+                </Typography>
+              )}
 
-                  {/* Totals */}
-                  <Box
-                    sx={{
-                      px: 3,
-                      py: 2,
-                      borderBottom: '1px solid',
-                      borderColor: G100,
-                    }}
-                  >
-                    <Stack spacing={1}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <Typography sx={{ fontSize: '0.875rem', color: G500 }}>
-                          Subtotal
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            color: G900,
-                          }}
-                        >
-                          ${subtotal.toFixed(2)}
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          pt: 0.5,
-                        }}
-                      >
-                        <Typography sx={{ fontWeight: 700, color: G900 }}>
-                          Total
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: '1.125rem',
-                            fontWeight: 700,
-                            color: G900,
-                          }}
-                        >
-                          ${total.toFixed(2)}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Box>
+              {overLimit && (
+                <Alert severity='warning' sx={{ mt: 2 }}>
+                  Maximum {MAX_LEADS_PER_ORDER} leads per order. Remove{' '}
+                  {totalLeads - MAX_LEADS_PER_ORDER} to continue.
+                </Alert>
+              )}
+              {checkoutError && (
+                <Alert severity='error' sx={{ mt: 2 }}>
+                  {checkoutError}
+                </Alert>
+              )}
 
-                  {/* Email */}
-                  <Box
-                    sx={{
-                      px: 3,
-                      py: 2,
-                      borderBottom: '1px solid',
-                      borderColor: G100,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        color: G500,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        mb: 1,
-                      }}
-                    >
-                      Delivered To
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: G900,
-                      }}
-                    >
-                      {email}
-                    </Typography>
-                    {leadType === 'fresh' && (
-                      <Typography
-                        sx={{ fontSize: '0.75rem', color: BLUE, mt: 1 }}
-                      >
-                        Leads are also sent automatically to any Ringy, GHL,
-                        SendBlue or InsurDial integration linked to this email.
-                      </Typography>
-                    )}
-                  </Box>
-
-                  {/* Pay button / Stripe PaymentElement */}
-                  <Box sx={{ px: 3, py: 2.5 }}>
-                    {overLimit && (
-                      <Typography
-                        sx={{
-                          color: '#b45309',
-                          fontSize: '0.875rem',
-                          mb: 1.5,
-                        }}
-                      >
-                        Maximum {MAX_LEADS_PER_ORDER} leads per order. Remove{' '}
-                        {totalLeads - MAX_LEADS_PER_ORDER} to continue.
-                      </Typography>
-                    )}
-                    {checkoutError && (
-                      <Typography
-                        sx={{
-                          color: '#ef4444',
-                          fontSize: '0.875rem',
-                          mb: 1.5,
-                        }}
-                      >
-                        {checkoutError}
-                      </Typography>
-                    )}
-                    <Button
-                      variant='contained'
-                      disableElevation
-                      fullWidth
-                      disabled={
-                        items.length === 0 || checkoutLoading || overLimit
-                      }
-                      onClick={handleCheckout}
-                      sx={{
-                        bgcolor: BLUE,
-                        fontWeight: 600,
-                        py: 1.75,
-                        borderRadius: '12px',
-                        fontSize: '0.875rem',
-                        textTransform: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        '&:hover': {
-                          bgcolor: '#1c33e0',
-                          boxShadow: `0 8px 24px ${BLUE}40`,
-                        },
-                        '&.Mui-disabled': { bgcolor: G200, color: G400 },
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      {checkoutLoading ? (
-                        <CircularProgress size={20} sx={{ color: '#fff' }} />
-                      ) : (
-                        <>
-                          <LockIcon sx={{ fontSize: 13 }} />
-                          Proceed to Checkout — ${total.toFixed(2)}
-                        </>
-                      )}
-                    </Button>
-                    <Stack
-                      direction='row'
-                      spacing={0.75}
-                      alignItems='center'
-                      justifyContent='center'
-                      sx={{ mt: 1.5 }}
-                    >
-                      <VerifiedUserIcon
-                        sx={{ fontSize: 11, color: '#059669' }}
-                      />
-                      <Typography sx={{ fontSize: '0.75rem', color: G400 }}>
-                        Secure 256-bit SSL checkout
-                      </Typography>
-                    </Stack>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-          )}
-        </Box>
-      </Box>
-    </ThemeProvider>
+              <Button
+                variant='contained'
+                color='action'
+                fullWidth
+                disabled={items.length === 0 || checkoutLoading || overLimit}
+                onClick={handleCheckout}
+                startIcon={!checkoutLoading && <LockOutlinedIcon />}
+                sx={{ mt: 2.5, py: 1.25, fontWeight: 700 }}
+              >
+                {checkoutLoading ? (
+                  <CircularProgress size={20} color='inherit' />
+                ) : (
+                  <>
+                    Proceed to Checkout{' '}
+                    {/* <Box component='span' sx={{ fontFamily: MONO, ml: 0.75 }}>
+                      {formatMoney(total)}
+                    </Box> */}
+                  </>
+                )}
+              </Button>
+              <Typography
+                variant='caption'
+                color='text.secondary'
+                sx={{ display: 'block', textAlign: 'center', mt: 1 }}
+              >
+                Leads are held for 10 minutes while you pay.
+              </Typography>
+            </Paper>
+          </Stack>
+        )}
+      </Stack>
+    </Container>
   );
 }

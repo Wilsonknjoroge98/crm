@@ -1,19 +1,24 @@
-// Store.jsx
+// Store.jsx — browse inventory by state and build a cart for one segment
+// (banked, 31–90 day aged or 91–180 day aged).
 import {
-  ThemeProvider,
-  Typography,
-  Button,
+  Alert,
   Box,
-  Stack,
-  Link,
-  TextField,
-  InputAdornment,
+  Button,
   CircularProgress,
-  Select,
-  MenuItem,
+  Container,
   Dialog,
-  DialogContent,
   DialogActions,
+  DialogContent,
+  InputAdornment,
+  Link,
+  List,
+  ListItemButton,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography,
 } from '@mui/material';
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -22,26 +27,31 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import BoltIcon from '@mui/icons-material/Bolt';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import SearchIcon from '@mui/icons-material/Search';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import theme from './theme.js';
-import QtyInput from './QtyInput.jsx';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
-
-const BLUE = '#233dff';
-const G50 = '#f9fafb';
-const G100 = '#f3f4f6';
-const G200 = '#e5e7eb';
-const G300 = '#d1d5db';
-const G400 = '#9ca3af';
-const G500 = '#6b7280';
-const G600 = '#4b5563';
-const G800 = '#1f2937';
-const G900 = '#111827';
+import {
+  BORDER,
+  DIVIDER,
+  GOLD,
+  INK,
+  MONO,
+  SANS,
+  CartButton,
+  LeadTypeChip,
+  MarketplaceHeader,
+  QtyStepper,
+  SegmentToggle,
+  cartKeyFor,
+  formatMoney,
+  getSegment,
+  labelSx,
+  leadTypeColor,
+  readCart,
+  segmentPath,
+} from './ui.jsx';
 
 const STATE_ABBR = {
   Alabama: 'AL',
@@ -96,205 +106,273 @@ const STATE_ABBR = {
   Wyoming: 'WY',
 };
 
-function LeadCard({
-  type,
-  leadType,
-  count,
-  price,
-  qty,
-  maxQty,
-  onDecrement,
-  onIncrement,
-  onSetQty,
-}) {
-  const isVerified = type === 'verified';
-  const freshOrAged = leadType === 'fresh' ? 'Fresh' : 'Aged';
-  // cap respects both inventory and remaining pack slots (fresh orders)
-  const cap = maxQty ?? count;
+const stateCode = (name) => STATE_ABBR[name] || name.slice(0, 2).toUpperCase();
 
+const INCLUDED_FIELDS = [
+  'Full Name',
+  'Email Address',
+  'Phone Number',
+  'State',
+  'Date of Birth',
+  'Gender',
+  'Height',
+  'Weight',
+  'Selected Coverage Amount',
+  'Selected Premium',
+  'Selected Carrier',
+  'Selected Plan Type',
+  'Beneficiary Information',
+  'Blood Pressure Medication',
+  'Cholesterol Medication',
+  'Reason for Coverage',
+];
+
+const FRESH_EXPLAINER = [
+  {
+    title: 'Generated, never issued',
+    body: 'These leads were generated from GSQ and have never been assigned or worked by any agent.',
+  },
+  {
+    title: 'Automatic CRM delivery',
+    body: 'A CSV file is emailed to you, and leads are pushed automatically to any Ringy, GHL, SendBlue or InsurDial integration linked to your account email.',
+  },
+  {
+    title: 'Refunds',
+    body: 'Unverified leads are eligible for refunds through Ringy "bad number" disposition tags, or by emailing info@fexdigital.com for non-Ringy agents.',
+  },
+];
+
+/** Price + stepper card for one lead type (verified or unverified). */
+function TierCard({ verified, unit, count, price, qty, onChange }) {
   return (
-    <Box
+    <Paper
+      variant='outlined'
       sx={{
-        bgcolor: '#fff',
-        borderRadius: '16px',
-        border: '2px solid',
-        borderColor: isVerified ? `${BLUE}99` : G200,
-        overflow: 'hidden',
+        flex: 1,
+        p: 2.5,
+        borderRadius: 2,
+        borderColor: BORDER,
+        borderTop: '3px solid',
+        borderTopColor: leadTypeColor(verified),
+        bgcolor: '#FFFFFF',
       }}
     >
-      {/* Header */}
-      <Box sx={{ px: 3, py: 2, bgcolor: isVerified ? `${BLUE}1A` : G50 }}>
-        <Box
+      <Stack direction='row' justifyContent='space-between' alignItems='center'>
+        <LeadTypeChip verified={verified} />
+        <Typography
+          variant='caption'
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            fontWeight: 600,
+            color: count > 0 ? 'text.secondary' : 'text.disabled',
           }}
         >
-          <Stack direction='row' spacing={1} alignItems='center'>
-            {isVerified ? (
-              <VerifiedIcon sx={{ fontSize: 18, color: BLUE }} />
-            ) : (
-              <BoltIcon sx={{ fontSize: 18, color: G500 }} />
-            )}
-            <Typography
-              sx={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: isVerified ? BLUE : G600,
-              }}
-            >
-              {isVerified ? 'Verified Lead' : 'Unverified Lead'}
-            </Typography>
-          </Stack>
-          <Box
-            sx={{
-              px: 1.25,
-              py: 0.5,
-              borderRadius: '999px',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              bgcolor: isVerified ? '#dbeafe' : G100,
-              color: isVerified ? BLUE : G500,
-            }}
-          >
-            {count} available
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Body */}
-      <Box sx={{ px: 3, py: 2.5 }}>
-        <Stack
-          direction='row'
-          spacing={0.5}
-          alignItems='baseline'
-          sx={{ mb: 0.5 }}
-        >
-          <Typography
-            sx={{ fontSize: '1.875rem', fontWeight: 700, color: G900 }}
-          >
-            ${price.toFixed(2)}
-          </Typography>
-          <Typography sx={{ fontSize: '0.875rem', color: G400 }}>
-            / {freshOrAged.toLowerCase()} lead
-          </Typography>
-        </Stack>
-        <Typography sx={{ fontSize: '0.875rem', color: G500, mb: 3 }}>
-          {isVerified
-            ? 'GSQ funnel | Quote selected | Phone text-verified'
-            : 'GSQ funnel | Quote selected | Phone not text-verified'}
+          <Box component='span' sx={{ fontFamily: MONO }}>
+            {count.toLocaleString()}
+          </Box>{' '}
+          available
         </Typography>
+      </Stack>
 
-        {/* Qty stepper + subtotal */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
+      <Typography
+        variant='h4'
+        sx={{ fontFamily: MONO, fontWeight: 700, mt: 2, mb: 0.5 }}
+      >
+        {formatMoney(price)}
+        <Typography
+          component='span'
+          variant='body2'
+          color='text.secondary'
+          sx={{ ml: 1, fontFamily: SANS }}
         >
-          <Box
+          / {unit}
+        </Typography>
+      </Typography>
+      <Typography
+        variant='caption'
+        color='text.secondary'
+        sx={{ display: 'block', mb: 2 }}
+      >
+        {verified
+          ? 'GSQ Funnel • Quote Selected • Phone Text-Verified'
+          : 'GSQ Funnel • Quote Selected • Phone Not Text-Verified'}
+      </Typography>
+
+      <Stack
+        direction='row'
+        justifyContent='space-between'
+        alignItems='center'
+        sx={{ pt: 2, borderTop: `1px solid ${DIVIDER}` }}
+      >
+        <QtyStepper value={qty} max={count} onChange={onChange} />
+        <Box sx={{ textAlign: 'right' }}>
+          <Typography variant='caption' color='text.secondary'>
+            Subtotal
+          </Typography>
+          <Typography
             sx={{
-              display: 'flex',
-              border: '1px solid',
-              borderColor: G200,
-              borderRadius: '12px',
-              overflow: 'hidden',
+              fontFamily: MONO,
+              fontWeight: 700,
+              color: qty > 0 ? 'text.primary' : 'text.disabled',
             }}
           >
-            <Box
-              component='button'
-              onClick={onDecrement}
-              disabled={qty === 0}
-              sx={{
-                width: 44,
-                height: 44,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.1rem',
-                fontWeight: 500,
-                color: qty === 0 ? G300 : G500,
-                bgcolor: 'transparent',
-                border: 'none',
-                cursor: qty === 0 ? 'default' : 'pointer',
-                '&:hover': qty > 0 ? { bgcolor: G50 } : {},
-                transition: 'background 0.15s',
-              }}
-            >
-              −
-            </Box>
-            <QtyInput
-              value={qty}
-              max={cap}
-              onChange={onSetQty}
-              sx={{
-                width: 56,
-                height: 44,
-                fontSize: '0.875rem',
-                color: G900,
-                borderLeft: '1px solid',
-                borderRight: '1px solid',
-                borderColor: G200,
-              }}
-            />
-            <Box
-              component='button'
-              onClick={onIncrement}
-              disabled={qty >= cap}
-              sx={{
-                width: 44,
-                height: 44,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.1rem',
-                fontWeight: 500,
-                color: qty >= cap ? G300 : G800,
-                bgcolor: 'transparent',
-                border: 'none',
-                cursor: qty >= cap ? 'default' : 'pointer',
-                '&:hover': qty < cap ? { bgcolor: G50 } : {},
-                transition: 'background 0.15s',
-              }}
-            >
-              +
-            </Box>
-          </Box>
-          <Box sx={{ textAlign: 'right' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: G400, mb: 0.25 }}>
-              Subtotal
-            </Typography>
-            <Typography
-              sx={{ fontSize: '1.125rem', fontWeight: 700, color: G900 }}
-            >
-              ${(qty * price).toFixed(2)}
-            </Typography>
-          </Box>
+            {formatMoney(qty * price)}
+          </Typography>
         </Box>
+      </Stack>
+    </Paper>
+  );
+}
+
+/** Searchable list of states with inventory, left of the tier cards. */
+function StateRail({ states, cart, selectedState, onSelect }) {
+  const [search, setSearch] = useState('');
+  const visible = states.filter((s) =>
+    s.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  return (
+    <Paper
+      variant='outlined'
+      sx={{
+        width: 280,
+        flexShrink: 0,
+        borderRadius: 2,
+        overflow: 'hidden',
+        display: { xs: 'none', md: 'flex' },
+        flexDirection: 'column',
+        alignSelf: 'flex-start',
+        position: 'sticky',
+        top: 16,
+      }}
+    >
+      <Box sx={{ p: 1.5, borderBottom: `1px solid ${BORDER}` }}>
+        <TextField
+          size='small'
+          fullWidth
+          placeholder='Search states...'
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position='start'>
+                  <SearchOutlinedIcon fontSize='small' />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ '& input': { fontSize: '0.85rem' } }}
+        />
       </Box>
-    </Box>
+      <List disablePadding sx={{ maxHeight: 560, overflowY: 'auto' }}>
+        {visible.map((state) => {
+          const isSelected = selectedState === state.name;
+          const inCart =
+            (cart[state.name]?.verified || 0) +
+            (cart[state.name]?.unverified || 0);
+          return (
+            <ListItemButton
+              key={state.name}
+              selected={isSelected}
+              onClick={() => onSelect(state.name)}
+              sx={{
+                py: 1.25,
+                px: 1.5,
+                gap: 1.5,
+                borderLeft: '3px solid transparent',
+                borderBottom: `1px solid ${DIVIDER}`,
+                '&.Mui-selected, &.Mui-selected:hover': {
+                  bgcolor: INK,
+                  borderLeftColor: GOLD,
+                  color: '#FFFFFF',
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 32,
+                  height: 28,
+                  flexShrink: 0,
+                  borderRadius: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: MONO,
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  bgcolor: isSelected ? 'rgba(255,255,255,0.12)' : '#F0F4F8',
+                  color: isSelected ? '#FFFFFF' : 'text.secondary',
+                }}
+              >
+                {stateCode(state.name)}
+              </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.875rem',
+                    fontWeight: isSelected ? 700 : 500,
+                    color: 'inherit',
+                  }}
+                >
+                  {state.name}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: '0.72rem',
+                    color: isSelected
+                      ? 'rgba(255,255,255,0.7)'
+                      : 'text.secondary',
+                  }}
+                >
+                  <Box component='span' sx={{ fontFamily: MONO }}>
+                    {state.total.toLocaleString()}
+                  </Box>{' '}
+                  available
+                </Typography>
+              </Box>
+              {inCart > 0 && (
+                <Box
+                  sx={{
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
+                    fontFamily: MONO,
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    bgcolor: isSelected ? GOLD : 'warning.light',
+                    color: isSelected ? INK : 'warning.dark',
+                  }}
+                >
+                  {inCart} in cart
+                </Box>
+              )}
+            </ListItemButton>
+          );
+        })}
+        {visible.length === 0 && (
+          <Typography
+            variant='body2'
+            color='text.secondary'
+            sx={{ p: 2, textAlign: 'center' }}
+          >
+            No states match "{search}".
+          </Typography>
+        )}
+      </List>
+    </Paper>
   );
 }
 
 export default function Store() {
   const { leadType } = useParams();
   const isFresh = leadType === 'fresh';
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const tier = searchParams.get('tier') === 'third' ? 'third' : 'second';
-  const cartKey = isFresh
-    ? `fex-cart-${leadType}`
-    : `fex-cart-${leadType}-${tier}`;
-  const [search, setSearch] = useState('');
+  const segment = getSegment(leadType, tier);
+  const cartKey = cartKeyFor(leadType, tier);
+  const cartPath = segmentPath(leadType, tier, 'cart');
   const [selectedState, setSelectedState] = useState(null);
-  const [cart, setCart] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(cartKey)) || {};
-    } catch {
-      return {};
-    }
-  });
+  const [cart, setCart] = useState(() => readCart(cartKey));
   const [showExplainer, setShowExplainer] = useState(() => {
     if (!isFresh) return false;
     try {
@@ -324,12 +402,9 @@ export default function Store() {
     [cartKey],
   );
 
+  // Switching segments swaps to that segment's own cart.
   useEffect(() => {
-    try {
-      setCart(JSON.parse(localStorage.getItem(cartKey)) || {});
-    } catch {
-      setCart({});
-    }
+    setCart(readCart(cartKey));
     setSelectedState(null);
   }, [cartKey]);
 
@@ -351,13 +426,12 @@ export default function Store() {
   });
 
   const states = inventory?.states;
-  const prices = inventory?.prices;
-  const verifiedPrice = prices?.verified ?? 0;
-  const unverifiedPrice = prices?.unverified ?? 0;
+  const verifiedPrice = inventory?.prices?.verified ?? 0;
+  const unverifiedPrice = inventory?.prices?.unverified ?? 0;
 
-  // Auto-select the first state once inventory first arrives. Runs
-  // only when selectedState is still null, so refetches don't hijack
-  // a state the user has actively clicked on.
+  // Auto-select the first state once inventory first arrives. Runs only
+  // while selectedState is null, so refetches don't hijack a state the user
+  // has clicked on.
   useEffect(() => {
     if (states && !selectedState) {
       const firstState = Object.keys(states).sort()[0];
@@ -374,178 +448,91 @@ export default function Store() {
         }))
         .sort((a, b) => a.name.localeCompare(b.name))
     : [];
-
-  const filteredStates = allStates.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  useEffect(() => {
-    if (!states) return;
-    const totals = Object.values(states).reduce(
-      (acc, counts) => ({
-        verified: acc.verified + counts.verified,
-        unverified: acc.unverified + counts.unverified,
-      }),
-      { verified: 0, unverified: 0 },
-    );
-    if (import.meta.env.DEV) {
-      console.log(
-        `[${tier}] verified: ${totals.verified}, unverified: ${totals.unverified}`,
-      );
-    }
-  }, [states, tier]);
+  const totalAvailable = allStates.reduce((sum, s) => sum + s.total, 0);
 
   const activeState =
-    selectedState && states
+    selectedState && states?.[selectedState]
       ? { name: selectedState, ...states[selectedState] }
       : null;
 
-  const handleQuantityChange = (type, delta) => {
-    if (!selectedState) return;
+  const setQuantity = (type, value) => {
+    if (!activeState) return;
     updateCart((prev) => {
       const current = prev[selectedState] || { verified: 0, unverified: 0 };
-      const max = activeState[type];
       return {
         ...prev,
         [selectedState]: {
           ...current,
-          [type]: Math.min(Math.max(0, current[type] + delta), max),
+          [type]: Math.min(Math.max(0, value), activeState[type]),
         },
       };
     });
   };
 
-  const handleSetQuantity = (type, value) => {
-    if (!selectedState) return;
-    updateCart((prev) => {
-      const current = prev[selectedState] || { verified: 0, unverified: 0 };
-      const max = activeState[type];
-      return {
-        ...prev,
-        [selectedState]: {
-          ...current,
-          [type]: Math.min(Math.max(0, value), max),
-        },
-      };
-    });
-  };
-
-  const cartItems = Object.entries(cart).filter(
-    ([, q]) => q.verified > 0 || q.unverified > 0,
+  const cartItems = Object.values(cart).filter(
+    (q) => q.verified > 0 || q.unverified > 0,
   );
-  const totalVerified = cartItems.reduce((sum, [, q]) => sum + q.verified, 0);
-  const totalUnverified = cartItems.reduce(
-    (sum, [, q]) => sum + q.unverified,
+  const cartCount = cartItems.reduce(
+    (sum, q) => sum + q.verified + q.unverified,
     0,
   );
-  const cartCount = totalVerified + totalUnverified;
   const cartTotal = cartItems.reduce(
-    (sum, [, q]) =>
+    (sum, q) =>
       sum + q.verified * verifiedPrice + q.unverified * unverifiedPrice,
     0,
   );
-
   const currentQty = cart[selectedState] || { verified: 0, unverified: 0 };
-  const verifiedMaxQty = activeState?.verified ?? 0;
-  const unverifiedMaxQty = activeState?.unverified ?? 0;
 
   return (
-    <ThemeProvider theme={theme}>
-      {/* Fresh leads first-visit explainer */}
+    <Container
+      maxWidth={false}
+      sx={{ py: 3, px: { xs: 2, md: 3 }, pb: cartCount > 0 ? 12 : 3 }}
+    >
       <Dialog
         open={showExplainer}
         onClose={handleCloseExplainer}
         maxWidth='xs'
         fullWidth
-        PaperProps={{
-          sx: { borderRadius: '16px', p: 0, overflow: 'hidden' },
-        }}
       >
-        {/* Header */}
-        <Box
-          sx={{
-            px: 3,
-            pt: 3,
-            pb: 2,
-            borderBottom: '1px solid',
-            borderColor: G100,
-          }}
-        >
+        <Box sx={{ px: 3, pt: 3, pb: 2, borderBottom: `1px solid ${BORDER}` }}>
           <Box
             sx={{
               width: 40,
               height: 40,
-              borderRadius: '10px',
-              bgcolor: `${BLUE}1A`,
+              borderRadius: 2,
+              bgcolor: 'warning.light',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               mb: 1.5,
             }}
           >
-            <BoltIcon sx={{ fontSize: 20, color: BLUE }} />
+            <BoltOutlinedIcon sx={{ color: 'warning.dark' }} />
           </Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: G900 }}>
-            Fresh Leads
-          </Typography>
-          <Typography sx={{ fontSize: '0.8rem', color: G500, mt: 0.5 }}>
+          <Typography variant='h6'>Banked Leads</Typography>
+          <Typography variant='body2' color='text.secondary'>
             A quick overview before you browse inventory.
           </Typography>
         </Box>
-
         <DialogContent sx={{ px: 3, py: 2.5 }}>
-          <Stack spacing={2.5}>
-            {[
-              {
-                title: 'Generated, never issued',
-                body: 'These leads were generated from GSQ and have never been assigned or worked by any agent.',
-              },
-              {
-                title: 'Automatic CRM delivery',
-                body: 'A CSV file will be provided via email. Additionally, Leads will be pushed automatically to your CRM (GHL, Ringy, or InsurDial) if the email on your order is linked to an active integration in the GSQ system.',
-              },
-              {
-                title: 'Refunds',
-                body: 'Unverified leads are eligible for refunds either through Ringy "bad number" disposition tags or by emailing info@fexdigital.com for non-Ringy agents.',
-              },
-            ].map(({ title, body }) => (
-              <Stack
-                key={title}
-                direction='row'
-                spacing={1.5}
-                alignItems='flex-start'
-              >
+          <Stack spacing={2}>
+            {FRESH_EXPLAINER.map(({ title, body }) => (
+              <Stack key={title} direction='row' spacing={1.5}>
                 <Box
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: 'calc(0.875rem * 1.5)',
+                    width: 6,
+                    height: 6,
+                    mt: 0.9,
                     flexShrink: 0,
+                    borderRadius: '50%',
+                    bgcolor: GOLD,
                   }}
-                >
-                  <Box
-                    sx={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      bgcolor: BLUE,
-                    }}
-                  />
-                </Box>
+                />
                 <Box>
-                  <Typography
-                    sx={{ fontSize: '0.875rem', fontWeight: 600, color: G900 }}
-                  >
+                  <Typography variant='body2' sx={{ fontWeight: 700 }}>
                     {title}
                   </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: '0.8rem',
-                      color: G500,
-                      mt: 0.25,
-                      lineHeight: 1.5,
-                    }}
-                  >
+                  <Typography variant='body2' color='text.secondary'>
                     {body}
                   </Typography>
                 </Box>
@@ -553,746 +540,268 @@ export default function Store() {
             ))}
           </Stack>
         </DialogContent>
-
         <DialogActions sx={{ px: 3, pb: 3, pt: 0 }}>
           <Button
             fullWidth
             variant='contained'
-            disableElevation
+            color='primary'
             onClick={handleCloseExplainer}
-            sx={{
-              bgcolor: BLUE,
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              textTransform: 'none',
-              borderRadius: '8px',
-              py: 1.25,
-              '&:hover': { bgcolor: '#1c33e0' },
-            }}
           >
             Got it
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Box
-        sx={{
-          width: '100%',
-          bgcolor: G50,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* Nav */}
-        <Box
-          component='header'
-          sx={{
-            borderBottom: '1px solid',
-            borderColor: G200,
-            bgcolor: '#fff',
-            position: 'sticky',
-            top: 0,
-            zIndex: 50,
-          }}
-        >
-          <Box
-            sx={{
-              maxWidth: 1280,
-              mx: 'auto',
-              px: 3,
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
+      <Stack spacing={2.5}>
+        <MarketplaceHeader
+          actions={
+            <CartButton count={cartCount} total={cartTotal} to={cartPath} />
+          }
+        />
+
+        <Paper variant='outlined' sx={{ p: 2 }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            justifyContent='space-between'
+            alignItems={{ md: 'center' }}
+            spacing={1.5}
           >
-            <Stack direction='row' spacing={2} alignItems='center'>
-              <Link component={RouterLink} to={MARKETPLACE_PATH}>
-                <Box
-                  component='img'
-                  src='/fexdigital-logo.svg'
-                  alt='FEX Digital'
-                  sx={{ height: 36 }}
-                />
-              </Link>
-              <Box
-                sx={{
-                  bgcolor: isFresh ? BLUE : '#fff',
-                  color: isFresh ? '#fff' : G800,
-                  border: isFresh ? 'none' : '1px solid',
-                  borderColor: G300,
-                  fontSize: '0.7rem',
-                  fontWeight: isFresh ? 700 : 500,
-                  px: 1.25,
-                  py: 0.4,
-                  borderRadius: '999px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {isFresh ? 'Fresh' : 'Aged'}
-              </Box>
-              <Typography
-                sx={{
-                  fontSize: '0.8rem',
-                  color: isFresh ? BLUE : G800,
-                  fontWeight: 500,
-                }}
-              >
-                {isFresh
-                  ? 'Submitted within the last 72 hours'
-                  : tier === 'third'
-                    ? 'Submitted 91–180 days ago'
-                    : 'Submitted 31–90 days ago'}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              alignItems={{ sm: 'center' }}
+            >
+              <SegmentToggle leadType={leadType} tier={tier} />
+              <Typography variant='body2' color='text.secondary'>
+                {segment.window}
+                {!loading && !error && (
+                  <>
+                    {' • '}
+                    <Box
+                      component='span'
+                      sx={{ fontFamily: MONO, color: 'text.primary' }}
+                    >
+                      {totalAvailable.toLocaleString()}
+                    </Box>{' '}
+                    available
+                  </>
+                )}
               </Typography>
             </Stack>
             <Link
               component={RouterLink}
-              to={`${MARKETPLACE_PATH}/${leadType}/cart${leadType === 'fresh' ? '' : `?tier=${tier}`}`}
-              underline='none'
+              to={MARKETPLACE_PATH}
+              underline='hover'
+              color='text.secondary'
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                fontSize: '0.85rem',
+                fontWeight: 600,
+              }}
             >
-              <Box
-                sx={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  border: '1px solid',
-                  borderColor: G200,
-                  bgcolor: '#fff',
-                  px: 2,
-                  py: 1,
-                  borderRadius: '8px',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: G800,
-                  cursor: 'pointer',
-                  '&:hover': { borderColor: G300 },
-                  transition: 'border-color 0.15s',
-                }}
-              >
-                <ShoppingCartIcon sx={{ fontSize: 16 }} />
-                Cart
-                {cartCount > 0 && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: -8,
-                      right: -8,
-                      bgcolor: isFresh ? BLUE : G800,
-                      color: '#fff',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </Box>
-                )}
-              </Box>
+              <ArrowBackIcon sx={{ fontSize: 16 }} />
+              All products
             </Link>
-          </Box>
-
-          {!isFresh && (
-            <Box sx={{ borderTop: '1px solid', borderColor: G100 }}>
-              <Box
-                sx={{
-                  maxWidth: 1280,
-                  mx: 'auto',
-                  px: 3,
-                  display: 'flex',
-                  gap: 5,
-                }}
-              >
-                {[
-                  { key: 'second', label: '31–90 Day Leads' },
-                  { key: 'third', label: '91–180 Day Leads' },
-                ].map(({ key, label }) => {
-                  const active = tier === key;
-                  return (
-                    <Box
-                      key={key}
-                      component='button'
-                      onClick={() => setSearchParams({ tier: key })}
-                      sx={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'baseline',
-                        gap: 1,
-                        border: 'none',
-                        borderBottom: '2px solid',
-                        borderColor: active ? G900 : 'transparent',
-                        bgcolor: 'transparent',
-                        pt: 1.75,
-                        pb: 1.5,
-                        px: 0,
-                        cursor: 'pointer',
-                        transition: 'border-color 0.2s ease',
-                        '&:hover': {
-                          borderColor: active ? G900 : G300,
-                        },
-                      }}
-                    >
-                      <Typography
-                        component='span'
-                        sx={{
-                          fontSize: '0.9375rem',
-                          fontWeight: active ? 600 : 500,
-                          letterSpacing: '0.01em',
-                          color: active ? G900 : G500,
-                          transition: 'color 0.2s ease',
-                        }}
-                      >
-                        {label}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Box>
-          )}
-        </Box>
+          </Stack>
+        </Paper>
 
         {loading ? (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flex: 1,
-            }}
-          >
-            <CircularProgress />
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+            <CircularProgress color='inherit' />
           </Box>
         ) : error ? (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flex: 1,
-              gap: 2,
-            }}
-          >
-            <Typography sx={{ color: G500, fontSize: '0.875rem' }}>
-              Failed to load inventory.
-            </Typography>
-            <Button
-              variant='outlined'
-              onClick={() => refetchInventory()}
-              sx={{
-                borderColor: G200,
-                color: G800,
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                borderRadius: '8px',
-                textTransform: 'none',
-                '&:hover': { bgcolor: G50 },
-              }}
-            >
-              Retry
-            </Button>
-          </Box>
-        ) : allStates.length === 0 ? (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              flex: 1,
-              pt: '20vh',
-              color: G400,
-              gap: 1,
-            }}
-          >
-            <Typography sx={{ fontSize: '1rem', fontWeight: 500, color: G600 }}>
-              No {isFresh ? 'fresh' : 'aged'} leads are currently available.
-            </Typography>
-            <Typography sx={{ fontSize: '0.875rem' }}>
-              Inventory is replenished continuously.
-            </Typography>
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              maxWidth: 1280,
-              mx: 'auto',
-              width: '100%',
-              px: 3,
-              py: 4,
-              pb: 12,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 3,
-              minHeight: 'calc(100vh - 80px)',
-            }}
-          >
-            {/* Sidebar + Lead cards */}
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 3,
-                flex: 1,
-                minHeight: 0,
-              }}
-            >
-              {/* Left: State list */}
-              <Box
-                component='aside'
-                sx={{
-                  width: 256,
-                  flexShrink: 0,
-                  display: { xs: 'none', sm: 'flex' },
-                  flexDirection: 'column',
-                  minHeight: 0,
-                }}
+          <Alert
+            severity='error'
+            action={
+              <Button
+                color='inherit'
+                size='small'
+                onClick={() => refetchInventory()}
               >
-                <Link
-                  component={RouterLink}
-                  to={MARKETPLACE_PATH}
-                  underline='none'
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.75,
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    color: G500,
-                    mb: 2,
-                    '&:hover': { color: BLUE },
-                    transition: 'color 0.15s',
-                  }}
-                >
-                  <ArrowBackIcon sx={{ fontSize: 16 }} />
-                  Back to lead types
-                </Link>
+                Retry
+              </Button>
+            }
+          >
+            Failed to load inventory.
+          </Alert>
+        ) : allStates.length === 0 ? (
+          <Paper variant='outlined' sx={{ p: 6, textAlign: 'center' }}>
+            <Typography variant='h6'>
+              No {segment.label.toLowerCase()} available right now
+            </Typography>
+            <Typography color='text.secondary'>
+              Inventory is replenished continuously - check back soon.
+            </Typography>
+          </Paper>
+        ) : (
+          <Stack direction='row' spacing={3} alignItems='flex-start'>
+            <StateRail
+              states={allStates}
+              cart={cart}
+              selectedState={selectedState}
+              onSelect={setSelectedState}
+            />
+
+            <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
+              {/* State picker for narrow screens, where the rail is hidden */}
+              <Select
+                size='small'
+                value={selectedState || ''}
+                onChange={(e) => setSelectedState(e.target.value)}
+                sx={{ display: { xs: 'flex', md: 'none' } }}
+              >
+                {allStates.map((state) => (
+                  <MenuItem key={state.name} value={state.name}>
+                    {state.name} — {state.total} available
+                  </MenuItem>
+                ))}
+              </Select>
+
+              {activeState && (
+                <>
+                  <Box>
+                    <Typography variant='h5'>
+                      {activeState.name} {segment.label}
+                    </Typography>
+                    <Typography variant='body2' color='text.secondary'>
+                      <Box component='span' sx={{ fontFamily: MONO }}>
+                        {(
+                          activeState.verified + activeState.unverified
+                        ).toLocaleString()}
+                      </Box>{' '}
+                      leads available in {stateCode(activeState.name)}
+                    </Typography>
+                  </Box>
+
+                  <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2}>
+                    <TierCard
+                      verified
+                      unit={segment.unit}
+                      count={activeState.verified}
+                      price={verifiedPrice}
+                      qty={currentQty.verified}
+                      onChange={(n) => setQuantity('verified', n)}
+                    />
+                    <TierCard
+                      verified={false}
+                      unit={segment.unit}
+                      count={activeState.unverified}
+                      price={unverifiedPrice}
+                      qty={currentQty.unverified}
+                      onChange={(n) => setQuantity('unverified', n)}
+                    />
+                  </Stack>
+                </>
+              )}
+
+              <Paper
+                variant='outlined'
+                sx={{ p: 2, bgcolor: '#FAFAFA', borderRadius: 2 }}
+              >
+                <Typography sx={{ ...labelSx, mb: 1.5 }}>
+                  Data fields delivered with every lead
+                </Typography>
                 <Box
                   sx={{
-                    bgcolor: '#fff',
-                    borderRadius: '16px',
-                    border: '1px solid',
-                    borderColor: G200,
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    minHeight: 0,
-                    flex: '1 1 0',
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: 'repeat(2, 1fr)',
+                      md: 'repeat(4, 1fr)',
+                    },
+                    gap: 1,
                   }}
                 >
-                  {/* Search */}
-                  <Box
-                    sx={{ p: 2, borderBottom: '1px solid', borderColor: G100 }}
-                  >
-                    <TextField
-                      size='small'
-                      placeholder='Search states...'
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position='start'>
-                            <SearchIcon sx={{ fontSize: 14, color: G400 }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          fontSize: '0.875rem',
-                          borderRadius: '8px',
-                          '& fieldset': { borderColor: G200 },
-                          '&:hover fieldset': { borderColor: G300 },
-                          '&.Mui-focused fieldset': {
-                            borderColor: BLUE,
-                            borderWidth: 2,
-                          },
-                        },
-                      }}
-                    />
-                  </Box>
-
-                  {/* State list */}
-                  <Box sx={{ flex: 1, overflowY: 'auto' }}>
-                    {filteredStates.map((state) => {
-                      const isSelected = selectedState === state.name;
-                      const stateCart = cart[state.name] || {
-                        verified: 0,
-                        unverified: 0,
-                      };
-                      const hasItems =
-                        stateCart.verified > 0 || stateCart.unverified > 0;
-                      return (
-                        <Box
-                          key={state.name}
-                          onClick={() => setSelectedState(state.name)}
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            px: 2,
-                            py: 1.5,
-                            cursor: 'pointer',
-                            borderBottom: '1px solid',
-                            borderColor: `${G50}`,
-                            borderLeft: isSelected
-                              ? `2px solid ${BLUE}`
-                              : '2px solid transparent',
-                            bgcolor: isSelected ? `${BLUE}08` : 'transparent',
-                            '&:hover': {
-                              bgcolor: isSelected ? `${BLUE}08` : G50,
-                            },
-                            transition: 'background 0.15s',
-                            '&:last-child': { borderBottom: 'none' },
-                          }}
-                        >
-                          <Stack
-                            direction='row'
-                            spacing={1.5}
-                            alignItems='center'
-                          >
-                            <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.7rem',
-                                fontWeight: 700,
-                                bgcolor: isSelected
-                                  ? BLUE
-                                  : hasItems
-                                    ? `${BLUE}1A`
-                                    : G100,
-                                color: isSelected
-                                  ? '#fff'
-                                  : hasItems
-                                    ? BLUE
-                                    : G600,
-                              }}
-                            >
-                              {STATE_ABBR[state.name] ||
-                                state.name.slice(0, 2).toUpperCase()}
-                            </Box>
-                            <Box>
-                              <Typography
-                                sx={{
-                                  fontSize: '0.875rem',
-                                  fontWeight: 500,
-                                  color: isSelected
-                                    ? BLUE
-                                    : hasItems
-                                      ? BLUE
-                                      : G800,
-                                }}
-                              >
-                                {state.name}
-                              </Typography>
-                              <Typography
-                                sx={{
-                                  fontSize: '0.75rem',
-                                  color: hasItems ? BLUE : G400,
-                                }}
-                              >
-                                {hasItems
-                                  ? `${stateCart.verified + stateCart.unverified}/${state.total} selected`
-                                  : `${state.total} available`}
-                              </Typography>
-                            </Box>
-                          </Stack>
-                          {isSelected && (
-                            <ChevronRightIcon
-                              sx={{ fontSize: 14, color: BLUE }}
-                            />
-                          )}
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Right: Lead cards */}
-              <Box
-                component='main'
-                sx={{
-                  flex: 1,
-                  minWidth: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  pt: '36px',
-                }}
-              >
-                {/* Mobile state selector */}
-                <Box sx={{ display: { xs: 'block', sm: 'none' }, mb: 3 }}>
-                  <Select
-                    value={selectedState || ''}
-                    onChange={(e) => setSelectedState(e.target.value)}
-                    fullWidth
-                    size='small'
-                    sx={{
-                      bgcolor: '#fff',
-                      borderRadius: '8px',
-                      fontSize: '0.875rem',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: G200,
-                      },
-                    }}
-                  >
-                    {allStates.map((state) => (
-                      <MenuItem
-                        key={state.name}
-                        value={state.name}
-                        sx={{ fontSize: '0.875rem' }}
-                      >
-                        {state.name} — {state.total} leads
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </Box>
-
-                {activeState ? (
-                  <>
-                    <Box sx={{ mb: 3 }}>
-                      <Typography
-                        sx={{
-                          fontSize: '1.5rem',
-                          fontWeight: 700,
-                          color: G900,
-                        }}
-                      >
-                        {activeState.name} {isFresh ? 'Fresh' : 'Aged'} Leads
-                      </Typography>
-                      <Typography
-                        sx={{ fontSize: '0.875rem', color: G500, mt: 0.5 }}
-                      >
-                        {activeState.verified + activeState.unverified} total
-                        leads available
-                      </Typography>
-                    </Box>
-
-                    <Stack
-                      direction={{ xs: 'column', md: 'row' }}
-                      spacing={2.5}
-                      sx={{ '& > *': { flex: 1 } }}
+                  {INCLUDED_FIELDS.map((field) => (
+                    <Typography
+                      key={field}
+                      variant='caption'
+                      sx={{ display: 'flex', alignItems: 'center' }}
                     >
-                      <LeadCard
-                        type='verified'
-                        leadType={leadType}
-                        count={activeState.verified}
-                        price={verifiedPrice}
-                        qty={currentQty.verified}
-                        maxQty={verifiedMaxQty}
-                        onDecrement={() => handleQuantityChange('verified', -1)}
-                        onIncrement={() => handleQuantityChange('verified', 1)}
-                        onSetQty={(v) => handleSetQuantity('verified', v)}
-                      />
-
-                      <LeadCard
-                        type='unverified'
-                        leadType={leadType}
-                        count={activeState.unverified}
-                        price={unverifiedPrice}
-                        qty={currentQty.unverified}
-                        maxQty={unverifiedMaxQty}
-                        onDecrement={() =>
-                          handleQuantityChange('unverified', -1)
-                        }
-                        onIncrement={() =>
-                          handleQuantityChange('unverified', 1)
-                        }
-                        onSetQty={(v) => handleSetQuantity('unverified', v)}
-                      />
-                    </Stack>
-
-                    {/* What's included */}
-                    <Box
-                      sx={{
-                        mt: 3,
-                        bgcolor: '#fff',
-                        borderColor: G200,
-                        p: 3,
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                          color: G900,
-                          mb: 2,
-                        }}
-                      >
-                        What's Included in Every Lead
-                      </Typography>
                       <Box
+                        component='span'
                         sx={{
-                          display: 'grid',
-                          gridTemplateColumns: {
-                            xs: 'repeat(2, 1fr)',
-                            md: 'repeat(4, 1fr)',
-                          },
-                          gap: 2,
+                          width: 4,
+                          height: 4,
+                          mr: 1,
+                          flexShrink: 0,
+                          borderRadius: '50%',
+                          bgcolor: 'secondary.main',
                         }}
-                      >
-                        {[
-                          'Full Name',
-                          'Email Address',
-                          'Phone Number',
-                          'State',
-                          'Date of Birth',
-                          'Gender',
-                          'Height',
-                          'Weight',
-                          'Selected Coverage Amount',
-                          'Selected Premium',
-                          'Selected Carrier',
-                          'Selected Plan Type',
-                          'Beneficiary Information',
-                          'Blood Pressure Medication',
-                          'Cholesterol Medication',
-                          'Reason for Coverage',
-                        ].map((item) => (
-                          <Stack
-                            key={item}
-                            direction='row'
-                            spacing={1}
-                            alignItems='center'
-                          >
-                            <Box
-                              sx={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: '50%',
-                                bgcolor: BLUE,
-                                flexShrink: 0,
-                              }}
-                            />
-                            <Typography
-                              sx={{ fontSize: '0.875rem', color: G600 }}
-                            >
-                              {item}
-                            </Typography>
-                          </Stack>
-                        ))}
-                      </Box>
-                    </Box>
-                  </>
-                ) : (
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: 256,
-                      color: G400,
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '2.5rem', mb: 1.5 }}>
-                      👈
+                      />
+                      {field}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.875rem' }}>
-                      Select a state to view available leads
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Box>
-          </Box>
+                  ))}
+                </Box>
+              </Paper>
+            </Stack>
+          </Stack>
         )}
+      </Stack>
 
-        {/* Sticky cart bar */}
-        {!loading && (
-          <Box
-            sx={{
-              position: 'fixed',
-              bottom: 0,
-              // clear the CRM's side panel
-              left: 220,
-              right: 0,
-              bgcolor: '#fff',
-              borderTop: '1px solid',
-              borderColor: G200,
-              boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
-              zIndex: 40,
-            }}
+      {/* Floating checkout bar, only once something is in the cart */}
+      {cartCount > 0 && (
+        <Paper
+          elevation={0}
+          sx={{
+            position: 'fixed',
+            bottom: 0,
+            left: 220, // clear the CRM side panel
+            right: 0,
+            zIndex: 40,
+            borderTop: `1px solid ${BORDER}`,
+            borderRadius: 0,
+            boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
+          }}
+        >
+          <Stack
+            direction='row'
+            justifyContent='space-between'
+            alignItems='center'
+            spacing={2}
+            sx={{ px: 3, py: 1.5 }}
           >
-            <Box
-              sx={{
-                maxWidth: 1280,
-                mx: 'auto',
-                px: 3,
-                py: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Stack direction='row' spacing={1.5} alignItems='center'>
-                <ShoppingCartIcon
-                  sx={{ fontSize: 18, color: isFresh ? BLUE : G800 }}
-                />
-
-                <>
-                  <Typography
-                    sx={{
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                      color: G800,
-                    }}
-                  >
-                    <Box component='span' sx={{ fontWeight: 700, color: G900 }}>
-                      {cartCount}
-                    </Box>{' '}
-                    {isFresh ? 'fresh' : 'aged'} leads in cart
-                  </Typography>
-                  <Typography sx={{ color: G300 }}>·</Typography>
-                  <Typography sx={{ fontSize: '0.875rem', color: G500 }}>
-                    Total:{' '}
-                    <Box component='span' sx={{ fontWeight: 700, color: G900 }}>
-                      ${cartTotal.toFixed(2)}
-                    </Box>
-                  </Typography>
-                </>
-              </Stack>
-
-              <Button
-                variant='contained'
-                disableElevation
-                component={RouterLink}
-                to={`${MARKETPLACE_PATH}/${leadType}/cart${leadType === 'fresh' ? '' : `?tier=${tier}`}`}
-                disabled={false}
+            <Typography variant='body2' color='text.secondary'>
+              <Box
+                component='span'
                 sx={{
-                  bgcolor: BLUE,
-                  fontWeight: 600,
-                  px: 2.5,
-                  py: 1.25,
-                  borderRadius: '8px',
-                  fontSize: '0.875rem',
-                  textTransform: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  '&:hover': { bgcolor: '#1c33e0' },
-                  '&.Mui-disabled': { bgcolor: G200, color: G400 },
+                  fontFamily: MONO,
+                  fontWeight: 700,
+                  color: 'text.primary',
                 }}
               >
-                <>
-                  View Cart <ChevronRightIcon sx={{ fontSize: 15 }} />
-                </>
-              </Button>
-            </Box>
-          </Box>
-        )}
-      </Box>
-    </ThemeProvider>
+                {cartCount}
+              </Box>{' '}
+              {segment.unit}
+              {cartCount === 1 ? '' : 's'} in cart •{' '}
+              <Box component='span' sx={{ fontWeight: 600 }}>
+                Total:
+              </Box>{' '}
+              <Box
+                component='span'
+                sx={{
+                  fontFamily: MONO,
+                  fontWeight: 700,
+                  color: 'text.primary',
+                }}
+              >
+                {formatMoney(cartTotal)}
+              </Box>
+            </Typography>
+            <Button
+              variant='contained'
+              color='action'
+              component={RouterLink}
+              to={cartPath}
+              endIcon={<ArrowForwardIcon />}
+              sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+            >
+              Review Order & Checkout
+            </Button>
+          </Stack>
+        </Paper>
+      )}
+    </Container>
   );
 }

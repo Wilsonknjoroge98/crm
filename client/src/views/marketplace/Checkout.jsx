@@ -1,15 +1,19 @@
-// Checkout.jsx
+// Checkout.jsx — pay for a reserved cart with Stripe Elements on a Checkout
+// Session. The leads stay reserved for the session while the timer runs.
 import {
-  ThemeProvider,
-  Typography,
-  Button,
+  Alert,
   Box,
-  Stack,
-  Link,
-  CircularProgress,
-  TextField,
+  Button,
   Checkbox,
+  CircularProgress,
+  Container,
+  Divider,
   FormControlLabel,
+  Link,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
 } from '@mui/material';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -31,31 +35,51 @@ import {
   PaymentElement,
   useCheckout,
 } from '@stripe/react-stripe-js/checkout';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LockIcon from '@mui/icons-material/Lock';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import theme from './theme.js';
+import CloseIcon from '@mui/icons-material/Close';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import {
   MARKETPLACE_PATH,
   marketplaceFetch,
   cancelReservation,
 } from './api.js';
+import {
+  BORDER,
+  MONO,
+  MarketplaceHeader,
+  OrderLines,
+  SummaryRow,
+  formatMoney,
+  getSegment,
+  labelSx,
+  segmentPath,
+} from './ui.jsx';
 
 const RESERVATION_SECONDS = 10 * 60;
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK);
 
-const BLUE = '#233dff';
-const G100 = '#f3f4f6';
-const G200 = '#e5e7eb';
-const G300 = '#d1d5db';
-const G400 = '#9ca3af';
-const G500 = '#6b7280';
-const G600 = '#4b5563';
-const G800 = '#1f2937';
-const G900 = '#111827';
+// Stripe's payment form, dressed in the CRM's palette and type. Kept at
+// module scope so the provider's options stay referentially stable.
+const ELEMENTS_OPTIONS = {
+  appearance: {
+    theme: 'stripe',
+    variables: {
+      colorPrimary: '#051118',
+      colorText: '#1C1A17',
+      colorTextSecondary: '#5F5A52',
+      colorDanger: '#8B2E2E',
+      fontFamily: 'Inter, Helvetica, Arial, sans-serif',
+      borderRadius: '8px',
+    },
+  },
+  fonts: [
+    {
+      cssSrc:
+        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+    },
+  ],
+};
 
 // useCheckout() has shipped in two shapes across react-stripe-js versions:
 // a flat object with methods directly, and a disjoint union where the
@@ -121,8 +145,7 @@ function PromoCodeInput() {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState(null);
 
-  const applied = checkout?.discountAmounts?.[0];
-  const appliedCode = applied?.promotionCode || applied?.displayName || null;
+  const appliedCode = appliedPromoLabel(checkout);
 
   const handleApply = async () => {
     if (!code.trim()) return;
@@ -159,33 +182,19 @@ function PromoCodeInput() {
 
   if (appliedCode) {
     return (
-      <Stack
-        direction='row'
-        spacing={1}
-        alignItems='center'
-        justifyContent='space-between'
-      >
-        <Typography sx={{ fontSize: '0.875rem', color: G600 }}>
+      <Stack direction='row' justifyContent='space-between' alignItems='center'>
+        <Typography variant='body2' color='text.secondary'>
           Code applied:{' '}
-          <Box component='span' sx={{ fontWeight: 600, color: G900 }}>
+          <Box
+            component='span'
+            sx={{ fontFamily: MONO, fontWeight: 700, color: 'text.primary' }}
+          >
             {appliedCode}
           </Box>
         </Typography>
-        <Box
-          component='button'
-          onClick={handleRemove}
-          sx={{
-            fontSize: '0.75rem',
-            color: G500,
-            bgcolor: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            textDecoration: 'underline',
-            '&:hover': { color: G900 },
-          }}
-        >
+        <Button size='small' color='inherit' onClick={handleRemove}>
           Remove
-        </Box>
+        </Button>
       </Stack>
     );
   }
@@ -202,34 +211,20 @@ function PromoCodeInput() {
             setError(null);
           }}
           fullWidth
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              fontSize: '0.875rem',
-              borderRadius: '8px',
-              '& fieldset': { borderColor: G200 },
-              '&.Mui-focused fieldset': { borderColor: BLUE },
-            },
-          }}
+          sx={{ '& input': { fontFamily: MONO, fontSize: '0.85rem' } }}
         />
         <Button
+          variant='outlined'
+          color='primary'
           onClick={handleApply}
           disabled={applying || !code.trim()}
-          variant='outlined'
-          sx={{
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            borderRadius: '8px',
-            textTransform: 'none',
-            borderColor: G200,
-            color: G800,
-            '&:hover': { borderColor: G300, bgcolor: G100 },
-          }}
+          sx={{ borderColor: BORDER, px: 2 }}
         >
-          {applying ? <CircularProgress size={16} /> : 'Apply'}
+          {applying ? <CircularProgress size={16} color='inherit' /> : 'Apply'}
         </Button>
       </Stack>
       {error && (
-        <Typography sx={{ fontSize: '0.75rem', color: '#ef4444', mt: 0.5 }}>
+        <Typography variant='caption' color='error' sx={{ mt: 0.5 }}>
           {error}
         </Typography>
       )}
@@ -267,49 +262,33 @@ function CheckoutContent({
 
   if (initError) {
     return (
-      <Box
-        sx={{
-          maxWidth: 480,
-          mx: 'auto',
-          bgcolor: '#fff',
-          borderRadius: '16px',
-          border: '1px solid',
-          borderColor: G200,
-          p: 4,
-          textAlign: 'center',
-        }}
+      <Paper
+        variant='outlined'
+        sx={{ maxWidth: 520, mx: 'auto', p: 4, textAlign: 'center' }}
       >
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: G900 }}>
+        <Typography variant='h6'>
           This checkout session is no longer active
         </Typography>
-        <Typography sx={{ fontSize: '0.875rem', color: G500, mt: 1, mb: 3 }}>
+        <Typography
+          variant='body2'
+          color='text.secondary'
+          sx={{ mt: 1, mb: 3 }}
+        >
           Navigating away from checkout (cancel, browser back, or timer expiry)
           releases your reservation and ends the session — the back button can't
           bring it back. Return to the store to start a new order.
         </Typography>
         <Button
           variant='contained'
-          disableElevation
+          color='action'
           onClick={() =>
-            navigate(
-              `${MARKETPLACE_PATH}/${leadType}/store${leadType === 'fresh' ? '' : `?tier=${tier}`}`,
-              { replace: true },
-            )
+            navigate(segmentPath(leadType, tier, 'store'), { replace: true })
           }
-          sx={{
-            bgcolor: BLUE,
-            fontWeight: 600,
-            py: 1.5,
-            px: 3,
-            borderRadius: '12px',
-            fontSize: '0.875rem',
-            textTransform: 'none',
-            '&:hover': { bgcolor: '#1c33e0' },
-          }}
+          sx={{ fontWeight: 700 }}
         >
-          Back to store
+          Back to Store
         </Button>
-      </Box>
+      </Paper>
     );
   }
 
@@ -317,7 +296,6 @@ function CheckoutContent({
   const subtotal = sessionSubtotalDollars(checkout, fallbackTotal);
   const discount = sessionDiscountDollars(checkout);
   const promoLabel = appliedPromoLabel(checkout);
-  const hasDiscount = discount > 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -367,373 +345,174 @@ function CheckoutContent({
   };
 
   return (
-    <Box
+    <Stack
+      direction={{ xs: 'column', md: 'row' }}
+      spacing={3}
+      alignItems='flex-start'
+    >
+      {/* Payment */}
+      <Paper
+        variant='outlined'
+        sx={{ flex: 3, width: '100%', p: 2.5, borderRadius: 2 }}
+      >
+        <Typography sx={{ ...labelSx, mb: 2 }}>Payment Details</Typography>
+        <form onSubmit={handleSubmit}>
+          <PaymentElement
+            options={{
+              layout: 'tabs',
+              paymentMethodOrder: [
+                'card',
+                'link',
+                'klarna',
+                'afterpay_clearpay',
+              ],
+              wallets: { applePay: 'auto', googlePay: 'auto' },
+            }}
+          />
+          {error && (
+            <Alert severity='error' sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <FormControlLabel
+            sx={{ mt: 2, alignItems: 'flex-start' }}
+            control={
+              <Checkbox
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                size='small'
+                sx={{ pt: 0.25, '&.Mui-checked': { color: 'primary.main' } }}
+              />
+            }
+            label={
+              <Typography variant='body2' color='text.secondary'>
+                By placing this order I agree to the{' '}
+                <Link
+                  component={RouterLink}
+                  to={`${MARKETPLACE_PATH}/terms-of-service`}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  color='text.primary'
+                  sx={{ fontWeight: 600 }}
+                >
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link
+                  component={RouterLink}
+                  to={`${MARKETPLACE_PATH}/privacy-policy`}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  color='text.primary'
+                  sx={{ fontWeight: 600 }}
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </Typography>
+            }
+          />
+          <Button
+            type='submit'
+            variant='contained'
+            color='action'
+            fullWidth
+            disabled={!checkout || paying || !agreed}
+            startIcon={!paying && <LockOutlinedIcon />}
+            sx={{ mt: 2.5, py: 1.25, fontWeight: 700 }}
+          >
+            {paying ? (
+              <CircularProgress size={20} color='inherit' />
+            ) : (
+              <>
+                Pay{' '}
+                <Box component='span' sx={{ fontFamily: MONO, ml: 0.75 }}>
+                  {formatMoney(total)}
+                </Box>
+              </>
+            )}
+          </Button>
+          <Typography
+            variant='caption'
+            color='text.secondary'
+            sx={{ display: 'block', textAlign: 'center', mt: 1 }}
+          >
+            Payments are processed securely by Stripe.
+          </Typography>
+        </form>
+      </Paper>
+
+      {/* Order summary */}
+      <Paper
+        variant='outlined'
+        sx={{
+          flex: 2,
+          width: '100%',
+          p: 2.5,
+          borderRadius: 2,
+          position: { md: 'sticky' },
+          top: 16,
+        }}
+      >
+        <Typography sx={{ ...labelSx, mb: 1.5 }}>Order Summary</Typography>
+        <OrderLines items={items} />
+
+        <Divider sx={{ my: 2 }} />
+        <Typography sx={{ ...labelSx, mb: 0.5 }}>Receipt Email</Typography>
+        <Typography variant='body2' sx={{ fontWeight: 600 }}>
+          {email}
+        </Typography>
+
+        <Divider sx={{ my: 2 }} />
+        <Typography sx={{ ...labelSx, mb: 1 }}>Promo Code</Typography>
+        <PromoCodeInput />
+
+        <Divider sx={{ my: 2 }} />
+        <Stack spacing={1}>
+          <SummaryRow label='Subtotal' value={formatMoney(subtotal)} />
+          {discount > 0 && (
+            <SummaryRow
+              label={promoLabel ? `Discount (${promoLabel})` : 'Discount'}
+              value={`−${formatMoney(discount)}`}
+              color='success.main'
+            />
+          )}
+          <SummaryRow label='Total' value={formatMoney(total)} strong />
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
+/** Countdown chip for the lead reservation; turns crimson in the last minute. */
+function ReservationTimer({ secondsLeft }) {
+  const urgent = secondsLeft <= 60;
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  return (
+    <Stack
+      direction='row'
+      spacing={0.75}
+      alignItems='center'
       sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        gap: 4,
-        alignItems: 'flex-start',
+        px: 1.5,
+        height: 38,
+        borderRadius: 1.5,
+        border: '1px solid',
+        borderColor: urgent ? 'error.main' : BORDER,
+        bgcolor: urgent ? 'error.light' : '#FFFFFF',
+        color: urgent ? 'error.main' : 'text.secondary',
+        whiteSpace: 'nowrap',
       }}
     >
-      {/* Left: Payment form */}
-      <Box sx={{ flex: 3, width: '100%' }}>
-        <Box
-          sx={{
-            bgcolor: '#fff',
-            borderRadius: '16px',
-            border: '1px solid',
-            borderColor: G200,
-            p: 3,
-          }}
-        >
-          <Typography
-            sx={{
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              color: G900,
-              mb: 3,
-            }}
-          >
-            Payment Details
-          </Typography>
-          <form onSubmit={handleSubmit}>
-            <PaymentElement
-              options={{
-                layout: 'tabs',
-                paymentMethodOrder: [
-                  'card',
-                  'link',
-                  'klarna',
-                  'afterpay_clearpay',
-                ],
-                wallets: { applePay: 'auto', googlePay: 'auto' },
-              }}
-            />
-            {error && (
-              <Typography
-                sx={{ color: '#ef4444', fontSize: '0.875rem', mt: 1.5 }}
-              >
-                {error}
-              </Typography>
-            )}
-            <FormControlLabel
-              sx={{ mt: 2, alignItems: 'flex-start' }}
-              control={
-                <Checkbox
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  size='small'
-                  sx={{
-                    pt: 0.25,
-                    color: G400,
-                    '&.Mui-checked': { color: BLUE },
-                  }}
-                />
-              }
-              label={
-                <Typography
-                  sx={{ fontSize: '0.8rem', color: G500, lineHeight: 1.5 }}
-                >
-                  By placing this order I agree to the{' '}
-                  <Link
-                    component={RouterLink}
-                    to={`${MARKETPLACE_PATH}/terms-of-service`}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    sx={{ color: BLUE, fontWeight: 500 }}
-                  >
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link
-                    component={RouterLink}
-                    to={`${MARKETPLACE_PATH}/privacy-policy`}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    sx={{ color: BLUE, fontWeight: 500 }}
-                  >
-                    Privacy Policy
-                  </Link>
-                  .
-                </Typography>
-              }
-            />
-            <Button
-              type='submit'
-              variant='contained'
-              disableElevation
-              fullWidth
-              disabled={!checkout || paying || !agreed}
-              sx={{
-                bgcolor: BLUE,
-                fontWeight: 600,
-                py: 1.75,
-                borderRadius: '12px',
-                fontSize: '0.875rem',
-                textTransform: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                mt: 3,
-                '&:hover': {
-                  bgcolor: '#1c33e0',
-                  boxShadow: `0 8px 24px ${BLUE}40`,
-                },
-                '&.Mui-disabled': { bgcolor: G200, color: G400 },
-                transition: 'all 0.2s',
-              }}
-            >
-              {paying ? (
-                <CircularProgress size={20} sx={{ color: '#fff' }} />
-              ) : (
-                <>
-                  <LockIcon sx={{ fontSize: 13 }} />
-                  Pay ${total.toFixed(2)}
-                </>
-              )}
-            </Button>
-            <Stack
-              direction='row'
-              spacing={0.75}
-              alignItems='center'
-              justifyContent='center'
-              sx={{ mt: 1.5 }}
-            >
-              <VerifiedUserIcon sx={{ fontSize: 11, color: '#059669' }} />
-              <Typography sx={{ fontSize: '0.75rem', color: G400 }}>
-                Secure 256-bit SSL checkout
-              </Typography>
-            </Stack>
-          </form>
+      <AccessTimeIcon sx={{ fontSize: 16 }} />
+      <Typography variant='body2' sx={{ fontWeight: 600, color: 'inherit' }}>
+        Leads held for{' '}
+        <Box component='span' sx={{ fontFamily: MONO, fontWeight: 700 }}>
+          {mins}:{secs.toString().padStart(2, '0')}
         </Box>
-      </Box>
-
-      {/* Right: Order summary */}
-      <Box sx={{ flex: 2, width: '100%' }}>
-        <Box
-          sx={{
-            bgcolor: '#fff',
-            borderRadius: '16px',
-            border: '1px solid',
-            borderColor: G200,
-            overflow: 'hidden',
-            position: 'sticky',
-            top: 88,
-          }}
-        >
-          <Box
-            sx={{
-              px: 3,
-              pt: 3,
-              pb: 2,
-              borderBottom: '1px solid',
-              borderColor: G100,
-            }}
-          >
-            <Typography
-              sx={{
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                color: G900,
-                mb: 2,
-              }}
-            >
-              Order Summary
-            </Typography>
-            <Stack spacing={1.5}>
-              {items.map((item) => (
-                <Box
-                  key={item.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Stack direction='row' spacing={1} alignItems='center'>
-                    <Box
-                      sx={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        bgcolor: item.type === 'verified' ? BLUE : G300,
-                      }}
-                    />
-                    <Typography sx={{ fontSize: '0.875rem', color: G600 }}>
-                      {item.state} {leadType === 'fresh' ? 'Fresh' : 'Aged'} (
-                      {item.type === 'verified' ? 'Verified' : 'Unverified'})
-                      <Box component='span' sx={{ color: G400, ml: 0.5 }}>
-                        ×{item.qty}
-                      </Box>
-                    </Typography>
-                  </Stack>
-                  <Typography
-                    sx={{
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: G900,
-                    }}
-                  >
-                    ${(item.qty * item.price).toFixed(2)}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-
-          {/* Email */}
-          <Box
-            sx={{
-              px: 3,
-              py: 2,
-              borderBottom: '1px solid',
-              borderColor: G100,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: G500,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                mb: 0.5,
-              }}
-            >
-              Receipt Email
-            </Typography>
-            <Typography sx={{ fontSize: '0.875rem', color: G900 }}>
-              {email}
-            </Typography>
-          </Box>
-
-          {/* Promo code */}
-          <Box
-            sx={{
-              px: 3,
-              py: 2,
-              borderBottom: '1px solid',
-              borderColor: G100,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: G500,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                mb: 1,
-              }}
-            >
-              Promo Code
-            </Typography>
-            <PromoCodeInput />
-          </Box>
-
-          {/* Totals */}
-          <Box sx={{ px: 3, py: 2 }}>
-            <Stack spacing={1}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <Typography sx={{ fontSize: '0.875rem', color: G500 }}>
-                  Subtotal
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    color: G900,
-                  }}
-                >
-                  ${subtotal.toFixed(2)}
-                </Typography>
-              </Box>
-              {hasDiscount && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Stack direction='row' spacing={0.75} alignItems='center'>
-                    <Typography sx={{ fontSize: '0.875rem', color: '#059669' }}>
-                      Discount
-                    </Typography>
-                    {promoLabel && (
-                      <Box
-                        sx={{
-                          px: 0.75,
-                          py: 0.125,
-                          borderRadius: '6px',
-                          bgcolor: '#d1fae5',
-                          fontSize: '0.7rem',
-                          fontWeight: 600,
-                          color: '#059669',
-                          letterSpacing: '0.02em',
-                        }}
-                      >
-                        {promoLabel}
-                      </Box>
-                    )}
-                  </Stack>
-                  <Typography
-                    sx={{
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: '#059669',
-                    }}
-                  >
-                    −${discount.toFixed(2)}
-                  </Typography>
-                </Box>
-              )}
-              {hasDiscount && (
-                <Typography
-                  sx={{
-                    fontSize: '0.75rem',
-                    color: '#059669',
-                    textAlign: 'right',
-                    fontWeight: 500,
-                  }}
-                >
-                  You saved ${discount.toFixed(2)}
-                </Typography>
-              )}
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                  pt: 1,
-                  mt: 0.5,
-                  borderTop: '1px solid',
-                  borderColor: G100,
-                }}
-              >
-                <Typography sx={{ fontWeight: 700, color: G900 }}>
-                  Total
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: '1.125rem',
-                    fontWeight: 700,
-                    color: G900,
-                  }}
-                >
-                  ${total.toFixed(2)}
-                </Typography>
-              </Box>
-            </Stack>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
+      </Typography>
+    </Stack>
   );
 }
 
@@ -744,6 +523,7 @@ export default function Checkout() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const tier = searchParams.get('tier') === 'third' ? 'third' : 'second';
+  const segment = getSegment(leadType, tier);
   const cartKey =
     leadType === 'fresh'
       ? `fex-cart-${leadType}`
@@ -802,7 +582,7 @@ export default function Checkout() {
 
   // Set when Stripe init reports the session is no longer active. Hides
   // the timer and stops it from firing the auto-redirect to /store, so
-  // the user can read the recovery card and click "Back to cart".
+  // the user can read the recovery card.
   const [sessionDead, setSessionDead] = useState(false);
   const onSessionDead = useCallback(() => {
     shouldCancelRef.current = false;
@@ -815,10 +595,7 @@ export default function Checkout() {
       const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
       setSecondsLeft(remaining);
       if (remaining === 0) {
-        navigate(
-          `${MARKETPLACE_PATH}/${leadType}/store${leadType === 'fresh' ? '' : `?tier=${tier}`}`,
-          { replace: true },
-        );
+        navigate(segmentPath(leadType, tier, 'store'), { replace: true });
       }
     };
     tick();
@@ -826,8 +603,8 @@ export default function Checkout() {
     return () => clearInterval(id);
   }, [clientSecret, deadline, navigate, sessionDead]);
 
-  // Cancel the reservation on in-app nav away from /checkout (Back
-  // to Cart link, timer-expired Navigate, browser back).
+  // Cancel the reservation on in-app nav away from /checkout (Cancel
+  // Order, side panel, timer expiry, browser back).
   //
   // Wired to react-router's useBlocker — NOT useEffect cleanup —
   // because cleanup also fires on StrictMode's simulated unmount,
@@ -863,186 +640,49 @@ export default function Checkout() {
 
   // Redirect to cart if no checkout data
   if (!clientSecret || !items || !sessionId) {
-    return (
-      <Navigate
-        to={`${MARKETPLACE_PATH}/${leadType}/cart${leadType === 'fresh' ? '' : `?tier=${tier}`}`}
-        replace
-      />
-    );
+    return <Navigate to={segmentPath(leadType, tier, 'cart')} replace />;
   }
 
-  const mins = Math.floor(secondsLeft / 60);
-  const secs = secondsLeft % 60;
-  const timerColor = secondsLeft <= 60 ? '#ef4444' : G500;
-
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ width: '100%', bgcolor: '#f7f8fc' }}>
-        {/* Nav */}
-        <Box
-          component='header'
-          sx={{
-            borderBottom: '1px solid',
-            borderColor: G200,
-            bgcolor: '#fff',
-            position: 'sticky',
-            top: 0,
-            zIndex: 50,
-          }}
+    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+      <Stack spacing={2.5}>
+        <MarketplaceHeader
+          title='Checkout'
+          subtitle={`${segment.label} • ${segment.window}`}
+          actions={
+            <>
+              {!sessionDead && <ReservationTimer secondsLeft={secondsLeft} />}
+              <Button
+                variant='outlined'
+                color='primary'
+                component={RouterLink}
+                to={segmentPath(leadType, tier, 'store')}
+                startIcon={<CloseIcon />}
+                sx={{ whiteSpace: 'nowrap', borderColor: BORDER }}
+              >
+                Cancel Order
+              </Button>
+            </>
+          }
+        />
+
+        <CheckoutElementsProvider
+          stripe={stripePromise}
+          options={{ clientSecret, elementsOptions: ELEMENTS_OPTIONS }}
         >
-          <Box
-            sx={{
-              maxWidth: 1152,
-              mx: 'auto',
-              px: 3,
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Stack direction='row' spacing={2} alignItems='center'>
-              <Link component={RouterLink} to={MARKETPLACE_PATH}>
-                <Box
-                  component='img'
-                  src='/fexdigital-logo.svg'
-                  alt='FEX Digital'
-                  sx={{ height: 36 }}
-                />
-              </Link>
-              <Box
-                sx={{
-                  bgcolor: leadType === 'fresh' ? BLUE : '#fff',
-                  color: leadType === 'fresh' ? '#fff' : G800,
-                  border: leadType === 'fresh' ? 'none' : '1px solid',
-                  borderColor: G300,
-                  fontSize: '0.7rem',
-                  fontWeight: leadType === 'fresh' ? 700 : 500,
-                  px: 1.25,
-                  py: 0.4,
-                  borderRadius: '999px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {leadType === 'fresh' ? 'Fresh' : 'Aged'}
-              </Box>
-              <Typography
-                sx={{
-                  fontSize: '0.8rem',
-                  color: leadType === 'fresh' ? BLUE : G800,
-                  fontWeight: 500,
-                }}
-              >
-                {leadType === 'fresh'
-                  ? 'Submitted within the last 72 hours'
-                  : tier === 'third'
-                    ? 'Submitted 91–180 days ago'
-                    : 'Submitted 31–90 days ago'}
-              </Typography>
-            </Stack>
-            <Link
-              component={RouterLink}
-              to={`${MARKETPLACE_PATH}/${leadType}/cart${leadType === 'fresh' ? '' : `?tier=${tier}`}`}
-              underline='none'
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                border: '1px solid',
-                borderColor: G200,
-                bgcolor: '#fff',
-                px: 2,
-                py: 1,
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: G800,
-              }}
-            >
-              <ShoppingCartIcon sx={{ fontSize: 16 }} />
-              Cart
-            </Link>
-          </Box>
-        </Box>
-
-        <Box sx={{ maxWidth: 960, mx: 'auto', px: 3, py: 5 }}>
-          <Link
-            component={RouterLink}
-            to={`${MARKETPLACE_PATH}/${leadType}/store${leadType === 'fresh' ? '' : `?tier=${tier}`}`}
-            underline='none'
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              color: G500,
-              fontSize: '0.875rem',
-              mb: 2,
-              '&:hover': { color: G900 },
-              transition: 'color 0.15s',
-            }}
-          >
-            <ArrowBackIcon sx={{ fontSize: 15 }} /> Cancel order
-          </Link>
-          <Stack
-            direction='row'
-            alignItems='center'
-            justifyContent='space-between'
-            sx={{ mb: 4 }}
-          >
-            <Typography
-              sx={{ fontSize: '1.5rem', fontWeight: 700, color: G900 }}
-            >
-              Checkout
-            </Typography>
-            {!sessionDead && (
-              <Stack
-                direction='row'
-                spacing={0.75}
-                alignItems='center'
-                sx={{
-                  px: 1.5,
-                  py: 0.75,
-                  borderRadius: '999px',
-                  border: '1px solid',
-                  borderColor: secondsLeft <= 60 ? '#fca5a5' : G200,
-                  bgcolor: secondsLeft <= 60 ? '#fef2f2' : '#fff',
-                  transition: 'all 0.2s',
-                }}
-              >
-                <AccessTimeIcon sx={{ fontSize: 14, color: timerColor }} />
-                <Typography
-                  sx={{
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    color: timerColor,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {mins}:{secs.toString().padStart(2, '0')}
-                </Typography>
-              </Stack>
-            )}
-          </Stack>
-
-          <CheckoutElementsProvider
-            stripe={stripePromise}
-            options={{ clientSecret }}
-          >
-            <CheckoutContent
-              items={items}
-              email={email}
-              fallbackTotal={total}
-              sessionId={sessionId}
-              tier={tier}
-              onPaymentAttempt={onPaymentAttempt}
-              onPaymentFailed={onPaymentFailed}
-              onExtended={resetTimer}
-              onSessionDead={onSessionDead}
-            />
-          </CheckoutElementsProvider>
-        </Box>
-      </Box>
-    </ThemeProvider>
+          <CheckoutContent
+            items={items}
+            email={email}
+            fallbackTotal={total}
+            sessionId={sessionId}
+            tier={tier}
+            onPaymentAttempt={onPaymentAttempt}
+            onPaymentFailed={onPaymentFailed}
+            onExtended={resetTimer}
+            onSessionDead={onSessionDead}
+          />
+        </CheckoutElementsProvider>
+      </Stack>
+    </Container>
   );
 }

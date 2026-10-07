@@ -1,10 +1,8 @@
 // TermsOfService.jsx
-import { ThemeProvider, Typography, Box, Stack, Link } from '@mui/material';
+import { Typography, Box, Stack, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import theme from './theme.js';
 import { MARKETPLACE_PATH } from './api.js';
 
-const BLUE = '#233dff';
 const G100 = '#f3f4f6';
 const G200 = '#e5e7eb';
 const G400 = '#9ca3af';
@@ -102,65 +100,11 @@ function renderBody(text) {
 
 export default function TermsOfService() {
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ width: '100%', bgcolor: '#fff' }}>
-        {/* Nav */}
-        <Box
-          component='header'
-          sx={{
-            borderBottom: '1px solid',
-            borderColor: G100,
-            position: 'sticky',
-            top: 0,
-            bgcolor: 'rgba(255,255,255,0.95)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 50,
-          }}
-        >
-          <Box
-            sx={{
-              maxWidth: 1152,
-              mx: 'auto',
-              px: 3,
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Link component={RouterLink} to={MARKETPLACE_PATH}>
-              <Box
-                component='img'
-                src='/fexdigital-logo.svg'
-                alt='Final Expense Digital'
-                sx={{ height: 36 }}
-              />
-            </Link>
-            <Link
-              href='mailto:info@fexdigital.com'
-              underline='none'
-              sx={{
-                color: G500,
-                fontSize: '0.875rem',
-                '&:hover': { color: G900 },
-                transition: 'color 0.15s',
-              }}
-            >
-              Contact Us
-            </Link>
-          </Box>
-        </Box>
-
+    <>
+      <Box sx={{ width: '100%' }}>
         {/* Content */}
-        <Box sx={{ maxWidth: 768, mx: 'auto', px: 3, pt: 8, pb: 12 }}>
-          <Typography
-            sx={{
-              fontSize: { xs: '1.5rem', md: '2rem' },
-              fontWeight: 700,
-              color: G900,
-              mb: 1.5,
-            }}
-          >
+        <Box sx={{ maxWidth: 768, mx: 'auto', px: 3, pt: 4, pb: 8 }}>
+          <Typography variant='h4' sx={{ mb: 1.5 }}>
             Lead Purchase Agreement
           </Typography>
           <Typography
@@ -263,6 +207,6 @@ export default function TermsOfService() {
           </Box>
         </Box>
       </Box>
-    </ThemeProvider>
+    </>
   );
 }
