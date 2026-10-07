@@ -915,14 +915,6 @@ const Business = () => {
           setOpen={setClientDialogOpen}
           lead={markSoldLead}
           refetchClients={refreshBusiness}
-          onCreated={async (client) => {
-            await refreshBusiness();
-            setPolicyClient({
-              ...client,
-              lead_vendor_id: markSoldLead?.lead_vendor_id,
-            });
-            setPolicyDialogOpen(true);
-          }}
         />
       )}
 

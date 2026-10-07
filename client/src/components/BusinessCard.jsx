@@ -43,7 +43,7 @@ const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-19T00:00:00Z');
 
 // Call/Text/Appointment aren't built yet, so they stay disabled placeholders
 // that route into the "notify me" signup. Mark Sold already has a real flow
-// (CreateClientDialog -> CreatePolicyDialog), so it's wired up separately
+// (CreateClientDialog), so it's wired up separately
 // below instead of joining this list.
 const QUICK_ACTIONS = [
   ['Call', CallOutlinedIcon],
