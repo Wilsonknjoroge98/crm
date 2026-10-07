@@ -33,6 +33,7 @@ const {
   inboundGSQ,
   inboundSendblueNumber,
   markSoldInGSQ,
+  isGSQLiveTransfer,
 } = require('../integrations/GSQ');
 const { parsePremium } = require('../integrations/premium');
 
@@ -450,6 +451,104 @@ describe('markSoldInGSQ', () => {
     await markSoldInGSQ('2025550199', 'someone@example.com');
 
     expect(mockFirestoreBatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('isGSQLiveTransfer', () => {
+  const originalKey = process.env.GSQ_SERVICE_ACCOUNT_KEY;
+  const AGENT = 'agent@example.com';
+  const PHONE = '+12025550199';
+  let whereCalls;
+
+  const mockGSQ = (byCollection) => {
+    whereCalls = [];
+    mockFirestoreCollection.mockImplementation((name) => ({
+      where: (field, op, values) => {
+        whereCalls.push({ name, field, op, values });
+        const docs = (byCollection[name] ?? [])
+          .filter((data) => values.includes(data[field]))
+          .map((data) => ({ data: () => data }));
+        return { get: jest.fn().mockResolvedValue({ docs }) };
+      },
+    }));
+  };
+
+  const bridgedCall = (overrides = {}) => ({
+    callerPhone: PHONE,
+    bridged: true,
+    bridgedAgentEmail: AGENT,
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.GSQ_SERVICE_ACCOUNT_KEY = '{}';
+  });
+
+  afterAll(() => {
+    if (originalKey === undefined) {
+      delete process.env.GSQ_SERVICE_ACCOUNT_KEY;
+    } else {
+      process.env.GSQ_SERVICE_ACCOUNT_KEY = originalKey;
+    }
+  });
+
+  test('matches the e164 caller phone and the bare lead phone', async () => {
+    mockGSQ({});
+
+    await isGSQLiveTransfer('(202) 555-0199', AGENT);
+
+    const leadPhones = ['(202) 555-0199', '2025550199'];
+    const callerPhones = [...leadPhones, PHONE];
+    expect(whereCalls).toEqual([
+      { name: 'telnyx_calls', field: 'callerPhone', op: 'in', values: callerPhones },
+      { name: 'telnyx_logs', field: 'callerPhone', op: 'in', values: callerPhones },
+      { name: 'leads', field: 'phone', op: 'in', values: leadPhones },
+      { name: 'instant_form_leads', field: 'phone', op: 'in', values: leadPhones },
+    ]);
+  });
+
+  test('true for a call bridged to the selling agent', async () => {
+    mockGSQ({ telnyx_calls: [bridgedCall({ bridgedAgentEmail: 'Agent@Example.com' })] });
+
+    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(true);
+  });
+
+  test('true for a logged call bridged to the selling agent', async () => {
+    mockGSQ({ telnyx_logs: [bridgedCall()] });
+
+    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(true);
+  });
+
+  test('false when the call was bridged to another agent', async () => {
+    mockGSQ({ telnyx_calls: [bridgedCall({ bridgedAgentEmail: 'other@example.com' })] });
+
+    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
+  });
+
+  test('false when the caller never reached an agent', async () => {
+    mockGSQ({ telnyx_calls: [bridgedCall({ bridged: false })] });
+
+    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
+  });
+
+  test.each(['leads', 'instant_form_leads'])(
+    'false when the phone is already a gsq %s doc',
+    async (collection) => {
+      mockGSQ({
+        telnyx_calls: [bridgedCall()],
+        [collection]: [{ phone: '2025550199' }],
+      });
+
+      await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
+    },
+  );
+
+  test('false without an agent email, without querying gsq', async () => {
+    mockGSQ({ telnyx_calls: [bridgedCall()] });
+
+    await expect(isGSQLiveTransfer('2025550199', undefined)).resolves.toBe(false);
+    expect(whereCalls).toEqual([]);
   });
 });
 

@@ -342,10 +342,45 @@ const markSoldInGSQ = async (phone, email) => {
   });
 };
 
+// gsq's Telnyx call control keys live transfers on the caller's E.164 number.
+// telnyx_calls holds every inbound call (bridged once an agent picks up);
+// telnyx_logs only gets bridged calls that ran past the billing threshold.
+// It only counts when the call was bridged to the selling agent and the phone
+// never came through as a normal lead (funnel or instant form) — a caller
+// who already had a lead is still that lead, not a live transfer.
+const isGSQLiveTransfer = async (phone, agentEmail) => {
+  const email = String(agentEmail ?? '').trim().toLowerCase();
+  if (!email) return false;
+
+  const db = new Firestore({
+    projectId: 'life-quoter',
+    credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
+  });
+
+  const variants = phoneVariants(phone);
+  const digits = variants[variants.length - 1];
+  const callerPhones = [...new Set([...variants, `+1${digits}`])];
+
+  const [calls, logs, leadDocs] = await Promise.all([
+    db.collection('telnyx_calls').where('callerPhone', 'in', callerPhones).get(),
+    db.collection('telnyx_logs').where('callerPhone', 'in', callerPhones).get(),
+    findLeadDocs(db, 'phone', variants),
+  ]);
+
+  if (leadDocs.length > 0) return false;
+
+  const bridgedToAgent = (doc) =>
+    doc.data().bridged === true &&
+    String(doc.data().bridgedAgentEmail ?? '').trim().toLowerCase() === email;
+
+  return [...calls.docs, ...logs.docs].some(bridgedToAgent);
+};
+
 module.exports = {
   inboundGSQ,
   inboundSendblueNumber,
   markSoldInGSQ,
+  isGSQLiveTransfer,
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,
 };

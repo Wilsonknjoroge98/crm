@@ -8,11 +8,7 @@ import {
   Button,
   MenuItem,
   InputAdornment,
-  Stack,
   Alert,
-  FormControl,
-  FormControlLabel,
-  Checkbox,
   Skeleton,
 } from '@mui/material';
 
@@ -47,8 +43,8 @@ const OPTIONAL_CLIENT_FIELDS = [
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 // The only fields the dialog blocks submit on (matches the NOT NULL client
-// columns). A malformed email also blocks; the live-transfer answer is only
-// required for GSQ funnel leads (see below).
+// columns). A malformed email also blocks. Whether a GSQ lead was a live
+// transfer is derived server-side from gsq's call logs, not asked here.
 const REQUIRED_CLIENT_FIELDS = [
   'first_name',
   'last_name',
@@ -58,11 +54,6 @@ const REQUIRED_CLIENT_FIELDS = [
   'state',
   'monthly_premium',
 ];
-
-// Instant form leads come from a Meta lead form, never a live transfer, so
-// the question doesn't apply — answer it for the agent instead of leaving
-// live_transfer undefined (which silently kept Save disabled).
-const isInstantFormLead = (lead) => lead?.gsq_instant_form === true;
 
 const CreateClientDialog = ({
   open,
@@ -87,7 +78,6 @@ const CreateClientDialog = ({
     occupation: '',
     annual_income: '',
     monthly_premium: '',
-    live_transfer: undefined,
   };
 
   const [form, setForm] = useState(initialForm);
@@ -127,9 +117,6 @@ const CreateClientDialog = ({
         occupation: lead.occupation || '',
         annual_income: lead.annual_income || '',
         monthly_premium: '',
-        live_transfer: isInstantFormLead(lead)
-          ? false
-          : (lead.gsq_live_transfer ?? undefined),
       });
     }
   }, [lead]);
@@ -271,19 +258,13 @@ const CreateClientDialog = ({
     setForm(initialForm);
   };
 
-  const asksLiveTransfer =
-    form.lead_vendor_id === GSQ_LEAD_VENDOR_ID && !isInstantFormLead(lead);
-
   useEffect(() => {
-    const required = asksLiveTransfer
-      ? [...REQUIRED_CLIENT_FIELDS, 'live_transfer']
-      : REQUIRED_CLIENT_FIELDS;
-    const hasEmptyFields = required.some(
+    const hasEmptyFields = REQUIRED_CLIENT_FIELDS.some(
       (key) =>
         form[key] === undefined || form[key] === null || form[key] === '',
     );
     setDisabled(hasEmptyFields || emailError);
-  }, [form, emailError, asksLiveTransfer]);
+  }, [form, emailError]);
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
@@ -344,44 +325,6 @@ const CreateClientDialog = ({
                   ))}
                 </TextField>
               )}
-            </Grid>
-          )}
-          {asksLiveTransfer && (
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControl error={true} fullWidth>
-                <Alert severity='warning'>Is this a live transfer lead?</Alert>
-
-                <Stack direction='row' spacing={2}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={form.live_transfer === true}
-                        onChange={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            live_transfer: true,
-                          }))
-                        }
-                      />
-                    }
-                    label='Yes'
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={form.live_transfer === false}
-                        onChange={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            live_transfer: false,
-                          }))
-                        }
-                      />
-                    }
-                    label='No'
-                  />
-                </Stack>
-              </FormControl>
             </Grid>
           )}
 

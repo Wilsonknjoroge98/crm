@@ -1,7 +1,7 @@
 const express = require('express');
 const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
-const { markSoldInGSQ } = require('../integrations/GSQ');
+const { markSoldInGSQ, isGSQLiveTransfer } = require('../integrations/GSQ');
 const { getHyrosSource } = require('../integrations/hyros');
 const { Firestore } = require('firebase-admin/firestore');
 const { sendPurchaseToMeta } = require('../integrations/pixel');
@@ -287,18 +287,14 @@ clientRouter.get('/', async (req, res) => {
 
 clientRouter.post('/', async (req, res) => {
   // eslint-disable-next-line camelcase,no-unused-vars
-  const {
-    lead_vendor_id: leadVendorId,
-    live_transfer: liveTransfer,
-    ...client
-  } = req.body.client;
+  const { lead_vendor_id: leadVendorId, ...client } = req.body.client;
+  // derived from gsq's call logs below; older clients still send the answer
   delete client.live_transfer;
 
   console.log('Received client creation request', {
     route: '/client',
     method: 'POST',
     lead_vendor_id: leadVendorId,
-    live_transfer: liveTransfer,
     client,
   });
 
@@ -312,7 +308,6 @@ clientRouter.post('/', async (req, res) => {
       requesterId: req.agent?.id,
       hasEmail: !!client?.email,
       hasPhone: !!client?.phone,
-      liveTransfer: !!liveTransfer,
     });
     return res.status(400).json({ error: 'Missing required client fields' });
   }
@@ -349,10 +344,26 @@ clientRouter.post('/', async (req, res) => {
 
   await markSoldInGSQ(client.phone, client.email);
 
+  let liveTransfer = false;
+
   if (!existingLead) {
     let hyrosSource = null;
     if (leadVendorId === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba') {
       hyrosSource = await getHyrosSource(client.phone);
+      // a failed lookup shouldn't block the sale; the lead just lands as a
+      // non live transfer
+      liveTransfer = await isGSQLiveTransfer(
+        client.phone,
+        req.agent?.email,
+      ).catch((error) => {
+        logger.error('Error checking GSQ live transfer in clients.js', {
+          route: '/client',
+          method: 'POST',
+          requesterId: req.agent?.id,
+          message: error?.message,
+        });
+        return false;
+      });
     }
 
     const { data: newLead, error: newLeadError } = await supabaseService
@@ -367,7 +378,7 @@ clientRouter.post('/', async (req, res) => {
         agent_id: req?.agent?.id,
         sold: true,
         lead_vendor_id: leadVendorId,
-        gsq_live_transfer: liveTransfer || false,
+        gsq_live_transfer: liveTransfer,
         gsq_source: hyrosSource,
         health_class: client.health_class ?? null,
       })
@@ -461,7 +472,7 @@ clientRouter.post('/', async (req, res) => {
     requesterId: req.agent?.id,
     clientId: newClient.id,
     leadId,
-    liveTransfer: !!liveTransfer,
+    liveTransfer,
   });
 
   try {
