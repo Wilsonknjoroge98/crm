@@ -115,10 +115,13 @@ const RequiredLabel = ({ children }) => (
 );
 
 // Warm fill + a firmer resting border on required inputs; focus and error
-// keep the theme's own outline.
+// keep the theme's own outline. MUI X v8 pickers render their own
+// PickersOutlinedInput rather than OutlinedInput, so both are targeted.
 const REQUIRED_INPUT_SX = {
-  '& .MuiOutlinedInput-root': { bgcolor: REQUIRED_FILL },
-  '& .MuiOutlinedInput-root:not(.Mui-focused):not(.Mui-error) .MuiOutlinedInput-notchedOutline':
+  '& .MuiOutlinedInput-root, & .MuiPickersOutlinedInput-root': {
+    bgcolor: REQUIRED_FILL,
+  },
+  '& .MuiOutlinedInput-root:not(.Mui-focused):not(.Mui-error) .MuiOutlinedInput-notchedOutline, & .MuiPickersOutlinedInput-root:not(.Mui-focused):not(.Mui-error) .MuiPickersOutlinedInput-notchedOutline':
     { borderColor: 'rgba(5, 17, 24, 0.35)' },
 };
 
