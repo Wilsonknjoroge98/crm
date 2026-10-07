@@ -10,7 +10,14 @@ import {
   InputAdornment,
   Alert,
   Skeleton,
+  Stack,
+  Typography,
+  Box,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { useEffect, useState, useRef } from 'react';
 import { enqueueSnackbar } from 'notistack';
@@ -27,6 +34,7 @@ import { useLocation } from 'react-router-dom';
 
 import { toTitleCase, formatPhone } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
+import { pillSx } from './Pill';
 
 // Client-only fields a lead won't have yet; not required to convert a lead
 // into a client. Sent as null (not '') so numeric columns like
@@ -54,6 +62,65 @@ const REQUIRED_CLIENT_FIELDS = [
   'state',
   'monthly_premium',
 ];
+
+const MONO = '"JetBrains Mono", monospace';
+const REQUIRED_FILL = '#FAFAF7';
+
+const isEmpty = (value) =>
+  value === undefined || value === null || value === '';
+
+const formatUSD = (value) =>
+  Number(value).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  });
+
+// The few fields an agent actually has to fill carry an explicit badge
+// instead of MUI's asterisk. The badge borrows the app's pill shape but isn't
+// a Pill: that's a button, and a button inside a label would add a tab stop
+// and hover state.
+// Sizes are in em, not rem/px: MUI sizes the outline's notch from an
+// unscaled copy of the label at 0.75em, while the floating label itself is
+// transform-scaled to 0.75, so only em-based sizing keeps the notch flush.
+const {
+  '&:hover': _pillHover,
+  transition: _pillTransition,
+  ...pillShapeSx
+} = pillSx;
+
+const RequiredLabel = ({ children }) => (
+  <Stack
+    component='span'
+    direction='row'
+    alignItems='center'
+    sx={{ gap: '0.375em' }}
+  >
+    <span>{children}</span>
+    <Box
+      component='span'
+      sx={{
+        ...pillShapeSx,
+        px: '0.45em',
+        py: 0,
+        fontSize: '0.65em',
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+        lineHeight: 1.6,
+      }}
+    >
+      Required
+    </Box>
+  </Stack>
+);
+
+// Warm fill + a firmer resting border on required inputs; focus and error
+// keep the theme's own outline.
+const REQUIRED_INPUT_SX = {
+  '& .MuiOutlinedInput-root': { bgcolor: REQUIRED_FILL },
+  '& .MuiOutlinedInput-root:not(.Mui-focused):not(.Mui-error) .MuiOutlinedInput-notchedOutline':
+    { borderColor: 'rgba(5, 17, 24, 0.35)' },
+};
 
 const CreateClientDialog = ({
   open,
@@ -258,38 +325,72 @@ const CreateClientDialog = ({
     setForm(initialForm);
   };
 
+  const missingRequired = REQUIRED_CLIENT_FIELDS.filter((key) =>
+    isEmpty(form[key]),
+  );
+
   useEffect(() => {
-    const hasEmptyFields = REQUIRED_CLIENT_FIELDS.some(
-      (key) =>
-        form[key] === undefined || form[key] === null || form[key] === '',
-    );
-    setDisabled(hasEmptyFields || emailError);
-  }, [form, emailError]);
+    setDisabled(missingRequired.length > 0 || emailError);
+  }, [missingRequired.length, emailError]);
+
+  const monthlyPremium = Number(form.monthly_premium);
+  const annualPremium =
+    form.monthly_premium !== '' && Number.isFinite(monthlyPremium)
+      ? monthlyPremium * 12
+      : null;
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth='md' fullWidth>
-      <DialogTitle>New Client</DialogTitle>
+      <DialogTitle sx={{ pb: 0.5 }}>
+        New Client
+        {/* <Typography
+          variant='body2'
+          color='text.secondary'
+          sx={{ mt: 0.5, fontWeight: 400 }}
+        >
+          {lead
+            ? 'Confirm client details and premium to mark this lead sold. '
+            : 'Enter client details and premium to log the sale. '}
+          <Box
+            component='span'
+            sx={{
+              fontWeight: 600,
+              color: missingRequired.length ? 'text.primary' : 'success.main',
+            }}
+          >
+            {missingRequired.length
+              ? `${missingRequired.length} required field${missingRequired.length === 1 ? '' : 's'} left.`
+              : 'All required fields complete.'}
+          </Box>
+        </Typography> */}
+      </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ pt: 1 }}>
+          {/* Monthly premium is the sale itself (drives the card's Sale amount
+              and AP), so it leads the form with the AP it implies. */}
           <Grid size={12}>
-            <SectionHeader title='Lead information' />
+            <SectionHeader title='Sale Details' />
           </Grid>
-          {/* The one financial the sale needs (drives the card's Sale amount
-              and annual premium), so it leads the form instead of sitting
-              buried among optional fields. */}
-          <Grid size={{ xs: 12, sm: 6 }}>
+          <Grid size={{ xs: 12, sm: 7 }}>
             <NumericFormat
-              style={{ width: '100%' }}
               name='monthly_premium'
-              label='Monthly Premium'
+              label={<RequiredLabel>Monthly Premium</RequiredLabel>}
               value={form.monthly_premium}
               thousandSeparator=','
               decimalScale={2}
               customInput={TextField}
-              required
+              fullWidth
               onValueChange={(values) => {
                 const { value } = values;
                 setForm((prev) => ({ ...prev, monthly_premium: value }));
+              }}
+              sx={{
+                ...REQUIRED_INPUT_SX,
+                '& .MuiInputBase-input': {
+                  fontFamily: MONO,
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                },
               }}
               slotProps={{
                 input: {
@@ -300,23 +401,46 @@ const CreateClientDialog = ({
               }}
             />
           </Grid>
-          {/* Lead Source only matters when a client is keyed in by hand; a
-              converted lead already carries its vendor and the select would
-              just render locked. */}
+          <Grid size={{ xs: 12, sm: 5 }} sx={{ alignSelf: 'center' }}>
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+              }}
+            >
+              Estimated Annual Premium
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: MONO,
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: annualPremium ? 'success.main' : 'text.disabled',
+              }}
+            >
+              {annualPremium !== null
+                ? `${formatUSD(annualPremium)}`
+                : '—'}
+            </Typography>
+          </Grid>
+          {/* Lead Source only matters when a client is keyed in by hand;
+              a converted lead already carries its vendor. */}
           {!lead && (
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, sm: 7 }}>
               {leadVendorsLoading ? (
                 <Skeleton variant='rounded' height={56} />
               ) : (
                 <TextField
-                  sx={{ width: '100%' }}
                   select
                   name='lead_vendor_id'
                   label='Lead Source'
                   value={form.lead_vendor_id}
                   onChange={handleChange}
                   fullWidth
-                  required
+                  sx={REQUIRED_INPUT_SX}
                 >
                   {leadVendors.map((vendor) => (
                     <MenuItem key={vendor.id} value={vendor.id}>
@@ -338,7 +462,7 @@ const CreateClientDialog = ({
               value={form.first_name}
               onChange={handleChange}
               fullWidth
-              required
+              sx={REQUIRED_INPUT_SX}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -348,7 +472,7 @@ const CreateClientDialog = ({
               value={form.last_name}
               onChange={handleChange}
               fullWidth
-              required
+              sx={REQUIRED_INPUT_SX}
             />
           </Grid>
 
@@ -362,7 +486,7 @@ const CreateClientDialog = ({
               helperText={emailError ? 'Invalid email address' : ''}
               type='email'
               fullWidth
-              required
+              sx={REQUIRED_INPUT_SX}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -374,31 +498,56 @@ const CreateClientDialog = ({
               error={phoneError}
               helperText={phoneError ? 'Invalid phone number' : ''}
               fullWidth
-              required
+              sx={REQUIRED_INPUT_SX}
             />
           </Grid>
 
           <Grid size={{ xs: 12, sm: 6 }}>
             <DatePicker
-              label='Date of Birth'
+              label={
+                lead?.date_of_birth ? (
+                  'Date of Birth'
+                ) : (
+                  <RequiredLabel>Date of Birth</RequiredLabel>
+                )
+              }
               format='MM/DD/YYYY'
               value={form.date_of_birth ? dayjs(form.date_of_birth) : null}
               onChange={(value) => handleDateChange('date_of_birth', value)}
               slotProps={{
                 textField: {
                   fullWidth: true,
-                  required: true,
+                  sx: REQUIRED_INPUT_SX,
                 },
                 desktopPaper: { sx: { boxShadow: 3 } },
                 mobilePaper: { sx: { boxShadow: 3 } },
               }}
             />
           </Grid>
+          {/* State is required, so it lives here rather than in the
+              collapsed location fields below. */}
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              name='state'
+              select
+              label='State'
+              value={form.state}
+              onChange={handleChange}
+              fullWidth
+              sx={REQUIRED_INPUT_SX}
+            >
+              {STATES.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               select
               name='marital_status'
-              label='Marital Status (Optional)'
+              label='Marital Status'
               value={form.marital_status}
               onChange={handleChange}
               fullWidth
@@ -411,95 +560,105 @@ const CreateClientDialog = ({
             </TextField>
           </Grid>
 
-          {/* Section 2: Address */}
+          {/* Address and financials are rarely needed to log a sale. The
+              accordion keeps its fields mounted, so the address autocomplete
+              still binds while collapsed. */}
           <Grid size={12}>
-            <SectionHeader title='Location' />
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              name='address'
-              label='Street Address (Optional)'
-              value={form.address}
-              onChange={handleChange}
-              fullWidth
-              inputRef={inputRef}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              name='city'
-              label='City (Optional)'
-              value={form.city}
-              onChange={handleChange}
-              fullWidth
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              name='state'
-              id='outlined-select-currency'
-              select
-              label='State'
-              sx={{ width: '100%' }}
-              value={form.state}
-              onChange={handleChange}
-              fullWidth
-              required
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{
+                mt: 1,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                '&::before': { display: 'none' },
+              }}
             >
-              {STATES.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              name='zip'
-              label='Zip Code (Optional)'
-              value={form.zip}
-              onChange={handleChange}
-              error={zipCodeError}
-              helperText={zipCodeError ? 'Invalid zip code' : ''}
-              fullWidth
-            />
-          </Grid>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant='body2' sx={{ fontWeight: 600 }}>
+                  Add Address & Financial Details
+                </Typography>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  sx={{ ml: 1 }}
+                >
+                  (Optional)
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Grid container spacing={2}>
+                  <Grid size={12}>
+                    <SectionHeader title='Location' />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      name='address'
+                      label='Street Address'
+                      value={form.address}
+                      onChange={handleChange}
+                      fullWidth
+                      inputRef={inputRef}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      name='city'
+                      label='City'
+                      value={form.city}
+                      onChange={handleChange}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      name='zip'
+                      label='Zip Code'
+                      value={form.zip}
+                      onChange={handleChange}
+                      error={zipCodeError}
+                      helperText={zipCodeError ? 'Invalid zip code' : ''}
+                      fullWidth
+                    />
+                  </Grid>
 
-          <Grid size={12}>
-            <SectionHeader title='Employment & Financials' />
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              name='occupation'
-              label='Occupation (Optional)'
-              value={form.occupation}
-              onChange={handleChange}
-              fullWidth
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <NumericFormat
-              style={{ width: '100%' }}
-              name='annual_income'
-              label='Annual Income (Optional)'
-              value={form.annual_income}
-              thousandSeparator=','
-              customInput={TextField}
-              onValueChange={(values) => {
-                const { value } = values; // raw value without formatting
-                setForm((prev) => ({ ...prev, annual_income: value }));
-              }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>$</InputAdornment>
-                  ),
-                },
-              }}
-            />
+                  <Grid size={12}>
+                    <SectionHeader title='Employment & Financials' />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      name='occupation'
+                      label='Occupation'
+                      value={form.occupation}
+                      onChange={handleChange}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <NumericFormat
+                      style={{ width: '100%' }}
+                      name='annual_income'
+                      label='Annual Income'
+                      value={form.annual_income}
+                      thousandSeparator=','
+                      customInput={TextField}
+                      onValueChange={(values) => {
+                        const { value } = values; // raw value without formatting
+                        setForm((prev) => ({ ...prev, annual_income: value }));
+                      }}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position='start'>$</InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
           </Grid>
 
           {error && (
