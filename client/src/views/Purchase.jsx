@@ -376,7 +376,7 @@ const Purchase = () => {
     // Capped at lg (1200px) so the card rows don't stretch on wide screens.
     <Container maxWidth='lg' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
       <Stack spacing={4}>
-        <MarketplaceHeader subtitle='Order real-time lead campaigns, automated software, and on-demand inventory.' />
+        <MarketplaceHeader />
 
         <Box>
           <SectionLabel>Fresh Leads</SectionLabel>
