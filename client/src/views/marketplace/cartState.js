@@ -91,7 +91,10 @@ export const continueShoppingPath = (cart) => {
 
 /**
  * Live inventory and prices for every segment. Query keys match the ones the
- * store pages have always used, so the cache is shared across pages.
+ * store pages have always used, so the cache is shared across pages. Each
+ * report reads every unsold lead in its window, so results stay fresh for a
+ * minute instead of refetching on every page or tab switch; checkout
+ * reserves against live inventory regardless.
  * @return {{bySegment: object, prices: object, isLoading: boolean,
  *   isError: boolean, refetch: Function}}
  */
@@ -108,6 +111,8 @@ export function useMarketplaceInventory() {
         if (!res.ok) throw new Error('Failed to fetch inventory');
         return res.json();
       },
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
     })),
   });
   const bySegment = Object.fromEntries(
