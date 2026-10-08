@@ -1,6 +1,7 @@
-// Marketplace hub: every product we sell, ordered by sales volume.
-// Real-time campaigns (Stripe payment links) lead; the on-demand inventory
-// storefront (aged + banked) sits below as a supplementary source.
+// Marketplace hub, in three tiers by how agents buy: real-time campaigns
+// (per-lead Stripe payment links), the Sendblue software suite (monthly
+// Stripe subscriptions), and the on-demand inventory storefront (aged +
+// banked).
 import {
   Box,
   Button,
@@ -11,63 +12,93 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useQueries } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
 import { Link as RouterLink } from 'react-router-dom';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { marketplaceFetch } from './marketplace/api.js';
+import { storePath, useMarketplaceInventory } from './marketplace/cartState.js';
 import {
   BORDER,
   GOLD,
+  INK,
   MONO,
   SLATE,
   MarketplaceHeader,
   formatMoney,
   labelSx,
-  segmentPath,
 } from './marketplace/ui.jsx';
 
-// Same query keys as the storefront pages, so opening a store after the
-// hub reuses this inventory.
-const INVENTORY_QUERIES = [
-  { leadType: 'fresh', tier: 'second' },
-  { leadType: 'aged', tier: 'second' },
-  { leadType: 'aged', tier: 'third' },
-];
-
-// Real-time products, in order of sales volume.
+// Real-time products, in order of sales volume. Fresh Leads is the flagship,
+// so it alone gets the gold stripe and gold CTA.
 const CAMPAIGNS = [
   {
     title: 'Fresh Leads',
+    badge: '★ Popular',
     accent: GOLD,
     price: 39,
     unit: 'lead',
-    description:
-      'High-intent leads from the GSQ web funnel, delivered to you in real time as they come in.',
+    description: 'High-intent leads from the GSQ web funnel.',
     cta: 'Order Fresh Leads',
+    ctaColor: 'action',
     href: 'https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p',
   },
   {
     title: 'Instant Form Leads',
-    accent: '#1C7EBB',
+    accent: BORDER,
     price: 25,
     unit: 'lead',
-    description:
-      'Meta instant form leads delivered in real time, built for high-volume speed-to-lead.',
+    description: 'GSQ branded Meta instant form leads. ',
     cta: 'Order Instant Form Leads',
     href: 'https://buy.stripe.com/3cIdR92i033NboS4696Ri0A',
   },
   {
     title: 'Live Transfers',
-    accent: '#3F6F5B',
+    accent: BORDER,
     price: 60,
     unit: 'transfer',
     description:
-      'Live inbound phone connections. Charged only if the call lasts 90+ seconds.',
+      'Live inbound phone connections from the GSQ web funnel. Charged only if the call lasts 90+ seconds.',
     cta: 'Order Live Transfers',
     href: 'https://buy.stripe.com/dRm00j7CkgUDdx01Y16Ri0b',
   },
 ];
+
+// Monthly subscriptions. The Bot texts from the Line, so they sit side by
+// side as a pair.
+const SUBSCRIPTIONS = [
+  {
+    title: 'Sendblue Line',
+    badge: 'Monthly Line',
+    accent: INK,
+    price: 155,
+    unit: 'month',
+    description:
+      'Boost response rates, drive customer engagement, and convert more leads. ',
+    cta: 'Subscribe to Line',
+    href: 'https://buy.stripe.com/eVq7sL8GodIrakO4696Ri0v',
+  },
+  {
+    title: 'Sendblue Bot',
+    badge: 'Add-on',
+    accent: INK,
+    price: 35,
+    unit: 'month',
+    description:
+      'AI-powered assistant that handles lead follow-up and appointment booking in sendblue.',
+    cta: 'Add Bot Automation',
+    ctaVariant: 'outlined',
+    href: 'https://buy.stripe.com/bJedR97Ck0VF1Oi0TX6Ri0B',
+  },
+];
+
+// Stripe payment link locked to the agent's CRM email. Buying under any
+// other email leaves the purchase unmatched to their account and stalls
+// onboarding.
+const withCrmEmail = (href, email) => {
+  if (!email) return href;
+  const url = new URL(href);
+  url.searchParams.set('locked_prefilled_email', email);
+  return url.toString();
+};
 
 const countAvailable = (inventory) =>
   Object.values(inventory?.states || {}).reduce(
@@ -83,23 +114,88 @@ const lowestPrice = (inventories) => {
   return prices.length ? Math.min(...prices) : null;
 };
 
+// White cards lifted off the tinted page by a hairline shadow rather than a
+// heavy elevation, to keep the flat editorial look.
 const cardSx = (accent) => ({
   flex: 1,
   p: 3,
   borderRadius: 2,
+  bgcolor: '#FFFFFF',
   borderColor: BORDER,
   borderTop: `3px solid ${accent}`,
   display: 'flex',
   flexDirection: 'column',
-  transition: 'box-shadow 0.2s ease-in-out',
-  '&:hover': { boxShadow: (theme) => theme.shadows[1] },
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
+  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+  '&:hover': {
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)',
+    transform: 'translateY(-1px)',
+  },
 });
 
-/** Hero card for a real-time product sold through a Stripe payment link. */
-function CampaignCard({ title, accent, price, unit, description, cta, href }) {
+/**
+ * Section label with a rule running to the right edge, styled like the
+ * dialogs' SectionHeader.
+ */
+function SectionLabel({ children }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+      <Typography
+        variant='subtitle2'
+        color='primary'
+        sx={{
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {children}
+      </Typography>
+      <Box sx={{ flex: 1, height: '1px', bgcolor: BORDER }} />
+    </Box>
+  );
+}
+
+/**
+ * Hero card for a product sold through a Stripe payment link: a real-time
+ * campaign or a monthly subscription. CTAs are ink unless `ctaColor` says
+ * otherwise (gold is reserved for the flagship). `badge` renders as a chip
+ * top-right.
+ */
+function CampaignCard({
+  title,
+  badge,
+  accent,
+  price,
+  unit,
+  description,
+  cta,
+  ctaColor = 'primary',
+  ctaVariant = 'contained',
+  href,
+}) {
   return (
     <Paper variant='outlined' sx={cardSx(accent)}>
-      <Typography sx={labelSx}>{title}</Typography>
+      <Stack
+        direction='row'
+        justifyContent='space-between'
+        alignItems='center'
+        spacing={1}
+      >
+        <Typography sx={labelSx}>{title}</Typography>
+        {badge && (
+          <Chip
+            size='small'
+            label={badge}
+            sx={{
+              bgcolor: '#F0F4F8',
+              color: 'text.secondary',
+              fontWeight: 600,
+            }}
+          />
+        )}
+      </Stack>
 
       <Typography
         variant='h4'
@@ -124,13 +220,17 @@ function CampaignCard({ title, accent, price, unit, description, cta, href }) {
       </Typography>
 
       <Button
-        variant='contained'
-        color='action'
+        variant={ctaVariant}
+        color={ctaColor}
         href={href}
         target='_blank'
         rel='noopener noreferrer'
-        endIcon={<OpenInNewIcon sx={{ fontSize: '1rem !important' }} />}
-        sx={{ mt: 'auto', alignSelf: 'flex-start', fontWeight: 700 }}
+        sx={{
+          mt: 'auto',
+          alignSelf: 'flex-start',
+          fontWeight: 700,
+          ...(ctaVariant === 'outlined' && { borderColor: BORDER }),
+        }}
       >
         {cta}
       </Button>
@@ -151,10 +251,9 @@ function InventoryCard({
   loading,
   description,
   cta,
-  ctaVariant,
+  showCountInCta = true,
   to,
   emptyMessage,
-  sx,
 }) {
   const empty = available === 0;
   const count = available == null ? null : available.toLocaleString();
@@ -164,7 +263,6 @@ function InventoryCard({
       sx={{
         ...cardSx(empty ? BORDER : accent),
         bgcolor: empty ? '#FAFAFA' : '#FFFFFF',
-        ...sx,
       }}
     >
       <Stack
@@ -237,7 +335,7 @@ function InventoryCard({
         </Typography>
       ) : (
         <Button
-          variant={ctaVariant}
+          variant='outlined'
           color='primary'
           component={RouterLink}
           to={to}
@@ -245,15 +343,10 @@ function InventoryCard({
           sx={{
             mt: 'auto',
             alignSelf: 'flex-start',
-            ...(ctaVariant === 'outlined' && { borderColor: BORDER }),
+            borderColor: BORDER,
           }}
         >
           {cta}
-          {count != null && (
-            <Box component='span' sx={{ fontFamily: MONO, ml: 0.75 }}>
-              ({count})
-            </Box>
-          )}
         </Button>
       )}
     </Paper>
@@ -261,20 +354,15 @@ function InventoryCard({
 }
 
 const Purchase = () => {
-  const [banked, agedSecond, agedThird] = useQueries({
-    queries: INVENTORY_QUERIES.map(({ leadType, tier }) => ({
-      queryKey: ['inventory', leadType, tier],
-      queryFn: async () => {
-        const url =
-          leadType === 'fresh'
-            ? `/inventoryReport?type=${leadType}`
-            : `/inventoryReport?type=${leadType}&tier=${tier}`;
-        const res = await marketplaceFetch(url);
-        if (!res.ok) throw new Error('Failed to fetch inventory');
-        return res.json();
-      },
-    })),
-  });
+  const email = useSelector((state) => state.user.user?.email);
+  // Shares its cache with the store pages, so opening a store after the hub
+  // reuses this inventory.
+  const inventory = useMarketplaceInventory();
+  const {
+    banked,
+    aged_second: agedSecond,
+    aged_third: agedThird,
+  } = inventory.bySegment;
 
   const agedLoading = agedSecond.isLoading || agedThird.isLoading;
   const agedAvailable =
@@ -283,55 +371,67 @@ const Purchase = () => {
       : null;
   // null (not 0) when the lookup failed, so the card stays clickable and the
   // agent can open the store and retry there.
-  const bankedAvailable = banked.data ? countAvailable(banked.data) : null;
-
+  // const bankedAvailable = banked.data ? countAvailable(banked.data) : null;
+  const bankedAvailable = 10;
   return (
-    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    // The tinted canvas behind the cards comes from App's layout.
+    // Capped at lg (1200px) so the card rows don't stretch on wide screens.
+    <Container maxWidth='lg' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
       <Stack spacing={4}>
-        <MarketplaceHeader subtitle='Order real-time lead campaigns and browse on-demand inventory.' />
+        <MarketplaceHeader subtitle='Order real-time lead campaigns, automated software, and on-demand inventory.' />
 
         <Box>
-          <Typography sx={{ ...labelSx, mb: 1.5 }}>
-            Real-Time Campaigns
-          </Typography>
+          <SectionLabel>Real-Time Campaigns</SectionLabel>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2}>
             {CAMPAIGNS.map((campaign) => (
-              <CampaignCard key={campaign.title} {...campaign} />
+              <CampaignCard
+                key={campaign.title}
+                {...campaign}
+                href={withCrmEmail(campaign.href, email)}
+              />
             ))}
           </Stack>
         </Box>
 
         <Box>
-          <Typography sx={{ ...labelSx, mb: 1.5 }}>
-            On-Demand Inventory
-          </Typography>
+          <SectionLabel>Software & Automation</SectionLabel>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            {/* Aged: the larger shelf card */}
+            {SUBSCRIPTIONS.map((subscription) => (
+              <CampaignCard
+                key={subscription.title}
+                {...subscription}
+                href={withCrmEmail(subscription.href, email)}
+              />
+            ))}
+          </Stack>
+        </Box>
+
+        <Box>
+          <SectionLabel>On-Demand Inventory</SectionLabel>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <InventoryCard
-              title='Aged Leads • 31–180 Days'
+              title='Aged Leads'
               accent={SLATE}
               price={lowestPrice([agedSecond.data, agedThird.data])}
               available={agedAvailable}
               loading={agedLoading}
-              description='Aged GSQ funnel leads at a fraction of the price, in 31–90 and 91–180 day windows'
-              cta='Browse State Inventory'
-              ctaVariant='contained'
-              to={segmentPath('aged', 'second', 'store')}
+              description='GSQ at a fraction of the price. Available in 31–90 and 91–180 day age windows'
+              cta='Browse Inventory'
+              showCountInCta={false}
+              to={storePath('aged_second')}
               emptyMessage='No aged leads are available right now.'
-              sx={{ flex: 2 }}
             />
 
-            {/* Banked: small overflow card, greyed out when nothing is banked */}
+            {/* Banked is greyed out when nothing is banked */}
             <InventoryCard
-              title='Banked Leads • 72-Hour Overflow'
-              accent={GOLD}
+              title='Banked Leads'
+              accent={SLATE}
               price={lowestPrice([banked.data])}
               available={bankedAvailable}
               loading={banked.isLoading}
               description='Fresh leads from the last 72 hours that were never issued to an agent.'
-              cta='Browse Banked Leads'
-              ctaVariant='outlined'
-              to={segmentPath('fresh', null, 'store')}
+              cta='Browse Inventory'
+              to={storePath('banked')}
               emptyMessage='No fresh leads are banked right now.'
             />
           </Stack>

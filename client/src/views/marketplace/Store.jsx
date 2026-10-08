@@ -10,7 +10,7 @@ import {
   DialogActions,
   DialogContent,
   InputAdornment,
-  Link,
+  Chip,
   List,
   ListItemButton,
   MenuItem,
@@ -20,18 +20,27 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import {
   Link as RouterLink,
   useParams,
   useSearchParams,
 } from 'react-router-dom';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
-import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
+import { MARKETPLACE_PATH } from './api.js';
+import {
+  CART_PATH,
+  cartLines,
+  getSegment,
+  linesCount,
+  linesTotal,
+  rememberStore,
+  setLineQty,
+  useCart,
+  useMarketplaceInventory,
+} from './cartState.js';
 import {
   BORDER,
   DIVIDER,
@@ -44,13 +53,9 @@ import {
   MarketplaceHeader,
   QtyStepper,
   SegmentToggle,
-  cartKeyFor,
   formatMoney,
-  getSegment,
   labelSx,
   leadTypeColor,
-  readCart,
-  segmentPath,
 } from './ui.jsx';
 
 const STATE_ABBR = {
@@ -112,19 +117,19 @@ const INCLUDED_FIELDS = [
   'Full Name',
   'Email Address',
   'Phone Number',
-  'State',
-  'Date of Birth',
-  'Gender',
-  'Height',
-  'Weight',
-  'Selected Coverage Amount',
-  'Selected Premium',
-  'Selected Carrier',
-  'Selected Plan Type',
-  'Beneficiary Information',
-  'Blood Pressure Medication',
-  'Cholesterol Medication',
   'Reason for Coverage',
+  'State',
+  'Gender',
+  'Date of Birth',
+  'Height / Weight',
+  'Tobacco Use',
+  'Health Rating',
+  'Coverage Amount',
+  'Monthly Budget',
+  'Beneficiary',
+  'Best Time to Call',
+  'Selected Carrier',
+  'Selected Plan',
 ];
 
 const FRESH_EXPLAINER = [
@@ -300,8 +305,8 @@ function StateRail({ states, cart, selectedState, onSelect }) {
                   fontFamily: MONO,
                   fontSize: '0.72rem',
                   fontWeight: 700,
-                  bgcolor: isSelected ? 'rgba(255,255,255,0.12)' : '#F0F4F8',
-                  color: isSelected ? '#FFFFFF' : 'text.secondary',
+                  bgcolor: isSelected ? 'rgba(255,255,255,0.12)' : '#F4F6F8',
+                  color: isSelected ? '#FFFFFF' : '#667085',
                 }}
               >
                 {stateCode(state.name)}
@@ -331,20 +336,18 @@ function StateRail({ states, cart, selectedState, onSelect }) {
                 </Typography>
               </Box>
               {inCart > 0 && (
-                <Box
+                <Chip
+                  label={`${inCart} in cart`}
+                  size='small'
                   sx={{
-                    px: 0.75,
-                    py: 0.25,
-                    borderRadius: 1,
-                    fontFamily: MONO,
-                    fontSize: '0.7rem',
+                    height: 20,
+                    fontSize: '0.65rem',
                     fontWeight: 700,
-                    bgcolor: isSelected ? GOLD : 'warning.light',
-                    color: isSelected ? INK : 'warning.dark',
+                    bgcolor: '#FFF8E7',
+                    color: '#B78103',
+                    border: '1px solid #F5E1A4',
                   }}
-                >
-                  {inCart} in cart
-                </Box>
+                />
               )}
             </ListItemButton>
           );
@@ -369,10 +372,10 @@ export default function Store() {
   const [searchParams] = useSearchParams();
   const tier = searchParams.get('tier') === 'third' ? 'third' : 'second';
   const segment = getSegment(leadType, tier);
-  const cartKey = cartKeyFor(leadType, tier);
-  const cartPath = segmentPath(leadType, tier, 'cart');
   const [selectedState, setSelectedState] = useState(null);
-  const [cart, setCart] = useState(() => readCart(cartKey));
+  // One cart across every segment; this page edits its own segment's slice.
+  const [cart, updateCart] = useCart();
+  const segmentCart = cart[segment.key] || {};
   const [showExplainer, setShowExplainer] = useState(() => {
     if (!isFresh) return false;
     try {
@@ -391,39 +394,21 @@ export default function Store() {
     setShowExplainer(false);
   };
 
-  const updateCart = useCallback(
-    (updater) => {
-      setCart((prev) => {
-        const next = typeof updater === 'function' ? updater(prev) : updater;
-        localStorage.setItem(cartKey, JSON.stringify(next));
-        return next;
-      });
-    },
-    [cartKey],
-  );
-
-  // Switching segments swaps to that segment's own cart.
+  // Switching segments starts the state picker over.
   useEffect(() => {
-    setCart(readCart(cartKey));
     setSelectedState(null);
-  }, [cartKey]);
+    rememberStore(segment.key);
+  }, [segment.key]);
 
+  // Every segment's inventory: this page's for the picker, all of them to
+  // price the shared cart.
+  const marketplaceInventory = useMarketplaceInventory();
   const {
     data: inventory,
     isLoading: loading,
     isError: error,
     refetch: refetchInventory,
-  } = useQuery({
-    queryKey: ['inventory', leadType, tier],
-    queryFn: async () => {
-      const url = isFresh
-        ? `/inventoryReport?type=${leadType}`
-        : `/inventoryReport?type=${leadType}&tier=${tier}`;
-      const res = await marketplaceFetch(url);
-      if (!res.ok) throw new Error('Failed to fetch inventory');
-      return res.json();
-    },
-  });
+  } = marketplaceInventory.bySegment[segment.key];
 
   const states = inventory?.states;
   const verifiedPrice = inventory?.prices?.verified ?? 0;
@@ -457,31 +442,25 @@ export default function Store() {
 
   const setQuantity = (type, value) => {
     if (!activeState) return;
-    updateCart((prev) => {
-      const current = prev[selectedState] || { verified: 0, unverified: 0 };
-      return {
-        ...prev,
-        [selectedState]: {
-          ...current,
-          [type]: Math.min(Math.max(0, value), activeState[type]),
-        },
-      };
-    });
+    updateCart((prev) =>
+      setLineQty(
+        prev,
+        segment.key,
+        selectedState,
+        type,
+        Math.min(value, activeState[type]),
+      ),
+    );
   };
 
-  const cartItems = Object.values(cart).filter(
-    (q) => q.verified > 0 || q.unverified > 0,
-  );
-  const cartCount = cartItems.reduce(
-    (sum, q) => sum + q.verified + q.unverified,
-    0,
-  );
-  const cartTotal = cartItems.reduce(
-    (sum, q) =>
-      sum + q.verified * verifiedPrice + q.unverified * unverifiedPrice,
-    0,
-  );
-  const currentQty = cart[selectedState] || { verified: 0, unverified: 0 };
+  // Totals cover the whole shared cart, not just this segment.
+  const lines = cartLines(cart, marketplaceInventory.prices);
+  const cartCount = linesCount(lines);
+  const cartTotal = linesTotal(lines);
+  const currentQty = segmentCart[selectedState] || {
+    verified: 0,
+    unverified: 0,
+  };
 
   return (
     <Container
@@ -554,57 +533,23 @@ export default function Store() {
 
       <Stack spacing={2.5}>
         <MarketplaceHeader
+          breadcrumb={{ label: 'All products', to: MARKETPLACE_PATH }}
           actions={
-            <CartButton count={cartCount} total={cartTotal} to={cartPath} />
+            // Once the checkout bar is showing it's the primary path, so the
+            // header cart steps back to a quiet count.
+            <CartButton
+              count={cartCount}
+              total={cartTotal}
+              compact={cartCount > 0}
+            />
           }
         />
 
         <Paper variant='outlined' sx={{ p: 2 }}>
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            justifyContent='space-between'
-            alignItems={{ md: 'center' }}
-            spacing={1.5}
-          >
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={2}
-              alignItems={{ sm: 'center' }}
-            >
-              <SegmentToggle leadType={leadType} tier={tier} />
-              <Typography variant='body2' color='text.secondary'>
-                {segment.window}
-                {!loading && !error && (
-                  <>
-                    {' • '}
-                    <Box
-                      component='span'
-                      sx={{ fontFamily: MONO, color: 'text.primary' }}
-                    >
-                      {totalAvailable.toLocaleString()}
-                    </Box>{' '}
-                    available
-                  </>
-                )}
-              </Typography>
-            </Stack>
-            <Link
-              component={RouterLink}
-              to={MARKETPLACE_PATH}
-              underline='hover'
-              color='text.secondary'
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-                fontSize: '0.85rem',
-                fontWeight: 600,
-              }}
-            >
-              <ArrowBackIcon sx={{ fontSize: 16 }} />
-              All products
-            </Link>
-          </Stack>
+          <SegmentToggle
+            segmentKey={segment.key}
+            activeCount={loading || error ? null : totalAvailable}
+          />
         </Paper>
 
         {loading ? (
@@ -639,7 +584,7 @@ export default function Store() {
           <Stack direction='row' spacing={3} alignItems='flex-start'>
             <StateRail
               states={allStates}
-              cart={cart}
+              cart={segmentCart}
               selectedState={selectedState}
               onSelect={setSelectedState}
             />
@@ -773,8 +718,7 @@ export default function Store() {
               >
                 {cartCount}
               </Box>{' '}
-              {segment.unit}
-              {cartCount === 1 ? '' : 's'} in cart •{' '}
+              {cartCount === 1 ? 'lead' : 'leads'} in cart •{' '}
               <Box component='span' sx={{ fontWeight: 600 }}>
                 Total:
               </Box>{' '}
@@ -793,7 +737,7 @@ export default function Store() {
               variant='contained'
               color='action'
               component={RouterLink}
-              to={cartPath}
+              to={CART_PATH}
               endIcon={<ArrowForwardIcon />}
               sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
             >

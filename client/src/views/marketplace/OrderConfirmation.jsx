@@ -11,19 +11,15 @@ import {
   Typography,
 } from '@mui/material';
 import { Fragment, useEffect, useState, useRef } from 'react';
-import {
-  useSearchParams,
-  useParams,
-  Link as RouterLink,
-} from 'react-router-dom';
+import { useSearchParams, Link as RouterLink } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
 import DownloadIcon from '@mui/icons-material/Download';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { marketplaceFetch } from './api.js';
-import { BORDER, GOLD, MarketplaceHeader, segmentPath } from './ui.jsx';
+import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
+import { BORDER, GOLD, MarketplaceHeader } from './ui.jsx';
 
 function formatCrmList(methods) {
   const strong = (name) => (
@@ -56,29 +52,20 @@ function triggerDownload(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-function readOrderCtx() {
-  try {
-    return JSON.parse(sessionStorage.getItem('fex-order-ctx')) || null;
-  } catch {
-    return null;
-  }
-}
-
-/** Centered result card with a status-colored top stripe. */
-function StatusCard({ accent, icon, title, children }) {
+/** Centered result card. */
+function StatusCard({ icon, title, children }) {
   return (
     <Paper
       variant='outlined'
       sx={{
         maxWidth: 560,
         width: '100%',
-        mx: 'auto',
+        // Stack spacing zeroes child margins, so mx: auto can't center it
+        alignSelf: 'center',
         p: 4,
         textAlign: 'center',
         borderRadius: 2,
         borderColor: BORDER,
-        borderTop: '3px solid',
-        borderTopColor: accent,
       }}
     >
       {icon}
@@ -92,16 +79,10 @@ function StatusCard({ accent, icon, title, children }) {
 
 export default function OrderConfirmation() {
   const [searchParams] = useSearchParams();
-  const { leadType } = useParams();
+  // Ownership is checked server-side against the signed-in CRM user, so the
+  // session id alone is enough to complete the order.
   const sessionId = searchParams.get('session_id');
-
-  // Order context persists across the Stripe redirect in sessionStorage
-  // (written by Cart.jsx when createCheckoutSession returns); only its tier
-  // is used, for the back-to-store link. Ownership is checked server-side
-  // against the signed-in CRM user, so the session id alone is enough.
-  const ctxRef = useRef(readOrderCtx());
-  const ctx = ctxRef.current;
-  const storeLink = segmentPath(leadType, ctx?.tier, 'store');
+  const storeLink = MARKETPLACE_PATH;
 
   const [status, setStatus] = useState(sessionId ? 'loading' : 'failed');
   const [csvBlob, setCsvBlob] = useState(null);
@@ -115,7 +96,7 @@ export default function OrderConfirmation() {
       const res = await marketplaceFetch(`/completeOrder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, leadType }),
+        body: JSON.stringify({ sessionId }),
       });
       if (res.status === 404) {
         throw new Error('NOT_READY');
@@ -188,7 +169,6 @@ export default function OrderConfirmation() {
 
         {status === 'loading' && (
           <StatusCard
-            accent={GOLD}
             icon={<CircularProgress size={40} sx={{ color: GOLD }} />}
             title='Finalizing your order…'
           >
@@ -200,7 +180,6 @@ export default function OrderConfirmation() {
 
         {status === 'succeeded' && (
           <StatusCard
-            accent='success.main'
             icon={
               <CheckCircleOutlinedIcon
                 sx={{ fontSize: 48, color: 'success.main' }}
@@ -250,7 +229,6 @@ export default function OrderConfirmation() {
 
         {status === 'timed_out' && (
           <StatusCard
-            accent='warning.main'
             icon={
               <HourglassTopIcon sx={{ fontSize: 48, color: 'warning.main' }} />
             }
@@ -261,13 +239,12 @@ export default function OrderConfirmation() {
               order. <strong>No charge was made.</strong> Please return to the
               store and try again.
             </Typography>
-            {backToStore('Back to Store')}
+            {backToStore('Back to Marketplace')}
           </StatusCard>
         )}
 
         {status === 'failed' && (
           <StatusCard
-            accent='error.main'
             icon={
               <ErrorOutlineIcon sx={{ fontSize: 48, color: 'error.main' }} />
             }
@@ -278,7 +255,7 @@ export default function OrderConfirmation() {
               email — if payment succeeded we&apos;ve sent your leads there.
               Otherwise please contact info@fexdigital.com.
             </Typography>
-            {backToStore('Return to Store')}
+            {backToStore('Return to Marketplace')}
           </StatusCard>
         )}
       </Stack>

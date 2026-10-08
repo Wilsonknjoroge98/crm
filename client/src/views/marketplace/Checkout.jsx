@@ -20,8 +20,6 @@ import {
   useLocation,
   Navigate,
   useNavigate,
-  useParams,
-  useSearchParams,
   useBlocker,
   Link as RouterLink,
 } from 'react-router-dom';
@@ -43,6 +41,7 @@ import {
   marketplaceFetch,
   cancelReservation,
 } from './api.js';
+import { CART_PATH, clearCart, linesCount } from './cartState.js';
 import {
   BORDER,
   MONO,
@@ -50,9 +49,7 @@ import {
   OrderLines,
   SummaryRow,
   formatMoney,
-  getSegment,
   labelSx,
-  segmentPath,
 } from './ui.jsx';
 
 const RESERVATION_SECONDS = 10 * 60;
@@ -237,7 +234,6 @@ function CheckoutContent({
   email,
   fallbackTotal,
   sessionId,
-  tier,
   onPaymentAttempt,
   onPaymentFailed,
   onExtended,
@@ -247,7 +243,6 @@ function CheckoutContent({
   const checkout = unwrapCheckout(rawCheckout);
   const initError = checkoutError(rawCheckout);
   const navigate = useNavigate();
-  const { leadType } = useParams();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState(null);
   const [agreed, setAgreed] = useState(false);
@@ -276,17 +271,15 @@ function CheckoutContent({
         >
           Navigating away from checkout (cancel, browser back, or timer expiry)
           releases your reservation and ends the session — the back button can't
-          bring it back. Return to the store to start a new order.
+          bring it back. Return to the Marketplace to start a new order.
         </Typography>
         <Button
           variant='contained'
           color='action'
-          onClick={() =>
-            navigate(segmentPath(leadType, tier, 'store'), { replace: true })
-          }
+          onClick={() => navigate(MARKETPLACE_PATH, { replace: true })}
           sx={{ fontWeight: 700 }}
         >
-          Back to Store
+          Back to Marketplace
         </Button>
       </Paper>
     );
@@ -339,9 +332,7 @@ function CheckoutContent({
     // Sync success — Stripe hasn't redirected us, navigate manually.
     // Async methods would have already redirected the browser via
     // return_url set on the session.
-    navigate(
-      `${MARKETPLACE_PATH}/${leadType}/order-confirmation?session_id=${sessionId}`,
-    );
+    navigate(`${MARKETPLACE_PATH}/order-confirmation?session_id=${sessionId}`);
   };
 
   return (
@@ -519,15 +510,7 @@ function ReservationTimer({ secondsLeft }) {
 export default function Checkout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { leadType } = useParams();
-  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const tier = searchParams.get('tier') === 'third' ? 'third' : 'second';
-  const segment = getSegment(leadType, tier);
-  const cartKey =
-    leadType === 'fresh'
-      ? `fex-cart-${leadType}`
-      : `fex-cart-${leadType}-${tier}`;
   const { clientSecret, sessionId, items, total, email } = location.state || {};
   // Source deadline from history state so refresh / Ctrl+Shift+T shows
   // real remaining time, not a fresh 10:00. Fallback if someone lands
@@ -562,7 +545,7 @@ export default function Checkout() {
   // (which redirects away) never triggers the clear.
   useEffect(() => {
     if (!clientSecret) return;
-    localStorage.removeItem(cartKey);
+    clearCart();
   }, [clientSecret]);
 
   // Controls the auto-cancel path below. Our Pay button flips this to
@@ -595,7 +578,7 @@ export default function Checkout() {
       const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
       setSecondsLeft(remaining);
       if (remaining === 0) {
-        navigate(segmentPath(leadType, tier, 'store'), { replace: true });
+        navigate(MARKETPLACE_PATH, { replace: true });
       }
     };
     tick();
@@ -640,15 +623,17 @@ export default function Checkout() {
 
   // Redirect to cart if no checkout data
   if (!clientSecret || !items || !sessionId) {
-    return <Navigate to={segmentPath(leadType, tier, 'cart')} replace />;
+    return <Navigate to={CART_PATH} replace />;
   }
+
+  const leadCount = linesCount(items);
 
   return (
     <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
       <Stack spacing={2.5}>
         <MarketplaceHeader
           title='Checkout'
-          subtitle={`${segment.label} • ${segment.window}`}
+          subtitle={`${leadCount} lead${leadCount === 1 ? '' : 's'} reserved for your order.`}
           actions={
             <>
               {!sessionDead && <ReservationTimer secondsLeft={secondsLeft} />}
@@ -656,7 +641,7 @@ export default function Checkout() {
                 variant='outlined'
                 color='primary'
                 component={RouterLink}
-                to={segmentPath(leadType, tier, 'store')}
+                to={MARKETPLACE_PATH}
                 startIcon={<CloseIcon />}
                 sx={{ whiteSpace: 'nowrap', borderColor: BORDER }}
               >
@@ -675,7 +660,6 @@ export default function Checkout() {
             email={email}
             fallbackTotal={total}
             sessionId={sessionId}
-            tier={tier}
             onPaymentAttempt={onPaymentAttempt}
             onPaymentFailed={onPaymentFailed}
             onExtended={resetTimer}

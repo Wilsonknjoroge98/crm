@@ -690,6 +690,14 @@ const matchProduct = (order) =>
       (product.tier === undefined || product.tier === (order.tier || 'second')),
   );
 
+// A stripe_orders doc is one line of an order: invoice sales are one doc per
+// invoice, marketplace carts one doc per (segment, verified) line. Lines of
+// the same order share `orderId`. Docs written before orderId existed fall
+// back to their doc id, minus the `_verified` / `_unverified` suffix the
+// marketplace used to split a cart with.
+const orderKey = (doc) =>
+  doc.data().orderId || doc.id.replace(/_(verified|unverified)$/, '');
+
 const parseBoundary = (value, endOfDay) => {
   if (!value) return null;
   const date = new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`);
@@ -719,85 +727,25 @@ gsqRouter.get('/sales-analytics', async (req, res) => {
 
     const snapshot = await query.get();
     const orders = snapshot.docs.map((doc) => doc.data());
-
-    // Previous period is the immediately preceding window of equal length,
-    // used to flag customers who bought last period but not this one.
-    let previousPeriod = null;
-    let churnedUsers = [];
-    if (startDate && endDate) {
-      const previousEnd = new Date(startDate.getTime() - 1);
-      const previousStart = new Date(
-        previousEnd.getTime() - (endDate.getTime() - startDate.getTime()),
-      );
-
-      const previousSnapshot = await db
-        .collection('stripe_orders')
-        .where('createdAt', '>=', previousStart)
-        .where('createdAt', '<=', previousEnd)
-        .get();
-      const previousOrders = previousSnapshot.docs.map((doc) => doc.data());
-
-      const currentEmails = new Set(
-        orders.map((order) => String(order.email || '').toLowerCase()).filter(Boolean),
-      );
-
-      const previousByCustomer = new Map();
-      previousOrders.forEach((order) => {
-        const email = String(order.email || '').toLowerCase();
-        if (!email) return;
-
-        const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : null;
-        const entry = previousByCustomer.get(email) || {
-          email,
-          orders: 0,
-          revenue: 0,
-          lastPurchaseAt: null,
-          products: new Set(),
-        };
-        entry.orders += 1;
-        entry.revenue += Number(order.amountPaid) || 0;
-        if (createdAt && (!entry.lastPurchaseAt || createdAt > entry.lastPurchaseAt)) {
-          entry.lastPurchaseAt = createdAt;
-        }
-        const product = matchProduct(order);
-        if (product) entry.products.add(product.name);
-        previousByCustomer.set(email, entry);
-      });
-
-      churnedUsers = [...previousByCustomer.values()]
-        .filter((entry) => !currentEmails.has(entry.email))
-        .map((entry) => ({
-          email: entry.email,
-          lastPurchaseDate: entry.lastPurchaseAt
-            ? entry.lastPurchaseAt.toISOString()
-            : null,
-          previousPeriodOrders: entry.orders,
-          previousPeriodRevenue: round2(entry.revenue),
-          products: [...entry.products],
-        }))
-        .sort((a, b) => b.previousPeriodRevenue - a.previousPeriodRevenue);
-
-      previousPeriod = {
-        startDate: previousStart.toISOString().slice(0, 10),
-        endDate: previousEnd.toISOString().slice(0, 10),
-      };
-    }
+    const orderCount = new Set(snapshot.docs.map(orderKey)).size;
 
     const grossRevenue = orders.reduce(
       (total, order) => total + (Number(order.amountPaid) || 0),
       0,
     );
 
+    // Distinct orders per customer, so a multi-line cart counts once.
     const ordersByCustomer = new Map();
-    orders.forEach((order) => {
-      const email = String(order.email || '').toLowerCase();
+    snapshot.docs.forEach((doc) => {
+      const email = String(doc.data().email || '').toLowerCase();
       if (!email) return;
-      ordersByCustomer.set(email, (ordersByCustomer.get(email) || 0) + 1);
+      if (!ordersByCustomer.has(email)) ordersByCustomer.set(email, new Set());
+      ordersByCustomer.get(email).add(orderKey(doc));
     });
     const uniqueCustomers = ordersByCustomer.size;
     // Repeat buyers are customers with more than two orders in the period.
     const repeatCustomers = [...ordersByCustomer.values()].filter(
-      (count) => count > 2,
+      (customerOrders) => customerOrders.size > 2,
     ).length;
 
     const totals = new Map(
@@ -846,9 +794,9 @@ gsqRouter.get('/sales-analytics', async (req, res) => {
         endDate: req.query.endDate || null,
         totals: {
           grossRevenue: round2(grossRevenue),
-          orders: orders.length,
+          orders: orderCount,
           averageOrderValue:
-            orders.length > 0 ? round2(grossRevenue / orders.length) : 0,
+            orderCount > 0 ? round2(grossRevenue / orderCount) : 0,
           uniqueCustomers,
           repeatBuyerRate:
             uniqueCustomers > 0
@@ -862,8 +810,6 @@ gsqRouter.get('/sales-analytics', async (req, res) => {
           volume: categoryTotals.get(leadType).volume,
           revenue: round2(categoryTotals.get(leadType).revenue),
         })),
-        previousPeriod,
-        churnedUsers,
       },
     });
   } catch (error) {

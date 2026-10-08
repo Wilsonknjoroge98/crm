@@ -242,8 +242,20 @@ const router = createBrowserRouter([
         ),
       },
       marketplaceRoute('/:leadType/store', MarketplaceStore),
-      marketplaceRoute('/:leadType/cart', MarketplaceCart),
-      marketplaceRoute('/:leadType/checkout', MarketplaceCheckout),
+      // One shared cart across segments.
+      marketplaceRoute('/cart', MarketplaceCart),
+      marketplaceRoute('/checkout', MarketplaceCheckout),
+      marketplaceRoute('/order-confirmation', MarketplaceOrderConfirmation),
+      // Per-segment URLs from before the shared cart. Stripe still returns
+      // orders placed with an older client to the per-segment confirmation.
+      {
+        path: '/purchase-leads/:leadType/cart',
+        element: <Navigate to='/purchase-leads/cart' replace />,
+      },
+      {
+        path: '/purchase-leads/:leadType/checkout',
+        element: <Navigate to='/purchase-leads/cart' replace />,
+      },
       marketplaceRoute(
         '/:leadType/order-confirmation',
         MarketplaceOrderConfirmation,

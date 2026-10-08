@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   IconButton,
+  Link,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
@@ -13,11 +14,12 @@ import {
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import QtyInput from './QtyInput.jsx';
-import { MARKETPLACE_PATH } from './api.js';
+import { CART_PATH, SEGMENTS, storePath } from './cartState.js';
 
 export const MONO = '"JetBrains Mono", monospace';
 export const SANS = '"Inter", sans-serif';
@@ -44,70 +46,15 @@ export const formatMoney = (amount) =>
     maximumFractionDigits: 2,
   })}`;
 
-// The three things the storefront sells, in order of sales volume. `fresh`
-// is what the CRM calls Banked Leads; aged is split into two age windows
-// (`tier`).
-export const SEGMENTS = [
-  {
-    key: 'second',
-    leadType: 'aged',
-    tier: 'second',
-    label: '31–90 Day Aged',
-    unit: 'aged lead',
-    window: 'Submitted 31–90 days ago',
-  },
-  {
-    key: 'third',
-    leadType: 'aged',
-    tier: 'third',
-    label: '91–180 Day Aged',
-    unit: 'aged lead',
-    window: 'Submitted 91–180 days ago',
-  },
-  {
-    key: 'fresh',
-    leadType: 'fresh',
-    tier: null,
-    label: 'Banked Leads',
-    unit: 'banked lead',
-    window: 'Submitted within the last 72 hours',
-  },
-];
-
-export const getSegment = (leadType, tier) =>
-  SEGMENTS.find((s) =>
-    leadType === 'fresh'
-      ? s.key === 'fresh'
-      : s.key === (tier === 'third' ? 'third' : 'second'),
-  );
-
-// URL of a storefront page ('store' | 'cart' | 'checkout') for a segment.
-export const segmentPath = (leadType, tier, page) =>
-  `${MARKETPLACE_PATH}/${leadType}/${page}${
-    leadType === 'fresh' ? '' : `?tier=${tier === 'third' ? 'third' : 'second'}`
-  }`;
-
-// Each segment keeps its own cart in localStorage.
-export const cartKeyFor = (leadType, tier) =>
-  leadType === 'fresh'
-    ? `fex-cart-${leadType}`
-    : `fex-cart-${leadType}-${tier === 'third' ? 'third' : 'second'}`;
-
-export const readCart = (key) => {
-  try {
-    return JSON.parse(localStorage.getItem(key)) || {};
-  } catch {
-    return {};
-  }
-};
-
 /**
- * Page title row, matching the Business tab: serif h4 + subtitle on the left,
- * actions on the right.
+ * Page title row, matching the Business tab: serif h4 on the left, actions on
+ * the right. Beneath the title sits the optional subtitle and/or `breadcrumb`
+ * ({ label, to }) back link.
  */
 export function MarketplaceHeader({
   title = 'Marketplace',
-  subtitle = 'Order leads directly to your pipeline.',
+  subtitle = '',
+  breadcrumb,
   actions,
 }) {
   return (
@@ -119,7 +66,26 @@ export function MarketplaceHeader({
     >
       <Box>
         <Typography variant='h4'>{title}</Typography>
-        <Typography color='text.secondary'>{subtitle}</Typography>
+        {subtitle && <Typography color='text.secondary'>{subtitle}</Typography>}
+        {breadcrumb && (
+          <Link
+            component={RouterLink}
+            to={breadcrumb.to}
+            underline='hover'
+            color='text.secondary'
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.5,
+              mt: 0.5,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+          >
+            <ArrowBackIcon sx={{ fontSize: 16 }} />
+            {breadcrumb.label}
+          </Link>
+        )}
       </Box>
       {actions && (
         <Stack direction='row' spacing={1.5} alignItems='center'>
@@ -130,8 +96,27 @@ export function MarketplaceHeader({
   );
 }
 
-/** Gold "Cart (n) • $x" action that opens the segment's cart. */
-export function CartButton({ count, total, to }) {
+/**
+ * Gold "Cart (n) • $x" action that opens the shared cart. `compact` renders a
+ * quiet outlined "🛒 n" instead, for pages where another gold CTA (the store's
+ * checkout bar) is already the primary path.
+ */
+export function CartButton({ count, total, to = CART_PATH, compact }) {
+  if (compact) {
+    return (
+      <Button
+        variant='outlined'
+        color='primary'
+        component={RouterLink}
+        to={to}
+        aria-label={`Cart, ${count} lead${count === 1 ? '' : 's'}`}
+        startIcon={<ShoppingBagOutlinedIcon />}
+        sx={{ borderColor: BORDER, fontFamily: MONO, fontWeight: 700 }}
+      >
+        {count}
+      </Button>
+    );
+  }
   return (
     <Button
       variant='contained'
@@ -156,19 +141,20 @@ export function CartButton({ count, total, to }) {
   );
 }
 
-/** Switches between Banked / 31–90 / 91–180 storefronts. */
-export function SegmentToggle({ leadType, tier }) {
+/**
+ * Switches between the 31–90 / 91–180 / Banked storefronts. `activeCount`
+ * shows the selected segment's availability inline, e.g. "31–90 Day Aged (333)".
+ */
+export function SegmentToggle({ segmentKey, activeCount }) {
   const navigate = useNavigate();
-  const current = getSegment(leadType, tier).key;
   return (
     <ToggleButtonGroup
-      value={current}
+      value={segmentKey}
       exclusive
       size='small'
       onChange={(event, value) => {
-        if (!value || value === current) return;
-        const next = SEGMENTS.find((s) => s.key === value);
-        navigate(segmentPath(next.leadType, next.tier, 'store'));
+        if (!value || value === segmentKey) return;
+        navigate(storePath(value));
       }}
     >
       {SEGMENTS.map((segment) => (
@@ -178,6 +164,19 @@ export function SegmentToggle({ leadType, tier }) {
           sx={{ px: 2, fontWeight: 600, textTransform: 'none' }}
         >
           {segment.label}
+          {segment.key === segmentKey && activeCount != null && (
+            <Box
+              component='span'
+              sx={{
+                ml: 0.75,
+                fontFamily: MONO,
+                fontWeight: 500,
+                color: 'text.secondary',
+              }}
+            >
+              ({activeCount.toLocaleString()})
+            </Box>
+          )}
         </ToggleButton>
       ))}
     </ToggleButtonGroup>
@@ -210,7 +209,10 @@ export function LeadTypeChip({ verified, label }) {
 export const leadTypeColor = (verified) =>
   verified ? 'success.main' : 'warning.main';
 
-/** Segmented − [qty] + stepper; typing a number is clamped to `max`. */
+/**
+ * Segmented − [qty] + input group, squared off like the CRM's text fields;
+ * typing a number is clamped to `max`.
+ */
 export function QtyStepper({ value, max, onChange, size = 'medium' }) {
   const height = size === 'small' ? 32 : 38;
   const buttonSx = {
@@ -219,6 +221,7 @@ export function QtyStepper({ value, max, onChange, size = 'medium' }) {
     height,
     color: 'text.secondary',
     '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+    '&.Mui-disabled': { color: 'text.disabled', opacity: 0.5 },
   };
   return (
     <Box
@@ -226,7 +229,7 @@ export function QtyStepper({ value, max, onChange, size = 'medium' }) {
         display: 'inline-flex',
         alignItems: 'stretch',
         border: '1px solid #DDD',
-        borderRadius: 2,
+        borderRadius: 1,
         overflow: 'hidden',
         bgcolor: '#FFFFFF',
       }}
@@ -246,6 +249,7 @@ export function QtyStepper({ value, max, onChange, size = 'medium' }) {
         sx={{
           width: size === 'small' ? 44 : 56,
           fontFamily: MONO,
+          fontWeight: 700,
           fontSize: '0.875rem',
           color: 'text.primary',
           borderLeft: '1px solid #DDD',
@@ -291,44 +295,70 @@ export function SummaryRow({ label, value, strong, color }) {
   );
 }
 
-/** Cart / checkout line label, e.g. "Texas · Verified × 3". */
+/**
+ * Cart / checkout summary lines, e.g. "Texas · Verified × 3", grouped under a
+ * segment heading when the order spans more than one segment.
+ */
 export function OrderLines({ items }) {
+  const groups = SEGMENTS.map((segment) => ({
+    segment,
+    lines: items.filter((item) => item.segment === segment.key),
+  })).filter((group) => group.lines.length);
+  const showHeadings = groups.length > 1;
+
   return (
-    <Stack spacing={1.25}>
-      {items.map((item) => (
-        <Stack
-          key={item.id}
-          direction='row'
-          justifyContent='space-between'
-          alignItems='center'
-          spacing={2}
-        >
-          <Stack direction='row' spacing={1} alignItems='center' minWidth={0}>
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                flexShrink: 0,
-                borderRadius: '50%',
-                bgcolor: leadTypeColor(item.type === 'verified'),
-              }}
-            />
-            <Typography variant='body2' noWrap>
-              {item.state} ·{' '}
-              {item.type === 'verified' ? 'Verified' : 'Unverified'}
-              <Box
-                component='span'
-                sx={{ fontFamily: MONO, color: 'text.secondary', ml: 0.75 }}
-              >
-                ×{item.qty}
-              </Box>
+    <Stack spacing={2}>
+      {groups.map(({ segment, lines }) => (
+        <Stack key={segment.key} spacing={1.25}>
+          {showHeadings && (
+            <Typography
+              variant='caption'
+              sx={{ fontWeight: 700, color: 'text.secondary' }}
+            >
+              {segment.label}
             </Typography>
-          </Stack>
-          <Typography
-            sx={{ fontFamily: MONO, fontWeight: 600, fontSize: '0.875rem' }}
-          >
-            {formatMoney(item.qty * item.price)}
-          </Typography>
+          )}
+          {lines.map((item) => (
+            <Stack
+              key={item.id}
+              direction='row'
+              justifyContent='space-between'
+              alignItems='center'
+              spacing={2}
+            >
+              <Stack
+                direction='row'
+                spacing={1}
+                alignItems='center'
+                minWidth={0}
+              >
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    flexShrink: 0,
+                    borderRadius: '50%',
+                    bgcolor: leadTypeColor(item.type === 'verified'),
+                  }}
+                />
+                <Typography variant='body2' noWrap>
+                  {item.state} ·{' '}
+                  {item.type === 'verified' ? 'Verified' : 'Unverified'}
+                  <Box
+                    component='span'
+                    sx={{ fontFamily: MONO, color: 'text.secondary', ml: 0.75 }}
+                  >
+                    ×{item.qty}
+                  </Box>
+                </Typography>
+              </Stack>
+              <Typography
+                sx={{ fontFamily: MONO, fontWeight: 600, fontSize: '0.875rem' }}
+              >
+                {formatMoney(item.qty * item.price)}
+              </Typography>
+            </Stack>
+          ))}
         </Stack>
       ))}
     </Stack>
