@@ -154,20 +154,21 @@ const inboundGSQ = async (req, res) => {
       gsq_id: lead.gsqId,
       gsq_instant_form: isInstantForm,
       lead_vendor_id: leadVendor.id,
+      sex: lead.sex ? String(lead.sex).trim() : null,
     };
 
-    // only these three answers get typed columns; everything else (age, sex,
+    // only these four answers get typed columns; everything else (age,
     // coverage, urgency, and any question we don't know) goes to raw_fields
     // under its canonical key. gsq_id stays null, there's no gsq session
     // behind a meta lead
-    const { tobacco, availability, why, ...rawFields } = canonicalizeFormFields(
-      lead.fields,
-    );
+    const { tobacco, availability, why, sex, ...rawFields } =
+      canonicalizeFormFields(lead.fields);
     const instantFormColumns = isInstantForm
       ? {
           smoker: parseYesNo(tobacco),
           availability: availability ?? null,
           why: why ?? null,
+          sex: sex ?? null,
           gsq_source: lead.adName ?? null,
           gsq_id: null,
           raw_fields: rawFields,

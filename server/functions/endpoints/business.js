@@ -53,6 +53,7 @@ const BUSINESS_LIST_FIELDS = [
   // old cholesterol/BP medication flags, and captures a contact window.
   'availability',
   'health_class',
+  'sex',
   // Client-only profile fields. Null until conversion; surfaced on the card
   // now that the drawer that used to show them is gone.
   'address',
@@ -116,6 +117,7 @@ const BUSINESS_DETAIL_FIELDS = [
   'cholesterol_medication',
   'blood_pressure_medication',
   'health_class',
+  'sex',
   'face_amount',
   'premium',
   'premium_min',

@@ -23,6 +23,10 @@ alter table public.leads
 alter table public.leads
   add column if not exists health_class text;
 
+-- Sent by GSQ for funnel and instant form leads (see add_lead_sex.sql).
+alter table public.leads
+  add column if not exists sex text;
+
 -- Inline card notes autosave against whichever record the person currently
 -- is: the client row after conversion, the lead row before it.
 alter table public.leads
@@ -205,7 +209,8 @@ select
   l.premium_min,
   l.premium_max,
   l.availability,
-  l.raw_fields
+  l.raw_fields,
+  l.sex
 from public.leads l
 full outer join public.clients c
   on c.lead_id = l.id

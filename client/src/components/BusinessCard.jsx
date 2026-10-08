@@ -179,14 +179,13 @@ const formatAnswer = (value) => {
 // into these. They fill a standard row (when the typed column is empty)
 // instead of appearing as their own question, so an instant form lead reads
 // like a funnel lead. Anything not listed is a question we haven't mapped
-// yet and renders generically below, with its label truncated.
+// yet and renders generically below, with its label truncated. Urgency stays
+// mapped only so it's kept off the card rather than shown as a raw question.
 const FORM_AGE_KEY = 'age';
-const FORM_SEX_KEY = 'sex';
 const FORM_COVERAGE_KEY = 'coverage';
 const FORM_URGENCY_KEY = 'urgency';
 const MAPPED_FORM_KEYS = new Set([
   FORM_AGE_KEY,
-  FORM_SEX_KEY,
   FORM_COVERAGE_KEY,
   FORM_URGENCY_KEY,
 ]);
@@ -220,35 +219,39 @@ const premiumLabel = (person) => {
   return null;
 };
 
-// Funnel Data rows in canonical order. The card shows the answered rows
-// first and keeps the blanks behind "Show more", so what the lead actually
+// Collapsed Funnel Data shows this many rows regardless of how many the
+// lead answered, so cards don't vary in height on first load.
+const COLLAPSED_FUNNEL_ROWS = 7;
+
+// Funnel Data rows in priority order (most useful to the agent first). The
+// card shows the answered rows
+// first and keeps the rest behind "Show more", so what the lead actually
 // told us is never pushed down by a column of dashes.
 const buildFunnelRows = (person) => {
   const form = person.raw_fields ?? {};
   const smoker =
     person.smoker === true ? 'Yes' : person.smoker === false ? 'No' : null;
   return [
+    { label: 'Availability', value: formatAnswer(person.availability) },
+    { label: 'Reason', value: formatAnswer(person.why) },
+    { label: 'Monthly budget', value: premiumLabel(person) },
     {
       label: 'Age',
       value: computeAge(person.date_of_birth) ?? formatAnswer(form[FORM_AGE_KEY]),
     },
+    { label: 'Sex', value: formatAnswer(person.sex) },
+    { label: 'Health class', value: healthClassLabel(person.health_class) },
     { label: 'Smoker', value: smoker },
-    { label: 'Sex', value: formatAnswer(form[FORM_SEX_KEY]) },
+    { label: 'BMI', value: formatBuild(person) },
     {
       label: 'Face amount',
       value: person.face_amount
         ? formatCurrency(person.face_amount, 0)
         : formatAnswer(form[FORM_COVERAGE_KEY]),
     },
-    { label: 'Premium', value: premiumLabel(person) },
-    { label: 'Beneficiary', value: formatAnswer(person.beneficiary) },
-    { label: 'BMI', value: formatBuild(person) },
-    { label: 'Health class', value: healthClassLabel(person.health_class) },
-    { label: 'Carrier', value: cleanSelection(person.selected_carrier) },
     { label: 'Plan', value: cleanSelection(person.selected_plan) },
-    { label: 'Availability', value: formatAnswer(person.availability) },
-    { label: 'Urgency', value: formatAnswer(form[FORM_URGENCY_KEY]) },
-    { label: 'Reason', value: formatAnswer(person.why) },
+    { label: 'Carrier', value: cleanSelection(person.selected_carrier) },
+    { label: 'Beneficiary', value: formatAnswer(person.beneficiary) },
     ...Object.entries(form)
       .filter(([key]) => !MAPPED_FORM_KEYS.has(key))
       .map(([key, answer]) => {
@@ -432,15 +435,21 @@ const BusinessCard = ({
   const receivedAt = person.lead_created_at || person.created_at;
   const saleAmount = annualizedSaleAmount(person.monthly_premium);
   const funnelRows = buildFunnelRows(person);
-  const answeredRows = funnelRows.filter((row) => hasValue(row.value));
-  const unansweredRows = funnelRows.filter((row) => !hasValue(row.value));
-  // Nothing answered at all: show the standard rows as dashes rather than
-  // an empty column, and there's nothing for the toggle to reveal.
-  const visibleFunnelRows =
-    answeredRows.length === 0 || showMore
-      ? [...answeredRows, ...unansweredRows]
-      : answeredRows;
-  const canToggleFunnel = answeredRows.length > 0 && unansweredRows.length > 0;
+  // Answered rows bubble to the top, then blanks fill out the remainder, so
+  // the collapsed column is always exactly COLLAPSED_FUNNEL_ROWS tall and
+  // every card opens at the same height.
+  const sortedFunnelRows = [
+    ...funnelRows.filter((row) => hasValue(row.value)),
+    ...funnelRows.filter((row) => !hasValue(row.value)),
+  ];
+  const hiddenFunnelCount = Math.max(
+    sortedFunnelRows.length - COLLAPSED_FUNNEL_ROWS,
+    0,
+  );
+  const visibleFunnelRows = showMore
+    ? sortedFunnelRows
+    : sortedFunnelRows.slice(0, COLLAPSED_FUNNEL_ROWS);
+  const canToggleFunnel = hiddenFunnelCount > 0;
   // Only the admin needs to see who else's lead this is — but for every
   // vendor and lifecycle stage, not just GSQ leads. Creative (the ad
   // source) only ever exists for GSQ-sourced leads, so it stays scoped.
@@ -872,7 +881,7 @@ const BusinessCard = ({
                 mt: 0.5,
               }}
             >
-              {showMore ? 'Show less' : `Show ${unansweredRows.length} more`}
+              {showMore ? 'Show less' : `Show ${hiddenFunnelCount} more`}
               {showMore ? (
                 <ExpandLessIcon sx={{ fontSize: 16 }} />
               ) : (

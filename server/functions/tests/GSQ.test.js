@@ -203,6 +203,37 @@ describe('inboundGSQ premium payload', () => {
       );
     },
   );
+
+  test.each([
+    ['omitted', undefined, null],
+    ['blank', '', null],
+    ['provided', 'Female', 'Female'],
+  ])('passes funnel sex through as sex when %s', async (_label, sex, expected) => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockSupabaseFrom.mockImplementation((table) => {
+      if (table === 'lead_vendors') {
+        return makeLookupQuery({ data: { id: 'vendor-id' }, error: null });
+      }
+      if (table === 'agents') {
+        return makeLookupQuery({ data: { id: 'agent-id' }, error: null });
+      }
+      if (table === 'leads') {
+        return { insert };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const request = makeRequest('67.35');
+    if (sex !== undefined) {
+      request.body.sex = sex;
+    }
+
+    await inboundGSQ(request, makeResponse());
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({ sex: expected }),
+    );
+  });
 });
 
 describe('inboundGSQ instant form payload', () => {
@@ -279,6 +310,7 @@ describe('inboundGSQ instant form payload', () => {
         gsq_source: 'FE Grandkids v3',
         gsq_id: null,
         gsq_instant_form: true,
+        sex: null,
         raw_fields: { age: '67' },
       }),
     );
@@ -316,10 +348,10 @@ describe('inboundGSQ instant form payload', () => {
         smoker: true,
         availability: null,
         why: 'leave_a_legacy',
+        sex: 'male',
         raw_fields: {
           coverage: '$100k_to_$250k',
           urgency: 'this_week',
-          sex: 'male',
           age: '72',
           'a_question_we_have_not_mapped?': 'some_answer',
         },
