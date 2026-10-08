@@ -31,13 +31,13 @@ import {
 // so it alone gets the gold stripe and gold CTA.
 const CAMPAIGNS = [
   {
-    title: 'Fresh Leads',
+    title: 'Funnel Leads',
     badge: '★ Popular',
     accent: GOLD,
     price: 39,
     unit: 'lead',
-    description: 'High-intent leads from the GSQ web funnel.',
-    cta: 'Order Fresh Leads',
+    description: 'High-intent leads generated on GetSeniorQuotes',
+    cta: 'Order Funnel Leads',
     ctaColor: 'action',
     href: 'https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p',
   },
@@ -56,7 +56,7 @@ const CAMPAIGNS = [
     price: 60,
     unit: 'transfer',
     description:
-      'Live inbound phone connections from the GSQ web funnel. Charged only if the call lasts 90+ seconds.',
+      'Live inbound calls from the GSQ web funnel. Charged only if the call lasts 90+ seconds.',
     cta: 'Order Live Transfers',
     href: 'https://buy.stripe.com/dRm00j7CkgUDdx01Y16Ri0b',
   },
@@ -67,7 +67,7 @@ const CAMPAIGNS = [
 const SUBSCRIPTIONS = [
   {
     title: 'Sendblue Line',
-    badge: 'Monthly Line',
+    // badge: 'Monthly Line',
     accent: INK,
     price: 155,
     unit: 'month',
@@ -78,7 +78,7 @@ const SUBSCRIPTIONS = [
   },
   {
     title: 'Sendblue Bot',
-    badge: 'Add-on',
+    // badge: 'Add-on',
     accent: INK,
     price: 35,
     unit: 'month',
@@ -157,6 +157,17 @@ function SectionLabel({ children }) {
   );
 }
 
+// Card badges, styled like BusinessCard's lifecycle status chip.
+const badgeSx = {
+  bgcolor: '#F0F4F8',
+  color: 'secondary.main',
+  border: '1px solid',
+  borderColor: 'divider',
+  fontWeight: 700,
+  fontSize: '0.675rem',
+  flexShrink: 0,
+};
+
 /**
  * Hero card for a product sold through a Stripe payment link: a real-time
  * campaign or a monthly subscription. CTAs are ink unless `ctaColor` says
@@ -184,17 +195,7 @@ function CampaignCard({
         spacing={1}
       >
         <Typography sx={labelSx}>{title}</Typography>
-        {badge && (
-          <Chip
-            size='small'
-            label={badge}
-            sx={{
-              bgcolor: '#F0F4F8',
-              color: 'text.secondary',
-              fontWeight: 600,
-            }}
-          />
-        )}
+        {badge && <Chip size='small' label={badge} sx={badgeSx} />}
       </Stack>
 
       <Typography
@@ -286,10 +287,7 @@ function InventoryCard({
                   Available
                 </>
               }
-              sx={{
-                bgcolor: empty ? '#F0F0F0' : '#F0F4F8',
-                color: empty ? 'text.disabled' : 'text.secondary',
-              }}
+              sx={{ ...badgeSx, ...(empty && { color: 'text.disabled' }) }}
             />
           )
         )}
@@ -371,8 +369,8 @@ const Purchase = () => {
       : null;
   // null (not 0) when the lookup failed, so the card stays clickable and the
   // agent can open the store and retry there.
-  // const bankedAvailable = banked.data ? countAvailable(banked.data) : null;
-  const bankedAvailable = 10;
+  const bankedAvailable = banked.data ? countAvailable(banked.data) : null;
+
   return (
     // The tinted canvas behind the cards comes from App's layout.
     // Capped at lg (1200px) so the card rows don't stretch on wide screens.
@@ -381,7 +379,7 @@ const Purchase = () => {
         <MarketplaceHeader subtitle='Order real-time lead campaigns, automated software, and on-demand inventory.' />
 
         <Box>
-          <SectionLabel>Real-Time Campaigns</SectionLabel>
+          <SectionLabel>Fresh Leads</SectionLabel>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2}>
             {CAMPAIGNS.map((campaign) => (
               <CampaignCard
