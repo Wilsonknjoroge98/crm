@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -227,9 +228,18 @@ const OffersPopover = ({ anchorEl, offers = [], onClose }) => {
                 <Button
                   size='small'
                   disabled={!offer.linkUrl}
-                  href={offer.linkUrl || undefined}
-                  target='_blank'
-                  rel='noopener noreferrer'
+                  {...(offer.linkUrl?.startsWith('/')
+                    ? // the CRM's own Marketplace pages
+                      {
+                        component: RouterLink,
+                        to: offer.linkUrl,
+                        onClick: onClose,
+                      }
+                    : {
+                        href: offer.linkUrl || undefined,
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                      })}
                   endIcon={
                     <ArrowForwardRoundedIcon
                       sx={{ fontSize: '0.85rem !important' }}

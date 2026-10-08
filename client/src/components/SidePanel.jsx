@@ -241,7 +241,9 @@ const SidePanel = () => {
             <List disablePadding>
               <SectionLabel>SALES</SectionLabel>
               {salesItems.map(({ text, icon, path }) => {
-                const isActive = location.pathname === path;
+                const isActive =
+                  location.pathname === path ||
+                  location.pathname.startsWith(`${path}/`);
                 return (
                   <ListItem
                     key={text}
@@ -261,7 +263,9 @@ const SidePanel = () => {
             <List disablePadding>
               <SectionLabel>MANAGEMENT</SectionLabel>
               {managementItems.map(({ text, icon, path }) => {
-                const isActive = location.pathname === path;
+                const isActive =
+                  location.pathname === path ||
+                  location.pathname.startsWith(`${path}/`);
                 return (
                   <ListItem
                     key={text}
@@ -281,7 +285,9 @@ const SidePanel = () => {
             <List disablePadding>
               <SectionLabel>ACCOUNT</SectionLabel>
               {authItems.map(({ text, icon, path, onClick }) => {
-                const isActive = location.pathname === path;
+                const isActive =
+                  location.pathname === path ||
+                  location.pathname.startsWith(`${path}/`);
                 return (
                   <ListItem
                     key={text}
@@ -302,7 +308,9 @@ const SidePanel = () => {
               <List disablePadding>
                 <SectionLabel>ADMIN</SectionLabel>
                 {adminItems.map(({ text, icon, path }) => {
-                  const isActive = location.pathname === path;
+                  const isActive =
+                    location.pathname === path ||
+                    location.pathname.startsWith(`${path}/`);
                   return (
                     <ListItem
                       key={text}

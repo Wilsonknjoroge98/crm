@@ -69,6 +69,8 @@ export const createAppTheme = () => {
       background: {
         default: '#FFFFFF',
         paper: '#FFFFFF',
+        // Warm off-white behind white cards (form fills, the Marketplace).
+        tinted: '#FAFAF7',
       },
       text: {
         primary: '#1C1A17', // Dark Warm Charcoal

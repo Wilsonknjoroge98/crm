@@ -61,15 +61,16 @@ const LEAD_TYPE_BADGES = {
 // Storefront per lead type. fresh_lead splits by qualifier (Mixed vs
 // Verified go to different Stripe payment links); every other type sells
 // verified/unverified from the same storefront, so it's a single URL.
+// Relative URLs are the CRM's own Marketplace pages.
 const LEAD_TYPE_URLS = {
   fresh_lead: {
     null: 'https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p', // Mixed
     Verified: 'https://buy.stripe.com/00w4gzcWE33NgJc8mp6Ri0u',
   },
   live_transfer: 'https://buy.stripe.com/dRm00j7CkgUDdx01Y16Ri0b',
-  banked_lead: 'https://fexdigital.com/fresh/store',
-  aged_lead: 'https://fexdigital.com/aged/store?tier=second', // 31-90 days
-  aged_lead_91_180: 'https://fexdigital.com/aged/store?tier=third', // 91+ days
+  banked_lead: '/purchase-leads/fresh/store',
+  aged_lead: '/purchase-leads/aged/store?tier=second', // 31-90 days
+  aged_lead_91_180: '/purchase-leads/aged/store?tier=third', // 91+ days
   instant_form_lead: 'https://buy.stripe.com/3cIdR92i033NboS4696Ri0A',
 };
 

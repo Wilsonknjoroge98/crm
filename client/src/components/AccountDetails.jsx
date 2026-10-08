@@ -304,8 +304,14 @@ const AccountDetails = ({ data, defaultTab }) => {
         <Button
           variant='contained'
           onClick={() =>
+            // Lock checkout to the CRM email so the purchase lands on
+            // this agent's account.
             window.open(
-              'https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p',
+              `https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p${
+                agent?.email
+                  ? `?locked_prefilled_email=${encodeURIComponent(agent.email)}`
+                  : ''
+              }`,
               '_blank',
             )
           }

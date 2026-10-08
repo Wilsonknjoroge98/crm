@@ -35,6 +35,12 @@ const App = () => {
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname === '/reset-password';
+  // The Marketplace hub sits on a tinted canvas, applied here so it reaches
+  // under the nav offset and through the footer.
+  const pageBackground =
+    pathname === '/purchase-leads'
+      ? theme.palette.background.tinted
+      : theme.palette.background.default;
 
   useEffect(() => {
     if (isPublicRoute) return;
@@ -102,7 +108,7 @@ const App = () => {
           minHeight: '100vh',
           width: '100%',
           overflowX: 'hidden',
-          backgroundColor: theme.palette.background.default,
+          backgroundColor: pageBackground,
         }}
       >
         {!isPublicRoute && <SidePanel />}
@@ -116,7 +122,7 @@ const App = () => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'flex-start',
-            backgroundColor: theme.palette.background.default,
+            backgroundColor: pageBackground,
             ml: !isPublicRoute ? '220px' : 0,
             // mt: user ? 0 : isMediumScreen ? 3 : 20,
           }}
