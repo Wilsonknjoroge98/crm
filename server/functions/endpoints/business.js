@@ -589,11 +589,15 @@ const defaultCreateFirestore = () =>
     credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
   });
 
+// stripe_orders also mirrors SendBlue Line / Bot subscription revenue for
+// sales analytics; that isn't lead spend, so it's left out of ROI.
+const NON_LEAD_ORDER_TYPES = new Set(['sendblue_line', 'sendblue_bot']);
+
 const sumAmountPaid = (snapshot) =>
-  snapshot.docs.reduce(
-    (total, doc) => total + (Number(doc.data().amountPaid) || 0),
-    0,
-  );
+  snapshot.docs
+    .map((doc) => doc.data())
+    .filter((order) => !NON_LEAD_ORDER_TYPES.has(order.leadType))
+    .reduce((total, order) => total + (Number(order.amountPaid) || 0), 0);
 
 const fetchStripeLeadSpend = async (createFirestore, email, isSuperuser) => {
   const db = createFirestore();

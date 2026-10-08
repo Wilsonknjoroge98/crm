@@ -1098,8 +1098,14 @@ describe('GET /business/metrics', () => {
         },
       ],
     });
+    // SendBlue subscription revenue shares the collection but isn't lead spend.
     const firestore = makeFirestore({
-      'agent-1@example.com': [{ amountPaid: 100 }, { amountPaid: 56 }],
+      'agent-1@example.com': [
+        { amountPaid: 100 },
+        { amountPaid: 56 },
+        { amountPaid: 99, leadType: 'sendblue_line' },
+        { amountPaid: 49, leadType: 'sendblue_bot' },
+      ],
     });
 
     const response = await request(

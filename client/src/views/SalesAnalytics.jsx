@@ -225,7 +225,7 @@ const SalesAnalytics = () => {
           sx={{ borderRadius: 2, borderColor: 'divider' }}
         >
           <DataGrid
-            rows={(data?.products || []).slice(0, 10)}
+            rows={data?.products || []}
             columns={columns}
             getRowId={(row) => row.key}
             loading={isFetching}

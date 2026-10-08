@@ -666,6 +666,22 @@ const SALES_PRODUCTS = [
     verifiedOnly: false,
     baseUnitPrice: 1.5,
   },
+  // Monthly subscriptions: one doc per paid invoice (new or renewal), so
+  // volume is months billed and baseUnitPrice is the monthly list price.
+  {
+    key: 'sendblue_line',
+    name: 'SendBlue Line',
+    leadType: 'sendblue_line',
+    verifiedOnly: null,
+    baseUnitPrice: 155,
+  },
+  {
+    key: 'sendblue_bot',
+    name: 'SendBlue Bot',
+    leadType: 'sendblue_bot',
+    verifiedOnly: null,
+    baseUnitPrice: 35,
+  },
 ];
 
 const SALES_CATEGORIES = [
@@ -674,6 +690,8 @@ const SALES_CATEGORIES = [
   ['live_transfer', 'Live Transfers'],
   ['instant_form_lead', 'Instant Form Leads'],
   ['aged_lead', 'Aged Leads'],
+  ['sendblue_line', 'SendBlue Line'],
+  ['sendblue_bot', 'SendBlue Bot'],
 ];
 
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
