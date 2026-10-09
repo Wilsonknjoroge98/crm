@@ -236,11 +236,11 @@ app.get('/stripe-charges', async (req, res) => {
   }
 
   const startTimestamp = dayjs
-    .tz(startDate, 'America/Los_Angeles')
+    .tz(startDate, 'America/New_York')
     .startOf('day')
     .unix();
   const endTimestamp = dayjs
-    .tz(endDate, 'America/Los_Angeles')
+    .tz(endDate, 'America/New_York')
     .endOf('day')
     .unix();
 
