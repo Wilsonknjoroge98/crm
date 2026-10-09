@@ -45,6 +45,11 @@ export const toE164 = (phone) => {
   return `+1${digits}`;
 };
 
+// Hard-capitalizes a display label (e.g. 'Meta Ads' -> 'META ADS'); tolerates
+// null/undefined/non-string values so it's safe on raw API data
+export const toUpperCaseLabel = (value) =>
+  value === null || value === undefined ? '' : String(value).toUpperCase();
+
 export const toTitleCase = (str) =>
   str.replace(/\w\S*/g, (word) => {
     if (word === word.toUpperCase()) return word; // Preserve all-uppercase words (e.g., acronyms)

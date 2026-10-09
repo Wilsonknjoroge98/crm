@@ -29,6 +29,7 @@ exports.app = functions.https.onRequest(
       'SEND_BLUE_API_KEY',
       'SEND_BLUE_SECRET_KEY',
       'TRESTLE_API_KEY',
+      'ANTHROPIC_ADMIN_KEY',
     ],
   },
   expressApp,

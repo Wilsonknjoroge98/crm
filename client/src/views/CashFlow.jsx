@@ -24,6 +24,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getStripeCharges,
   getAdSpend,
+  getAnthropicSpend,
   getAllExpenses,
   postExpense,
   deleteExpense,
@@ -34,7 +35,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 
-import { toTitleCase } from '../utils/helpers';
+import { toTitleCase, toUpperCaseLabel } from '../utils/helpers';
 
 import { Add as AddIcon } from '@mui/icons-material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -123,10 +124,30 @@ const CashFlowSummary = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  const isLoading = isExpensesLoading || isStripeLoading || isAdSpendLoading;
+  const {
+    data: anthropicSpendData = [],
+    isLoading: isAnthropicSpendLoading,
+    isFetching: isAnthropicSpendFetching,
+    refetch: refetchAnthropicSpend,
+  } = useQuery({
+    queryKey: ['anthropicSpend'],
+    queryFn: () =>
+      getAnthropicSpend({
+        startDate,
+        endDate,
+      }),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const isLoading =
+    isExpensesLoading ||
+    isStripeLoading ||
+    isAdSpendLoading ||
+    isAnthropicSpendLoading;
 
   const stripe = stripeData?.total || 0;
   const adSpend = adSpendData?.total || 0;
+  const anthropicSpend = anthropicSpendData?.total || 0;
 
   const sortedExpenses = [...expensesData].sort(
     (a, b) => (b?.amount || 0) - (a?.amount || 0),
@@ -137,7 +158,7 @@ const CashFlowSummary = () => {
     (sum, e) => sum + (e.amount || 0),
     0,
   );
-  const totalExpenses = manualExpensesTotal + adSpend;
+  const totalExpenses = manualExpensesTotal + adSpend + anthropicSpend;
   const netCashFlow = totalInflow - totalExpenses;
 
   const handleAddExpense = () => {
@@ -213,6 +234,7 @@ const CashFlowSummary = () => {
                   Promise.all([
                     refetchStripe(),
                     refetchAdSpend(),
+                    refetchAnthropicSpend(),
                     refetchExpenses(),
                   ])
                 }
@@ -240,7 +262,7 @@ const CashFlowSummary = () => {
                 Inflows
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Stripe</Typography>
+                <Typography>{toUpperCaseLabel('Stripe')}</Typography>
                 {isStripeLoading || isStripeFetching ? (
                   <Skeleton width={80} height={30} />
                 ) : (
@@ -261,7 +283,7 @@ const CashFlowSummary = () => {
               </Typography>
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Meta Ads</Typography>
+                <Typography>{toUpperCaseLabel('Meta Ads')}</Typography>
                 {isAdSpendLoading || isAdSpendFetching ? (
                   <Skeleton width={80} height={30} />
                 ) : (
@@ -275,13 +297,28 @@ const CashFlowSummary = () => {
                 )}
               </Box>
 
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography>{toUpperCaseLabel('Anthropic')}</Typography>
+                {isAnthropicSpendLoading || isAnthropicSpendFetching ? (
+                  <Skeleton width={80} height={30} />
+                ) : (
+                  <Typography variant='subtitle1' fontWeight={600}>
+                    $
+                    {anthropicSpend.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Typography>
+                )}
+              </Box>
+
               {sortedExpenses.map((e, idx) => (
                 <Box
                   key={idx}
                   sx={{ display: 'flex', justifyContent: 'space-between' }}
                 >
                   <Stack direction='row' alignItems='center' spacing={1}>
-                    <Typography>{e.name}</Typography>
+                    <Typography>{toUpperCaseLabel(e.name)}</Typography>
                     <Typography variant='caption'>
                       {dayjs(e.date).format('MMM D, YYYY')}
                     </Typography>

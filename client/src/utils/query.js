@@ -589,6 +589,24 @@ const getAdSpend = async ({ startDate, endDate }) => {
   }
 };
 
+const getAnthropicSpend = async ({ startDate, endDate }) => {
+  const options = {
+    method: 'GET',
+    url: '/anthropic-spend',
+    params: {
+      startDate,
+      endDate,
+    },
+  };
+  try {
+    const response = await apiClient.request(options);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting Anthropic spend:', error);
+    throw error;
+  }
+};
+
 const getPolicies = async ({ agentId, startDate, endDate } = {}) => {
   const params = {};
   if (agentId) params.agentId = agentId;
@@ -1186,6 +1204,7 @@ export {
   getExpenses,
   getAllExpenses,
   getAdSpend,
+  getAnthropicSpend,
   getLeads,
   getBusinessRecords,
   getPerson,

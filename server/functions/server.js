@@ -146,6 +146,68 @@ app.get('/ad-spend', async (req, res) => {
   }
 });
 
+app.get('/anthropic-spend', async (req, res) => {
+  const { startDate, endDate } = req.query;
+
+  if (!startDate || !endDate) {
+    console.error('Missing startDate or endDate');
+    return res.status(400).json({ error: 'Missing startDate or endDate' });
+  }
+
+  // Cost report buckets are whole UTC days; ending_at is exclusive, so push it
+  // to the start of the day after endDate to include endDate itself
+  const startingAt = dayjs.utc(startDate).startOf('day').toISOString();
+  const endingAt = dayjs.utc(endDate).add(1, 'day').startOf('day').toISOString();
+
+  console.log('Anthropic spend from', startDate, 'to', endDate);
+
+  try {
+    // Amounts come back as decimal strings in cents
+    let totalCents = 0;
+    let page = null;
+
+    do {
+      const response = await axios.get(
+        'https://api.anthropic.com/v1/organizations/cost_report',
+        {
+          headers: {
+            'x-api-key': process.env.ANTHROPIC_ADMIN_KEY,
+            'anthropic-version': '2023-06-01',
+          },
+          params: {
+            starting_at: startingAt,
+            ending_at: endingAt,
+            bucket_width: '1d',
+            limit: 31,
+            ...(page && { page }),
+          },
+        },
+      );
+
+      const buckets = response.data.data || [];
+      buckets.forEach((bucket) => {
+        (bucket.results || []).forEach((result) => {
+          totalCents += Number(result.amount || 0);
+        });
+      });
+
+      page = response.data.has_more ? response.data.next_page : null;
+    } while (page);
+
+    const totalSpend = totalCents / 100;
+    console.log(
+      `Total Anthropic spend from ${startDate} to ${endDate}: $${totalSpend.toFixed(2)}`,
+    );
+    res.status(200).send({ total: Number(totalSpend.toFixed(2)) });
+  } catch (error) {
+    console.error(
+      'Error fetching Anthropic spend:',
+      error.response?.data || error.message,
+    );
+    res.status(500).send({ error: 'Failed to fetch Anthropic spend data' });
+  }
+});
+
 app.get('/stripe-charges', async (req, res) => {
   const { startDate, endDate, mode } = req.query;
 
