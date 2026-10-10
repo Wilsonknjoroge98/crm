@@ -510,7 +510,7 @@ const Business = () => {
   };
 
   return (
-    <Container maxWidth='lg' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <Container maxWidth='xl' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
       <Stack spacing={2.5}>
         <Stack
           direction={{ xs: 'column', md: 'row' }}
