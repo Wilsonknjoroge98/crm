@@ -35,10 +35,10 @@ const App = () => {
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname === '/reset-password';
-  // The Marketplace hub and Business sit on a tinted canvas, applied here so
-  // it reaches under the nav offset and through the footer.
+  // The Marketplace hub sits on a tinted canvas, applied here so it reaches
+  // under the nav offset and through the footer.
   const pageBackground =
-    pathname === '/purchase-leads' || pathname === '/business'
+    pathname === '/purchase-leads'
       ? theme.palette.background.tinted
       : theme.palette.background.default;
 
