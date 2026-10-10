@@ -6,6 +6,12 @@ const { isValidDate } = require('../helpers');
 // eslint-disable-next-line new-cap
 const leaderboardRouter = express.Router();
 
+// Agents whose sales are entered incorrectly (e.g. by an offshore VA) and
+// would skew the rankings. Their clients are still recorded, just not ranked.
+const EXCLUDED_AGENT_IDS = new Set([
+  '7716b2bb-d477-4a26-8b36-5d8f8beac2f6', // ashleymysza@gmail.com
+]);
+
 leaderboardRouter.get('/', async (req, res) => {
   const { startDate, endDate } = req.query;
 
@@ -18,7 +24,7 @@ leaderboardRouter.get('/', async (req, res) => {
       endDate,
     });
 
-    const { data: agents, error: agentsError } = await supabaseService
+    const { data: allAgents, error: agentsError } = await supabaseService
       .from('agents')
       .select('id, first_name, last_name');
 
@@ -29,7 +35,11 @@ leaderboardRouter.get('/', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch agents' });
     }
 
-    if (!agents || agents.length === 0) {
+    const agents = (allAgents || []).filter(
+      (agent) => !EXCLUDED_AGENT_IDS.has(agent.id),
+    );
+
+    if (agents.length === 0) {
       return res.status(200).json([]);
     }
 
