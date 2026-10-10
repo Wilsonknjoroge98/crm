@@ -510,7 +510,7 @@ const Business = () => {
   };
 
   return (
-    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <Container maxWidth='lg' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
       <Stack spacing={2.5}>
         <Stack
           direction={{ xs: 'column', md: 'row' }}
@@ -520,9 +520,6 @@ const Business = () => {
         >
           <Box>
             <Typography variant='h4'>Business</Typography>
-            <Typography color='text.secondary'>
-              Leads, clients, and policies in one place.
-            </Typography>
           </Box>
         </Stack>
 
@@ -542,13 +539,13 @@ const Business = () => {
               <MetricCard
                 label='Lead Spend'
                 value={formatCurrency(metrics?.leadSpend)}
-                subtext='All-time Stripe charges'
+                subtext='All-time lead spend'
                 accentColor='#1C7EBB'
               />
               <MetricCard
                 label='Lead Count'
                 value={Number(metrics?.leadsDelivered || 0).toLocaleString()}
-                subtext='All-time'
+                subtext='All-time leads delivered'
                 accentColor='#1C7EBB'
               />
               <MetricCard
@@ -560,7 +557,7 @@ const Business = () => {
               <MetricCard
                 label='Total Closed'
                 value={formatCurrency(metrics?.totalClosed)}
-                subtext='Annual premium, all-time'
+                subtext='All-time annual premium'
                 accentColor='#1C7EBB'
               />
               <MetricCard
