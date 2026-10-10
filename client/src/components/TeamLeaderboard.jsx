@@ -25,7 +25,6 @@ const TeamLeaderboard = ({
   setSelectedAgent,
   setDrawerOpen,
   nameFilter,
-  gsqOnly,
 }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -36,8 +35,8 @@ const TeamLeaderboard = ({
   }, [nameFilter]);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['teamLeaderboard', startDate, endDate, gsqOnly],
-    queryFn: () => getTeamLeaderboard({ startDate, endDate, gsqOnly }),
+    queryKey: ['teamLeaderboard', startDate, endDate],
+    queryFn: () => getTeamLeaderboard({ startDate, endDate }),
     enabled: !!startDate && !!endDate,
   });
 

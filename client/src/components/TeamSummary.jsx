@@ -15,10 +15,10 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 0,
   }).format(value ?? 0);
 
-const TeamSummary = ({ startDate, endDate, gsqOnly }) => {
+const TeamSummary = ({ startDate, endDate }) => {
   const { data, isLoading } = useQuery({
-    queryKey: ['teamSummary', startDate, endDate, gsqOnly],
-    queryFn: () => getTeamSummary({ startDate, endDate, gsqOnly }),
+    queryKey: ['teamSummary', startDate, endDate],
+    queryFn: () => getTeamSummary({ startDate, endDate }),
     enabled: !!startDate && !!endDate,
   });
 

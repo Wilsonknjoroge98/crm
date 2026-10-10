@@ -10,7 +10,6 @@ import {
   Paper,
   Skeleton,
   Stack,
-  Switch,
   TablePagination,
   TextField,
   ToggleButton,
@@ -258,7 +257,6 @@ const Business = () => {
   const { user, isAuthenticated } = useSelector((state) => state.user);
   const isAdmin = user?.id === SUPERUSER_ID;
   const agent = useAgent();
-  const [gsqOnly, setGsqOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -315,15 +313,7 @@ const Business = () => {
     isPlaceholderData,
     error: businessError,
   } = useQuery({
-    queryKey: [
-      'business',
-      page,
-      pageSize,
-      search,
-      statusFilter,
-      stateFilter,
-      gsqOnly,
-    ],
+    queryKey: ['business', page, pageSize, search, statusFilter, stateFilter],
     queryFn: () =>
       getBusinessRecords({
         page: page + 1,
@@ -334,7 +324,6 @@ const Business = () => {
         search,
         status: statusFilter,
         state: stateFilter,
-        gsqOnly,
       }),
     placeholderData: (previous) => previous,
   });
@@ -344,8 +333,8 @@ const Business = () => {
     isPending: isMetricsPending,
     error: metricsError,
   } = useQuery({
-    queryKey: ['businessMetrics', gsqOnly],
-    queryFn: () => getBusinessMetrics({ gsqOnly }),
+    queryKey: ['businessMetrics'],
+    queryFn: () => getBusinessMetrics(),
   });
 
   // Only needed for UpdatePolicyDialog's split-policy agent picker.
@@ -535,28 +524,6 @@ const Business = () => {
               Leads, clients, and policies in one place.
             </Typography>
           </Box>
-          <Stack direction='row' spacing={1} alignItems='center'>
-            <Typography
-              variant='caption'
-              sx={{
-                fontFamily: SANS,
-                fontWeight: 700,
-                color: gsqOnly ? 'text.primary' : 'text.secondary',
-              }}
-            >
-              GSQ
-            </Typography>
-            <Switch
-              size='small'
-              checked={gsqOnly}
-              onChange={(event) => {
-                clearSelection();
-                setGsqOnly(event.target.checked);
-                setPage(0);
-              }}
-              slotProps={{ input: { 'aria-label': 'GSQ leads only' } }}
-            />
-          </Stack>
         </Stack>
 
         {metricsError && (
