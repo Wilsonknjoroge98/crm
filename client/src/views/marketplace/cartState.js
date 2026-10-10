@@ -10,30 +10,68 @@ export const CHECKOUT_PATH = `${MARKETPLACE_PATH}/checkout`;
 
 // What the storefront sells, in order of sales volume. Keys match GSQ's
 // segments. Banked leads are the API's `fresh` lead type; aged is split into
-// two age windows (`tier`).
+// two age windows (`tier`). `source` separates GSQ quote-funnel leads from
+// Meta instant-form leads, which have their own stores and prices and are
+// only sold verified.
 export const SEGMENTS = [
   {
     key: 'aged_second',
+    source: 'funnel',
     leadType: 'aged',
     tier: 'second',
+    verifiedOnly: false,
     label: '31–90 Day Aged',
     unit: 'aged lead',
     window: 'Submitted 31–90 days ago',
   },
   {
     key: 'aged_third',
+    source: 'funnel',
     leadType: 'aged',
     tier: 'third',
+    verifiedOnly: false,
     label: '91–180 Day Aged',
     unit: 'aged lead',
     window: 'Submitted 91–180 days ago',
   },
   {
     key: 'banked',
+    source: 'funnel',
     leadType: 'fresh',
     tier: null,
+    verifiedOnly: false,
     label: 'Banked Leads',
     unit: 'banked lead',
+    window: 'Submitted within the last 72 hours',
+  },
+  {
+    key: 'instant_aged_second',
+    source: 'instant',
+    leadType: 'aged',
+    tier: 'second',
+    verifiedOnly: true,
+    label: '31–90 Day Aged Instant Forms',
+    unit: 'aged instant form lead',
+    window: 'Submitted 31–90 days ago',
+  },
+  {
+    key: 'instant_aged_third',
+    source: 'instant',
+    leadType: 'aged',
+    tier: 'third',
+    verifiedOnly: true,
+    label: '91–180 Day Aged Instant Forms',
+    unit: 'aged instant form lead',
+    window: 'Submitted 91–180 days ago',
+  },
+  {
+    key: 'instant_banked',
+    source: 'instant',
+    leadType: 'fresh',
+    tier: null,
+    verifiedOnly: true,
+    label: 'Banked Instant Forms',
+    unit: 'banked instant form lead',
     window: 'Submitted within the last 72 hours',
   },
 ];
@@ -42,19 +80,24 @@ export const SEGMENT_BY_KEY = Object.fromEntries(
   SEGMENTS.map((segment) => [segment.key, segment]),
 );
 
-/** The segment a store URL (/:leadType/store?tier=) is showing. */
-export const getSegment = (leadType, tier) =>
+/** The segment a store URL (/:leadType/store?tier=&source=) is showing. */
+export const getSegment = (leadType, tier, source) =>
   SEGMENT_BY_KEY[
-    leadType === 'fresh'
-      ? 'banked'
-      : tier === 'third'
-        ? 'aged_third'
-        : 'aged_second'
+    (source === 'instant' ? 'instant_' : '') +
+      (leadType === 'fresh'
+        ? 'banked'
+        : tier === 'third'
+          ? 'aged_third'
+          : 'aged_second')
   ];
 
 export const storePath = (segmentKey) => {
-  const { leadType, tier } = SEGMENT_BY_KEY[segmentKey];
-  return `${MARKETPLACE_PATH}/${leadType}/store${tier ? `?tier=${tier}` : ''}`;
+  const { leadType, tier, source } = SEGMENT_BY_KEY[segmentKey];
+  const params = new URLSearchParams();
+  if (tier) params.set('tier', tier);
+  if (source === 'instant') params.set('source', source);
+  const query = params.toString();
+  return `${MARKETPLACE_PATH}/${leadType}/store${query ? `?${query}` : ''}`;
 };
 
 // The store the agent last browsed this session, so "Continue Shopping" in
@@ -90,24 +133,23 @@ export const continueShoppingPath = (cart) => {
 };
 
 /**
- * Live inventory and prices for every segment. Query keys match the ones the
- * store pages have always used, so the cache is shared across pages. Each
- * report reads every unsold lead in its window, so results stay fresh for a
- * minute instead of refetching on every page or tab switch; checkout
- * reserves against live inventory regardless.
+ * Live inventory and prices for every segment, cached per segment and shared
+ * across pages. Each report reads every unsold lead in its window, so results
+ * stay fresh for a minute instead of refetching on every page or tab switch;
+ * checkout reserves against live inventory regardless.
  * @return {{bySegment: object, prices: object, isLoading: boolean,
  *   isError: boolean, refetch: Function}}
  */
 export function useMarketplaceInventory() {
   const queries = useQueries({
-    queries: SEGMENTS.map(({ leadType, tier }) => ({
-      queryKey: ['inventory', leadType, tier || 'second'],
+    queries: SEGMENTS.map(({ key, leadType, tier }) => ({
+      queryKey: ['inventory', key],
       queryFn: async () => {
-        const url =
-          leadType === 'fresh'
-            ? `/inventoryReport?type=${leadType}`
-            : `/inventoryReport?type=${leadType}&tier=${tier}`;
-        const res = await marketplaceFetch(url);
+        // GSQ resolves `segment`; type/tier are what it read before
+        // instant-form segments existed.
+        const params = new URLSearchParams({ segment: key, type: leadType });
+        if (tier) params.set('tier', tier);
+        const res = await marketplaceFetch(`/inventoryReport?${params}`);
         if (!res.ok) throw new Error('Failed to fetch inventory');
         return res.json();
       },

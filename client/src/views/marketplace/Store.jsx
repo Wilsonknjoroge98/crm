@@ -1,5 +1,6 @@
 // Store.jsx — browse inventory by state and build a cart for one segment
-// (banked, 31–90 day aged or 91–180 day aged).
+// (banked, 31–90 day aged or 91–180 day aged, for quote-funnel or instant-form
+// leads).
 import {
   Alert,
   Box,
@@ -130,6 +131,16 @@ const INCLUDED_FIELDS = [
   'Best Time to Call',
   'Selected Carrier',
   'Selected Plan',
+];
+
+// Meta instant forms collect contact details plus the form's own qualifying
+// questions, delivered as one column.
+const INSTANT_FORM_FIELDS = [
+  'Full Name',
+  'Email Address',
+  'Phone Number',
+  'State',
+  'Instant Form Answers',
 ];
 
 const FRESH_EXPLAINER = [
@@ -368,10 +379,11 @@ function StateRail({ states, cart, selectedState, onSelect }) {
 
 export default function Store() {
   const { leadType } = useParams();
-  const isFresh = leadType === 'fresh';
   const [searchParams] = useSearchParams();
   const tier = searchParams.get('tier') === 'third' ? 'third' : 'second';
-  const segment = getSegment(leadType, tier);
+  const segment = getSegment(leadType, tier, searchParams.get('source'));
+  // The explainer describes quote-funnel banked leads
+  const isFresh = segment.key === 'banked';
   const [selectedState, setSelectedState] = useState(null);
   // One cart across every segment; this page edits its own segment's slice.
   const [cart, updateCart] = useCart();
@@ -629,14 +641,16 @@ export default function Store() {
                       qty={currentQty.verified}
                       onChange={(n) => setQuantity('verified', n)}
                     />
-                    <TierCard
-                      verified={false}
-                      unit={segment.unit}
-                      count={activeState.unverified}
-                      price={unverifiedPrice}
-                      qty={currentQty.unverified}
-                      onChange={(n) => setQuantity('unverified', n)}
-                    />
+                    {!segment.verifiedOnly && (
+                      <TierCard
+                        verified={false}
+                        unit={segment.unit}
+                        count={activeState.unverified}
+                        price={unverifiedPrice}
+                        qty={currentQty.unverified}
+                        onChange={(n) => setQuantity('unverified', n)}
+                      />
+                    )}
                   </Stack>
                 </>
               )}
@@ -658,7 +672,10 @@ export default function Store() {
                     gap: 1,
                   }}
                 >
-                  {INCLUDED_FIELDS.map((field) => (
+                  {(segment.source === 'instant'
+                    ? INSTANT_FORM_FIELDS
+                    : INCLUDED_FIELDS
+                  ).map((field) => (
                     <Typography
                       key={field}
                       variant='caption'

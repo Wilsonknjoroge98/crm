@@ -19,7 +19,12 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import QtyInput from './QtyInput.jsx';
-import { CART_PATH, SEGMENTS, storePath } from './cartState.js';
+import {
+  CART_PATH,
+  SEGMENTS,
+  SEGMENT_BY_KEY,
+  storePath,
+} from './cartState.js';
 
 export const MONO = '"JetBrains Mono", monospace';
 export const SANS = '"Inter", sans-serif';
@@ -142,8 +147,9 @@ export function CartButton({ count, total, to = CART_PATH, compact }) {
 }
 
 /**
- * Switches between the 31–90 / 91–180 / Banked storefronts. `activeCount`
- * shows the selected segment's availability inline, e.g. "31–90 Day Aged (333)".
+ * Switches between the 31–90 / 91–180 / Banked storefronts of the current
+ * lead source (quote funnel or instant forms). `activeCount` shows the
+ * selected segment's availability inline, e.g. "31–90 Day Aged (333)".
  */
 export function SegmentToggle({ segmentKey, activeCount }) {
   const navigate = useNavigate();
@@ -157,7 +163,9 @@ export function SegmentToggle({ segmentKey, activeCount }) {
         navigate(storePath(value));
       }}
     >
-      {SEGMENTS.map((segment) => (
+      {SEGMENTS.filter(
+        ({ source }) => source === SEGMENT_BY_KEY[segmentKey].source,
+      ).map((segment) => (
         <ToggleButton
           key={segment.key}
           value={segment.key}
