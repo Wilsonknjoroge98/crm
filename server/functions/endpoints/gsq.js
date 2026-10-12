@@ -666,30 +666,30 @@ const SALES_PRODUCTS = [
     verifiedOnly: false,
     baseUnitPrice: 1.5,
   },
-  // Marketplace instant-form segments, sold verified only. baseUnitPrice is
-  // null until list prices are set on their Stripe products.
+  // Marketplace instant-form segments. Instant-form leads are all verified,
+  // so each segment has only a verified product.
   {
     key: 'banked_instant_form',
     name: 'Banked Instant Form Leads',
     leadType: 'banked_instant_form_lead',
-    verifiedOnly: null,
-    baseUnitPrice: null,
+    verifiedOnly: true,
+    baseUnitPrice: 18,
   },
   {
     key: 'aged_instant_form_31_90',
     name: 'Aged Instant Form Leads / 31-90 Days',
     leadType: 'aged_instant_form_lead',
     tier: 'second',
-    verifiedOnly: null,
-    baseUnitPrice: null,
+    verifiedOnly: true,
+    baseUnitPrice: 3,
   },
   {
     key: 'aged_instant_form_91_180',
     name: 'Aged Instant Form Leads / 91-180 Days',
     leadType: 'aged_instant_form_lead',
     tier: 'third',
-    verifiedOnly: null,
-    baseUnitPrice: null,
+    verifiedOnly: true,
+    baseUnitPrice: 1.5,
   },
   // Monthly subscriptions: one doc per paid invoice (new or renewal), so
   // volume is months billed and baseUnitPrice is the monthly list price.
