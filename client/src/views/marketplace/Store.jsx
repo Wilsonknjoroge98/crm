@@ -67,6 +67,7 @@ const STATE_ABBR = {
   Colorado: 'CO',
   Connecticut: 'CT',
   Delaware: 'DE',
+  'Dist.Columbia': 'DC',
   Florida: 'FL',
   Georgia: 'GA',
   Hawaii: 'HI',

@@ -11,6 +11,7 @@ const STATES = [
   'Colorado',
   'Connecticut',
   'Delaware',
+  'Dist.Columbia',
   'Florida',
   'Georgia',
   'Hawaii',

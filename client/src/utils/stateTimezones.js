@@ -11,6 +11,8 @@ const STATE_TIMEZONES = {
   connecticut: 'America/New_York',
   delaware: 'America/New_York',
   'district of columbia': 'America/New_York',
+  // gsq funnel leads (and the crm's own STATES list) spell DC this way
+  'dist.columbia': 'America/New_York',
   florida: 'America/New_York',
   georgia: 'America/New_York',
   hawaii: 'Pacific/Honolulu',
