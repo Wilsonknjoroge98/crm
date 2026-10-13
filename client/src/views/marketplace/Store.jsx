@@ -159,7 +159,7 @@ const FRESH_EXPLAINER = [
 ];
 
 /** Price + stepper card for one lead type (verified or unverified). */
-function TierCard({ verified, unit, count, price, qty, onChange }) {
+function TierCard({ verified, source, unit, count, price, qty, onChange }) {
   return (
     <Paper
       variant='outlined'
@@ -208,9 +208,12 @@ function TierCard({ verified, unit, count, price, qty, onChange }) {
         color='text.secondary'
         sx={{ display: 'block', mb: 2 }}
       >
-        {verified
-          ? 'GSQ Funnel • Quote Selected • Phone Text-Verified'
-          : 'GSQ Funnel • Quote Selected • Phone Not Text-Verified'}
+        {/* Meta text-verifies every instant form phone itself */}
+        {source === 'instant'
+          ? 'Meta Form • Phone Text-Verified'
+          : verified
+            ? 'GSQ Funnel • Quote Selected • Phone Text-Verified'
+            : 'GSQ Funnel • Quote Selected • Phone Not Text-Verified'}
       </Typography>
 
       <Stack
@@ -475,8 +478,9 @@ export default function Store() {
   };
 
   return (
+    // Capped at lg (1200px) like the marketplace landing page.
     <Container
-      maxWidth={false}
+      maxWidth='lg'
       sx={{ py: 3, px: { xs: 2, md: 3 }, pb: cartCount > 0 ? 12 : 3 }}
     >
       <Dialog
@@ -584,14 +588,13 @@ export default function Store() {
             Failed to load inventory.
           </Alert>
         ) : allStates.length === 0 ? (
-          <Paper variant='outlined' sx={{ p: 6, textAlign: 'center' }}>
-            <Typography variant='h6'>
-              No {segment.label.toLowerCase()} available right now
-            </Typography>
+          // the top bar already names the segment
+          <Box sx={{ p: 6, textAlign: 'center' }}>
+            <Typography variant='h6'>No leads available right now</Typography>
             <Typography color='text.secondary'>
               Inventory is replenished continuously - check back soon.
             </Typography>
-          </Paper>
+          </Box>
         ) : (
           <Stack direction='row' spacing={3} alignItems='flex-start'>
             <StateRail
@@ -635,6 +638,7 @@ export default function Store() {
                   <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2}>
                     <TierCard
                       verified
+                      source={segment.source}
                       unit={segment.unit}
                       count={activeState.verified}
                       price={verifiedPrice}
@@ -644,6 +648,7 @@ export default function Store() {
                     {!segment.verifiedOnly && (
                       <TierCard
                         verified={false}
+                        source={segment.source}
                         unit={segment.unit}
                         count={activeState.unverified}
                         price={unverifiedPrice}
@@ -655,9 +660,15 @@ export default function Store() {
                 </>
               )}
 
+              {/* same surface as the profile's Leads tab panels */}
               <Paper
                 variant='outlined'
-                sx={{ p: 2, bgcolor: '#FAFAFA', borderRadius: 2 }}
+                sx={{
+                  p: 2,
+                  bgcolor: '#FBFBFA',
+                  borderColor: '#E5E7EB',
+                  borderRadius: 2,
+                }}
               >
                 <Typography sx={{ ...labelSx, mb: 1.5 }}>
                   Data fields delivered with every lead
@@ -717,50 +728,53 @@ export default function Store() {
             boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
           }}
         >
-          <Stack
-            direction='row'
-            justifyContent='space-between'
-            alignItems='center'
-            spacing={2}
-            sx={{ px: 3, py: 1.5 }}
-          >
-            <Typography variant='body2' color='text.secondary'>
-              <Box
-                component='span'
-                sx={{
-                  fontFamily: MONO,
-                  fontWeight: 700,
-                  color: 'text.primary',
-                }}
-              >
-                {cartCount}
-              </Box>{' '}
-              {cartCount === 1 ? 'lead' : 'leads'} in cart •{' '}
-              <Box component='span' sx={{ fontWeight: 600 }}>
-                Total:
-              </Box>{' '}
-              <Box
-                component='span'
-                sx={{
-                  fontFamily: MONO,
-                  fontWeight: 700,
-                  color: 'text.primary',
-                }}
-              >
-                {formatMoney(cartTotal)}
-              </Box>
-            </Typography>
-            <Button
-              variant='contained'
-              color='action'
-              component={RouterLink}
-              to={CART_PATH}
-              endIcon={<ArrowForwardIcon />}
-              sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+          {/* the bar spans the viewport; its contents line up with the page */}
+          <Container maxWidth='lg' sx={{ px: { xs: 2, md: 3 } }}>
+            <Stack
+              direction='row'
+              justifyContent='space-between'
+              alignItems='center'
+              spacing={2}
+              sx={{ py: 1.5 }}
             >
-              Review Order & Checkout
-            </Button>
-          </Stack>
+              <Typography variant='body2' color='text.secondary'>
+                <Box
+                  component='span'
+                  sx={{
+                    fontFamily: MONO,
+                    fontWeight: 700,
+                    color: 'text.primary',
+                  }}
+                >
+                  {cartCount}
+                </Box>{' '}
+                {cartCount === 1 ? 'lead' : 'leads'} in cart •{' '}
+                <Box component='span' sx={{ fontWeight: 600 }}>
+                  Total:
+                </Box>{' '}
+                <Box
+                  component='span'
+                  sx={{
+                    fontFamily: MONO,
+                    fontWeight: 700,
+                    color: 'text.primary',
+                  }}
+                >
+                  {formatMoney(cartTotal)}
+                </Box>
+              </Typography>
+              <Button
+                variant='contained'
+                color='action'
+                component={RouterLink}
+                to={CART_PATH}
+                endIcon={<ArrowForwardIcon />}
+                sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+              >
+                Review Order & Checkout
+              </Button>
+            </Stack>
+          </Container>
         </Paper>
       )}
     </Container>

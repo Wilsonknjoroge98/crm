@@ -114,6 +114,30 @@ const lowestPrice = (inventories) => {
   return prices.length ? Math.min(...prices) : null;
 };
 
+// One card's inventory across the segments it covers (quote funnel and
+// instant forms). `available` is null (not 0) when every lookup failed, so
+// the card stays clickable and the agent can open the store and retry there.
+// `segmentKey` is the first segment with stock, so the card opens a store
+// that has something to sell; `price` is the cheapest across all of them.
+const summarize = (bySegment, keys) => {
+  const loaded = keys.filter((key) => bySegment[key].data);
+  const inventories = loaded.map((key) => bySegment[key].data);
+  const withStock = loaded.find(
+    (key) => countAvailable(bySegment[key].data) > 0,
+  );
+  return {
+    available: loaded.length
+      ? loaded.reduce(
+          (sum, key) => sum + countAvailable(bySegment[key].data),
+          0,
+        )
+      : null,
+    loading: keys.some((key) => bySegment[key].isLoading),
+    price: lowestPrice(inventories),
+    segmentKey: withStock || keys[0],
+  };
+};
+
 // White cards lifted off the tinted page by a hairline shadow rather than a
 // heavy elevation, to keep the flat editorial look.
 const cardSx = (accent) => ({
@@ -356,34 +380,16 @@ const Purchase = () => {
   // Shares its cache with the store pages, so opening a store after the hub
   // reuses this inventory.
   const inventory = useMarketplaceInventory();
-  const {
-    banked,
-    aged_second: agedSecond,
-    aged_third: agedThird,
-    instant_banked: instantBanked,
-    instant_aged_second: instantAgedSecond,
-    instant_aged_third: instantAgedThird,
-  } = inventory.bySegment;
-
-  const agedLoading = agedSecond.isLoading || agedThird.isLoading;
-  const agedAvailable =
-    agedSecond.data || agedThird.data
-      ? countAvailable(agedSecond.data) + countAvailable(agedThird.data)
-      : null;
-  // null (not 0) when the lookup failed, so the card stays clickable and the
-  // agent can open the store and retry there.
-  const bankedAvailable = banked.data ? countAvailable(banked.data) : null;
-
-  const instantAgedLoading =
-    instantAgedSecond.isLoading || instantAgedThird.isLoading;
-  const instantAgedAvailable =
-    instantAgedSecond.data || instantAgedThird.data
-      ? countAvailable(instantAgedSecond.data) +
-        countAvailable(instantAgedThird.data)
-      : null;
-  const instantBankedAvailable = instantBanked.data
-    ? countAvailable(instantBanked.data)
-    : null;
+  const aged = summarize(inventory.bySegment, [
+    'aged_second',
+    'aged_third',
+    'instant_aged_second',
+    'instant_aged_third',
+  ]);
+  const bankedSummary = summarize(inventory.bySegment, [
+    'banked',
+    'instant_banked',
+  ]);
 
   return (
     // The tinted canvas behind the cards comes from App's layout.
@@ -424,13 +430,13 @@ const Purchase = () => {
             <InventoryCard
               title='Aged Leads'
               accent={SLATE}
-              price={lowestPrice([agedSecond.data, agedThird.data])}
-              available={agedAvailable}
-              loading={agedLoading}
+              price={aged.price}
+              available={aged.available}
+              loading={aged.loading}
               description='GSQ at a fraction of the price. Available in 31–90 and 91–180 day age windows'
               cta='Browse Inventory'
               showCountInCta={false}
-              to={storePath('aged_second')}
+              to={storePath(aged.segmentKey)}
               emptyMessage='No aged leads are available right now.'
             />
 
@@ -438,42 +444,13 @@ const Purchase = () => {
             <InventoryCard
               title='Banked Leads'
               accent={SLATE}
-              price={lowestPrice([banked.data])}
-              available={bankedAvailable}
-              loading={banked.isLoading}
+              price={bankedSummary.price}
+              available={bankedSummary.available}
+              loading={bankedSummary.loading}
               description='Fresh leads from the last 72 hours that were never issued to an agent.'
               cta='Browse Inventory'
-              to={storePath('banked')}
+              to={storePath(bankedSummary.segmentKey)}
               emptyMessage='No fresh leads are banked right now.'
-            />
-          </Stack>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} mt={2}>
-            <InventoryCard
-              title='Aged Instant Forms'
-              accent={SLATE}
-              price={lowestPrice([
-                instantAgedSecond.data,
-                instantAgedThird.data,
-              ])}
-              available={instantAgedAvailable}
-              loading={instantAgedLoading}
-              description='Meta instant form leads not marked sold. Available in 31–90 and 91–180 day age windows'
-              cta='Browse Inventory'
-              showCountInCta={false}
-              to={storePath('instant_aged_second')}
-              emptyMessage='No aged instant form leads are available right now.'
-            />
-
-            <InventoryCard
-              title='Banked Instant Forms'
-              accent={SLATE}
-              price={lowestPrice([instantBanked.data])}
-              available={instantBankedAvailable}
-              loading={instantBanked.isLoading}
-              description='Meta instant form leads from the last 72 hours that were never issued to an agent.'
-              cta='Browse Inventory'
-              to={storePath('instant_banked')}
-              emptyMessage='No instant form leads are banked right now.'
             />
           </Stack>
         </Box>

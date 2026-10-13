@@ -17,14 +17,8 @@ import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import QtyInput from './QtyInput.jsx';
-import {
-  CART_PATH,
-  SEGMENTS,
-  SEGMENT_BY_KEY,
-  storePath,
-} from './cartState.js';
+import { CART_PATH, SEGMENTS, storePath } from './cartState.js';
 
 export const MONO = '"JetBrains Mono", monospace';
 export const SANS = '"Inter", sans-serif';
@@ -147,9 +141,9 @@ export function CartButton({ count, total, to = CART_PATH, compact }) {
 }
 
 /**
- * Switches between the 31–90 / 91–180 / Banked storefronts of the current
- * lead source (quote funnel or instant forms). `activeCount` shows the
- * selected segment's availability inline, e.g. "31–90 Day Aged (333)".
+ * Switches between every storefront segment, quote-funnel and instant-form,
+ * in one row that scrolls sideways when it doesn't fit. `activeCount` shows
+ * the selected segment's availability inline, e.g. "Funnel 31–90 (333)".
  */
 export function SegmentToggle({ segmentKey, activeCount }) {
   const navigate = useNavigate();
@@ -158,20 +152,24 @@ export function SegmentToggle({ segmentKey, activeCount }) {
       value={segmentKey}
       exclusive
       size='small'
+      sx={{ maxWidth: '100%', overflowX: 'auto' }}
       onChange={(event, value) => {
         if (!value || value === segmentKey) return;
         navigate(storePath(value));
       }}
     >
-      {SEGMENTS.filter(
-        ({ source }) => source === SEGMENT_BY_KEY[segmentKey].source,
-      ).map((segment) => (
+      {SEGMENTS.map((segment) => (
         <ToggleButton
           key={segment.key}
           value={segment.key}
-          sx={{ px: 2, fontWeight: 600, textTransform: 'none' }}
+          sx={{
+            px: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+            whiteSpace: 'nowrap',
+          }}
         >
-          {segment.label}
+          {segment.shortLabel}
           {segment.key === segmentKey && activeCount != null && (
             <Box
               component='span'
@@ -191,31 +189,39 @@ export function SegmentToggle({ segmentKey, activeCount }) {
   );
 }
 
-/** Verified / Unverified pill, in the CRM's muted status tints. */
+/**
+ * Verified / Unverified status chip, styled like the Business page's
+ * SALE / LEAD chips: the theme's chip type, a muted status tint and a
+ * hairline border.
+ */
 export function LeadTypeChip({ verified, label }) {
-  return verified ? (
+  return (
     <Chip
       size='small'
-      icon={<CheckCircleOutlinedIcon />}
-      label={label || 'Text Verified'}
+      label={label || (verified ? 'Text Verified' : 'Unverified')}
       sx={{
-        bgcolor: 'success.light',
-        color: 'success.main',
-        '& .MuiChip-icon': { color: 'success.main', fontSize: 16 },
+        // Unverified stays neutral grey: gold is the marketplace's CTA and
+        // "most popular" accent. Same grey as the profile's Paused chip.
+        bgcolor: verified ? '#E6F1EC' : '#F3F4F6',
+        color: verified ? 'success.main' : 'text.secondary',
+        border: '1px solid',
+        borderColor: 'divider',
+        textTransform: 'uppercase',
+        flexShrink: 0,
       }}
-    />
-  ) : (
-    <Chip
-      size='small'
-      label={label || 'Unverified'}
-      sx={{ bgcolor: 'warning.light', color: 'warning.dark' }}
     />
   );
 }
 
-/** Accent color for a lead type's card stripe and dots. */
-export const leadTypeColor = (verified) =>
-  verified ? 'success.main' : 'warning.main';
+/**
+ * Accent color for a lead type's card stripe and dots. Unverified gets the
+ * landing page's muted grey stripe; its dots use a darker grey so they still
+ * show up at 6px.
+ */
+export const leadTypeColor = (verified, { dot = false } = {}) => {
+  if (verified) return 'success.main';
+  return dot ? 'text.disabled' : BORDER;
+};
 
 /**
  * Segmented − [qty] + input group, squared off like the CRM's text fields;
@@ -346,7 +352,9 @@ export function OrderLines({ items }) {
                     height: 6,
                     flexShrink: 0,
                     borderRadius: '50%',
-                    bgcolor: leadTypeColor(item.type === 'verified'),
+                    bgcolor: leadTypeColor(item.type === 'verified', {
+                      dot: true,
+                    }),
                   }}
                 />
                 <Typography variant='body2' noWrap>
