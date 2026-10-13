@@ -8,7 +8,10 @@ const {
   findOwnedPerson,
 } = require('./business_access');
 const STATE_ABBREV_MAP = require('../shared/constants/state_abbrev_map');
-const { isMarketplaceSale } = require('../shared/final_sale');
+const {
+  isMarketplaceSale,
+  isRefundCandidate,
+} = require('../shared/refund_eligibility');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -321,38 +324,45 @@ const attachRefundStatus = async (supabase, rows) => {
   });
 };
 
-// Flags GSQ leads the marketplace sold as aged or banked, so the card hides
-// Request Refund. Only rows that could still request one are read from GSQ;
-// the refunds route enforces the same rule, so a failed read only costs the
-// hint, not the list.
-const attachFinalSale = async (createFirestore, rows) => {
+// refund_eligible tells the card whether to offer Request Refund, using the
+// refunds route's rules. Only rows that pass the crm-side checks are read
+// from GSQ, to rule out marketplace (final sale) purchases. If that read
+// fails they stay eligible: the refunds route re-checks, so a failed read
+// only costs the hint, not the list.
+const attachRefundEligibility = async (createFirestore, rows) => {
   const candidates = rows.filter(
     (row) =>
-      row.verified === false &&
-      row.lead_vendor_id === GSQ_LEAD_VENDOR_ID &&
-      row.gsq_id &&
-      !row.sold &&
-      !row.refund_status,
+      row.lead_id &&
+      row.lifecycle_status !== 'SALE' &&
+      // the view's created_at is the client's once converted; the lead's
+      // own generation time is lead_created_at
+      isRefundCandidate({ ...row, created_at: row.lead_created_at }),
   );
-  const finalSaleGsqIds = new Set();
-  if (candidates.length > 0) {
+  const marketplaceGsqIds = new Set();
+  if (candidates.some((row) => row.gsq_id)) {
     try {
       const db = createFirestore();
-      const gsqIds = [...new Set(candidates.map((row) => row.gsq_id))];
+      const gsqIds = [
+        ...new Set(candidates.map((row) => row.gsq_id).filter(Boolean)),
+      ];
       const snaps = await db.getAll(
         ...gsqIds.map((gsqId) => db.doc(`leads/${gsqId}`)),
       );
       snaps.forEach((snap, index) => {
-        if (isMarketplaceSale(snap.data())) finalSaleGsqIds.add(gsqIds[index]);
+        if (isMarketplaceSale(snap.data())) marketplaceGsqIds.add(gsqIds[index]);
       });
     } catch (error) {
-      logger.error('Failed to read GSQ leads for final sale', { error });
+      logger.error('Failed to read GSQ leads for refund eligibility', {
+        error,
+      });
     }
   }
-  return rows.map((row) => ({
-    ...row,
-    final_sale: finalSaleGsqIds.has(row.gsq_id),
-  }));
+  const eligible = new Set(
+    candidates
+      .filter((row) => !row.gsq_id || !marketplaceGsqIds.has(row.gsq_id))
+      .map((row) => row.id),
+  );
+  return rows.map((row) => ({ ...row, refund_eligible: eligible.has(row.id) }));
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
@@ -784,7 +794,7 @@ const createBusinessRouter = ({
 
       let rows = await attachPolicies(supabase, data || []);
       rows = await attachRefundStatus(supabase, rows);
-      rows = await attachFinalSale(createFirestore, rows);
+      rows = await attachRefundEligibility(createFirestore, rows);
       if (isSuperuser) {
         rows = await attachAgentNames(supabase, rows);
       }

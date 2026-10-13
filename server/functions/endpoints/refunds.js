@@ -10,16 +10,17 @@ const {
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,
 } = require('../integrations/GSQ');
-const { isMarketplaceSale } = require('../shared/final_sale');
+const {
+  GSQ_LEAD_VENDOR_ID,
+  REFUND_ELIGIBILITY_CUTOFF,
+  isMarketplaceSale,
+} = require('../shared/refund_eligibility');
 
 // Refunds only make sense for GSQ leads — crediting a refund means crediting
 // the agent's outstandingLeads/unverified counters in GSQ's own Firestore,
-// which only exists for leads that actually came from GSQ.
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
-
-// The refund flow only applies to leads generated on or after this date —
-// leads that dripped in earlier were never sold as refund-eligible.
-const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-19T00:00:00Z');
+// which only exists for leads that actually came from GSQ. The eligibility
+// rules live in shared/refund_eligibility.js so the business list's
+// refund_eligible flag matches what this route accepts.
 
 // requester/reviewer come through fks on refund_requested_by/refund_reviewed_by,
 // leads has several fks to agents so each needs its own alias

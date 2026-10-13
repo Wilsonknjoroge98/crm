@@ -459,7 +459,7 @@ describe('GET /people', () => {
           id: 'person-1',
           first_name: 'Ada',
           policies: [{ id: 'policy-1', carrier_name: 'Ladder' }],
-          final_sale: false,
+          refund_eligible: false,
         },
       ],
       pagination: {
@@ -578,7 +578,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: 'denied',
         refund_denial_reason: 'Lead looks legitimate',
-        final_sale: false,
+        refund_eligible: false,
       },
       {
         id: 'person-2',
@@ -587,7 +587,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: null,
         refund_denial_reason: null,
-        final_sale: false,
+        refund_eligible: false,
       },
       {
         id: 'person-3',
@@ -596,7 +596,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: null,
         refund_denial_reason: null,
-        final_sale: false,
+        refund_eligible: false,
       },
     ]);
 
@@ -608,14 +608,16 @@ describe('GET /people', () => {
     });
   });
 
-  test('flags marketplace-sold GSQ leads as final sale', async () => {
+  test('marks only refundable GSQ leads refund eligible, excluding marketplace sales', async () => {
     const gsqLead = (id, gsqId) => ({
       id,
       lead_id: `lead-${id}`,
+      lifecycle_status: 'LEAD',
       verified: false,
       sold: false,
       lead_vendor_id: GSQ_LEAD_VENDOR_ID,
       gsq_id: gsqId,
+      lead_created_at: '2026-09-20T00:00:00Z',
     });
     const supabase = makeSupabase({
       business: [
@@ -625,9 +627,14 @@ describe('GET /people', () => {
             gsqLead('aged', 'gsq-aged'),
             gsqLead('fresh', 'gsq-fresh'),
             gsqLead('held', 'gsq-held'),
+            {
+              ...gsqLead('old', 'gsq-old'),
+              lead_created_at: '2026-09-01T00:00:00Z',
+            },
+            { ...gsqLead('verified', 'gsq-verified'), verified: true },
           ],
           error: null,
-          count: 4,
+          count: 6,
         },
         rollupFor([]),
       ],
@@ -658,12 +665,28 @@ describe('GET /people', () => {
     expect(response.status).toBe(200);
     expect(
       Object.fromEntries(
-        response.body.data.map((row) => [row.id, row.final_sale]),
+        response.body.data.map((row) => [row.id, row.refund_eligible]),
       ),
-    ).toEqual({ banked: true, aged: true, fresh: false, held: false });
+    ).toEqual({
+      banked: false,
+      aged: false,
+      fresh: true,
+      held: true,
+      old: false,
+      verified: false,
+    });
+    // Only rows that pass the crm-side checks are read from GSQ.
+    expect(firestore.calls).toContainEqual({
+      getAll: [
+        'leads/gsq-banked',
+        'leads/gsq-aged',
+        'leads/gsq-fresh',
+        'leads/gsq-held',
+      ],
+    });
   });
 
-  test('still returns the list when the final sale lookup fails', async () => {
+  test('keeps refundable leads eligible when the GSQ lookup fails', async () => {
     const supabase = makeSupabase({
       business: [
         {
@@ -672,8 +695,10 @@ describe('GET /people', () => {
               id: 'person-1',
               lead_id: 'lead-1',
               verified: false,
+              lifecycle_status: 'LEAD',
               lead_vendor_id: GSQ_LEAD_VENDOR_ID,
               gsq_id: 'gsq-1',
+              lead_created_at: '2026-09-20T00:00:00Z',
             },
           ],
           error: null,
@@ -690,7 +715,7 @@ describe('GET /people', () => {
     ).get('/business');
 
     expect(response.status).toBe(200);
-    expect(response.body.data[0].final_sale).toBe(false);
+    expect(response.body.data[0].refund_eligible).toBe(true);
   });
 
   test('skips the rollup read entirely for an empty page', async () => {
