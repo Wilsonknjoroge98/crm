@@ -236,6 +236,95 @@ describe('POST /refunds', () => {
     expect(res.body.error).toMatch(/first issued to/i);
   });
 
+  describe('marketplace final sale', () => {
+    const unverifiedLead = () =>
+      makeSupabase([
+        {
+          table: 'leads',
+          result: {
+            data: {
+              id: 'lead-1',
+              first_name: 'Ada',
+              last_name: 'Lovelace',
+              email: 'ada@example.com',
+              phone: '2025550100',
+              verified: false,
+              sold: false,
+              refund_status: null,
+              agent_id: 'agent-1',
+              gsq_id: 'gsq-1',
+              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              created_at: '2026-09-20T00:00:00Z',
+            },
+            error: null,
+          },
+        },
+        { table: 'leads', result: { data: { id: 'lead-1' }, error: null } },
+        { table: 'leads', result: { data: { id: 'lead-1' }, error: null } },
+      ]);
+
+    test('rejects a banked lead bought by the requesting agent', async () => {
+      const supabase = unverifiedLead();
+      const createFirestore = makeFirestore({
+        leadsDocs: {
+          'gsq-1': {
+            issuedTo: 'agent-1@example.com',
+            marketplaceSegment: 'banked',
+            marketplaceSessionId: 'cs_1',
+            marketplaceReservedUntil: null,
+          },
+        },
+      });
+      const app = makeApp({ supabase, createFirestore });
+
+      const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/final sale/i);
+      expect(supabase.callCount()).toBe(1);
+    });
+
+    test('rejects an aged lead even when an admin files it', async () => {
+      const supabase = unverifiedLead();
+      const createFirestore = makeFirestore({
+        leadsDocs: {
+          'gsq-1': {
+            issuedTo: 'original@example.com',
+            redistributedTo: ['agent-1@example.com'],
+          },
+        },
+      });
+      const app = makeApp({
+        supabase,
+        createFirestore,
+        agent: { id: SUPERUSER_ID, email: SUPER_ADMIN_EMAIL },
+      });
+
+      const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/final sale/i);
+    });
+
+    test('allows a lead that is only held by an unpaid checkout', async () => {
+      const supabase = unverifiedLead();
+      const createFirestore = makeFirestore({
+        leadsDocs: {
+          'gsq-1': {
+            issuedTo: 'agent-1@example.com',
+            marketplaceSegment: 'aged_second',
+            marketplaceReservedUntil: { toMillis: () => Date.now() + 60000 },
+          },
+        },
+      });
+      const app = makeApp({ supabase, createFirestore });
+
+      const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+      expect(res.status).toBe(201);
+    });
+  });
+
   test('normalizes the gsq platform email before comparing issuedTo', async () => {
     const supabase = makeSupabase([
       {

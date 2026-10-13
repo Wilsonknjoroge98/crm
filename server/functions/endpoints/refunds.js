@@ -34,6 +34,14 @@ const REFUND_LIST_FIELDS =
 // these columns on `leads` are the complete history, nothing more to keep.
 const REFUND_STATUS_FILTERS = new Set(['requested', 'approved', 'denied', 'all']);
 
+// True once the marketplace has sold the GSQ lead doc. An aged sale appends
+// the buyer to redistributedTo; a banked sale keeps marketplaceSegment and
+// clears the reservation hold. A checkout still holding the lead
+// (marketplaceReservedUntil set) is not a sale yet.
+const isMarketplaceSale = (gsqLead) =>
+  [].concat(gsqLead?.redistributedTo ?? []).length > 0 ||
+  Boolean(gsqLead?.marketplaceSegment && !gsqLead.marketplaceReservedUntil);
+
 const defaultCreateFirestore = () =>
   new Firestore({
     projectId: process.env.GSQ_PROJECT_ID,
@@ -115,15 +123,24 @@ const createRefundsRouter = ({
           .json({ error: 'Lead has no owning agent to credit' });
       }
 
+      const gsqLead = lead.gsq_id
+        ? (await createFirestore().doc(`leads/${lead.gsq_id}`).get()).data()
+        : null;
+
+      // Aged and banked leads bought on the marketplace are final sale, even
+      // when an admin files the request.
+      if (isMarketplaceSale(gsqLead)) {
+        return res.status(400).json({
+          error: 'Aged and banked marketplace leads are final sale',
+        });
+      }
+
       // fexdigital resells aged leads to other agents and the crm row moves with them, but
       // the gsq doc keeps the agent it was first issued to. only that agent gets a refund,
       // an aged buyer paid a fraction of a fresh lead and these credits are fresh leads.
       // admins bypass this check and file on behalf of whoever the crm currently shows
       // as the owning agent.
       if (agentId !== SUPERUSER_ID) {
-        const gsqLead = lead.gsq_id
-          ? (await createFirestore().doc(`leads/${lead.gsq_id}`).get()).data()
-          : null;
         let issuedTo = gsqLead?.issuedTo?.trim().toLowerCase();
         // house leads keep the platform email in gsq, matching the rewrite
         // ingestion applies when resolving which crm agent owns them
