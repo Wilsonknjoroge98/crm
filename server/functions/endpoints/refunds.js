@@ -10,6 +10,10 @@ const {
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,
 } = require('../integrations/GSQ');
+const {
+  marketplacePurchaseKind,
+  MARKETPLACE_REFUND_ERROR,
+} = require('../shared/marketplace_purchase');
 
 // Refunds only make sense for GSQ leads — crediting a refund means crediting
 // the agent's outstandingLeads/unverified counters in GSQ's own Firestore,
@@ -115,15 +119,26 @@ const createRefundsRouter = ({
           .json({ error: 'Lead has no owning agent to credit' });
       }
 
+      const gsqLead = lead.gsq_id
+        ? (await createFirestore().doc(`leads/${lead.gsq_id}`).get()).data()
+        : null;
+
+      // Banked and aged marketplace purchases are final sale. This applies
+      // to admins too: an admin filing on an agent's behalf can't refund a
+      // lead the agent bought off the marketplace either.
+      const purchaseKind = marketplacePurchaseKind(gsqLead);
+      if (purchaseKind) {
+        return res
+          .status(400)
+          .json({ error: MARKETPLACE_REFUND_ERROR[purchaseKind] });
+      }
+
       // fexdigital resells aged leads to other agents and the crm row moves with them, but
       // the gsq doc keeps the agent it was first issued to. only that agent gets a refund,
       // an aged buyer paid a fraction of a fresh lead and these credits are fresh leads.
       // admins bypass this check and file on behalf of whoever the crm currently shows
       // as the owning agent.
       if (agentId !== SUPERUSER_ID) {
-        const gsqLead = lead.gsq_id
-          ? (await createFirestore().doc(`leads/${lead.gsq_id}`).get()).data()
-          : null;
         let issuedTo = gsqLead?.issuedTo?.trim().toLowerCase();
         // house leads keep the platform email in gsq, matching the rewrite
         // ingestion applies when resolving which crm agent owns them

@@ -413,7 +413,7 @@ const Purchase = () => {
               price={lowestPrice([agedSecond.data, agedThird.data])}
               available={agedAvailable}
               loading={agedLoading}
-              description='GSQ at a fraction of the price. Available in 31–90 and 91–180 day age windows'
+              description='GSQ at a fraction of the price. Available in 31–90 and 91–180 day age windows. Final sale.'
               cta='Browse Inventory'
               showCountInCta={false}
               to={storePath('aged_second')}
@@ -427,7 +427,7 @@ const Purchase = () => {
               price={lowestPrice([banked.data])}
               available={bankedAvailable}
               loading={banked.isLoading}
-              description='Fresh leads from the last 72 hours that were never issued to an agent.'
+              description='Fresh leads from the last 72 hours that were never issued to an agent. Final sale.'
               cta='Browse Inventory'
               to={storePath('banked')}
               emptyMessage='No fresh leads are banked right now.'

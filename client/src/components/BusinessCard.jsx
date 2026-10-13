@@ -129,6 +129,12 @@ const REFUND_BADGE_COLOR = {
   approved: 'success',
   denied: 'error',
 };
+// Banked and aged marketplace purchases are final sale — the server sets
+// marketplace_purchase from GSQ's lead doc and rejects refund requests on them.
+const FINAL_SALE_LABELS = {
+  banked: 'BANKED · FINAL SALE',
+  aged: 'AGED · FINAL SALE',
+};
 
 // Some funnel submissions send the literal string "None" for an unmade
 // selection instead of leaving the field blank — treat it as no value.
@@ -472,7 +478,9 @@ const BusinessCard = ({
   // were never sold as refund-eligible, so only gate the request action.
   const wasGeneratedAfterCutoff =
     Boolean(receivedAt) && new Date(receivedAt) >= REFUND_ELIGIBILITY_CUTOFF;
-  const canRequestRefund = isRefundRelevant && wasGeneratedAfterCutoff;
+  const finalSaleLabel = FINAL_SALE_LABELS[person.marketplace_purchase] || null;
+  const canRequestRefund =
+    isRefundRelevant && wasGeneratedAfterCutoff && !finalSaleLabel;
   const refundBadgeLabel = REFUND_BADGE_LABELS[person.refund_status] || null;
   const refundBadgeColor = REFUND_BADGE_COLOR[person.refund_status] || 'default';
   const isRefundDenied = person.refund_status === 'denied';
@@ -931,6 +939,24 @@ const BusinessCard = ({
                     mb: 0.25,
                     bgcolor: `${refundBadgeColor}.light`,
                     color: `${refundBadgeColor}.main`,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    fontWeight: 700,
+                    fontSize: '0.675rem',
+                  }}
+                />
+              </Tooltip>
+            ) : isRefundRelevant && finalSaleLabel ? (
+              <Tooltip title='Marketplace purchases are final sale and not eligible for a refund'>
+                <Chip
+                  label={finalSaleLabel}
+                  size='small'
+                  sx={{
+                    alignSelf: 'flex-start',
+                    mt: 0.25,
+                    mb: 0.25,
+                    bgcolor: 'grey.100',
+                    color: 'text.secondary',
                     border: '1px solid',
                     borderColor: 'divider',
                     fontWeight: 700,

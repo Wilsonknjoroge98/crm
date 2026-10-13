@@ -132,6 +132,10 @@ const INCLUDED_FIELDS = [
   'Selected Plan',
 ];
 
+// Bumped when the explainer's terms change (v2: banked leads became final
+// sale) so agents who dismissed the old copy see the new policy once.
+const FRESH_EXPLAINER_SEEN_KEY = 'fex-fresh-explainer-seen-v2';
+
 const FRESH_EXPLAINER = [
   {
     title: 'Generated, never issued',
@@ -143,7 +147,7 @@ const FRESH_EXPLAINER = [
   },
   {
     title: 'Refunds',
-    body: 'Unverified leads are eligible for refunds through Ringy "bad number" disposition tags, or by emailing info@fexdigital.com for non-Ringy agents.',
+    body: 'Banked leads are final sale. Verified and unverified banked leads are not eligible for refunds or replacements.',
   },
 ];
 
@@ -379,7 +383,7 @@ export default function Store() {
   const [showExplainer, setShowExplainer] = useState(() => {
     if (!isFresh) return false;
     try {
-      return !localStorage.getItem('fex-fresh-explainer-seen');
+      return !localStorage.getItem(FRESH_EXPLAINER_SEEN_KEY);
     } catch {
       return false;
     }
@@ -387,7 +391,7 @@ export default function Store() {
 
   const handleCloseExplainer = () => {
     try {
-      localStorage.setItem('fex-fresh-explainer-seen', '1');
+      localStorage.setItem(FRESH_EXPLAINER_SEEN_KEY, '1');
     } catch {
       // ignore — storage unavailable (e.g. Safari private mode)
     }
@@ -616,7 +620,8 @@ export default function Store() {
                           activeState.verified + activeState.unverified
                         ).toLocaleString()}
                       </Box>{' '}
-                      leads available in {stateCode(activeState.name)}
+                      leads available in {stateCode(activeState.name)} · Final
+                      sale, not eligible for refunds
                     </Typography>
                   </Box>
 

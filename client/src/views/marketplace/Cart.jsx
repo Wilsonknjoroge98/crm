@@ -393,6 +393,14 @@ export default function Cart() {
                   SendBlue or InsurDial integration linked to this email.
                 </Typography>
               )}
+              <Typography
+                variant='caption'
+                color='text.secondary'
+                sx={{ display: 'block', mt: 0.5 }}
+              >
+                Banked and aged leads are final sale and are not eligible for
+                refunds or replacements.
+              </Typography>
 
               {overLimit && (
                 <Alert severity='warning' sx={{ mt: 2 }}>

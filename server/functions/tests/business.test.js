@@ -568,6 +568,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: 'denied',
         refund_denial_reason: 'Lead looks legitimate',
+        marketplace_purchase: null,
       },
       {
         id: 'person-2',
@@ -576,6 +577,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: null,
         refund_denial_reason: null,
+        marketplace_purchase: null,
       },
       {
         id: 'person-3',
@@ -584,6 +586,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: null,
         refund_denial_reason: null,
+        marketplace_purchase: null,
       },
     ]);
 
@@ -593,6 +596,90 @@ describe('GET /people', () => {
       method: 'in',
       args: ['id', ['lead-1']],
     });
+  });
+
+  test('flags unverified banked and aged marketplace purchases as final sale', async () => {
+    const GSQ_VENDOR = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+    const rows = [
+      { id: 'p-1', lead_id: 'l-1', verified: false, gsq_id: 'g-banked', lead_vendor_id: GSQ_VENDOR },
+      { id: 'p-2', lead_id: 'l-2', verified: false, gsq_id: 'g-aged', lead_vendor_id: GSQ_VENDOR },
+      { id: 'p-3', lead_id: 'l-3', verified: false, gsq_id: 'g-fresh', lead_vendor_id: GSQ_VENDOR },
+      { id: 'p-4', lead_id: 'l-4', verified: true, gsq_id: 'g-verified', lead_vendor_id: GSQ_VENDOR },
+    ];
+    const supabase = makeSupabase({
+      business: [
+        { data: rows, error: null, count: rows.length },
+        rollupFor(rows.map(({ id }) => ({ id }))),
+      ],
+      leads: [{ data: [], error: null }],
+    });
+    const leadDocs = {
+      'g-banked': {
+        issuedTo: 'buyer@example.com',
+        marketplaceSegment: 'banked',
+      },
+      'g-aged': {
+        issuedTo: 'first@example.com',
+        redistributedTo: 'buyer@example.com',
+        redistributionStage: 1,
+      },
+      'g-fresh': { issuedTo: 'agent@example.com' },
+    };
+    const requested = [];
+    const db = {
+      doc: (path) => ({ path }),
+      getAll: async (...refs) => {
+        requested.push(...refs.map((ref) => ref.path));
+        return refs.map((ref) => ({
+          data: () => leadDocs[ref.path.slice('leads/'.length)],
+        }));
+      },
+    };
+
+    const response = await request(
+      makeApp(supabase, { id: SUPERUSER_ID }, { createFirestore: () => db }),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(
+      Object.fromEntries(
+        response.body.data.map((row) => [row.id, row.marketplace_purchase]),
+      ),
+    ).toEqual({ 'p-1': 'banked', 'p-2': 'aged', 'p-3': null, 'p-4': null });
+    // verified leads are never refundable, so their docs aren't read
+    expect(requested).toEqual(['leads/g-banked', 'leads/g-aged', 'leads/g-fresh']);
+  });
+
+  test('still returns the page when the marketplace lookup fails', async () => {
+    const rows = [
+      {
+        id: 'p-1',
+        lead_id: 'l-1',
+        verified: false,
+        gsq_id: 'g-1',
+        lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+      },
+    ];
+    const supabase = makeSupabase({
+      business: [
+        { data: rows, error: null, count: 1 },
+        rollupFor([{ id: 'p-1' }]),
+      ],
+      leads: [{ data: [], error: null }],
+    });
+    const db = {
+      doc: (path) => ({ path }),
+      getAll: async () => {
+        throw new Error('firestore down');
+      },
+    };
+
+    const response = await request(
+      makeApp(supabase, { id: SUPERUSER_ID }, { createFirestore: () => db }),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0].marketplace_purchase).toBeNull();
   });
 
   test('skips the rollup read entirely for an empty page', async () => {

@@ -8,6 +8,9 @@ const {
   findOwnedPerson,
 } = require('./business_access');
 const STATE_ABBREV_MAP = require('../shared/constants/state_abbrev_map');
+const {
+  marketplacePurchaseKind,
+} = require('../shared/marketplace_purchase');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -296,17 +299,61 @@ const attachAgentNames = async (supabase, rows) => {
   }));
 };
 
+// Banked/aged marketplace purchases are final sale. Which one a lead is only
+// lives on GSQ's Firestore lead doc, so read those docs in one getAll round
+// trip. Best-effort: if Firestore is down the card just falls back to
+// showing Request Refund, and POST /refunds still rejects the request.
+const fetchMarketplacePurchases = async (createFirestore, rows) => {
+  const gsqIds = [
+    ...new Set(
+      rows
+        .filter(
+          (row) =>
+            row.verified === false &&
+            row.lead_vendor_id === GSQ_LEAD_VENDOR_ID &&
+            row.gsq_id,
+        )
+        .map((row) => row.gsq_id),
+    ),
+  ];
+  if (gsqIds.length === 0) return new Map();
+
+  try {
+    const db = createFirestore();
+    const snaps = await db.getAll(
+      ...gsqIds.map((gsqId) => db.doc(`leads/${gsqId}`)),
+    );
+    return new Map(
+      snaps.map((snap, index) => [
+        gsqIds[index],
+        marketplacePurchaseKind(snap.data()),
+      ]),
+    );
+  } catch (error) {
+    logger.error('Failed to look up marketplace purchases for refunds', {
+      error: error?.message,
+      count: gsqIds.length,
+    });
+    return new Map();
+  }
+};
+
 // only unverified leads can have a refund, so most pages skip this query
-const attachRefundStatus = async (supabase, rows) => {
+const attachRefundStatus = async (supabase, rows, createFirestore) => {
   const leadIds = rows
     .filter((row) => row.verified === false && row.lead_id)
     .map((row) => row.lead_id);
   if (leadIds.length === 0) return rows;
 
-  const { data, error } = await supabase
-    .from('leads')
-    .select('id,refund_status,refund_denial_reason')
-    .in('id', leadIds);
+  const [{ data, error }, purchaseByGsqId] = await Promise.all([
+    supabase
+      .from('leads')
+      .select('id,refund_status,refund_denial_reason')
+      .in('id', leadIds),
+    createFirestore
+      ? fetchMarketplacePurchases(createFirestore, rows)
+      : new Map(),
+  ]);
   if (error) throw error;
 
   const refundById = new Map((data || []).map((lead) => [lead.id, lead]));
@@ -316,6 +363,9 @@ const attachRefundStatus = async (supabase, rows) => {
       ...row,
       refund_status: refund?.refund_status ?? null,
       refund_denial_reason: refund?.refund_denial_reason ?? null,
+      // 'banked' | 'aged' | null — the card shows FINAL SALE instead of
+      // Request Refund for marketplace purchases
+      marketplace_purchase: purchaseByGsqId.get(row.gsq_id) ?? null,
     };
   });
 };
@@ -748,7 +798,7 @@ const createBusinessRouter = ({
       if (error) throw error;
 
       let rows = await attachPolicies(supabase, data || []);
-      rows = await attachRefundStatus(supabase, rows);
+      rows = await attachRefundStatus(supabase, rows, createFirestore);
       if (isSuperuser) {
         rows = await attachAgentNames(supabase, rows);
       }
