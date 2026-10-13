@@ -24,6 +24,7 @@ import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
 import {
   CHECKOUT_PATH,
   SEGMENTS,
+  SEGMENT_BY_KEY,
   cartLines,
   continueShoppingPath,
   linesCount,
@@ -94,7 +95,9 @@ export default function Cart() {
   const total = linesTotal(items);
   const totalLeads = linesCount(items);
   const overLimit = totalLeads > MAX_LEADS_PER_ORDER;
-  const hasBanked = items.some((item) => item.segment === 'banked');
+  const hasBanked = items.some(
+    (item) => SEGMENT_BY_KEY[item.segment]?.leadType === 'fresh',
+  );
 
   const getMax = (segment, state, type) =>
     statesOf(segment)?.[state]?.[type] ?? Infinity;

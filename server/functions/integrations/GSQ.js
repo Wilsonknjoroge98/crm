@@ -332,7 +332,9 @@ const markSoldInGSQ = async (phone, email) => {
   // firestore caps a batch at 500 writes
   for (let i = 0; i < unsold.length; i += 500) {
     const batch = db.batch();
-    unsold.slice(i, i + 500).forEach((doc) => batch.update(doc.ref, { sold: true }));
+    unsold
+      .slice(i, i + 500)
+      .forEach((doc) => batch.update(doc.ref, { sold: true }));
     await batch.commit();
   }
 
@@ -350,7 +352,9 @@ const markSoldInGSQ = async (phone, email) => {
 // never came through as a normal lead (funnel or instant form) — a caller
 // who already had a lead is still that lead, not a live transfer.
 const isGSQLiveTransfer = async (phone, agentEmail) => {
-  const email = String(agentEmail ?? '').trim().toLowerCase();
+  const email = String(agentEmail ?? '')
+    .trim()
+    .toLowerCase();
   if (!email) return false;
 
   const db = new Firestore({
@@ -363,7 +367,10 @@ const isGSQLiveTransfer = async (phone, agentEmail) => {
   const callerPhones = [...new Set([...variants, `+1${digits}`])];
 
   const [calls, logs, leadDocs] = await Promise.all([
-    db.collection('telnyx_calls').where('callerPhone', 'in', callerPhones).get(),
+    db
+      .collection('telnyx_calls')
+      .where('callerPhone', 'in', callerPhones)
+      .get(),
     db.collection('telnyx_logs').where('callerPhone', 'in', callerPhones).get(),
     findLeadDocs(db, 'phone', variants),
   ]);
@@ -372,7 +379,9 @@ const isGSQLiveTransfer = async (phone, agentEmail) => {
 
   const bridgedToAgent = (doc) =>
     doc.data().bridged === true &&
-    String(doc.data().bridgedAgentEmail ?? '').trim().toLowerCase() === email;
+    String(doc.data().bridgedAgentEmail ?? '')
+      .trim()
+      .toLowerCase() === email;
 
   return [...calls.docs, ...logs.docs].some(bridgedToAgent);
 };

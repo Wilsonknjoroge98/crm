@@ -2,6 +2,7 @@ const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/scheduler');
 
 const { inboundGSQ, inboundSendblueNumber } = require('./integrations/GSQ');
+const { inboundShepherdsSale } = require('./integrations/shepherds');
 const { updatePolicyStatus } = require('./jobs/update_policy_status');
 
 const expressApp = require('./server.js');
@@ -49,6 +50,23 @@ exports.sendblueNumber = functions.https.onRequest(
     secrets: ['SUPABASE_SERVICE_ROLE_KEY'],
   },
   inboundSendblueNumber,
+);
+
+// shepherds financial's crm -> crm: a sale on a gsq lead issued to one of
+// their agents. Authenticated with its own SHEPHERDS_TOKEN.
+exports.shepherdsSale = functions.https.onRequest(
+  {
+    secrets: [
+      'SHEPHERDS_TOKEN',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'GSQ_SERVICE_ACCOUNT_KEY',
+      'GSQ_PROJECT_ID',
+      'HYROS_SECRET_KEY',
+      'META_CONVERSIONS_TOKEN',
+      'META_CONVERSIONS_URL',
+    ],
+  },
+  inboundShepherdsSale,
 );
 
 exports.updatePolicyStatus = onSchedule(

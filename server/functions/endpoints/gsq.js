@@ -666,6 +666,31 @@ const SALES_PRODUCTS = [
     verifiedOnly: false,
     baseUnitPrice: 1.5,
   },
+  // Marketplace instant-form segments. Instant-form leads are all verified,
+  // so each segment has only a verified product.
+  {
+    key: 'banked_instant_form',
+    name: 'Banked Instant Form Leads',
+    leadType: 'banked_instant_form_lead',
+    verifiedOnly: true,
+    baseUnitPrice: 18,
+  },
+  {
+    key: 'aged_instant_form_31_90',
+    name: 'Aged Instant Form Leads / 31-90 Days',
+    leadType: 'aged_instant_form_lead',
+    tier: 'second',
+    verifiedOnly: true,
+    baseUnitPrice: 3,
+  },
+  {
+    key: 'aged_instant_form_91_180',
+    name: 'Aged Instant Form Leads / 91-180 Days',
+    leadType: 'aged_instant_form_lead',
+    tier: 'third',
+    verifiedOnly: true,
+    baseUnitPrice: 1.5,
+  },
   // Monthly subscriptions: one doc per paid invoice (new or renewal), so
   // volume is months billed and baseUnitPrice is the monthly list price.
   {
@@ -690,6 +715,8 @@ const SALES_CATEGORIES = [
   ['live_transfer', 'Live Transfers'],
   ['instant_form_lead', 'Instant Form Leads'],
   ['aged_lead', 'Aged Leads'],
+  ['banked_instant_form_lead', 'Banked Instant Form Leads'],
+  ['aged_instant_form_lead', 'Aged Instant Form Leads'],
   ['sendblue_line', 'SendBlue Line'],
   ['sendblue_bot', 'SendBlue Bot'],
 ];
