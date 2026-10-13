@@ -237,10 +237,19 @@ const makeSupabase = (results) => {
 // email to the stripe_orders docs it should return. An unfiltered `.get()`
 // (the superuser path) returns every doc across every email, as if reading
 // the whole collection.
+// options.leads maps a GSQ lead id to its leads/{id} doc, read via getAll.
 const makeFirestore = (docsByEmail = {}, options = {}) => {
   const calls = [];
   const toDocs = (data) => data.map((doc) => ({ data: () => doc }));
   const db = {
+    doc: (path) => ({ path }),
+    getAll: async (...refs) => {
+      calls.push({ getAll: refs.map((ref) => ref.path) });
+      if (options.error) throw options.error;
+      return refs.map((ref) => ({
+        data: () => options.leads?.[ref.path.slice('leads/'.length)],
+      }));
+    },
     collection: (name) => ({
       get: async () => {
         calls.push({ name });
@@ -450,6 +459,7 @@ describe('GET /people', () => {
           id: 'person-1',
           first_name: 'Ada',
           policies: [{ id: 'policy-1', carrier_name: 'Ladder' }],
+          final_sale: false,
         },
       ],
       pagination: {
@@ -568,6 +578,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: 'denied',
         refund_denial_reason: 'Lead looks legitimate',
+        final_sale: false,
       },
       {
         id: 'person-2',
@@ -576,6 +587,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: null,
         refund_denial_reason: null,
+        final_sale: false,
       },
       {
         id: 'person-3',
@@ -584,6 +596,7 @@ describe('GET /people', () => {
         policies: [],
         refund_status: null,
         refund_denial_reason: null,
+        final_sale: false,
       },
     ]);
 
@@ -593,6 +606,91 @@ describe('GET /people', () => {
       method: 'in',
       args: ['id', ['lead-1']],
     });
+  });
+
+  test('flags marketplace-sold GSQ leads as final sale', async () => {
+    const gsqLead = (id, gsqId) => ({
+      id,
+      lead_id: `lead-${id}`,
+      verified: false,
+      sold: false,
+      lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+      gsq_id: gsqId,
+    });
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            gsqLead('banked', 'gsq-banked'),
+            gsqLead('aged', 'gsq-aged'),
+            gsqLead('fresh', 'gsq-fresh'),
+            gsqLead('held', 'gsq-held'),
+          ],
+          error: null,
+          count: 4,
+        },
+        rollupFor([]),
+      ],
+      leads: [{ data: [], error: null }],
+    });
+    const firestore = makeFirestore(
+      {},
+      {
+        leads: {
+          'gsq-banked': {
+            marketplaceSegment: 'banked',
+            marketplaceReservedUntil: null,
+          },
+          'gsq-aged': { redistributedTo: ['buyer@example.com'] },
+          'gsq-fresh': { issuedTo: 'agent@example.com' },
+          'gsq-held': {
+            marketplaceSegment: 'aged_second',
+            marketplaceReservedUntil: { seconds: 1 },
+          },
+        },
+      },
+    );
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1' }, firestore),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(
+      Object.fromEntries(
+        response.body.data.map((row) => [row.id, row.final_sale]),
+      ),
+    ).toEqual({ banked: true, aged: true, fresh: false, held: false });
+  });
+
+  test('still returns the list when the final sale lookup fails', async () => {
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            {
+              id: 'person-1',
+              lead_id: 'lead-1',
+              verified: false,
+              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              gsq_id: 'gsq-1',
+            },
+          ],
+          error: null,
+          count: 1,
+        },
+        rollupFor([]),
+      ],
+      leads: [{ data: [], error: null }],
+    });
+    const firestore = makeFirestore({}, { error: new Error('firestore down') });
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1' }, firestore),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0].final_sale).toBe(false);
   });
 
   test('skips the rollup read entirely for an empty page', async () => {

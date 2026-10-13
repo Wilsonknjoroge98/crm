@@ -472,7 +472,10 @@ const BusinessCard = ({
   // were never sold as refund-eligible, so only gate the request action.
   const wasGeneratedAfterCutoff =
     Boolean(receivedAt) && new Date(receivedAt) >= REFUND_ELIGIBILITY_CUTOFF;
-  const canRequestRefund = isRefundRelevant && wasGeneratedAfterCutoff;
+  // Aged and banked leads bought on the marketplace are final sale; the
+  // server flags them (final_sale) and the refunds route rejects them too.
+  const canRequestRefund =
+    isRefundRelevant && wasGeneratedAfterCutoff && !person.final_sale;
   const refundBadgeLabel = REFUND_BADGE_LABELS[person.refund_status] || null;
   const refundBadgeColor = REFUND_BADGE_COLOR[person.refund_status] || 'default';
   const isRefundDenied = person.refund_status === 'denied';

@@ -8,6 +8,7 @@ const {
   findOwnedPerson,
 } = require('./business_access');
 const STATE_ABBREV_MAP = require('../shared/constants/state_abbrev_map');
+const { isMarketplaceSale } = require('../shared/final_sale');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -318,6 +319,40 @@ const attachRefundStatus = async (supabase, rows) => {
       refund_denial_reason: refund?.refund_denial_reason ?? null,
     };
   });
+};
+
+// Flags GSQ leads the marketplace sold as aged or banked, so the card hides
+// Request Refund. Only rows that could still request one are read from GSQ;
+// the refunds route enforces the same rule, so a failed read only costs the
+// hint, not the list.
+const attachFinalSale = async (createFirestore, rows) => {
+  const candidates = rows.filter(
+    (row) =>
+      row.verified === false &&
+      row.lead_vendor_id === GSQ_LEAD_VENDOR_ID &&
+      row.gsq_id &&
+      !row.sold &&
+      !row.refund_status,
+  );
+  const finalSaleGsqIds = new Set();
+  if (candidates.length > 0) {
+    try {
+      const db = createFirestore();
+      const gsqIds = [...new Set(candidates.map((row) => row.gsq_id))];
+      const snaps = await db.getAll(
+        ...gsqIds.map((gsqId) => db.doc(`leads/${gsqId}`)),
+      );
+      snaps.forEach((snap, index) => {
+        if (isMarketplaceSale(snap.data())) finalSaleGsqIds.add(gsqIds[index]);
+      });
+    } catch (error) {
+      logger.error('Failed to read GSQ leads for final sale', { error });
+    }
+  }
+  return rows.map((row) => ({
+    ...row,
+    final_sale: finalSaleGsqIds.has(row.gsq_id),
+  }));
 };
 
 // Chunked .in() lookups keep request URLs under PostgREST's length limits.
@@ -749,6 +784,7 @@ const createBusinessRouter = ({
 
       let rows = await attachPolicies(supabase, data || []);
       rows = await attachRefundStatus(supabase, rows);
+      rows = await attachFinalSale(createFirestore, rows);
       if (isSuperuser) {
         rows = await attachAgentNames(supabase, rows);
       }

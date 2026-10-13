@@ -10,6 +10,7 @@ const {
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,
 } = require('../integrations/GSQ');
+const { isMarketplaceSale } = require('../shared/final_sale');
 
 // Refunds only make sense for GSQ leads — crediting a refund means crediting
 // the agent's outstandingLeads/unverified counters in GSQ's own Firestore,
@@ -33,14 +34,6 @@ const REFUND_LIST_FIELDS =
 // Every outcome is terminal, so each lead has at most one review cycle —
 // these columns on `leads` are the complete history, nothing more to keep.
 const REFUND_STATUS_FILTERS = new Set(['requested', 'approved', 'denied', 'all']);
-
-// True once the marketplace has sold the GSQ lead doc. An aged sale appends
-// the buyer to redistributedTo; a banked sale keeps marketplaceSegment and
-// clears the reservation hold. A checkout still holding the lead
-// (marketplaceReservedUntil set) is not a sale yet.
-const isMarketplaceSale = (gsqLead) =>
-  [].concat(gsqLead?.redistributedTo ?? []).length > 0 ||
-  Boolean(gsqLead?.marketplaceSegment && !gsqLead.marketplaceReservedUntil);
 
 const defaultCreateFirestore = () =>
   new Firestore({
