@@ -625,7 +625,7 @@ const SALES_PRODUCTS = [
     name: 'Banked Leads / Verified',
     leadType: 'banked_lead',
     verifiedOnly: true,
-    baseUnitPrice: 40,
+    baseUnitPrice: 35,
   },
   {
     key: 'banked_unverified',
