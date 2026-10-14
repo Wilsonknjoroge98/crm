@@ -130,27 +130,29 @@ const App = () => {
           <Outlet />
         </Box>
 
-        {/* Footer */}
-        <Stack
-          sx={{
-            pb: 3,
-            mt: 'auto',
-            width: '100%',
-          }}
-          direction='row'
-          alignItems='center'
-          justifyContent='center'
-          spacing={1}
-        >
-          <Typography variant='caption' fontWeight={500} color='text.primary'>
-            Powered by
-          </Typography>
-          <Box
-            component='img'
-            src='fexdigital.png'
-            sx={{ maxHeight: '30px', py: 1 }}
-          />
-        </Stack>
+        {/* Footer — public routes only; in-app branding lives in the SidePanel */}
+        {isPublicRoute && (
+          <Stack
+            sx={{
+              pb: 3,
+              mt: 'auto',
+              width: '100%',
+            }}
+            direction='row'
+            alignItems='center'
+            justifyContent='center'
+            spacing={1}
+          >
+            <Typography variant='caption' fontWeight={500} color='text.primary'>
+              Powered by
+            </Typography>
+            <Box
+              component='img'
+              src='/fexdigital.png'
+              sx={{ maxHeight: '30px', py: 1 }}
+            />
+          </Stack>
+        )}
       </Stack>
     </ThemeProvider>
   );

@@ -212,12 +212,31 @@ const SidePanel = () => {
         },
       }}
     >
-      <Box height={64} />
+      {/* Brand header */}
+      <Box
+        sx={{
+          px: 2.0,
+          py: 2.0,
+          display: 'flex',
+          alignItems: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Box
+          component='img'
+          src='/fexdigital-logo-white.svg'
+          alt='FEX Digital'
+          sx={{ height: 30, width: 'auto', display: 'block', opacity: 0.8 }}
+        />
+      </Box>
+
+      <Box height={12} />
 
       <Box sx={{ px: 1.5 }}>
         {isAuthenticated && (
           <Stack spacing={0.5}>
             <List disablePadding>
+              <SectionLabel>OVERVIEW</SectionLabel>
               <ListItem
                 onClick={() => handleItemClick('/leaderboard')}
                 sx={navItemSx(location.pathname === '/leaderboard')}

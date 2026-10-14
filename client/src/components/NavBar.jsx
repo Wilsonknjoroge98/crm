@@ -121,7 +121,7 @@ export default function NavBar() {
           ml: `${drawerWidth}px`,
           boxShadow: 5,
           bgcolor: 'transparent',
-          borderBottom: '1px solid #E0E0E0',
+          borderBottom: '1px solid #E2E8F0',
         }}
       >
         <Toolbar sx={{ minHeight: 64, px: 3 }}>
