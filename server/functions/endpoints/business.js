@@ -675,10 +675,13 @@ const resolveAgentScope = async (req, supabase) => {
   const isRealSuperuser = realAgentId === SUPERUSER_ID;
   const requestedAgentId = isRealSuperuser ? req.query.agentId : null;
 
+  // isSuperuser drives ownership filters and drops to false while scoped;
+  // isRealSuperuser keeps admin-only extras (e.g. agent names) on either way.
   if (!requestedAgentId) {
     return {
       agentId: realAgentId,
       isSuperuser: isRealSuperuser,
+      isRealSuperuser,
       agentEmail: req.agent?.email,
     };
   }
@@ -692,6 +695,7 @@ const resolveAgentScope = async (req, supabase) => {
   return {
     agentId: requestedAgentId,
     isSuperuser: false,
+    isRealSuperuser,
     agentEmail: targetAgent?.email,
   };
 };
@@ -716,7 +720,10 @@ const createBusinessRouter = ({
 
     const { page, limit, sortBy, sortOrder, search, status, gsqOnly, states } =
       parsedQuery;
-    const { agentId, isSuperuser } = await resolveAgentScope(req, supabase);
+    const { agentId, isSuperuser, isRealSuperuser } = await resolveAgentScope(
+      req,
+      supabase,
+    );
 
     if (!agentId) {
       return res.status(403).json({ error: 'Agent profile required' });
@@ -795,7 +802,7 @@ const createBusinessRouter = ({
       let rows = await attachPolicies(supabase, data || []);
       rows = await attachRefundStatus(supabase, rows);
       rows = await attachRefundEligibility(createFirestore, rows);
-      if (isSuperuser) {
+      if (isRealSuperuser) {
         rows = await attachAgentNames(supabase, rows);
       }
 

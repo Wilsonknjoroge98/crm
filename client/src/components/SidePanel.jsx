@@ -14,7 +14,6 @@ import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
-import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
@@ -79,11 +78,6 @@ const SidePanel = () => {
   ];
 
   const managementItems = [
-    {
-      text: 'Production',
-      icon: <QueryStatsOutlinedIcon />,
-      path: '/team-production',
-    },
     {
       text: 'Marketplace',
       icon: <ShoppingCartOutlinedIcon />,
