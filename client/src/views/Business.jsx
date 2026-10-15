@@ -41,6 +41,7 @@ import {
 } from '../utils/constants';
 import NewLeadDialog from '../components/NewLeadDialog';
 import StateFilter from '../components/StateFilter';
+import AgentFilter from '../components/AgentFilter';
 import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
@@ -57,8 +58,6 @@ const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 // GSQ leads/clients stay selectable (export, etc.) but the backend refuses
 // to delete them, so bulk-delete messaging needs to call them out by name.
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
-// TEMPORARY TEST OVERRIDE — remove after testing. Superuser-only: scopes the
-// list and metrics queries to this agent instead of the caller's own.
 
 // Same columns Clients.jsx exported before the business view replaced the
 // separate Clients/Policies pages — one row per person, one row per policy.
@@ -261,6 +260,10 @@ const Business = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState([]);
+  // Superuser-only: scopes the list and metrics to one agent. The server
+  // ignores agentId for anyone else.
+  const [agentFilter, setAgentFilter] = useState(null);
+  const scopedAgentId = isAdmin ? agentFilter : null;
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [selectedById, setSelectedById] = useState(new Map());
@@ -313,7 +316,15 @@ const Business = () => {
     isPlaceholderData,
     error: businessError,
   } = useQuery({
-    queryKey: ['business', page, pageSize, search, statusFilter, stateFilter],
+    queryKey: [
+      'business',
+      page,
+      pageSize,
+      search,
+      statusFilter,
+      stateFilter,
+      scopedAgentId,
+    ],
     queryFn: () =>
       getBusinessRecords({
         page: page + 1,
@@ -324,6 +335,7 @@ const Business = () => {
         search,
         status: statusFilter,
         state: stateFilter,
+        agentId: scopedAgentId,
       }),
     placeholderData: (previous) => previous,
   });
@@ -333,11 +345,12 @@ const Business = () => {
     isPending: isMetricsPending,
     error: metricsError,
   } = useQuery({
-    queryKey: ['businessMetrics'],
-    queryFn: () => getBusinessMetrics(),
+    queryKey: ['businessMetrics', scopedAgentId],
+    queryFn: () => getBusinessMetrics({ agentId: scopedAgentId }),
   });
 
-  // Only needed for UpdatePolicyDialog's split-policy agent picker.
+  // UpdatePolicyDialog's split-policy agent picker, plus the superuser's
+  // agent filter.
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
     queryFn: () => getAgents(),
@@ -626,6 +639,17 @@ const Business = () => {
                   setPage(0);
                 }}
               />
+              {isAdmin && (
+                <AgentFilter
+                  value={agentFilter}
+                  agents={agents}
+                  onChange={(next) => {
+                    clearSelection();
+                    setAgentFilter(next);
+                    setPage(0);
+                  }}
+                />
+              )}
               {/* Placeholder filters from BUSINESS_VIEW.png; same coming-soon
                   treatment as the card action buttons. */}
               {['Disposition tags', 'Automations'].map((label) => (

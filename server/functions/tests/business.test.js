@@ -1136,6 +1136,66 @@ describe('GET /people', () => {
     });
   });
 
+  test('scopes the list to ?agentId for the superuser and keeps agent names', async () => {
+    const supabase = makeSupabase({
+      agents: [
+        { data: { email: 'jane@example.com' }, error: null },
+        {
+          data: [{ id: 'agent-9', first_name: 'Jane', last_name: 'Doe' }],
+          error: null,
+        },
+      ],
+      agent_clients: [{ data: [], error: null }],
+      business: [
+        {
+          data: [{ id: 'person-1', agent_id: 'agent-9' }],
+          error: null,
+          count: 1,
+        },
+        rollupFor([{ id: 'person-1' }]),
+      ],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: SUPERUSER_ID }),
+    ).get('/business?agentId=agent-9');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0].agent_name).toBe('Jane Doe');
+
+    const peopleQuery = findQuery(supabase, 'business');
+    expect(
+      peopleQuery.calls.some(
+        ({ method, args }) =>
+          method === 'or' && args[0].includes('agent_id.eq.agent-9'),
+      ),
+    ).toBe(true);
+  });
+
+  test('ignores ?agentId for non-superusers', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [], error: null }],
+      business: [
+        { data: [], error: null, count: 0 },
+        rollupFor([]),
+      ],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1' }),
+    ).get('/business?agentId=agent-9');
+
+    expect(response.status).toBe(200);
+    expect(supabase.from).not.toHaveBeenCalledWith('agents');
+    const peopleQuery = findQuery(supabase, 'business');
+    expect(
+      peopleQuery.calls.some(
+        ({ method, args }) =>
+          method === 'or' && args[0].includes('agent_id.eq.agent-1'),
+      ),
+    ).toBe(true);
+  });
+
   test('skips the agent name lookup for non-superusers', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [], error: null }],
