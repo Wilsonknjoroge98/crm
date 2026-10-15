@@ -154,8 +154,8 @@ const FRESH_EXPLAINER = [
     body: 'A CSV file is emailed to you, and leads are pushed automatically to any Ringy, GHL, SendBlue or InsurDial integration linked to your account email.',
   },
   {
-    title: 'Refunds',
-    body: 'Unverified leads are eligible for refunds through Ringy "bad number" disposition tags, or by emailing info@fexdigital.com for non-Ringy agents.',
+    title: 'Final sale',
+    body: 'All banked leads, verified and unverified, are final sale and are not eligible for refunds or replacements.',
   },
 ];
 

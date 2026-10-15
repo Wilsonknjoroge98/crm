@@ -19,6 +19,7 @@ import DateSelector from '../components/DateSelector';
 import { stringToColor } from '../utils/helpers';
 import dayjs from 'dayjs';
 import { useState } from 'react';
+import { labelSx } from './marketplace/ui.jsx';
 
 const SERIF = '"Libre Baskerville", serif';
 const SANS = '"Inter", sans-serif';
@@ -28,6 +29,15 @@ const currency = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
 });
+
+// The app's status chip, as on BusinessCard's SALE / LEAD chip and the
+// marketplace badges: theme chip typography, a muted tint and a hairline
+// border. Each use only picks its tint.
+const badgeSx = {
+  border: '1px solid',
+  borderColor: 'divider',
+  flexShrink: 0,
+};
 
 const getInitials = (name) =>
   name
@@ -39,7 +49,7 @@ const getInitials = (name) =>
 
 const WinnerCard = ({
   label,
-  chipSx,
+  labelColor,
   tint,
   watermark,
   champion,
@@ -69,11 +79,7 @@ const WinnerCard = ({
         opacity: 0.18,
       }}
     />
-    <Chip
-      label={label}
-      size='small'
-      sx={{ ...chipSx, fontWeight: 700, fontFamily: SANS }}
-    />
+    <Typography sx={{ ...labelSx, color: labelColor }}>{label}</Typography>
     {isLoading ? (
       <Stack direction='row' spacing={2} alignItems='center' mt={2}>
         <Skeleton variant='circular' width={48} height={48} />
@@ -215,10 +221,12 @@ const PodiumCard = ({ row, rank }) => {
         <Chip
           label={`${row.count} ${row.count === 1 ? 'Sale' : 'Sales'}`}
           size='small'
+          // Neutral grey: green is reserved for money, and deal volume
+          // shouldn't compete with the premium above.
           sx={{
-            bgcolor: 'success.light',
-            color: 'success.main',
-            fontFamily: SANS,
+            ...badgeSx,
+            bgcolor: '#F3F4F6',
+            color: 'text.secondary',
           }}
         />
       </Stack>
@@ -438,7 +446,8 @@ const Leaderboard = () => {
         <Grid size={{ xs: 12, sm: 6 }}>
           <WinnerCard
             label="LAST MONTH'S CHAMP"
-            chipSx={{ bgcolor: 'primary.main', color: 'action.main' }}
+            // Ink, not gold: gold text washes out on the gold-tinted card.
+            labelColor='primary.main'
             tint={(theme) => alpha(theme.palette.action.main, 0.08)}
             watermark='action.main'
             champion={lastMonthRows[0]}
@@ -448,10 +457,7 @@ const Leaderboard = () => {
         <Grid size={{ xs: 12, sm: 6 }}>
           <WinnerCard
             label="LAST WEEK'S CHAMP"
-            chipSx={{
-              bgcolor: 'info.alertBackground',
-              color: 'secondary.main',
-            }}
+            labelColor='secondary.main'
             tint={(theme) => alpha(theme.palette.info.alertIconColor, 0.06)}
             watermark='info.alertIconColor'
             champion={lastWeekRows[0]}

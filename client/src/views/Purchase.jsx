@@ -22,6 +22,7 @@ import {
   INK,
   MONO,
   SLATE,
+  LeadTypeChip,
   MarketplaceHeader,
   formatMoney,
   labelSx,
@@ -181,7 +182,8 @@ function SectionLabel({ children }) {
   );
 }
 
-// Card badges, styled like BusinessCard's lifecycle status chip.
+// Inventory availability badges, styled like BusinessCard's lifecycle
+// status chip.
 const badgeSx = {
   bgcolor: '#F0F4F8',
   color: 'secondary.main',
@@ -195,8 +197,8 @@ const badgeSx = {
 /**
  * Hero card for a product sold through a Stripe payment link: a real-time
  * campaign or a monthly subscription. CTAs are ink unless `ctaColor` says
- * otherwise (gold is reserved for the flagship). `badge` renders as a chip
- * top-right.
+ * otherwise (gold is reserved for the flagship). `badge` renders top-right
+ * as the marketplace's green status chip, same as Text Verified.
  */
 function CampaignCard({
   title,
@@ -219,7 +221,7 @@ function CampaignCard({
         spacing={1}
       >
         <Typography sx={labelSx}>{title}</Typography>
-        {badge && <Chip size='small' label={badge} sx={badgeSx} />}
+        {badge && <LeadTypeChip verified label={badge} />}
       </Stack>
 
       <Typography
