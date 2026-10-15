@@ -19,11 +19,11 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
-import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
+// import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
 import CurrencyExchangeOutlinedIcon from '@mui/icons-material/CurrencyExchangeOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
-import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
+// import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 
 import { useTheme } from '@mui/material/styles';
 
@@ -69,11 +69,13 @@ const SidePanel = () => {
 
   const salesItems = [
     { text: 'Business', icon: <PeopleAltOutlinedIcon />, path: '/business' },
-    {
-      text: 'Bulk Upload',
-      icon: <UploadFileOutlinedIcon />,
-      path: '/bulk-upload',
-    },
+    // Hidden: only GSQ leads come through the CRM now, so agents no longer
+    // bulk-upload their own. The /bulk-upload route still exists.
+    // {
+    //   text: 'Bulk Upload',
+    //   icon: <UploadFileOutlinedIcon />,
+    //   path: '/bulk-upload',
+    // },
   ];
 
   const managementItems = [
@@ -113,11 +115,12 @@ const SidePanel = () => {
       icon: <PaidOutlinedIcon />,
       path: '/sales-analytics',
     },
-    {
-      text: 'Click + Publish',
-      icon: <CampaignOutlinedIcon />,
-      path: '/ad-publish',
-    },
+    // Hidden for now. The /ad-publish route still exists.
+    // {
+    //   text: 'Click + Publish',
+    //   icon: <CampaignOutlinedIcon />,
+    //   path: '/ad-publish',
+    // },
   ];
 
   const authItems = [
