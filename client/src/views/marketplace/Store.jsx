@@ -211,7 +211,7 @@ function TierCard({ verified, source, unit, count, price, qty, onChange }) {
       >
         {/* Meta text-verifies every instant form phone itself */}
         {source === 'instant'
-          ? 'Meta Form • Phone Text-Verified'
+          ? 'GSQ Instant Form • Phone Text-Verified'
           : verified
             ? 'GSQ Funnel • Quote Selected • Phone Text-Verified'
             : 'GSQ Funnel • Quote Selected • Phone Not Text-Verified'}
