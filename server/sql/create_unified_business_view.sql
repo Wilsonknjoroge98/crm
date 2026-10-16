@@ -188,6 +188,7 @@ select
   l.gsq_id,
   l.gsq_live_transfer,
   l.gsq_instant_form,
+  l.gsq_segment,
   l.lead_vendor_id,
   lv.name as lead_vendor_name,
 

@@ -54,6 +54,20 @@ const canonicalizeFormFields = (fields = {}) => {
   return out;
 };
 
+// The inventory segment gsq delivered the lead from, keyed like the
+// marketplace's SEGMENTS. Instant-form segments carry an `instant_` prefix
+// there, but the product is already gsq_instant_form, so only the segment
+// half is kept. Anything missing or unrecognised is a live (fresh) lead
+// rather than a rejected insert.
+const GSQ_SEGMENTS = new Set(['fresh', 'banked', 'aged_second', 'aged_third']);
+const parseSegment = (value) => {
+  const segment = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^instant_/, '');
+  return GSQ_SEGMENTS.has(segment) ? segment : 'fresh';
+};
+
 const inboundGSQ = async (req, res) => {
   try {
     const auth = req.headers['authorization']?.split(' ')[1];
@@ -153,6 +167,7 @@ const inboundGSQ = async (req, res) => {
       gsq_source: hyrosSource,
       gsq_id: lead.gsqId,
       gsq_instant_form: isInstantForm,
+      gsq_segment: parseSegment(lead.segment),
       lead_vendor_id: leadVendor.id,
       sex: lead.sex ? String(lead.sex).trim() : null,
     };

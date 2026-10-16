@@ -61,6 +61,50 @@ const annualizedSaleAmount = (monthlyPremium) => {
 const formatVendorName = (value) =>
   value === 'GetSeniorQuotes.com' ? 'GSQ' : value;
 
+// Source splits into two tokens: the segment chip (how fresh the inventory
+// was when delivered, from leads.gsq_segment) and the acquisition type. The
+// chip is the app's status chip, like the SALE / LEAD chip above and the
+// marketplace's lead type badges: theme chip typography, a palette tint and
+// a hairline border. Fresh takes the verified/sale green, banked the warning
+// ochre (as on the refund badge), and aged the neutral grey used for
+// Unverified, so aged inventory never competes with a live lead.
+const SEGMENT_CHIPS = {
+  fresh: { label: 'Fresh', bgcolor: '#E6F1EC', color: 'success.main' },
+  banked: { label: 'Banked', bgcolor: 'warning.light', color: 'warning.main' },
+  aged_second: {
+    label: 'Aged 31–90d',
+    bgcolor: '#F3F4F6',
+    color: 'text.secondary',
+  },
+  aged_third: {
+    label: 'Aged 91–180d',
+    bgcolor: '#F3F4F6',
+    color: 'text.secondary',
+  },
+};
+
+const SegmentChip = ({ segment }) => {
+  const { label, bgcolor, color } =
+    SEGMENT_CHIPS[segment] || SEGMENT_CHIPS.fresh;
+  return (
+    <Chip
+      label={label}
+      size='small'
+      sx={{
+        bgcolor,
+        color,
+        border: '1px solid',
+        borderColor: 'divider',
+        textTransform: 'uppercase',
+        // Sits inline in a caption row, so it's kept to the row's height.
+        height: 20,
+        mr: 0.75,
+        verticalAlign: 'middle',
+      }}
+    />
+  );
+};
+
 const formatPhone = (value) => {
   const digits = String(value || '').replace(/\D/g, '');
   if (digits.length !== 10) return value || '';
@@ -896,11 +940,14 @@ const BusinessCard = ({
             <LabeledValue
               label='Source'
               value={
-                isGsqProtected && person.lead_vendor_name
-                  ? `${formatVendorName(person.lead_vendor_name)} (${
-                      isInstantForm ? 'Instant Forms' : 'Funnel'
-                    })`
-                  : formatVendorName(person.lead_vendor_name)
+                isGsqProtected ? (
+                  <>
+                    <SegmentChip segment={person.gsq_segment} />
+                    {isInstantForm ? 'Meta Instant Form' : 'GSQ Funnel'}
+                  </>
+                ) : (
+                  formatVendorName(person.lead_vendor_name)
+                )
               }
             />
             <LabeledValue

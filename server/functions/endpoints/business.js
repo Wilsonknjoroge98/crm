@@ -87,6 +87,7 @@ const BUSINESS_LIST_FIELDS = [
   'gsq_id',
   'gsq_live_transfer',
   'gsq_instant_form',
+  'gsq_segment',
   'client_created_at',
   'updated_at',
   // the card's Sale amount: clients.monthly_premium captured at close
@@ -137,6 +138,7 @@ const BUSINESS_DETAIL_FIELDS = [
   'gsq_id',
   'gsq_live_transfer',
   'gsq_instant_form',
+  'gsq_segment',
   'lead_vendor_id',
   'lead_vendor_name',
   'notes',

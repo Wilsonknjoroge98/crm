@@ -205,6 +205,44 @@ describe('inboundGSQ premium payload', () => {
   );
 
   test.each([
+    ['omitted', undefined, 'fresh'],
+    ['banked', 'banked', 'banked'],
+    ['31–90 day aged', 'aged_second', 'aged_second'],
+    ['91–180 day aged', 'aged_third', 'aged_third'],
+    ['an instant-form segment', 'instant_aged_third', 'aged_third'],
+    ['unrecognised', 'bogus', 'fresh'],
+  ])(
+    'stores the delivery segment as gsq_segment when %s',
+    async (_label, segment, expected) => {
+      const insert = jest.fn().mockResolvedValue({ error: null });
+      mockSupabaseFrom.mockImplementation((table) => {
+        if (table === 'lead_vendors') {
+          return makeLookupQuery({ data: { id: 'vendor-id' }, error: null });
+        }
+        if (table === 'agents') {
+          return makeLookupQuery({ data: { id: 'agent-id' }, error: null });
+        }
+        if (table === 'leads') {
+          return { insert };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const request = makeRequest('67.35');
+      if (segment !== undefined) {
+        request.body.segment = segment;
+      }
+
+      const res = makeResponse();
+      await inboundGSQ(request, res);
+
+      expect(insert).toHaveBeenCalledWith(
+        expect.objectContaining({ gsq_segment: expected }),
+      );
+    },
+  );
+
+  test.each([
     ['omitted', undefined, null],
     ['blank', '', null],
     ['provided', 'Female', 'Female'],
