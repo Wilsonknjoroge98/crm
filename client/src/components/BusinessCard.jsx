@@ -238,7 +238,8 @@ const truncateLabel = (text) =>
     ? `${text.slice(0, MAX_QUESTION_LABEL - 1).trimEnd()}…`
     : text;
 
-const hasValue = (value) => value !== null && value !== undefined && value !== '';
+const hasValue = (value) =>
+  value !== null && value !== undefined && value !== '';
 
 // Mirrors the drawer's premiumLabel: a single amount, or a min/max range,
 // whichever the funnel captured.
@@ -277,7 +278,8 @@ const buildFunnelRows = (person) => {
     { label: 'Monthly budget', value: premiumLabel(person) },
     {
       label: 'Age',
-      value: computeAge(person.date_of_birth) ?? formatAnswer(form[FORM_AGE_KEY]),
+      value:
+        computeAge(person.date_of_birth) ?? formatAnswer(form[FORM_AGE_KEY]),
     },
     { label: 'Sex', value: formatAnswer(person.sex) },
     { label: 'Health class', value: healthClassLabel(person.health_class) },
@@ -511,7 +513,8 @@ const BusinessCard = ({
   // and not a final-sale marketplace purchase.
   const canRequestRefund = isRefundRelevant && person.refund_eligible === true;
   const refundBadgeLabel = REFUND_BADGE_LABELS[person.refund_status] || null;
-  const refundBadgeColor = REFUND_BADGE_COLOR[person.refund_status] || 'default';
+  const refundBadgeColor =
+    REFUND_BADGE_COLOR[person.refund_status] || 'default';
   const isRefundDenied = person.refund_status === 'denied';
   // Pending or approved refunds are conceptually still "the client backed
   // out" — selling a lead that's mid-refund would credit the agent in GSQ
@@ -943,7 +946,7 @@ const BusinessCard = ({
                 isGsqProtected ? (
                   <>
                     <SegmentChip segment={person.gsq_segment} />
-                    {isInstantForm ? 'Meta Instant Form' : 'GSQ Funnel'}
+                    {isInstantForm ? 'GSQ Instant Form' : 'GSQ Funnel'}
                   </>
                 ) : (
                   formatVendorName(person.lead_vendor_name)
