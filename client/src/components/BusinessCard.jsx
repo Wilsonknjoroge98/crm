@@ -24,6 +24,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import dayjs from 'dayjs';
 import Pill from './Pill';
 import { useMutation } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
@@ -111,10 +112,12 @@ const formatPhone = (value) => {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 };
 
+// dayjs parses a bare YYYY-MM-DD as a local date; new Date() would read it
+// as UTC midnight and render the previous day in US time zones.
 const formatDate = (value) => {
   if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString();
+  const date = dayjs(value);
+  return date.isValid() ? date.format('M/D/YYYY') : null;
 };
 
 const formatCurrency = (value, fractionDigits = 2) =>
@@ -127,14 +130,9 @@ const formatCurrency = (value, fractionDigits = 2) =>
 
 const computeAge = (dateOfBirth) => {
   if (!dateOfBirth) return null;
-  const dob = new Date(dateOfBirth);
-  if (Number.isNaN(dob.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - dob.getFullYear();
-  const beforeBirthday =
-    now.getMonth() < dob.getMonth() ||
-    (now.getMonth() === dob.getMonth() && now.getDate() < dob.getDate());
-  return beforeBirthday ? age - 1 : age;
+  const dob = dayjs(dateOfBirth);
+  if (!dob.isValid()) return null;
+  return dayjs().diff(dob, 'year');
 };
 
 const formatBuild = ({
