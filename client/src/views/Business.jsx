@@ -41,6 +41,7 @@ import {
 } from '../utils/constants';
 import NewLeadDialog from '../components/NewLeadDialog';
 import StateFilter from '../components/StateFilter';
+import SegmentFilter from '../components/SegmentFilter';
 import AgentFilter from '../components/AgentFilter';
 import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
@@ -260,6 +261,7 @@ const Business = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState([]);
+  const [segmentFilter, setSegmentFilter] = useState([]);
   // Superuser-only: scopes the list and metrics to one agent. The server
   // ignores agentId for anyone else.
   const [agentFilter, setAgentFilter] = useState(null);
@@ -323,6 +325,7 @@ const Business = () => {
       search,
       statusFilter,
       stateFilter,
+      segmentFilter,
       scopedAgentId,
     ],
     queryFn: () =>
@@ -335,6 +338,7 @@ const Business = () => {
         search,
         status: statusFilter,
         state: stateFilter,
+        segment: segmentFilter,
         agentId: scopedAgentId,
       }),
     placeholderData: (previous) => previous,
@@ -639,6 +643,14 @@ const Business = () => {
                   setPage(0);
                 }}
               />
+              <SegmentFilter
+                value={segmentFilter}
+                onChange={(next) => {
+                  clearSelection();
+                  setSegmentFilter(next);
+                  setPage(0);
+                }}
+              />
               {isAdmin && (
                 <AgentFilter
                   value={agentFilter}
@@ -650,9 +662,9 @@ const Business = () => {
                   }}
                 />
               )}
-              {/* Placeholder filters from BUSINESS_VIEW.png; same coming-soon
+              {/* Placeholder filter from BUSINESS_VIEW.png; same coming-soon
                   treatment as the card action buttons. */}
-              {['Disposition tags', 'Automations'].map((label) => (
+              {['Disposition tags'].map((label) => (
                 <Tooltip
                   key={label}
                   title={
