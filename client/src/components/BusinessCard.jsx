@@ -66,12 +66,13 @@ const formatVendorName = (value) =>
 // was when delivered, from leads.gsq_segment) and the acquisition type. The
 // chip is the app's status chip, like the SALE / LEAD chip above and the
 // marketplace's lead type badges: theme chip typography, a palette tint and
-// a hairline border. Fresh takes the verified/sale green, banked the warning
-// ochre (as on the refund badge), and aged the neutral grey used for
+// a hairline border. Fresh takes the verified/sale green, banked the info
+// blue (unworked inventory, like the New metric card; not the LEAD chip's
+// slate, so the two don't blur together), and aged the neutral grey used for
 // Unverified, so aged inventory never competes with a live lead.
 const SEGMENT_CHIPS = {
   fresh: { label: 'Fresh', bgcolor: '#E6F1EC', color: 'success.main' },
-  banked: { label: 'Banked', bgcolor: 'warning.light', color: 'warning.main' },
+  banked: { label: 'Banked', bgcolor: 'info.light', color: 'info.main' },
   aged_second: {
     label: 'Aged 31–90d',
     bgcolor: '#F3F4F6',
