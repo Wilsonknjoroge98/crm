@@ -164,7 +164,6 @@ const SegmentFilter = ({ value = [], onChange }) => {
                     </Typography>
                   </Stack>
                 }
-                secondary={description}
                 slotProps={{
                   secondary: { sx: { fontFamily: SANS, ml: 2.25 } },
                 }}
