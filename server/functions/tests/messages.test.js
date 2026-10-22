@@ -12,11 +12,21 @@ jest.mock('axios', () => ({
   post: jest.fn(),
 }));
 
+const mockSupabaseFrom = jest.fn();
+const mockSupabaseRpc = jest.fn();
+jest.mock('../services/supabase', () => ({
+  supabaseService: {
+    from: (...args) => mockSupabaseFrom(...args),
+    rpc: (...args) => mockSupabaseRpc(...args),
+  },
+}));
+
 const axios = require('axios');
 const express = require('express');
 const request = require('supertest');
 const {
   getSendblueCredentials,
+  inboundSendblue,
   setFirestoreFactory,
 } = require('../integrations/sendblue');
 const messagesRouter = require('../endpoints/messages');
@@ -37,6 +47,32 @@ const mockConfigDocs = (docs, { fail = false } = {}) => {
   setFirestoreFactory(() => ({ collection }));
   return { collection, doc };
 };
+
+// Chainable on every builder method, resolves `result` when awaited
+const makeQuery = (result) => {
+  const query = {};
+  for (const method of ['select', 'eq', 'in', 'limit', 'upsert']) {
+    query[method] = jest.fn(() => query);
+  }
+  query.then = (resolve, reject) =>
+    Promise.resolve(result).then(resolve, reject);
+  return query;
+};
+
+// tables: { [table]: result }, unlisted tables resolve to no rows
+const mockTables = (tables = {}) => {
+  const queries = {};
+  mockSupabaseFrom.mockImplementation((table) => {
+    const query = makeQuery(tables[table] ?? { data: [], error: null });
+    queries[table] = queries[table] || [];
+    queries[table].push(query);
+    return query;
+  });
+  return queries;
+};
+
+const ownsLead = () =>
+  mockTables({ leads: { data: [{ id: 'lead-1' }], error: null } });
 
 const makeApp = (agent) => {
   const app = express();
@@ -103,6 +139,10 @@ describe('getSendblueCredentials', () => {
 
 describe('messages endpoints', () => {
   const agent = { id: 'agent-1', email: 'agent@example.com', sendblue_number: LINE };
+
+  beforeEach(() => {
+    ownsLead();
+  });
 
   test('GET reads the thread with the agent subaccount credentials', async () => {
     mockConfigDocs({
@@ -180,5 +220,108 @@ describe('messages endpoints', () => {
 
     expect(res.status).toBe(409);
     expect(collection).not.toHaveBeenCalled();
+  });
+});
+
+describe('ownership', () => {
+  const agent = { id: 'agent-1', email: 'agent@example.com', sendblue_number: LINE };
+
+  test('GET 403s for a number that is not one of the agent leads or clients', async () => {
+    mockConfigDocs({});
+    mockTables({});
+
+    const res = await request(makeApp(agent)).get('/messages').query({ phone: LEAD });
+
+    expect(res.status).toBe(403);
+    expect(axios.get).not.toHaveBeenCalled();
+  });
+
+  test('a client of the agent counts as owned', async () => {
+    mockConfigDocs({});
+    mockTables({ clients: { data: [{ id: 'client-1' }], error: null } });
+    axios.get.mockResolvedValue({ data: { data: [] } });
+
+    const res = await request(makeApp(agent)).get('/messages').query({ phone: LEAD });
+
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('inboundSendblue webhook', () => {
+  const makeResponse = () => {
+    const res = { status: jest.fn(() => res), send: jest.fn(() => res) };
+    return res;
+  };
+
+  beforeEach(() => {
+    process.env.SEND_BLUE_WEBHOOK_SECRET = 'whsec';
+  });
+
+  test('rejects a bad signing secret', async () => {
+    const res = makeResponse();
+
+    await inboundSendblue({ headers: { 'sb-signing-secret': 'wrong' }, body: {} }, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+  });
+
+  test('stores an inbound message keyed on message_handle', async () => {
+    const queries = mockTables({});
+    const res = makeResponse();
+
+    await inboundSendblue(
+      {
+        headers: { 'sb-signing-secret': 'whsec' },
+        body: {
+          message_handle: 'h1',
+          content: 'hello',
+          is_outbound: false,
+          from_number: LEAD,
+          to_number: LINE,
+          sendblue_number: LINE,
+          status: 'RECEIVED',
+          date_sent: '2026-10-22T15:00:00Z',
+        },
+      },
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const [row, options] = queries.messages[0].upsert.mock.calls[0];
+    expect(row).toMatchObject({
+      message_handle: 'h1',
+      sendblue_number: LINE,
+      number: LEAD,
+      is_outbound: false,
+    });
+    expect(options).toEqual({ onConflict: 'message_handle' });
+  });
+
+  test('outbound status event takes the line from from_number', async () => {
+    const queries = mockTables({});
+    const res = makeResponse();
+
+    await inboundSendblue(
+      {
+        headers: { 'sb-signing-secret': 'whsec' },
+        body: {
+          message_handle: 'h2',
+          is_outbound: true,
+          from_number: LINE,
+          to_number: LEAD,
+          sendblue_number: null,
+          status: 'DELIVERED',
+        },
+      },
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(queries.messages[0].upsert.mock.calls[0][0]).toMatchObject({
+      sendblue_number: LINE,
+      number: LEAD,
+      is_outbound: true,
+    });
   });
 });
