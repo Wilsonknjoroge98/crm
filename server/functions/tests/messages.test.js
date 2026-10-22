@@ -247,6 +247,182 @@ describe('ownership', () => {
   });
 });
 
+describe('POST /messages marks the thread read', () => {
+  const agent = { id: 'agent-1', email: 'agent@example.com', sendblue_number: LINE };
+
+  test('upserts message_reads after a successful send', async () => {
+    mockConfigDocs({});
+    const queries = ownsLead();
+    axios.post.mockResolvedValue({ data: { message_handle: 'm1', content: 'hi' } });
+
+    const res = await request(makeApp(agent))
+      .post('/messages')
+      .send({ phone: LEAD, content: 'hi' });
+
+    expect(res.status).toBe(201);
+    const [row, options] = queries.message_reads[0].upsert.mock.calls[0];
+    expect(row).toMatchObject({ agent_id: 'agent-1', number: LEAD });
+    expect(options).toEqual({ onConflict: 'agent_id,number' });
+  });
+
+  test('a failed read upsert still returns the sent message', async () => {
+    mockConfigDocs({});
+    mockTables({
+      leads: { data: [{ id: 'lead-1' }], error: null },
+      message_reads: { data: null, error: { message: 'db down' } },
+    });
+    axios.post.mockResolvedValue({ data: { message_handle: 'm1', content: 'hi' } });
+
+    const res = await request(makeApp(agent))
+      .post('/messages')
+      .send({ phone: LEAD, content: 'hi' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe('m1');
+  });
+});
+
+describe('GET /messages/inbox', () => {
+  const agent = { id: 'agent-1', email: 'agent@example.com', sendblue_number: LINE };
+  const row = (overrides = {}) => ({
+    number: LEAD,
+    last_content: 'hey',
+    last_outbound: false,
+    last_status: 'RECEIVED',
+    last_at: '2026-10-22T15:00:00+00:00',
+    unread_count: 2,
+    lead_id: 'lead-1',
+    client_id: null,
+    first_name: 'Ann',
+    last_name: 'Lee',
+    unread_total: 5,
+    ...overrides,
+  });
+
+  test('maps rows to threads and returns the unread total', async () => {
+    mockSupabaseRpc.mockResolvedValue({ data: [row()], error: null });
+
+    const res = await request(makeApp(agent)).get('/messages/inbox');
+
+    expect(res.status).toBe(200);
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('message_inbox', {
+      p_agent_id: 'agent-1',
+      p_line: LINE,
+      p_limit: 50,
+      p_before: null,
+    });
+    expect(res.body).toEqual({
+      threads: [
+        {
+          phone: LEAD,
+          leadId: 'lead-1',
+          clientId: null,
+          firstName: 'Ann',
+          lastName: 'Lee',
+          unreadCount: 2,
+          lastMessage: {
+            content: 'hey',
+            outbound: false,
+            status: 'RECEIVED',
+            sentAt: '2026-10-22T15:00:00+00:00',
+          },
+        },
+      ],
+      unreadTotal: 5,
+      nextBefore: null,
+    });
+  });
+
+  test('a full page returns a cursor, before passes through and limit is clamped', async () => {
+    mockSupabaseRpc.mockResolvedValue({
+      data: [
+        row({ last_at: '2026-10-22T15:00:00+00:00' }),
+        row({ last_at: '2026-10-21T15:00:00+00:00' }),
+      ],
+      error: null,
+    });
+
+    const res = await request(makeApp(agent))
+      .get('/messages/inbox')
+      .query({ limit: 2, before: '2026-10-23T00:00:00Z' });
+
+    expect(res.body.nextBefore).toBe('2026-10-21T15:00:00+00:00');
+    expect(mockSupabaseRpc.mock.calls[0][1]).toMatchObject({
+      p_limit: 2,
+      p_before: '2026-10-23T00:00:00.000Z',
+    });
+
+    await request(makeApp(agent)).get('/messages/inbox').query({ limit: 5000 });
+    expect(mockSupabaseRpc.mock.calls[1][1].p_limit).toBe(100);
+  });
+
+  test('empty inbox has zero unread', async () => {
+    mockSupabaseRpc.mockResolvedValue({ data: [], error: null });
+
+    const res = await request(makeApp(agent)).get('/messages/inbox');
+
+    expect(res.body).toEqual({ threads: [], unreadTotal: 0, nextBefore: null });
+  });
+
+  test('bad before is a 400, rpc error is a 500, no line is a 409', async () => {
+    let res = await request(makeApp(agent))
+      .get('/messages/inbox')
+      .query({ before: 'nope' });
+    expect(res.status).toBe(400);
+
+    mockSupabaseRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    res = await request(makeApp(agent)).get('/messages/inbox');
+    expect(res.status).toBe(500);
+
+    res = await request(makeApp({ ...agent, sendblue_number: null })).get(
+      '/messages/inbox',
+    );
+    expect(res.status).toBe(409);
+  });
+});
+
+describe('POST /messages/read', () => {
+  const agent = { id: 'agent-1', email: 'agent@example.com', sendblue_number: LINE };
+
+  test('upserts the read marker for an owned number', async () => {
+    const queries = ownsLead();
+
+    const res = await request(makeApp(agent))
+      .post('/messages/read')
+      .send({ phone: '5125550199' });
+
+    expect(res.status).toBe(204);
+    expect(queries.message_reads[0].upsert.mock.calls[0][0]).toMatchObject({
+      agent_id: 'agent-1',
+      number: LEAD,
+    });
+  });
+
+  test('403s for a number the agent does not own', async () => {
+    const queries = mockTables({});
+
+    const res = await request(makeApp(agent))
+      .post('/messages/read')
+      .send({ phone: LEAD });
+
+    expect(res.status).toBe(403);
+    expect(queries.message_reads).toBeUndefined();
+  });
+
+  test('upsert error is a 500', async () => {
+    mockTables({
+      leads: { data: [{ id: 'lead-1' }], error: null },
+      message_reads: { data: null, error: { message: 'db down' } },
+    });
+
+    const res = await request(makeApp(agent))
+      .post('/messages/read')
+      .send({ phone: LEAD });
+
+    expect(res.status).toBe(500);
+  });
+});
+
 describe('inboundSendblue webhook', () => {
   const makeResponse = () => {
     const res = { status: jest.fn(() => res), send: jest.fn(() => res) };

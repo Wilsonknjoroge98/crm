@@ -12,6 +12,8 @@ const { supabaseService } = require('../services/supabase');
 const messagesRouter = express.Router();
 
 const MAX_CONTENT_LENGTH = 2000;
+const INBOX_PAGE_SIZE = 50;
+const MAX_INBOX_PAGE_SIZE = 100;
 
 // 409 not 403 so the client can tell "no line set up yet" from forbidden
 const requireLine = (req, res) => {
@@ -84,6 +86,29 @@ const requireOwnership = async (req, res, number) => {
   return true;
 };
 
+const markRead = (agentId, number) =>
+  supabaseService
+    .from('message_reads')
+    .upsert(
+      { agent_id: agentId, number, last_read_at: new Date().toISOString() },
+      { onConflict: 'agent_id,number' },
+    );
+
+const toThread = (row) => ({
+  phone: row.number,
+  leadId: row.lead_id,
+  clientId: row.client_id,
+  firstName: row.first_name,
+  lastName: row.last_name,
+  unreadCount: row.unread_count,
+  lastMessage: {
+    content: row.last_content ?? '',
+    outbound: Boolean(row.last_outbound),
+    status: row.last_status ?? null,
+    sentAt: row.last_at,
+  },
+});
+
 const sendblueFailure = (res, error, route, method, req, fallback) => {
   logger.error(`Sendblue error in endpoints/messages.js`, {
     route,
@@ -96,6 +121,74 @@ const sendblueFailure = (res, error, route, method, req, fallback) => {
   const status = error.status >= 400 && error.status < 500 ? 400 : 502;
   return res.status(status).json({ error: error.message || fallback });
 };
+
+// Threads come from public.messages (webhook fed), so history from before the
+// webhook went live only shows up once that number texts again
+messagesRouter.get('/inbox', async (req, res) => {
+  const line = requireLine(req, res);
+  if (!line) return;
+
+  const requested = Number.parseInt(req.query.limit, 10);
+  const limit = Number.isNaN(requested) ?
+    INBOX_PAGE_SIZE :
+    Math.min(Math.max(requested, 1), MAX_INBOX_PAGE_SIZE);
+
+  let before = null;
+  if (req.query.before) {
+    const parsed = new Date(req.query.before);
+    if (Number.isNaN(parsed.getTime())) {
+      return res.status(400).json({ error: 'before must be a timestamp' });
+    }
+    before = parsed.toISOString();
+  }
+
+  const { data, error } = await supabaseService.rpc('message_inbox', {
+    p_agent_id: req.agent.id,
+    p_line: line,
+    p_limit: limit,
+    p_before: before,
+  });
+  if (error) {
+    logger.error('Inbox query failed in endpoints/messages.js', {
+      route: '/messages/inbox',
+      method: 'GET',
+      requesterId: req.agent?.id,
+      error,
+    });
+    return res.status(500).json({ error: 'Failed to load inbox' });
+  }
+
+  const rows = data || [];
+  return res.status(200).json({
+    threads: rows.map(toThread),
+    // every row carries the same total, an empty page means nothing unread past the cursor
+    unreadTotal: rows[0]?.unread_total ?? 0,
+    nextBefore: rows.length === limit ? rows[rows.length - 1].last_at : null,
+  });
+});
+
+messagesRouter.post('/read', async (req, res) => {
+  const line = requireLine(req, res);
+  if (!line) return;
+
+  const number = toE164(req.body?.phone);
+  if (!number) {
+    return res.status(400).json({ error: 'A valid phone number is required' });
+  }
+  if (!(await requireOwnership(req, res, number))) return;
+
+  const { error } = await markRead(req.agent.id, number);
+  if (error) {
+    logger.error('Mark read failed in endpoints/messages.js', {
+      route: '/messages/read',
+      method: 'POST',
+      requesterId: req.agent?.id,
+      error,
+    });
+    return res.status(500).json({ error: 'Failed to mark thread read' });
+  }
+  return res.status(204).send();
+});
 
 messagesRouter.get('/', async (req, res) => {
   const line = requireLine(req, res);
@@ -164,6 +257,14 @@ messagesRouter.post('/', async (req, res) => {
       toNumber: number,
       content,
     });
+    // replying counts as reading the thread, a failure here shouldn't fail the send
+    const { error: readError } = await markRead(req.agent.id, number);
+    if (readError) {
+      logger.warn('Mark read after send failed in endpoints/messages.js', {
+        requesterId: req.agent?.id,
+        error: readError,
+      });
+    }
     return res.status(201).json(message);
   } catch (error) {
     return sendblueFailure(
