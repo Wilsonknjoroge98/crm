@@ -204,6 +204,23 @@ const sendMessage = async ({ phone, content }) => {
   return response.data;
 };
 
+const getInbox = async ({ before } = {}) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/messages/inbox',
+    params: before ? { before } : undefined,
+  });
+  return response.data;
+};
+
+const markMessagesRead = async ({ phone }) => {
+  await apiClient.request({
+    method: 'POST',
+    url: '/messages/read',
+    data: { phone },
+  });
+};
+
 const subscribeReleaseNotifications = async ({ email } = {}) => {
   const response = await apiClient.request({
     method: 'POST',
@@ -1214,6 +1231,8 @@ export {
   subscribeReleaseNotifications,
   getMessages,
   sendMessage,
+  getInbox,
+  markMessagesRead,
   postLead,
   patchLead,
   deleteBusinessRecords,

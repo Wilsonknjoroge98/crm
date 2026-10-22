@@ -22,6 +22,7 @@ import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { enqueueSnackbar } from 'notistack';
@@ -48,6 +49,13 @@ import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import UpdateClientDialog from '../components/UpdateClientDialog';
 import BusinessCard from '../components/BusinessCard';
 import MessagesDrawer from '../components/MessagesDrawer';
+import InboxDrawer from '../components/InboxDrawer';
+import {
+  INK,
+  SLATE_FILL,
+  countPillSx,
+} from '../components/Conversation';
+import { useInbox } from '../hooks/useInbox';
 import ReleaseNotificationDialog, {
   STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
 } from '../components/ReleaseNotificationDialog';
@@ -278,6 +286,7 @@ const Business = () => {
   const [editClientOpen, setEditClientOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [textTarget, setTextTarget] = useState(null);
+  const [inboxOpen, setInboxOpen] = useState(false);
   // Once an agent has seen the release notification once, don't reopen it —
   // the triggering buttons fall back to a plain disabled look.
   const [releaseNotificationSeen, setReleaseNotificationSeen] = useState(
@@ -367,6 +376,7 @@ const Business = () => {
   const textEnabled = Boolean(
     account?.sendBlueEnabled && agent?.sendblue_number,
   );
+  const inbox = useInbox({ enabled: textEnabled });
 
   const rows = businessResponse?.data || [];
   const rowCount = businessResponse?.pagination?.total || 0;
@@ -534,6 +544,33 @@ const Business = () => {
           <Box>
             <Typography variant='h4'>Business</Typography>
           </Box>
+          {textEnabled && (
+            <Button
+              variant='outlined'
+              onClick={() => setInboxOpen(true)}
+              startIcon={<ChatBubbleOutlineRoundedIcon />}
+              aria-label={`Inbox, ${inbox.unreadTotal} unread`}
+              sx={{
+                alignSelf: { xs: 'flex-start', md: 'center' },
+                height: 38,
+                px: 1.75,
+                borderRadius: '8px',
+                borderColor: INK,
+                color: INK,
+                textTransform: 'none',
+                fontFamily: SANS,
+                fontWeight: 600,
+                '&:hover': { borderColor: INK, bgcolor: SLATE_FILL },
+              }}
+            >
+              Inbox
+              {inbox.unreadTotal > 0 && (
+                <Box component='span' sx={{ ...countPillSx, ml: 1 }}>
+                  {inbox.unreadTotal > 99 ? '99+' : inbox.unreadTotal}
+                </Box>
+              )}
+            </Button>
+          )}
         </Stack>
 
         {metricsError && (
@@ -896,6 +933,14 @@ const Business = () => {
         person={textTarget}
         onClose={() => setTextTarget(null)}
       />
+
+      {textEnabled && (
+        <InboxDrawer
+          open={inboxOpen}
+          onClose={() => setInboxOpen(false)}
+          inbox={inbox}
+        />
+      )}
 
       {clientDialogOpen && (
         <CreateClientDialog
