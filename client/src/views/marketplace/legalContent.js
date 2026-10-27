@@ -2,8 +2,7 @@
 // FEX Digital agent-facing Terms of Service and Privacy Policy.
 // Each section body supports **bold**, blank-line paragraphs and "- " bullets.
 
-// TODO before publishing: set the real effective date.
-export const EFFECTIVE_DATE = '[date of publication]';
+export const EFFECTIVE_DATE = 'October 27, 2026';
 
 export const TERMS_SECTIONS = [
   {
@@ -48,7 +47,7 @@ export const TERMS_SECTIONS = [
   },
   {
     title: '11. Refunds and Replacements',
-    body: '(a) **Eligible leads.** Only Unverified Website Leads may be submitted for replacement, using the Request Refund option in the CRM within 7 days of delivery, and only if you have not marked the lead as sold.\n\n(b) **Grounds.** A request may be approved if the lead is clearly fictitious, the phone number is disconnected or invalid, or the phone number belongs to a business or to someone unrelated to the named consumer. We review each request using our records and third-party phone-data tools, and our decision is final. Each lead may be submitted once.\n\n(c) **Remedy.** An approved request is credited as one replacement lead of the same type. Replacements are not cash refunds.\n\n(d) **Final sale.** Verified leads, Instant Form Leads, Banked Leads, Aged Leads, and Live Transfers (other than as described in Section 12) are final sale.\n\n(e) Abuse of the refund process, including repeated invalid requests, may result in loss of refund eligibility.',
+    body: '(a) **Eligible leads.** Only Unverified Website Leads may be submitted for replacement (Banked Leads and Aged Leads are not eligible, even if Unverified), using the Request Refund option in the CRM within 7 days of delivery, only by the agent the lead was first delivered to, and only if you have not marked the lead as sold.\n\n(b) **Grounds.** A request may be approved if the lead is clearly fictitious, the phone number is disconnected or invalid, or the phone number belongs to a business or to someone unrelated to the named consumer. We review each request using our records and third-party phone-data tools, and our decision is final. Each lead may be submitted once.\n\n(c) **Remedy.** An approved request is credited as one replacement lead of the same type. Replacements are not cash refunds.\n\n(d) **Final sale.** Verified leads, Instant Form Leads, Banked Leads, Aged Leads, and Live Transfers (other than as described in Section 12) are final sale.\n\n(e) Abuse of the refund process, including repeated invalid requests, may result in loss of refund eligibility.',
   },
   {
     title: '12. Live Transfers',

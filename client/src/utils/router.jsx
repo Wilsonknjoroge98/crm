@@ -38,9 +38,8 @@ const MarketplaceTermsOfService = lazy(
 );
 import ErrorBoundary from '../views/ErrorBoundary';
 
-// Lead storefront pages, nested under the Marketplace tab (/purchase-leads).
-const marketplaceRoute = (path, Page) => ({
-  path: `/purchase-leads${path}`,
+const lazyRoute = (path, Page) => ({
+  path,
   element: (
     <Suspense
       fallback={
@@ -60,6 +59,10 @@ const marketplaceRoute = (path, Page) => ({
     </Suspense>
   ),
 });
+
+// Lead storefront pages, nested under the Marketplace tab (/purchase-leads).
+const marketplaceRoute = (path, Page) =>
+  lazyRoute(`/purchase-leads${path}`, Page);
 
 const router = createBrowserRouter([
   {
@@ -260,8 +263,17 @@ const router = createBrowserRouter([
         '/:leadType/order-confirmation',
         MarketplaceOrderConfirmation,
       ),
-      marketplaceRoute('/privacy-policy', MarketplacePrivacyPolicy),
-      marketplaceRoute('/terms-of-service', MarketplaceTermsOfService),
+      lazyRoute('/privacy-policy', MarketplacePrivacyPolicy),
+      lazyRoute('/terms-of-service', MarketplaceTermsOfService),
+      // Legal pages used to live under the Marketplace tab.
+      {
+        path: '/purchase-leads/privacy-policy',
+        element: <Navigate to='/privacy-policy' replace />,
+      },
+      {
+        path: '/purchase-leads/terms-of-service',
+        element: <Navigate to='/terms-of-service' replace />,
+      },
       {
         path: '/insights',
         element: (

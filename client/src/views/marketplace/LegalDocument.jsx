@@ -2,7 +2,6 @@
 // Shared layout for the marketplace Terms of Service and Privacy Policy pages.
 import { Typography, Box, Stack, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { MARKETPLACE_PATH } from './api.js';
 
 const G100 = '#f3f4f6';
 const G400 = '#9ca3af';
@@ -119,7 +118,7 @@ export default function LegalDocument({ title, effectiveDate, sections }) {
             </Link>
             <Link
               component={RouterLink}
-              to={`${MARKETPLACE_PATH}/terms-of-service`}
+              to='/terms-of-service'
               underline='none'
               sx={footerLinkSx}
             >
@@ -127,7 +126,7 @@ export default function LegalDocument({ title, effectiveDate, sections }) {
             </Link>
             <Link
               component={RouterLink}
-              to={`${MARKETPLACE_PATH}/privacy-policy`}
+              to='/privacy-policy'
               underline='none'
               sx={footerLinkSx}
             >
