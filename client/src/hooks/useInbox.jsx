@@ -10,6 +10,8 @@ import { supabase } from '../utils/supabase';
 export const INBOX_QUERY_KEY = ['messagesInbox'];
 // realtime does the work, this only catches a dropped socket
 const FALLBACK_REFETCH_MS = 60000;
+// each send fires several status events, a blast would refetch per event without this
+const REALTIME_REFETCH_DELAY_MS = 1500;
 
 // Call once per page: it owns the realtime channel. RLS on messages scopes
 // the events to the agent's line, so no filter is needed here.
@@ -27,15 +29,26 @@ export const useInbox = ({ enabled }) => {
 
   useEffect(() => {
     if (!enabled) return undefined;
+    // first event schedules the refetch, the rest of the burst rides along with it.
+    // not a trailing debounce, a steady stream of events would never settle
+    let refetchTimer = null;
+    const scheduleRefetch = () => {
+      if (refetchTimer) return;
+      refetchTimer = window.setTimeout(() => {
+        refetchTimer = null;
+        queryClient.invalidateQueries({ queryKey: INBOX_QUERY_KEY });
+      }, REALTIME_REFETCH_DELAY_MS);
+    };
     const channel = supabase
       .channel('messages:inbox')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
-        () => queryClient.invalidateQueries({ queryKey: INBOX_QUERY_KEY }),
+        scheduleRefetch,
       )
       .subscribe();
     return () => {
+      window.clearTimeout(refetchTimer);
       supabase.removeChannel(channel);
     };
   }, [enabled, queryClient]);

@@ -1,0 +1,12 @@
+{
+  "name": "crm",
+  "private": true,
+  "scripts": {
+    "dev": "run-p dev:client dev:server",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run emulators --prefix server"
+  },
+  "devDependencies": {
+    "npm-run-all2": "^8.0.4"
+  }
+}
