@@ -1,4 +1,4 @@
-import { Container, Typography, Stack, Button, Alert } from '@mui/material';
+import { Typography, Stack, Button, Alert } from '@mui/material';
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import DateRangeFilter from '../components/DateRangeFilter';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent';
 import CreateClientDialog from '../components/CreateClientDialog';
+import PageContainer from '../components/PageContainer';
 
 const CSV_HEADERS = [
   { label: 'First Name', key: 'first_name' },
@@ -106,7 +107,7 @@ const Leads = () => {
           lead={lead}
         />
       )}
-      <Container sx={{ mt: 4 }}>
+      <PageContainer width='xl'>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent='space-between'
@@ -148,7 +149,7 @@ const Leads = () => {
           agents={agents}
           showToolbar={true}
         />
-      </Container>
+      </PageContainer>
     </>
   );
 };

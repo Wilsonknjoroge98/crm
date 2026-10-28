@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Chip,
-  Container,
   Paper,
   Skeleton,
   Stack,
@@ -27,6 +26,7 @@ import {
   formatMoney,
   labelSx,
 } from './marketplace/ui.jsx';
+import PageContainer from '../components/PageContainer';
 
 // Real-time products, in order of sales volume. Fresh Leads is the flagship,
 // so it alone gets the gold stripe and gold CTA.
@@ -396,7 +396,7 @@ const Purchase = () => {
   return (
     // The tinted canvas behind the cards comes from App's layout.
     // Capped at lg (1200px) so the card rows don't stretch on wide screens.
-    <Container maxWidth='lg' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <PageContainer>
       <Stack spacing={4}>
         <MarketplaceHeader />
 
@@ -457,7 +457,7 @@ const Purchase = () => {
           </Stack>
         </Box>
       </Stack>
-    </Container>
+    </PageContainer>
   );
 };
 

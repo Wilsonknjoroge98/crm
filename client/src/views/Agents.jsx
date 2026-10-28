@@ -1,5 +1,4 @@
 import {
-  Container,
   Typography,
   Stack,
   Table,
@@ -32,6 +31,7 @@ import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
+import PageContainer from '../components/PageContainer';
 
 const LEVELS = Array.from({ length: 13 }, (_, i) => 65 + i * 5); // 65–125
 
@@ -110,7 +110,7 @@ const Agents = () => {
   }
 
   return (
-    <Container sx={{ mt: 4 }}>
+    <PageContainer>
       <Stack
         direction='row'
         justifyContent='space-between'
@@ -354,7 +354,7 @@ const Agents = () => {
           }}
         />
       </TableContainer>
-    </Container>
+    </PageContainer>
   );
 };
 

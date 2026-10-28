@@ -58,6 +58,7 @@ import {
   labelSx,
   leadTypeColor,
 } from './ui.jsx';
+import PageContainer from '../../components/PageContainer';
 
 const STATE_ABBR = {
   Alabama: 'AL',
@@ -480,10 +481,7 @@ export default function Store() {
 
   return (
     // Capped at lg (1200px) like the marketplace landing page.
-    <Container
-      maxWidth='lg'
-      sx={{ py: 3, px: { xs: 2, md: 3 }, pb: cartCount > 0 ? 12 : 3 }}
-    >
+    <PageContainer sx={{ pb: cartCount > 0 ? 12 : 3 }}>
       <Dialog
         open={showExplainer}
         onClose={handleCloseExplainer}
@@ -778,6 +776,6 @@ export default function Store() {
           </Container>
         </Paper>
       )}
-    </Container>
+    </PageContainer>
   );
 }

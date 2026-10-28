@@ -1,4 +1,4 @@
-import { Container, Typography, Alert, Button, Stack } from '@mui/material';
+import { Typography, Alert, Button, Stack } from '@mui/material';
 
 import { useQuery } from '@tanstack/react-query';
 import { getPolicies, getAgents } from '../utils/query';
@@ -14,6 +14,7 @@ import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import DeletePolicyDialog from '../components/DeletePolicyDialog';
 import PoliciesGrid from '../components/PoliciesGrid';
 import DateRangeFilter from '../components/DateRangeFilter';
+import PageContainer from '../components/PageContainer';
 
 const Policies = () => {
   const [updatePolicyOpen, setUpdatePolicyOpen] = useState(false);
@@ -115,7 +116,7 @@ const Policies = () => {
         />
       )}
 
-      <Container sx={{ mt: 4 }}>
+      <PageContainer width='xl'>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent='space-between'
@@ -157,7 +158,7 @@ const Policies = () => {
           setPolicy={setPolicy}
           setDeletePolicyOpen={setDeletePolicyOpen}
         />
-      </Container>
+      </PageContainer>
     </>
   );
 };

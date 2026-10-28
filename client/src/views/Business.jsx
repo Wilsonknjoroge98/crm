@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Container,
   Fade,
   InputAdornment,
   Paper,
@@ -22,7 +21,6 @@ import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
@@ -50,16 +48,10 @@ import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import UpdateClientDialog from '../components/UpdateClientDialog';
 import BusinessCard from '../components/BusinessCard';
 import InboxDrawer from '../components/InboxDrawer';
-import {
-  INK,
-  SLATE_FILL,
-  formatUnread,
-  unreadBadgeSx,
-} from '../components/Conversation';
-import { useInboxContext } from '../hooks/useInbox';
 import ReleaseNotificationDialog, {
   STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
 } from '../components/ReleaseNotificationDialog';
+import PageContainer from '../components/PageContainer';
 
 const SANS = '"Inter", sans-serif';
 const LOCAL_TIME_TICK_MS = 30000;
@@ -381,7 +373,6 @@ const Business = () => {
   const textEnabled = Boolean(
     account?.sendBlueEnabled && agent?.sendblue_number,
   );
-  const inbox = useInboxContext();
 
   const rows = businessResponse?.data || [];
   const rowCount = businessResponse?.pagination?.total || 0;
@@ -538,48 +529,9 @@ const Business = () => {
   };
 
   return (
-    <Container maxWidth='xl' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <PageContainer width='xl'>
       <Stack spacing={2.5}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          justifyContent='space-between'
-          alignItems={{ md: 'center' }}
-          spacing={2}
-        >
-          <Box>
-            <Typography variant='h4'>Business</Typography>
-          </Box>
-          {textEnabled && (
-            <Button
-              variant='outlined'
-              onClick={() => {
-                setTextTarget(null);
-                setInboxOpen(true);
-              }}
-              startIcon={<ChatBubbleOutlineRoundedIcon />}
-              aria-label={`Inbox, ${inbox.unreadThreads} unread`}
-              sx={{
-                alignSelf: { xs: 'flex-start', md: 'center' },
-                height: 38,
-                px: 1.75,
-                borderRadius: '8px',
-                borderColor: INK,
-                color: INK,
-                textTransform: 'none',
-                fontFamily: SANS,
-                fontWeight: 600,
-                '&:hover': { borderColor: INK, bgcolor: SLATE_FILL },
-              }}
-            >
-              Inbox
-              {inbox.unreadThreads > 0 && (
-                <Box component='span' sx={{ ...unreadBadgeSx, ml: 1 }}>
-                  {formatUnread(inbox.unreadThreads)}
-                </Box>
-              )}
-            </Button>
-          )}
-        </Stack>
+        <Typography variant='h4'>Business</Typography>
 
         {metricsError && (
           <Alert severity='error'>Failed to load business metrics.</Alert>
@@ -995,7 +947,7 @@ const Business = () => {
           refetchClients={refreshBusiness}
         />
       )}
-    </Container>
+    </PageContainer>
   );
 };
 

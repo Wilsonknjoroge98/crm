@@ -11,7 +11,6 @@ import {
   Box,
   Divider,
   Stack,
-  Container,
   TextField,
   Button,
   IconButton,
@@ -40,6 +39,7 @@ import { toTitleCase, toUpperCaseLabel } from '../utils/helpers';
 import { Add as AddIcon } from '@mui/icons-material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import PageContainer from '../components/PageContainer';
 
 const CashFlowSummary = () => {
   const queryClient = useQueryClient();
@@ -179,7 +179,7 @@ const CashFlowSummary = () => {
   };
 
   return (
-    <Container sx={{ mt: 4 }}>
+    <PageContainer>
       <Stack
         direction={{ xs: 'column', sm: 'column' }}
         justifyContent='space-between'
@@ -432,7 +432,7 @@ const CashFlowSummary = () => {
           </Card>
         </Box>
       </Stack>
-    </Container>
+    </PageContainer>
   );
 };
 

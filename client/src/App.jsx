@@ -101,13 +101,17 @@ const App = () => {
     );
   }
 
+  const showNavBar = Boolean(user) && !isPublicRoute;
+
   return (
     <ThemeProvider theme={theme}>
       <InboxProvider>
-        {user && !isPublicRoute && <NavBar />}
+        {showNavBar && <NavBar />}
         <Stack
           sx={{
-            minHeight: '100vh',
+            // the NavBar sits in flow above this, so fill what's left of the
+            // viewport, a full 100vh would always scroll by the NavBar's height
+            minHeight: showNavBar ? 'calc(100vh - 64px)' : '100vh',
             width: '100%',
             overflowX: 'hidden',
             backgroundColor: pageBackground,
@@ -116,7 +120,6 @@ const App = () => {
           {!isPublicRoute && <SidePanel />}
 
           <Box
-            pt={user ? '64px' : 0}
             pb='48px'
             sx={{
               flex: 1,

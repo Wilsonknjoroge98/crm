@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Chip,
-  Container,
   Paper,
   Skeleton,
   Stack,
@@ -14,6 +13,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { getSalesAnalytics } from '../utils/query';
+import PageContainer from '../components/PageContainer';
 
 const MONO = '"JetBrains Mono", monospace';
 const SANS = '"Inter", sans-serif';
@@ -145,7 +145,7 @@ const SalesAnalytics = () => {
   const totals = data?.totals;
 
   return (
-    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <PageContainer width='xl'>
       <Stack spacing={2.5}>
         <Box>
           <Typography variant='h4'>Sales Analytics</Typography>
@@ -235,7 +235,7 @@ const SalesAnalytics = () => {
           />
         </Paper>
       </Stack>
-    </Container>
+    </PageContainer>
   );
 };
 

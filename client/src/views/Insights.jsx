@@ -3,7 +3,6 @@ import {
   Typography,
   Alert,
   Box,
-  Container,
   Button,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
@@ -19,6 +18,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 
 import { useState } from 'react';
+import PageContainer from '../components/PageContainer';
 
 const Insights = () => {
   const [startDate, setStartDate] = useState(
@@ -181,8 +181,8 @@ const Insights = () => {
   ];
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Container sx={{ mt: 4 }}>
+    <PageContainer>
+      <Box>
         <Stack justifyContent='space-between' spacing={2} mb={2}>
           <Typography variant='h4'>Creative Insights</Typography>
           <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -247,7 +247,7 @@ const Insights = () => {
             }}
           />
         </Stack>
-      </Container>
+      </Box>
       {/* <Cards
         sx={{
           maxWidth: '100%',
@@ -313,7 +313,7 @@ const Insights = () => {
           )}
         </CardContent>
       </Cards> */}
-    </Container>
+    </PageContainer>
   );
 };
 
