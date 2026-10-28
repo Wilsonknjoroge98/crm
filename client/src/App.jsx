@@ -32,10 +32,15 @@ const App = () => {
 
   const theme = useMemo(() => createAppTheme({ agency }), [agency]);
 
-  const isPublicRoute =
+  const isAuthRoute =
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname === '/reset-password';
+  // Also matches the old /purchase-leads/... legal URLs while they redirect.
+  const isLegalRoute = /\/(terms-of-service|privacy-policy)$/.test(pathname);
+  // Legal pages are open to everyone; logged-out visitors see them without
+  // the app chrome, logged-in agents keep the nav and side panel.
+  const isPublicRoute = isAuthRoute || (isLegalRoute && !isAuthenticated);
   // The Marketplace hub sits on a tinted canvas, applied here so it reaches
   // under the nav offset and through the footer.
   const pageBackground =
@@ -66,7 +71,7 @@ const App = () => {
   console.log('Agent status:', agent);
 
   useEffect(() => {
-    if (!authInitialized) return;
+    if (!authInitialized || isLegalRoute) return;
 
     if (!isAuthenticated) {
       navigate('/login');
@@ -135,8 +140,9 @@ const App = () => {
             <Outlet />
           </Box>
 
-          {/* Footer — public routes only; in-app branding lives in the SidePanel */}
-          {isPublicRoute && (
+          {/* Footer — auth pages only; legal pages carry their own footer and
+              in-app branding lives in the SidePanel */}
+          {isAuthRoute && (
             <Stack
               sx={{
                 pb: 3,

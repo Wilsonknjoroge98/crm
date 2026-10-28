@@ -380,7 +380,7 @@ function CheckoutContent({
                 By placing this order I agree to the{' '}
                 <Link
                   component={RouterLink}
-                  to={`${MARKETPLACE_PATH}/terms-of-service`}
+                  to='/terms-of-service'
                   target='_blank'
                   rel='noopener noreferrer'
                   color='text.primary'
@@ -391,7 +391,7 @@ function CheckoutContent({
                 and{' '}
                 <Link
                   component={RouterLink}
-                  to={`${MARKETPLACE_PATH}/privacy-policy`}
+                  to='/privacy-policy'
                   target='_blank'
                   rel='noopener noreferrer'
                   color='text.primary'
