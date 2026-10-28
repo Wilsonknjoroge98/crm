@@ -25,6 +25,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { enqueueSnackbar } from 'notistack';
 import {
   deleteBusinessRecords,
@@ -48,14 +49,14 @@ import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import UpdateClientDialog from '../components/UpdateClientDialog';
 import BusinessCard from '../components/BusinessCard';
-import MessagesDrawer from '../components/MessagesDrawer';
 import InboxDrawer from '../components/InboxDrawer';
 import {
   INK,
   SLATE_FILL,
-  countPillSx,
+  formatUnread,
+  unreadBadgeSx,
 } from '../components/Conversation';
-import { useInbox } from '../hooks/useInbox';
+import { useInboxContext } from '../hooks/useInbox';
 import ReleaseNotificationDialog, {
   STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
 } from '../components/ReleaseNotificationDialog';
@@ -264,8 +265,12 @@ const Business = () => {
   const { user, isAuthenticated } = useSelector((state) => state.user);
   const isAdmin = user?.id === SUPERUSER_ID;
   const agent = useAgent();
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  // ?search= seeds the box, the inbox's lead link lands here that way
+  const [searchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams.get('search') || '',
+  );
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState([]);
   // Superuser-only: scopes the list and metrics to one agent. The server
@@ -376,7 +381,7 @@ const Business = () => {
   const textEnabled = Boolean(
     account?.sendBlueEnabled && agent?.sendblue_number,
   );
-  const inbox = useInbox({ enabled: textEnabled });
+  const inbox = useInboxContext();
 
   const rows = businessResponse?.data || [];
   const rowCount = businessResponse?.pagination?.total || 0;
@@ -547,9 +552,12 @@ const Business = () => {
           {textEnabled && (
             <Button
               variant='outlined'
-              onClick={() => setInboxOpen(true)}
+              onClick={() => {
+                setTextTarget(null);
+                setInboxOpen(true);
+              }}
               startIcon={<ChatBubbleOutlineRoundedIcon />}
-              aria-label={`Inbox, ${inbox.unreadTotal} unread`}
+              aria-label={`Inbox, ${inbox.unreadThreads} unread`}
               sx={{
                 alignSelf: { xs: 'flex-start', md: 'center' },
                 height: 38,
@@ -564,9 +572,9 @@ const Business = () => {
               }}
             >
               Inbox
-              {inbox.unreadTotal > 0 && (
-                <Box component='span' sx={{ ...countPillSx, ml: 1 }}>
-                  {inbox.unreadTotal > 99 ? '99+' : inbox.unreadTotal}
+              {inbox.unreadThreads > 0 && (
+                <Box component='span' sx={{ ...unreadBadgeSx, ml: 1 }}>
+                  {formatUnread(inbox.unreadThreads)}
                 </Box>
               )}
             </Button>
@@ -846,7 +854,10 @@ const Business = () => {
                 releaseNotificationSeen={releaseNotificationSeen}
                 onQuickAction={handleOpenReleaseDialog}
                 textEnabled={textEnabled}
-                onText={setTextTarget}
+                onText={(target) => {
+                  setTextTarget(target);
+                  setInboxOpen(true);
+                }}
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
@@ -928,17 +939,14 @@ const Business = () => {
         onClose={() => setReleaseDialogOpen(false)}
       />
 
-      <MessagesDrawer
-        open={Boolean(textTarget)}
-        person={textTarget}
-        onClose={() => setTextTarget(null)}
-      />
-
       {textEnabled && (
         <InboxDrawer
           open={inboxOpen}
-          onClose={() => setInboxOpen(false)}
-          inbox={inbox}
+          onClose={() => {
+            setInboxOpen(false);
+            setTextTarget(null);
+          }}
+          initialPerson={textTarget}
         />
       )}
 

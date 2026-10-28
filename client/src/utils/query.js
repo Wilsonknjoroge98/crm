@@ -204,11 +204,15 @@ const sendMessage = async ({ phone, content }) => {
   return response.data;
 };
 
-const getInbox = async ({ before } = {}) => {
+const getInbox = async ({ before, unreadOnly, search } = {}) => {
   const response = await apiClient.request({
     method: 'GET',
     url: '/messages/inbox',
-    params: before ? { before } : undefined,
+    params: {
+      before: before || undefined,
+      unread: unreadOnly ? 'true' : undefined,
+      search: search || undefined,
+    },
   });
   return response.data;
 };

@@ -14,6 +14,7 @@ const messagesRouter = express.Router();
 const MAX_CONTENT_LENGTH = 2000;
 const INBOX_PAGE_SIZE = 50;
 const MAX_INBOX_PAGE_SIZE = 100;
+const MAX_SEARCH_LENGTH = 100;
 
 // 409 not 403 so the client can tell "no line set up yet" from forbidden
 const requireLine = (req, res) => {
@@ -107,7 +108,43 @@ const toThread = (row) => ({
     status: row.last_status ?? null,
     sentAt: row.last_at,
   },
+  // the newest message matching the search, when the hit was in the text
+  match: row.match_content == null ? null : {
+    content: row.match_content,
+    outbound: Boolean(row.match_outbound),
+    sentAt: row.match_at,
+  },
 });
+
+// How far a send has got. Sendblue's message list lags behind its webhooks,
+// so the stored row can be ahead of what the API returns, never the reverse
+const STATUS_RANK = { SENT: 1, DELIVERED: 2, ERROR: 2, DECLINED: 2 };
+const statusRank = (status) => STATUS_RANK[status] ?? 0;
+
+// Overlays the webhook-fed status on the thread, a lookup failure just
+// leaves Sendblue's statuses as they are
+const withStoredStatus = async (req, messages, line) => {
+  const handles = messages.filter((m) => m.outbound).map((m) => m.id);
+  if (!handles.length) return messages;
+  const { data, error } = await supabaseService
+    .from('messages')
+    .select('message_handle, status, error_message')
+    .eq('sendblue_number', line)
+    .in('message_handle', handles);
+  if (error) {
+    logger.warn('Stored status lookup failed in endpoints/messages.js', {
+      requesterId: req.agent?.id,
+      error,
+    });
+    return messages;
+  }
+  const stored = new Map(data.map((row) => [row.message_handle, row]));
+  return messages.map((m) => {
+    const row = stored.get(m.id);
+    if (!row || statusRank(row.status) <= statusRank(m.status)) return m;
+    return { ...m, status: row.status, error: row.error_message || null };
+  });
+};
 
 const sendblueFailure = (res, error, route, method, req, fallback) => {
   logger.error(`Sendblue error in endpoints/messages.js`, {
@@ -142,11 +179,18 @@ messagesRouter.get('/inbox', async (req, res) => {
     before = parsed.toISOString();
   }
 
+  const search =
+    typeof req.query.search === 'string' ?
+      req.query.search.trim().slice(0, MAX_SEARCH_LENGTH) :
+      '';
+
   const { data, error } = await supabaseService.rpc('message_inbox', {
     p_agent_id: req.agent.id,
     p_line: line,
     p_limit: limit,
     p_before: before,
+    p_unread_only: req.query.unread === 'true',
+    p_search: search || null,
   });
   if (error) {
     logger.error('Inbox query failed in endpoints/messages.js', {
@@ -161,8 +205,11 @@ messagesRouter.get('/inbox', async (req, res) => {
   const rows = data || [];
   return res.status(200).json({
     threads: rows.map(toThread),
-    // every row carries the same total, an empty page means nothing unread past the cursor
+    // every row carries the same totals, over all threads whatever the filter.
+    // an empty page has none, so read them off an unfiltered first page
     unreadTotal: rows[0]?.unread_total ?? 0,
+    threadTotal: rows[0]?.thread_total ?? 0,
+    unreadThreads: rows[0]?.unread_threads ?? 0,
     nextBefore: rows.length === limit ? rows[rows.length - 1].last_at : null,
   });
 });
@@ -209,7 +256,7 @@ messagesRouter.get('/', async (req, res) => {
       number,
       sendblueNumber: line,
     });
-    return res.status(200).json(messages);
+    return res.status(200).json(await withStoredStatus(req, messages, line));
   } catch (error) {
     return sendblueFailure(
       res,

@@ -13,12 +13,19 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { getMessages, sendMessage } from '../utils/query';
 import { toE164, stringToColor } from '../utils/helpers';
-import { supabase } from '../utils/supabase';
-import { INBOX_QUERY_KEY, useMarkThreadRead } from '../hooks/useInbox';
+import {
+  INBOX_QUERY_KEY,
+  mergeMessage,
+  messagesQueryKey,
+  upsertMessage,
+  useMarkThreadRead,
+} from '../hooks/useInbox';
 
 export const SERIF = '"Libre Baskerville", serif';
 export const SANS = '"Inter", sans-serif';
@@ -29,6 +36,7 @@ export const SLATE_BLUE = '#2F4E6F';
 export const SLATE_FILL = '#F1F5F9';
 export const RULE = '#E0E0E0';
 export const BORDER = '#E2E8F0';
+export const GOLD = '#D4AF37';
 
 export const displayPhone = (phone) => {
   const e164 = toE164(phone);
@@ -55,22 +63,26 @@ export const eyebrowSx = {
   color: 'text.secondary',
 };
 
-// Neutral slate capsule for volume counts (unread, totals)
-export const countPillSx = {
+// Gold capsule for the inbox-wide unread total (sidebar, Business header),
+// matching the per-thread counts. Kept off green and slate so it doesn't read
+// as revenue or a status pill. Ink text, white on gold is ~2:1 and fails AA.
+export const unreadBadgeSx = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 22,
-  height: 20,
+  minWidth: 20,
+  height: 18,
   px: 0.75,
   borderRadius: '999px',
-  bgcolor: SLATE_FILL,
-  color: SLATE_NAVY,
-  border: `1px solid ${BORDER}`,
+  bgcolor: GOLD,
+  color: 'text.primary',
   fontFamily: MONO,
-  fontSize: '0.68rem',
-  fontWeight: 600,
+  fontSize: '0.65rem',
+  fontWeight: 800,
+  lineHeight: 1,
 };
+
+export const formatUnread = (count) => (count > 99 ? '99+' : count);
 
 export const iconButtonSx = {
   color: 'text.secondary',
@@ -79,20 +91,6 @@ export const iconButtonSx = {
   p: 0.5,
   '&:hover': { bgcolor: SLATE_FILL },
 };
-
-const rowToMessage = (row) => ({
-  id: row.message_handle,
-  content: row.content ?? '',
-  outbound: Boolean(row.is_outbound),
-  status: row.status ?? null,
-  sentAt: row.sent_at,
-  error: row.error_message || null,
-});
-
-const upsertMessage = (list, message) =>
-  list.some((m) => m.id === message.id)
-    ? list.map((m) => (m.id === message.id ? message : m))
-    : [...list, message];
 
 const statusLabel = (message) => {
   if (!message.outbound) return null;
@@ -145,12 +143,13 @@ const Bubble = ({ message }) => {
     >
       <Box
         sx={{
-          maxWidth: '82%',
-          px: 1.75,
+          // a measure short enough to read, still roomy in the 500px drawer
+          maxWidth: '70%',
+          px: 1.5,
           py: 1,
           bgcolor: outbound ? SLATE_NAVY : '#FFFFFF',
           color: outbound ? '#FFFFFF' : 'text.primary',
-          borderRadius: outbound ? '10px 10px 3px 10px' : '10px 10px 10px 3px',
+          borderRadius: outbound ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
           border: `1px solid ${outbound ? SLATE_NAVY : BORDER}`,
           opacity: message.optimistic ? 0.7 : 1,
         }}
@@ -191,7 +190,9 @@ const Bubble = ({ message }) => {
 const DayRule = ({ label }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, my: 2 }}>
     <Box sx={{ flex: 1, height: '1px', bgcolor: RULE }} />
-    <Typography sx={{ ...eyebrowSx, fontSize: '0.65rem', color: 'text.disabled' }}>
+    <Typography
+      sx={{ ...eyebrowSx, fontSize: '0.65rem', color: 'text.disabled' }}
+    >
       {label}
     </Typography>
     <Box sx={{ flex: 1, height: '1px', bgcolor: RULE }} />
@@ -220,16 +221,29 @@ const StatusChip = ({ isSale }) => (
   </Box>
 );
 
-// One thread: header, message stream, composer. Used by MessagesDrawer
-// (opened from a card) and InboxDrawer. Marks the thread read while open.
-const Conversation = ({ open, person, onClose, onBack }) => {
+// One thread: header, message stream, composer. Used by InboxSplit, in both
+// the inbox drawer and the /inbox page. Marks the thread read while open.
+// Business has no per-lead route, its search takes the 10-digit number
+const leadHref = (phone) => {
+  const e164 = toE164(phone);
+  return e164 ? `/business?search=${e164.slice(2)}` : null;
+};
+
+const Conversation = ({
+  open,
+  person,
+  onClose,
+  onBack,
+  showLeadLink,
+  headerSx,
+}) => {
   const phone = person?.phone;
   const name =
     [person?.first_name, person?.last_name].filter(Boolean).join(' ') ||
     'Unknown Lead';
   const bottomRef = useRef(null);
   const queryClient = useQueryClient();
-  const queryKey = ['messages', phone];
+  const queryKey = messagesQueryKey(phone);
   const [draft, setDraft] = useState('');
   const [sendError, setSendError] = useState(null);
   const { mutate: markRead } = useMarkThreadRead();
@@ -290,37 +304,21 @@ const Conversation = ({ open, person, onClose, onBack }) => {
     refetch,
   } = useQuery({
     queryKey,
-    queryFn: () => getMessages({ phone }),
+    // a refetch can land after a newer realtime status, keep the further one
+    queryFn: async () => {
+      const fresh = await getMessages({ phone });
+      const known = new Map(
+        (queryClient.getQueryData(queryKey) ?? []).map((m) => [m.id, m]),
+      );
+      return fresh.map((m) =>
+        known.has(m.id) ? mergeMessage(known.get(m.id), m) : m,
+      );
+    },
     enabled: open && Boolean(phone),
     refetchOnWindowFocus: !isSending,
   });
 
-  useEffect(() => {
-    const number = toE164(phone);
-    if (!open || !number) return undefined;
-    const channel = supabase
-      .channel(`messages:${number}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-          filter: `number=eq.${number}`,
-        },
-        (payload) => {
-          if (!payload.new?.message_handle) return;
-          queryClient.setQueryData(queryKey, (old = []) =>
-            upsertMessage(old, rowToMessage(payload.new)),
-          );
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, phone]);
+  // live statuses arrive through the inbox channel in InboxProvider
 
   // Read on open, and again whenever a new inbound message lands while open
   const latestInboundId = useMemo(
@@ -360,19 +358,32 @@ const Conversation = ({ open, person, onClose, onBack }) => {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 1.5,
+          ...headerSx,
         }}
       >
         <Stack direction='row' spacing={1.5} alignItems='center' minWidth={0}>
           {onBack && (
-            <IconButton
+            <Button
               size='small'
               onClick={onBack}
-              aria-label='Back to inbox'
-              // the list sits beside the thread from md up
-              sx={{ ...iconButtonSx, display: { md: 'none' } }}
+              startIcon={<ArrowBackRoundedIcon fontSize='small' />}
+              sx={{
+                // the list sits beside the thread from md up
+                display: { md: 'none' },
+                flexShrink: 0,
+                minWidth: 0,
+                px: 1,
+                borderRadius: '8px',
+                color: INK,
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                fontFamily: SANS,
+                fontWeight: 600,
+                '&:hover': { bgcolor: SLATE_FILL },
+              }}
             >
-              <ArrowBackRoundedIcon fontSize='small' />
-            </IconButton>
+              All threads
+            </Button>
           )}
           <Avatar
             sx={{
@@ -414,6 +425,30 @@ const Conversation = ({ open, person, onClose, onBack }) => {
             </Typography>
           </Box>
         </Stack>
+
+        {showLeadLink && leadHref(phone) && (
+          <Button
+            component={RouterLink}
+            to={leadHref(phone)}
+            size='small'
+            endIcon={
+              <OpenInNewRoundedIcon sx={{ fontSize: '0.9rem !important' }} />
+            }
+            sx={{
+              flexShrink: 0,
+              px: 1.25,
+              borderRadius: '8px',
+              color: INK,
+              textTransform: 'none',
+              whiteSpace: 'nowrap',
+              fontFamily: SANS,
+              fontWeight: 600,
+              '&:hover': { bgcolor: SLATE_FILL },
+            }}
+          >
+            {person?.lifecycle_status === 'SALE' ? 'View client' : 'View lead'}
+          </Button>
+        )}
 
         {onClose && (
           <IconButton

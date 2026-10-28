@@ -22,6 +22,7 @@ import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
 import CurrencyExchangeOutlinedIcon from '@mui/icons-material/CurrencyExchangeOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 // import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 
 import { useTheme } from '@mui/material/styles';
@@ -30,6 +31,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useAgent } from '../hooks/useAgent';
 import { supabase } from '../utils/supabase';
+import { useInboxContext } from '../hooks/useInbox';
+import { formatUnread, unreadBadgeSx } from './Conversation';
 
 const drawerWidth = 220;
 
@@ -42,6 +45,7 @@ const SidePanel = () => {
   const { isAuthenticated } = useSelector((state) => state.user);
   const agent = useAgent();
   const theme = useTheme();
+  const { textEnabled, unreadThreads } = useInboxContext();
 
   const agency = agent?.org_id;
 
@@ -67,6 +71,17 @@ const SidePanel = () => {
   };
 
   const salesItems = [
+    // triage inbound texts first, then work the pipeline
+    ...(textEnabled
+      ? [
+          {
+            text: 'Inbox',
+            icon: <ChatBubbleOutlineRoundedIcon />,
+            path: '/inbox',
+            badge: unreadThreads,
+          },
+        ]
+      : []),
     { text: 'Business', icon: <PeopleAltOutlinedIcon />, path: '/business' },
     // Hidden: only GSQ leads come through the CRM now, so agents no longer
     // bulk-upload their own. The /bulk-upload route still exists.
@@ -256,7 +271,7 @@ const SidePanel = () => {
             {/* SALES SECTION */}
             <List disablePadding>
               <SectionLabel>SALES</SectionLabel>
-              {salesItems.map(({ text, icon, path }) => {
+              {salesItems.map(({ text, icon, path, badge }) => {
                 const isActive =
                   location.pathname === path ||
                   location.pathname.startsWith(`${path}/`);
@@ -270,6 +285,15 @@ const SidePanel = () => {
                     <ListItemText
                       primary={<NavLabel isActive={isActive}>{text}</NavLabel>}
                     />
+                    {badge > 0 && (
+                      <Box
+                        component='span'
+                        aria-label={`${badge} unread`}
+                        sx={unreadBadgeSx}
+                      >
+                        {formatUnread(badge)}
+                      </Box>
+                    )}
                   </ListItem>
                 );
               })}

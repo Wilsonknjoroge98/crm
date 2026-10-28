@@ -170,6 +170,58 @@ describe('messages endpoints', () => {
     expect(options.params).toMatchObject({ number: LEAD, sendblue_number: LINE });
   });
 
+  test('GET takes the stored status when the webhook is ahead of Sendblue', async () => {
+    mockConfigDocs({});
+    const queries = mockTables({
+      leads: { data: [{ id: 'lead-1' }], error: null },
+      messages: {
+        data: [
+          { message_handle: 'b', status: 'DELIVERED', error_message: null },
+          { message_handle: 'c', status: 'QUEUED', error_message: null },
+        ],
+        error: null,
+      },
+    });
+    axios.get.mockResolvedValue({
+      data: {
+        data: [
+          { message_handle: 'c', is_outbound: true, status: 'SENT', sendblue_number: LINE },
+          { message_handle: 'b', is_outbound: true, status: 'QUEUED', sendblue_number: LINE },
+        ],
+      },
+    });
+
+    const res = await request(makeApp(agent)).get('/messages').query({ phone: LEAD });
+
+    expect(res.status).toBe(200);
+    // b moves up to DELIVERED, c's stored QUEUED never moves it back from SENT
+    expect(res.body.map((m) => [m.id, m.status])).toEqual([
+      ['b', 'DELIVERED'],
+      ['c', 'SENT'],
+    ]);
+    const [lookup] = queries.messages;
+    expect(lookup.eq).toHaveBeenCalledWith('sendblue_number', LINE);
+    expect(lookup.in).toHaveBeenCalledWith('message_handle', ['b', 'c']);
+  });
+
+  test('GET falls back to Sendblue statuses when the lookup fails', async () => {
+    mockConfigDocs({});
+    mockTables({
+      leads: { data: [{ id: 'lead-1' }], error: null },
+      messages: { data: null, error: { message: 'down' } },
+    });
+    axios.get.mockResolvedValue({
+      data: {
+        data: [{ message_handle: 'b', is_outbound: true, status: 'QUEUED', sendblue_number: LINE }],
+      },
+    });
+
+    const res = await request(makeApp(agent)).get('/messages').query({ phone: LEAD });
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].status).toBe('QUEUED');
+  });
+
   test('POST sends with the agent subaccount credentials', async () => {
     mockConfigDocs({
       'agent@example.com': { apiKey: 'sub-key', apiSecret: 'sub-secret', sendblueNumber: LINE },
@@ -296,6 +348,11 @@ describe('GET /messages/inbox', () => {
     first_name: 'Ann',
     last_name: 'Lee',
     unread_total: 5,
+    thread_total: 12,
+    unread_threads: 3,
+    match_content: null,
+    match_outbound: null,
+    match_at: null,
     ...overrides,
   });
 
@@ -310,6 +367,8 @@ describe('GET /messages/inbox', () => {
       p_line: LINE,
       p_limit: 50,
       p_before: null,
+      p_unread_only: false,
+      p_search: null,
     });
     expect(res.body).toEqual({
       threads: [
@@ -326,11 +385,58 @@ describe('GET /messages/inbox', () => {
             status: 'RECEIVED',
             sentAt: '2026-10-22T15:00:00+00:00',
           },
+          match: null,
         },
       ],
       unreadTotal: 5,
+      threadTotal: 12,
+      unreadThreads: 3,
       nextBefore: null,
     });
+  });
+
+  test('a message text hit comes back as match', async () => {
+    mockSupabaseRpc.mockResolvedValue({
+      data: [
+        row({
+          match_content: 'call me friday',
+          match_outbound: false,
+          match_at: '2026-10-20T15:00:00+00:00',
+        }),
+      ],
+      error: null,
+    });
+
+    const res = await request(makeApp(agent))
+      .get('/messages/inbox')
+      .query({ search: 'friday' });
+
+    expect(res.body.threads[0].match).toEqual({
+      content: 'call me friday',
+      outbound: false,
+      sentAt: '2026-10-20T15:00:00+00:00',
+    });
+  });
+
+  test('unread and search pass through, search is trimmed and capped', async () => {
+    mockSupabaseRpc.mockResolvedValue({ data: [], error: null });
+
+    await request(makeApp(agent))
+      .get('/messages/inbox')
+      .query({ unread: 'true', search: '  ann  ' });
+    expect(mockSupabaseRpc.mock.calls[0][1]).toMatchObject({
+      p_unread_only: true,
+      p_search: 'ann',
+    });
+
+    await request(makeApp(agent))
+      .get('/messages/inbox')
+      .query({ unread: 'yes', search: 'x'.repeat(500) });
+    expect(mockSupabaseRpc.mock.calls[1][1].p_unread_only).toBe(false);
+    expect(mockSupabaseRpc.mock.calls[1][1].p_search).toHaveLength(100);
+
+    await request(makeApp(agent)).get('/messages/inbox').query({ search: '   ' });
+    expect(mockSupabaseRpc.mock.calls[2][1].p_search).toBeNull();
   });
 
   test('a full page returns a cursor, before passes through and limit is clamped', async () => {
@@ -361,7 +467,13 @@ describe('GET /messages/inbox', () => {
 
     const res = await request(makeApp(agent)).get('/messages/inbox');
 
-    expect(res.body).toEqual({ threads: [], unreadTotal: 0, nextBefore: null });
+    expect(res.body).toEqual({
+      threads: [],
+      unreadTotal: 0,
+      threadTotal: 0,
+      unreadThreads: 0,
+      nextBefore: null,
+    });
   });
 
   test('bad before is a 400, rpc error is a 500, no line is a 409', async () => {
