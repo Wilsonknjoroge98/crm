@@ -34,7 +34,9 @@ import Conversation, {
   displayPhone,
   eyebrowSx,
   getInitials,
+  formatUnread,
   iconButtonSx,
+  unreadBadgeSx,
 } from './Conversation';
 import { stringToColor, toE164 } from '../utils/helpers';
 import { useInboxContext, useInboxThreads } from '../hooks/useInbox';
@@ -262,23 +264,9 @@ const ThreadRow = ({ thread, search, selected, onSelect }) => {
             <Box
               component='span'
               aria-label={`${thread.unreadCount} unread`}
-              sx={{
-                flexShrink: 0,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 20,
-                height: 18,
-                px: 0.75,
-                borderRadius: '999px',
-                bgcolor: GOLD,
-                color: INK,
-                fontFamily: MONO,
-                fontSize: '0.65rem',
-                fontWeight: 800,
-              }}
+              sx={unreadBadgeSx}
             >
-              {thread.unreadCount}
+              {formatUnread(thread.unreadCount)}
             </Box>
           )}
         </Stack>

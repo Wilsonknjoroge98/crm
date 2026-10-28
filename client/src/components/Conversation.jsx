@@ -66,20 +66,25 @@ export const eyebrowSx = {
 // Gold capsule for the inbox-wide unread total (sidebar, Business header),
 // matching the per-thread counts. Kept off green and slate so it doesn't read
 // as revenue or a status pill. Ink text, white on gold is ~2:1 and fails AA.
+// 18px square at minimum, so a single digit is a circle and two or more
+// stretch into a tight capsule. Ink at 800 stays crisp on the gold.
 export const unreadBadgeSx = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 20,
+  flexShrink: 0,
+  boxSizing: 'border-box',
+  minWidth: 18,
   height: 18,
-  px: 0.75,
+  px: '5px',
   borderRadius: '999px',
   bgcolor: GOLD,
-  color: 'text.primary',
+  color: INK,
   fontFamily: MONO,
   fontSize: '0.65rem',
   fontWeight: 800,
   lineHeight: 1,
+  fontVariantNumeric: 'tabular-nums',
 };
 
 export const formatUnread = (count) => (count > 99 ? '99+' : count);

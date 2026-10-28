@@ -289,7 +289,8 @@ const SidePanel = () => {
                       <Box
                         component='span'
                         aria-label={`${badge} unread`}
-                        sx={unreadBadgeSx}
+                        // inset from the row edge, clear of the hover fill
+                        sx={{ ...unreadBadgeSx, ml: 1, mr: 0.25 }}
                       >
                         {formatUnread(badge)}
                       </Box>
