@@ -1,4 +1,4 @@
-import { Box, Container, Paper, Stack, Typography } from '@mui/material';
+import { Box, Paper, Stack, Typography } from '@mui/material';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import {
   parseUploadFile,
 } from '../utils/bulkUpload';
 import { createBulkUploadTemplateXlsx } from '../utils/bulkUploadTemplate';
+import PageContainer, { PAGE_FILL_HEIGHT } from '../components/PageContainer';
 
 const BulkUpload = () => {
   const queryClient = useQueryClient();
@@ -204,7 +205,7 @@ const BulkUpload = () => {
   ];
 
   return (
-    <Container sx={{ mt: 4, minHeight: 'calc(100vh - 96px)', display: 'flex' }}>
+    <PageContainer sx={{ minHeight: PAGE_FILL_HEIGHT, display: 'flex' }}>
       <Stack spacing={3} sx={{ flex: 1 }}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
@@ -300,7 +301,7 @@ const BulkUpload = () => {
           </Stack>
         </Box>
       </Stack>
-    </Container>
+    </PageContainer>
   );
 };
 

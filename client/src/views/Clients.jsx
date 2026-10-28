@@ -1,4 +1,4 @@
-import { Container, Typography, Stack, Button, Alert } from '@mui/material';
+import { Typography, Stack, Button, Alert } from '@mui/material';
 
 import { Add as AddIcon } from '@mui/icons-material';
 
@@ -16,6 +16,7 @@ import ClientsGrid from '../components/ClientsGrid';
 import DateRangeFilter from '../components/DateRangeFilter';
 
 import { useAgent } from '../hooks/useAgent.jsx';
+import PageContainer from '../components/PageContainer';
 
 const Clients = () => {
   const [createClientOpen, setCreateClientOpen] = useState(false);
@@ -148,7 +149,7 @@ const Clients = () => {
         />
       )}
 
-      <Container sx={{ mt: 4 }}>
+      <PageContainer width='xl'>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent='space-between'
@@ -194,7 +195,7 @@ const Clients = () => {
           handleDeleteClient={handleDeleteClient}
           showToolbar={true}
         />
-      </Container>
+      </PageContainer>
     </>
   );
 };

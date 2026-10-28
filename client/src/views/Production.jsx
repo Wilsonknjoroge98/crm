@@ -7,7 +7,6 @@ import {
   Grid,
   Typography,
   Stack,
-  Container,
   Tab,
   Tabs,
 } from '@mui/material';
@@ -23,6 +22,7 @@ import Events from '../components/Events';
 import ProductionIntroDialog, {
   STORAGE_KEY,
 } from '../components/ProductionIntroDialog';
+import PageContainer from '../components/PageContainer';
 
 const Production = () => {
   const [startDate, setStartDate] = useState(
@@ -45,7 +45,7 @@ const Production = () => {
   };
 
   return (
-    <Container sx={{ borderRadius: 2, p: 3 }}>
+    <PageContainer>
       <ProductionIntroDialog open={introOpen} setOpen={setIntroOpen} />
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
@@ -143,7 +143,7 @@ const Production = () => {
           </Grid>
         )}
       </Grid>
-    </Container>
+    </PageContainer>
   );
 };
 

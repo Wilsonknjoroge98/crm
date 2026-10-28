@@ -16,6 +16,7 @@ import { createAppTheme } from './utils/theme';
 import { useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useAgent } from './hooks/useAgent';
+import { InboxProvider } from './hooks/useInbox';
 
 // import Maintenance from './views/Maintenance';
 const App = () => {
@@ -105,61 +106,70 @@ const App = () => {
     );
   }
 
+  const showNavBar = Boolean(user) && !isPublicRoute;
+
   return (
     <ThemeProvider theme={theme}>
-      {user && !isPublicRoute && <NavBar />}
-      <Stack
-        sx={{
-          minHeight: '100vh',
-          width: '100%',
-          overflowX: 'hidden',
-          backgroundColor: pageBackground,
-        }}
-      >
-        {!isPublicRoute && <SidePanel />}
-
-        <Box
-          pt={user ? '64px' : 0}
-          pb='48px'
+      <InboxProvider>
+        {showNavBar && <NavBar />}
+        <Stack
           sx={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
+            // the NavBar sits in flow above this, so fill what's left of the
+            // viewport, a full 100vh would always scroll by the NavBar's height
+            minHeight: showNavBar ? 'calc(100vh - 64px)' : '100vh',
+            width: '100%',
+            overflowX: 'hidden',
             backgroundColor: pageBackground,
-            ml: !isPublicRoute ? '220px' : 0,
-            // mt: user ? 0 : isMediumScreen ? 3 : 20,
           }}
         >
-          <Outlet />
-        </Box>
+          {!isPublicRoute && <SidePanel />}
 
-        {/* Footer — auth pages only; legal pages carry their own footer and
-            in-app branding lives in the SidePanel */}
-        {isAuthRoute && (
-          <Stack
+          <Box
+            pb='48px'
             sx={{
-              pb: 3,
-              mt: 'auto',
-              width: '100%',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              backgroundColor: pageBackground,
+              ml: !isPublicRoute ? '220px' : 0,
+              // mt: user ? 0 : isMediumScreen ? 3 : 20,
             }}
-            direction='row'
-            alignItems='center'
-            justifyContent='center'
-            spacing={1}
           >
-            <Typography variant='caption' fontWeight={500} color='text.primary'>
-              Powered by
-            </Typography>
-            <Box
-              component='img'
-              src='/fexdigital.png'
-              sx={{ maxHeight: '30px', py: 1 }}
-            />
-          </Stack>
-        )}
-      </Stack>
+            <Outlet />
+          </Box>
+
+          {/* Footer — auth pages only; legal pages carry their own footer and
+              in-app branding lives in the SidePanel */}
+          {isAuthRoute && (
+            <Stack
+              sx={{
+                pb: 3,
+                mt: 'auto',
+                width: '100%',
+              }}
+              direction='row'
+              alignItems='center'
+              justifyContent='center'
+              spacing={1}
+            >
+              <Typography
+                variant='caption'
+                fontWeight={500}
+                color='text.primary'
+              >
+                Powered by
+              </Typography>
+              <Box
+                component='img'
+                src='/fexdigital.png'
+                sx={{ maxHeight: '30px', py: 1 }}
+              />
+            </Stack>
+          )}
+        </Stack>
+      </InboxProvider>
     </ThemeProvider>
   );
 };

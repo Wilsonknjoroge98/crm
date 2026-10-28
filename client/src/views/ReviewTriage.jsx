@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Container,
   Rating,
   Stack,
   TextField,
@@ -31,6 +30,7 @@ import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
+import PageContainer from '../components/PageContainer';
 
 const ReviewTriage = () => {
   const [selectedAgents, setSelectedAgents] = useState({});
@@ -107,7 +107,7 @@ const ReviewTriage = () => {
   }
 
   return (
-    <Container sx={{ mt: 4, mb: 6 }}>
+    <PageContainer>
       <Stack
         direction='row'
         justifyContent='space-between'
@@ -222,7 +222,7 @@ const ReviewTriage = () => {
           })}
         </Stack>
       )}
-    </Container>
+    </PageContainer>
   );
 };
 

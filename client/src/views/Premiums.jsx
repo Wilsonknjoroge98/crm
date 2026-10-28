@@ -8,7 +8,6 @@ import {
   Stack,
   Typography,
   Divider,
-  Container,
   Alert,
   Skeleton,
   Box,
@@ -29,6 +28,7 @@ import { useState, useEffect } from 'react';
 import { getPremiumLeaderboard } from '../utils/query';
 
 import RefreshIcon from '@mui/icons-material/Refresh';
+import PageContainer from '../components/PageContainer';
 
 const Premiums = () => {
   const [startDate, setStartDate] = useState(dayjs().add(-30, 'day').format('YYYY-MM-DD'));
@@ -72,7 +72,7 @@ const Premiums = () => {
   };
 
   return (
-    <Container sx={{ mt: 4 }}>
+    <PageContainer>
       <Stack justifyContent='space-between' spacing={2} mb={2}>
         <Typography variant='h4'>Premium Leaderboard</Typography>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -240,7 +240,7 @@ const Premiums = () => {
           </Stack>
         </CardContent>
       </Card>
-    </Container>
+    </PageContainer>
   );
 };
 

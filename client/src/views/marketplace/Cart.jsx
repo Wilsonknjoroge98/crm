@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Container,
   Divider,
   IconButton,
   Paper,
@@ -44,6 +43,7 @@ import {
   formatMoney,
   labelSx,
 } from './ui.jsx';
+import PageContainer from '../../components/PageContainer';
 
 const MAX_LEADS_PER_ORDER = 500;
 
@@ -181,7 +181,7 @@ export default function Cart() {
   })).filter((group) => group.lines.length);
 
   return (
-    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <PageContainer>
       <Stack spacing={2.5}>
         <MarketplaceHeader
           subtitle='Review your order before checkout.'
@@ -428,6 +428,6 @@ export default function Cart() {
           </Stack>
         )}
       </Stack>
-    </Container>
+    </PageContainer>
   );
 }

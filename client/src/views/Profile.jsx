@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   Alert,
   CircularProgress,
-  Container,
   Stack,
   Typography,
 } from '@mui/material';
@@ -14,6 +13,7 @@ import AgentCardIntroDialog, {
 } from '../components/AgentCardIntroDialog';
 import { useAgent } from '../hooks/useAgent';
 import { getAccount } from '../utils/query';
+import PageContainer from '../components/PageContainer';
 
 const PRODUCER_PAGE_TAB_INDEX = 3;
 
@@ -33,10 +33,10 @@ const Profile = () => {
   });
 
   return (
-    <Container sx={{ mt: 4 }}>
+    <PageContainer>
       <AgentCardIntroDialog open={introOpen} setOpen={setIntroOpen} />
       <Stack spacing={0.25} mb={3}>
-        <Typography variant='h4' sx={{ fontWeight: 700 }}>
+        <Typography variant='h4'>
           {displayName || user?.email || 'Agent Profile'}
         </Typography>
         {displayName && user?.email && (
@@ -62,7 +62,7 @@ const Profile = () => {
           defaultTab={introOpen ? PRODUCER_PAGE_TAB_INDEX : undefined}
         />
       )}
-    </Container>
+    </PageContainer>
   );
 };
 

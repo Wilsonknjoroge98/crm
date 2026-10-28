@@ -2,7 +2,6 @@ import {
   Box,
   Typography,
   Stack,
-  Container,
   Avatar,
   Skeleton,
   Grid,
@@ -20,6 +19,7 @@ import { stringToColor } from '../utils/helpers';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { labelSx } from './marketplace/ui.jsx';
+import PageContainer from '../components/PageContainer';
 
 const SERIF = '"Libre Baskerville", serif';
 const SANS = '"Inter", sans-serif';
@@ -373,7 +373,7 @@ const Leaderboard = () => {
   const mentions = rows.slice(3, 10);
 
   return (
-    <Container sx={{ mt: 4 }}>
+    <PageContainer width='xl'>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         justifyContent='space-between'
@@ -382,11 +382,7 @@ const Leaderboard = () => {
         mb={3}
       >
         <Box>
-          <Typography
-            variant='h4'
-            fontFamily={SERIF}
-            sx={{ textTransform: 'none', letterSpacing: 0, mb: 0.5 }}
-          >
+          <Typography variant='h4' sx={{ mb: 0.5 }}>
             Leaderboard
           </Typography>
           <Stack direction='row' spacing={1} alignItems='center'>
@@ -527,7 +523,7 @@ const Leaderboard = () => {
           ))}
         </Box>
       )}
-    </Container>
+    </PageContainer>
   );
 };
 

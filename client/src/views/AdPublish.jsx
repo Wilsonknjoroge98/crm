@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Container,
   Divider,
   IconButton,
   InputAdornment,
@@ -29,6 +28,7 @@ import { Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAgent } from '../hooks/useAgent';
 import { publishAds } from '../utils/query';
+import PageContainer from '../components/PageContainer';
 
 const MAX_TOTAL_DAILY_BUDGET = 500;
 const MAX_TOTAL_UPLOAD_BYTES = 30 * 1024 * 1024;
@@ -144,7 +144,7 @@ const AdPublish = () => {
   }
 
   return (
-    <Container maxWidth='lg' sx={{ mt: 4, mb: 6 }}>
+    <PageContainer>
       <Stack spacing={3}>
         <Box>
           <Typography variant='h4'>Click + Publish</Typography>
@@ -399,7 +399,7 @@ const AdPublish = () => {
           </Button>
         </Stack>
       </Stack>
-    </Container>
+    </PageContainer>
   );
 };
 

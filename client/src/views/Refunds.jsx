@@ -3,7 +3,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Container,
   Paper,
   Stack,
   Tab,
@@ -30,6 +29,7 @@ import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
+import PageContainer from '../components/PageContainer';
 
 const MONO = '"JetBrains Mono", monospace';
 const HEAD_CELL_SX = {
@@ -127,7 +127,7 @@ const Refunds = () => {
   }
 
   return (
-    <Container sx={{ mt: 4, mb: 6 }}>
+    <PageContainer>
       <Stack
         direction='row'
         justifyContent='space-between'
@@ -281,7 +281,7 @@ const Refunds = () => {
           </Table>
         </TableContainer>
       )}
-    </Container>
+    </PageContainer>
   );
 };
 

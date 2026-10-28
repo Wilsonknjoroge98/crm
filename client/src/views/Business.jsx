@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Container,
   Fade,
   InputAdornment,
   Paper,
@@ -24,6 +23,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { enqueueSnackbar } from 'notistack';
 import {
   deleteBusinessRecords,
@@ -47,10 +47,11 @@ import CreatePolicyDialog from '../components/CreatePolicyDialog';
 import UpdatePolicyDialog from '../components/UpdatePolicyDialog';
 import UpdateClientDialog from '../components/UpdateClientDialog';
 import BusinessCard from '../components/BusinessCard';
-import MessagesDrawer from '../components/MessagesDrawer';
+import InboxDrawer from '../components/InboxDrawer';
 import ReleaseNotificationDialog, {
   STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
 } from '../components/ReleaseNotificationDialog';
+import PageContainer from '../components/PageContainer';
 
 const SANS = '"Inter", sans-serif';
 const LOCAL_TIME_TICK_MS = 30000;
@@ -256,8 +257,12 @@ const Business = () => {
   const { user, isAuthenticated } = useSelector((state) => state.user);
   const isAdmin = user?.id === SUPERUSER_ID;
   const agent = useAgent();
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  // ?search= seeds the box, the inbox's lead link lands here that way
+  const [searchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams.get('search') || '',
+  );
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState([]);
   // Superuser-only: scopes the list and metrics to one agent. The server
@@ -278,6 +283,7 @@ const Business = () => {
   const [editClientOpen, setEditClientOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [textTarget, setTextTarget] = useState(null);
+  const [inboxOpen, setInboxOpen] = useState(false);
   // Once an agent has seen the release notification once, don't reopen it —
   // the triggering buttons fall back to a plain disabled look.
   const [releaseNotificationSeen, setReleaseNotificationSeen] = useState(
@@ -523,18 +529,9 @@ const Business = () => {
   };
 
   return (
-    <Container maxWidth='xl' sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <PageContainer width='xl'>
       <Stack spacing={2.5}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          justifyContent='space-between'
-          alignItems={{ md: 'center' }}
-          spacing={2}
-        >
-          <Box>
-            <Typography variant='h4'>Business</Typography>
-          </Box>
-        </Stack>
+        <Typography variant='h4'>Business</Typography>
 
         {metricsError && (
           <Alert severity='error'>Failed to load business metrics.</Alert>
@@ -809,7 +806,10 @@ const Business = () => {
                 releaseNotificationSeen={releaseNotificationSeen}
                 onQuickAction={handleOpenReleaseDialog}
                 textEnabled={textEnabled}
-                onText={setTextTarget}
+                onText={(target) => {
+                  setTextTarget(target);
+                  setInboxOpen(true);
+                }}
                 onMarkSold={handleMarkSold}
                 onAddPolicy={handleAddPolicy}
                 onEditPolicy={handleEditPolicy}
@@ -891,11 +891,16 @@ const Business = () => {
         onClose={() => setReleaseDialogOpen(false)}
       />
 
-      <MessagesDrawer
-        open={Boolean(textTarget)}
-        person={textTarget}
-        onClose={() => setTextTarget(null)}
-      />
+      {textEnabled && (
+        <InboxDrawer
+          open={inboxOpen}
+          onClose={() => {
+            setInboxOpen(false);
+            setTextTarget(null);
+          }}
+          initialPerson={textTarget}
+        />
+      )}
 
       {clientDialogOpen && (
         <CreateClientDialog
@@ -942,7 +947,7 @@ const Business = () => {
           refetchClients={refreshBusiness}
         />
       )}
-    </Container>
+    </PageContainer>
   );
 };
 

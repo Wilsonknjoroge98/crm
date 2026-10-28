@@ -3,6 +3,7 @@ const { onSchedule } = require('firebase-functions/scheduler');
 
 const { inboundGSQ, inboundSendblueNumber } = require('./integrations/GSQ');
 const { inboundShepherdsSale } = require('./integrations/shepherds');
+const { inboundSendblue } = require('./integrations/sendblue');
 const { updatePolicyStatus } = require('./jobs/update_policy_status');
 
 const expressApp = require('./server.js');
@@ -67,6 +68,15 @@ exports.shepherdsSale = functions.https.onRequest(
     ],
   },
   inboundShepherdsSale,
+);
+
+// sendblue -> crm: message and status events, stored in public.messages.
+// Authenticated with the sb-signing-secret header.
+exports.sendblueWebhook = functions.https.onRequest(
+  {
+    secrets: ['SUPABASE_SERVICE_ROLE_KEY', 'SEND_BLUE_WEBHOOK_SECRET'],
+  },
+  inboundSendblue,
 );
 
 exports.updatePolicyStatus = onSchedule(

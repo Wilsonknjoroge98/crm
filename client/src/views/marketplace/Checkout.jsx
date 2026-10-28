@@ -6,7 +6,6 @@ import {
   Button,
   Checkbox,
   CircularProgress,
-  Container,
   Divider,
   FormControlLabel,
   Link,
@@ -51,6 +50,7 @@ import {
   formatMoney,
   labelSx,
 } from './ui.jsx';
+import PageContainer from '../../components/PageContainer';
 
 const RESERVATION_SECONDS = 10 * 60;
 
@@ -629,7 +629,7 @@ export default function Checkout() {
   const leadCount = linesCount(items);
 
   return (
-    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <PageContainer>
       <Stack spacing={2.5}>
         <MarketplaceHeader
           title='Checkout'
@@ -667,6 +667,6 @@ export default function Checkout() {
           />
         </CheckoutElementsProvider>
       </Stack>
-    </Container>
+    </PageContainer>
   );
 }

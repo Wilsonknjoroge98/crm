@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Container,
   Paper,
   Stack,
   Typography,
@@ -20,6 +19,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
 import { BORDER, GOLD, MarketplaceHeader } from './ui.jsx';
+import PageContainer from '../../components/PageContainer';
 
 function formatCrmList(methods) {
   const strong = (name) => (
@@ -160,7 +160,7 @@ export default function OrderConfirmation() {
   );
 
   return (
-    <Container maxWidth={false} sx={{ py: 3, px: { xs: 2, md: 3 } }}>
+    <PageContainer>
       <Stack spacing={4}>
         <MarketplaceHeader
           title='Order Confirmation'
@@ -259,6 +259,6 @@ export default function OrderConfirmation() {
           </StatusCard>
         )}
       </Stack>
-    </Container>
+    </PageContainer>
   );
 }
