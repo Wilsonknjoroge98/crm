@@ -26,9 +26,7 @@ import Conversation, {
   GOLD,
   INK,
   MONO,
-  RULE,
   SANS,
-  SERIF,
   SLATE_BLUE,
   SLATE_FILL,
   displayPhone,
@@ -344,11 +342,10 @@ const LoadMoreSentinel = ({ rootRef, fetchNextPage, isFetchingNextPage }) => {
 // Thread list beside the open conversation. The drawer and the /inbox page
 // both render this; they own the selection. `fallbackPerson` covers opening
 // a lead from its card before it has a thread. `onClose` is drawer-only.
-// `framedList` (page) boxes the thread list, puts search + filters in one
-// 64px header row level with the conversation header, and runs a top rule
-// across both so the headers read as one band. It also turns on the
-// conversation's link to the lead in Business. The band closes on a right
-// edge, the conversation below it stays open to the page.
+// Both put search + filters in one 64px row level with the conversation
+// header, so the two headers read as one band. `framedList` (page) also
+// boxes the thread list, runs a top rule across the band and closes it on a
+// right edge, and turns on the conversation's link to the lead in Business.
 const InboxSplit = ({
   selectedPhone,
   onSelect,
@@ -422,55 +419,15 @@ const InboxSplit = ({
           minHeight: 0,
         }}
       >
-        {/* Drawer only: the page has its own h4 title, and the Unread chip
-            carries the count. Lines up with the conversation header beside it. */}
-        {onClose && (
-          <Box
-            sx={{
-              height: 64,
-              flexShrink: 0,
-              px: 2.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.25,
-              borderBottom: `1px solid ${BORDER}`,
-            }}
-          >
-            <Typography
-              sx={{ fontFamily: SERIF, fontWeight: 700, fontSize: '1.15rem' }}
-            >
-              Inbox
-            </Typography>
-            <Box sx={{ flex: 1, height: '1px', bgcolor: RULE }} />
-            <Typography
-              sx={{
-                fontFamily: MONO,
-                fontSize: '0.68rem',
-                color: 'text.secondary',
-              }}
-            >
-              {unreadThreads} unread
-            </Typography>
-            <IconButton
-              size='small'
-              onClick={onClose}
-              aria-label='Close inbox'
-              sx={{ ...iconButtonSx, display: { md: 'none' } }}
-            >
-              <CloseIcon fontSize='small' />
-            </IconButton>
-          </Box>
-        )}
-
+        {/* Search + filters in one 64px row, level with the conversation
+            header beside it, so the two read as one band */}
         <Stack
-          direction={framedList ? 'row' : 'column'}
-          spacing={framedList ? 1 : 1.25}
-          alignItems={framedList ? 'center' : 'stretch'}
+          direction='row'
+          spacing={1}
+          alignItems='center'
           sx={{
-            px: framedList ? 2 : 2.5,
-            py: framedList ? 0 : 1.5,
-            // same 64 as the conversation header, both sit under a 1px top rule
-            height: framedList ? 64 : 'auto',
+            px: 2,
+            height: 64,
             flexShrink: 0,
             borderBottom: `1px solid ${BORDER}`,
           }}
@@ -481,10 +438,7 @@ const InboxSplit = ({
             fullWidth
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            // the one-row page header leaves no room for the long hint
-            placeholder={
-              framedList ? 'Search inbox' : 'Search names, numbers, or messages'
-            }
+            placeholder='Search inbox'
             slotProps={{
               input: {
                 startAdornment: (
@@ -508,6 +462,17 @@ const InboxSplit = ({
             <ToggleButton value='all'>All ({threadTotal})</ToggleButton>
             <ToggleButton value='unread'>Unread ({unreadThreads})</ToggleButton>
           </ToggleButtonGroup>
+          {/* phones show the list alone, so it needs its own way out */}
+          {onClose && (
+            <IconButton
+              size='small'
+              onClick={onClose}
+              aria-label='Close inbox'
+              sx={{ ...iconButtonSx, display: { md: 'none' } }}
+            >
+              <CloseIcon fontSize='small' />
+            </IconButton>
+          )}
         </Stack>
 
         <Box
