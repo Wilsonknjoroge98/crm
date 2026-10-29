@@ -1,4 +1,4 @@
-/* global jest, describe, test, expect */
+/* global jest, describe, test, expect, beforeEach, afterEach */
 
 const express = require('express');
 const request = require('supertest');
@@ -269,6 +269,16 @@ const makeFirestore = (docsByEmail = {}, options = {}) => {
   };
   return { calls, createFirestore: () => db };
 };
+
+// Fixtures date their leads in September 2026; pin the clock inside the
+// refund window for them so the 7-day rule doesn't age them out.
+const FIXTURE_NOW = Date.parse('2026-09-24T00:00:00Z');
+beforeEach(() => {
+  jest.spyOn(Date, 'now').mockReturnValue(FIXTURE_NOW);
+});
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 const makeApp = (supabase, agent, firestore = makeFirestore()) => {
   const app = express();
@@ -686,6 +696,38 @@ describe('GET /people', () => {
         'leads/gsq-held',
       ],
     });
+  });
+
+  test('stops offering a refund once the 7-day window has passed', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:01Z'));
+    const supabase = makeSupabase({
+      business: [
+        {
+          data: [
+            {
+              id: 'person-1',
+              lead_id: 'lead-1',
+              verified: false,
+              lifecycle_status: 'LEAD',
+              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              gsq_id: 'gsq-1',
+              lead_created_at: '2026-09-20T00:00:00Z',
+            },
+          ],
+          error: null,
+          count: 1,
+        },
+        rollupFor([]),
+      ],
+      leads: [{ data: [], error: null }],
+    });
+
+    const response = await request(
+      makeApp(supabase, { id: 'agent-1' }),
+    ).get('/business');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0].refund_eligible).toBe(false);
   });
 
   test('keeps refundable leads eligible when the GSQ lookup fails', async () => {

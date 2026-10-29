@@ -13,6 +13,8 @@ const {
 const {
   GSQ_LEAD_VENDOR_ID,
   REFUND_ELIGIBILITY_CUTOFF,
+  REFUND_WINDOW_DAYS,
+  isWithinRefundWindow,
   isMarketplaceSale,
 } = require('../shared/refund_eligibility');
 
@@ -156,6 +158,12 @@ const createRefundsRouter = ({
         return res.status(400).json({
           error:
             'Only leads generated on or after September 19, 2026 are eligible for a refund',
+        });
+      }
+      // Applies to admins filing on an agent's behalf too: it's in the terms.
+      if (!isWithinRefundWindow(lead.created_at)) {
+        return res.status(400).json({
+          error: `Refunds must be requested within ${REFUND_WINDOW_DAYS} days of delivery`,
         });
       }
 
