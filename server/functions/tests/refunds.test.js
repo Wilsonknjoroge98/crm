@@ -1,4 +1,4 @@
-/* global jest, describe, test, expect */
+/* global jest, describe, test, expect, beforeEach, afterEach */
 
 const express = require('express');
 const request = require('supertest');
@@ -17,6 +17,16 @@ const {
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,
 } = require('../integrations/GSQ');
+
+// Fixtures date their leads in September 2026; pin the clock inside the
+// refund window for them so the 7-day rule doesn't age them out.
+const FIXTURE_NOW = Date.parse('2026-09-24T00:00:00Z');
+beforeEach(() => {
+  jest.spyOn(Date, 'now').mockReturnValue(FIXTURE_NOW);
+});
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 // Each entry is one `supabase.from(table)` call, in the order the route
 // under test is expected to make them. Every query is both awaitable
@@ -493,6 +503,120 @@ describe('POST /refunds', () => {
             gsq_id: 'gsq-1',
             lead_vendor_id: GSQ_LEAD_VENDOR_ID,
             created_at: '2026-09-19T00:00:00Z',
+          },
+          error: null,
+        },
+      },
+      {
+        table: 'leads',
+        result: {
+          data: { id: 'lead-1', refund_status: 'requested' },
+          error: null,
+        },
+      },
+      { table: 'leads', result: { data: { id: 'lead-1' }, error: null } },
+    ]);
+    const createFirestore = makeFirestore({
+      leadsDocs: { 'gsq-1': { issuedTo: 'agent-1@example.com' } },
+    });
+    const app = makeApp({ supabase, createFirestore });
+
+    const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+    expect(res.status).toBe(201);
+  });
+
+  test('rejects a lead delivered more than 7 days ago', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:01Z'));
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            id: 'lead-1',
+            first_name: 'Ada',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '2025550100',
+            verified: false,
+            sold: false,
+            refund_status: null,
+            agent_id: 'agent-1',
+            gsq_id: 'gsq-1',
+            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            created_at: '2026-09-20T00:00:00Z',
+          },
+          error: null,
+        },
+      },
+    ]);
+    const createFirestore = makeFirestore({
+      leadsDocs: { 'gsq-1': { issuedTo: 'agent-1@example.com' } },
+    });
+    const app = makeApp({ supabase, createFirestore });
+
+    const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/within 7 days of delivery/i);
+    expect(supabase.callCount()).toBe(1);
+  });
+
+  test('applies the 7-day window to admins filing for an agent', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:01Z'));
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            id: 'lead-1',
+            first_name: 'Ada',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '2025550100',
+            verified: false,
+            sold: false,
+            refund_status: null,
+            agent_id: 'agent-1',
+            gsq_id: 'gsq-1',
+            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            created_at: '2026-09-20T00:00:00Z',
+          },
+          error: null,
+        },
+      },
+    ]);
+    const app = makeApp({
+      supabase,
+      agent: { id: SUPERUSER_ID, email: SUPER_ADMIN_EMAIL },
+      role: 'admin',
+    });
+
+    const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/within 7 days of delivery/i);
+  });
+
+  test('accepts a lead delivered exactly 7 days ago', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:00Z'));
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            id: 'lead-1',
+            first_name: 'Ada',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '2025550100',
+            verified: false,
+            sold: false,
+            refund_status: null,
+            agent_id: 'agent-1',
+            gsq_id: 'gsq-1',
+            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
         },
