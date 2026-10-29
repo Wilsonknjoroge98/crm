@@ -248,7 +248,7 @@ const createRefundsRouter = ({
     try {
       const { data: lead, error } = await supabase
         .from('leads')
-        .select(`refund_status,${REQUESTED_BY}(email)`)
+        .select(`refund_status,gsq_id,${REQUESTED_BY}(email)`)
         .eq('id', leadId)
         .maybeSingle();
       if (error) throw error;
@@ -262,7 +262,8 @@ const createRefundsRouter = ({
 
       // gsq keys agent docs by lowercased email, there is no email field
       const email = lead.requested_by.email.trim().toLowerCase();
-      const ref = createFirestore().doc(`agents/${email}`);
+      const firestore = createFirestore();
+      const ref = firestore.doc(`agents/${email}`);
       if (!(await ref.get()).exists) {
         return res.status(404).json({ error: `GSQ agent ${email} not found` });
       }
@@ -284,6 +285,16 @@ const createRefundsRouter = ({
       }
 
       try {
+        // A refunded lead is a bad number the agent got a replacement for,
+        // so the gsq marketplace must stop reselling it as an aged lead.
+        // Stamped before the credit so a failure here credits nothing;
+        // it is idempotent, so a re-approval after a revert is safe.
+        if (lead.gsq_id) {
+          await firestore.doc(`leads/${lead.gsq_id}`).update({
+            refunded: true,
+            refundedAt: FieldValue.serverTimestamp(),
+          });
+        }
         await ref.update({
           unverified: FieldValue.increment(1),
           outstandingLeads: FieldValue.increment(1),
@@ -301,8 +312,8 @@ const createRefundsRouter = ({
           .eq('refund_status', 'approved');
         logger.error(
           revertError
-            ? 'GSQ credit failed and the revert failed, lead needs a manual reset'
-            : 'GSQ credit failed, lead reverted to requested',
+            ? 'GSQ refund write failed and the revert failed, lead needs a manual reset'
+            : 'GSQ refund write failed, lead reverted to requested',
           { leadId, email, error: firestoreError, revertError },
         );
         return res

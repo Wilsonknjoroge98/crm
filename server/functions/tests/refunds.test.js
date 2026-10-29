@@ -47,13 +47,20 @@ const makeSupabase = (calls) => {
 };
 
 // Fake Firestore: doc('leads/<id>') and doc('agents/<email>') resolve from
-// the maps passed in; agentUpdate lets a test force the credit write to fail.
-const makeFirestore = ({ leadsDocs = {}, agentsDocs = {}, agentUpdate } = {}) => {
+// the maps passed in; agentUpdate lets a test force the credit write to fail,
+// leadUpdate the refunded stamp on the gsq lead doc.
+const makeFirestore = ({
+  leadsDocs = {},
+  agentsDocs = {},
+  agentUpdate,
+  leadUpdate,
+} = {}) => {
   const doc = jest.fn((path) => {
     if (path.startsWith('leads/')) {
       const id = path.slice('leads/'.length);
       return {
         get: jest.fn().mockResolvedValue({ data: () => leadsDocs[id] }),
+        update: leadUpdate || jest.fn().mockResolvedValue(undefined),
       };
     }
     if (path.startsWith('agents/')) {
@@ -792,6 +799,76 @@ describe('POST /refunds/:leadId/approve', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.refund_status).toBe('approved');
+  });
+
+  test('stamps the gsq lead refunded so the marketplace stops reselling it', async () => {
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            refund_status: 'requested',
+            gsq_id: 'gsq-1',
+            requested_by: { email: 'agent-1@example.com' },
+          },
+          error: null,
+        },
+      },
+      {
+        table: 'leads',
+        result: { data: { id: 'lead-1' }, error: null },
+      },
+    ]);
+    const leadUpdate = jest.fn().mockResolvedValue(undefined);
+    const createFirestore = makeFirestore({
+      agentsDocs: { 'agent-1@example.com': {} },
+      leadUpdate,
+    });
+    const app = makeApp({ supabase, createFirestore, role: 'admin' });
+
+    const res = await request(app).post('/refunds/lead-1/approve');
+
+    expect(res.status).toBe(200);
+    expect(leadUpdate).toHaveBeenCalledTimes(1);
+    expect(leadUpdate.mock.calls[0][0].refunded).toBe(true);
+  });
+
+  test('credits nothing and reverts when the refunded stamp fails', async () => {
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            refund_status: 'requested',
+            gsq_id: 'gsq-1',
+            requested_by: { email: 'agent-1@example.com' },
+          },
+          error: null,
+        },
+      },
+      {
+        table: 'leads',
+        result: { data: { id: 'lead-1' }, error: null },
+      },
+      {
+        table: 'leads',
+        result: { data: { id: 'lead-1' }, error: null },
+      },
+    ]);
+    const agentUpdate = jest.fn().mockResolvedValue(undefined);
+    const createFirestore = makeFirestore({
+      agentsDocs: { 'agent-1@example.com': {} },
+      agentUpdate,
+      leadUpdate: jest.fn().mockRejectedValue(new Error('firestore down')),
+    });
+    const app = makeApp({ supabase, createFirestore, role: 'admin' });
+
+    const res = await request(app).post('/refunds/lead-1/approve');
+
+    expect(res.status).toBe(500);
+    expect(agentUpdate).not.toHaveBeenCalled();
+    const revertUpdate = supabase.from.mock.results[2].value.update.mock.calls[0][0];
+    expect(revertUpdate.refund_status).toBe('requested');
   });
 
   test('rejects a lead that is not pending', async () => {
