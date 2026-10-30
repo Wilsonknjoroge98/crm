@@ -164,53 +164,40 @@ const toggleSx = {
   whiteSpace: 'nowrap',
 };
 
-function ToggleGroup({ label, value, options, count, onPick }) {
+function ToggleGroup({ label, value, options, onPick }) {
   return (
-    <Box>
-      <Typography sx={{ ...labelSx, mb: 0.75 }}>{label}</Typography>
-      <ToggleButtonGroup
-        value={value}
-        exclusive
-        size='small'
-        aria-label={label}
-        onChange={(event, next) => next && onPick(next)}
-      >
-        {options.map((option) => (
-          <ToggleButton key={option.value} value={option.value} sx={toggleSx}>
-            {option.label}
-            {count(option.value) != null && (
-              <Box
-                component='span'
-                sx={{ ml: 0.75, fontWeight: 500, color: 'text.secondary' }}
-              >
-                ({count(option.value).toLocaleString()})
-              </Box>
-            )}
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
-    </Box>
+    <ToggleButtonGroup
+      value={value}
+      exclusive
+      size='small'
+      aria-label={label}
+      onChange={(event, next) => next && onPick(next)}
+    >
+      {options.map((option) => (
+        <ToggleButton key={option.value} value={option.value} sx={toggleSx}>
+          {option.label}
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
   );
 }
 
 /**
  * The store's sub-categories: where the lead came from and, for aged leads,
- * how old it is. `counts` holds each segment's availability (null until it
- * loads).
+ * how old it is.
  */
-export function SegmentToggle({ segmentKey, counts = {} }) {
+export function SegmentToggle({ segmentKey }) {
   const navigate = useNavigate();
   const { source, leadType } = SEGMENT_BY_KEY[segmentKey];
   const age = segmentKey.replace('instant_', '');
   const keyFor = (nextSource, nextAge) =>
     `${nextSource === 'instant' ? 'instant_' : ''}${nextAge}`;
   return (
-    <Stack direction='row' spacing={3} useFlexGap flexWrap='wrap'>
+    <Stack direction='row' spacing={1.5} useFlexGap flexWrap='wrap'>
       <ToggleGroup
         label='Lead source'
         value={source}
         options={SOURCE_OPTIONS}
-        count={(value) => counts[keyFor(value, age)]}
         onPick={(value) => navigate(storePath(keyFor(value, age)))}
       />
       {leadType === 'aged' && (
@@ -218,7 +205,6 @@ export function SegmentToggle({ segmentKey, counts = {} }) {
           label='Lead age'
           value={age}
           options={AGE_OPTIONS}
-          count={(value) => counts[keyFor(source, value)]}
           onPick={(value) => navigate(storePath(keyFor(source, value)))}
         />
       )}

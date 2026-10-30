@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   Collapse,
+  IconButton,
   InputAdornment,
   Link,
   Paper,
@@ -25,15 +26,14 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import AddIcon from '@mui/icons-material/Add';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   AGED_BANKED_PATH,
   CART_PATH,
-  SEGMENTS,
   cartLines,
-  countAvailable,
   getSegment,
   linesCount,
   linesTotal,
@@ -46,7 +46,6 @@ import {
   BORDER,
   DIVIDER,
   GOLD,
-  CartButton,
   MarketplaceHeader,
   QtyStepper,
   SegmentToggle,
@@ -87,26 +86,29 @@ const INSTANT_FORM_FIELDS = [
 const FRESH_EXPLAINER = [
   {
     title: 'Generated, never issued',
-    body: 'These leads were generated from GSQ and have never been assigned or worked by any agent.',
+    body: 'Never assigned to or worked by any agent.',
   },
   {
-    title: 'Automatic CRM delivery',
-    body: 'A CSV file is emailed to you, and leads are pushed automatically to any Ringy, GHL, SendBlue or InsurDial integration linked to your account email.',
+    title: 'Automatic delivery',
+    body: 'Emailed to you as a CSV, and sent to any Ringy, GHL, SendBlue or InsurDial account linked to your email.',
   },
   {
     title: 'Final sale',
-    body: 'All banked leads, verified and unverified, are final sale and are not eligible for refunds or replacements.',
+    body: 'No refunds or replacements, verified or unverified.',
   },
 ];
 
-// Plain words for the sub-categories, shown under them.
+// Plain words for the sub-categories, folded away with the lead's fields.
 const SOURCE_HELP = {
-  funnel:
-    'Funnel leads filled out the quote form on GetSeniorQuotes and selected a quote.',
+  funnel: 'Funnel leads filled out the quote form on GetSeniorQuotes and selected a quote.',
   instant: 'Instant Form leads filled out a short form on Facebook or Instagram.',
 };
+const VERIFIED_HELP = 'Verified means the phone number was confirmed by text.';
 
-/** One state's quantity picker for one lead type. */
+/**
+ * One state's quantity for one lead type: what's left and a plus button, with
+ * the full stepper appearing once any are picked.
+ */
 function QtyCell({ label, count, qty, onChange }) {
   return (
     <Box>
@@ -120,9 +122,9 @@ function QtyCell({ label, count, qty, onChange }) {
       </Typography>
       {count === 0 ? (
         <Typography variant='body2' color='text.disabled'>
-          None
+          —
         </Typography>
-      ) : (
+      ) : qty > 0 ? (
         <Stack direction='row' spacing={1} alignItems='center'>
           <QtyStepper size='small' value={qty} max={count} onChange={onChange} />
           <Typography
@@ -133,14 +135,34 @@ function QtyCell({ label, count, qty, onChange }) {
             of {count.toLocaleString()}
           </Typography>
         </Stack>
+      ) : (
+        <Stack direction='row' spacing={1.25} alignItems='center'>
+          <IconButton
+            size='small'
+            aria-label={`Add ${label}`}
+            onClick={() => onChange(1)}
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: 1,
+              border: `1px solid ${BORDER}`,
+              bgcolor: '#FFFFFF',
+              color: 'text.primary',
+            }}
+          >
+            <AddIcon fontSize='small' />
+          </IconButton>
+          <Typography variant='body2' color='text.secondary'>
+            {count.toLocaleString()} left
+          </Typography>
+        </Stack>
       )}
     </Box>
   );
 }
 
 /** Every state with leads, with a quantity picker per lead type. */
-function StateTable({ states, segment, cart, prices, onChange }) {
-  const [search, setSearch] = useState('');
+function StateTable({ states, segment, cart, prices, search, onChange }) {
   const verifiedOnly = segment.verifiedOnly;
   const visible = states.filter(
     (s) =>
@@ -149,37 +171,18 @@ function StateTable({ states, segment, cart, prices, onChange }) {
   );
   const columns = {
     xs: 'minmax(0, 1fr)',
-    // Spread evenly, so the quantities sit close to their state on wide screens
-    md: verifiedOnly
-      ? 'minmax(110px, 1fr) minmax(160px, 1.5fr) 80px'
-      : 'minmax(110px, 0.7fr) minmax(160px, 1fr) minmax(160px, 1fr) 80px',
+    // A set width for the state, so the quantities sit close to it on wide screens
+    md: verifiedOnly ? 'minmax(110px, 240px) 1fr' : 'minmax(110px, 240px) 1fr 1fr',
   };
-  const verifiedLabel = `Text Verified, ${formatPrice(prices.verified)} each`;
-  const unverifiedLabel = `Unverified, ${formatPrice(prices.unverified)} each`;
+  const verifiedLabel = `Verified ${formatPrice(prices.verified)}`;
+  const unverifiedLabel = `Unverified ${formatPrice(prices.unverified)}`;
   return (
-    <Stack spacing={1.5}>
-      <TextField
-        size='small'
-        placeholder='Search states'
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position='start'>
-                <SearchOutlinedIcon fontSize='small' />
-              </InputAdornment>
-            ),
-          },
-        }}
-        sx={{ width: { xs: '100%', sm: 260 } }}
-      />
       <Paper
         variant='outlined'
         sx={{
           borderRadius: 2,
           overflowY: 'auto',
-          maxHeight: { md: 'max(360px, calc(100vh - 430px))' },
+          maxHeight: { md: 'max(360px, calc(100vh - 340px))' },
         }}
       >
         <Box
@@ -207,14 +210,10 @@ function StateTable({ states, segment, cart, prices, onChange }) {
               {unverifiedLabel}
             </Typography>
           )}
-          <Typography variant='body2' sx={{ fontWeight: 600, textAlign: 'right' }}>
-            Total
-          </Typography>
         </Box>
         {visible.map((state) => {
           const qty = cart[state.name] || { verified: 0, unverified: 0 };
-          const total =
-            qty.verified * prices.verified + qty.unverified * prices.unverified;
+          const picked = qty.verified + qty.unverified > 0;
           return (
             <Box
               key={state.name}
@@ -229,7 +228,7 @@ function StateTable({ states, segment, cart, prices, onChange }) {
                 '& + &': { borderTop: `1px solid ${DIVIDER}` },
               }}
             >
-              <Typography sx={{ fontWeight: total > 0 ? 600 : 500 }}>
+              <Typography sx={{ fontWeight: picked ? 600 : 500 }}>
                 {state.name}
               </Typography>
               <QtyCell
@@ -246,15 +245,6 @@ function StateTable({ states, segment, cart, prices, onChange }) {
                   onChange={(n) => onChange(state, 'unverified', n)}
                 />
               )}
-              <Typography
-                sx={{
-                  textAlign: { md: 'right' },
-                  fontWeight: 600,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {total > 0 ? formatMoney(total) : ''}
-              </Typography>
             </Box>
           );
         })}
@@ -268,12 +258,11 @@ function StateTable({ states, segment, cart, prices, onChange }) {
           </Typography>
         )}
       </Paper>
-    </Stack>
   );
 }
 
-/** The lead's data fields, folded away until someone asks for them. */
-function IncludedFields({ fields }) {
+/** What the words mean and what comes with a lead, folded away until asked for. */
+function AboutLeads({ help, fields }) {
   const [open, setOpen] = useState(false);
   return (
     <Box>
@@ -292,7 +281,7 @@ function IncludedFields({ fields }) {
           fontWeight: 600,
         }}
       >
-        What's included with every lead
+        About these leads
         <ExpandMoreIcon
           sx={{
             fontSize: 18,
@@ -302,6 +291,12 @@ function IncludedFields({ fields }) {
         />
       </Link>
       <Collapse in={open}>
+        <Typography variant='body2' color='text.secondary' sx={{ mt: 1.5 }}>
+          {help}
+        </Typography>
+        <Typography variant='body2' sx={{ fontWeight: 600, mt: 1.5 }}>
+          Every lead includes
+        </Typography>
         <Box
           sx={{
             display: 'grid',
@@ -310,7 +305,7 @@ function IncludedFields({ fields }) {
               md: 'repeat(4, 1fr)',
             },
             gap: 1,
-            mt: 1.5,
+            mt: 1,
           }}
         >
           {fields.map((field) => (
@@ -334,6 +329,7 @@ export default function Store() {
   // One cart across every segment; this page edits its own segment's slice.
   const [cart, updateCart] = useCart();
   const segmentCart = cart[segment.key] || {};
+  const [search, setSearch] = useState('');
   const [showExplainer, setShowExplainer] = useState(() => {
     if (!isFresh) return false;
     try {
@@ -354,6 +350,7 @@ export default function Store() {
 
   useEffect(() => {
     rememberStore(segment.key);
+    setSearch('');
   }, [segment.key]);
 
   // Every segment's inventory: this page's for the picker, all of them to
@@ -391,14 +388,6 @@ export default function Store() {
     );
   };
 
-  // What each sub-category holds, shown on its button.
-  const counts = Object.fromEntries(
-    SEGMENTS.map(({ key }) => {
-      const { data } = marketplaceInventory.bySegment[key];
-      return [key, data ? countAvailable(data) : null];
-    }),
-  );
-
   // Totals cover the whole shared cart, not just this segment.
   const lines = cartLines(cart, marketplaceInventory.prices);
   const cartCount = linesCount(lines);
@@ -429,9 +418,6 @@ export default function Store() {
             <BoltOutlinedIcon sx={{ color: 'warning.dark' }} />
           </Box>
           <Typography variant='h6'>Banked Leads</Typography>
-          <Typography variant='body2' color='text.secondary'>
-            A quick overview before you browse inventory.
-          </Typography>
         </Box>
         <DialogContent sx={{ px: 3, py: 2.5 }}>
           <Stack spacing={2}>
@@ -474,18 +460,36 @@ export default function Store() {
       <Stack spacing={2.5}>
         <MarketplaceHeader
           title={segment.leadType === 'fresh' ? 'Banked Leads' : 'Aged Leads'}
-          breadcrumb={{ label: 'Aged & Banked Leads', to: AGED_BANKED_PATH }}
-          actions={<CartButton count={cartCount} />}
+          breadcrumb={{ label: 'Back', to: AGED_BANKED_PATH }}
         />
 
-        <Box>
-          <SegmentToggle segmentKey={segment.key} counts={counts} />
-          <Typography variant='body2' color='text.secondary' sx={{ mt: 1.5 }}>
-            {SOURCE_HELP[segment.source]} {segment.window}.
-            {!segment.verifiedOnly &&
-              ' Text Verified means the phone number was confirmed by text.'}
-          </Typography>
-        </Box>
+        <Stack
+          direction='row'
+          justifyContent='space-between'
+          alignItems='center'
+          useFlexGap
+          flexWrap='wrap'
+          spacing={2}
+        >
+          <SegmentToggle segmentKey={segment.key} />
+          <TextField
+            size='small'
+            placeholder='Search'
+            aria-label='Search states'
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position='start'>
+                    <SearchOutlinedIcon fontSize='small' />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ width: { xs: '100%', sm: 180 } }}
+          />
+        </Stack>
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -510,9 +514,7 @@ export default function Store() {
           // the top bar already names the segment
           <Box sx={{ p: 6, textAlign: 'center' }}>
             <Typography variant='h6'>No leads available right now</Typography>
-            <Typography color='text.secondary'>
-              Inventory is replenished continuously - check back soon.
-            </Typography>
+            <Typography color='text.secondary'>Check back soon.</Typography>
           </Box>
         ) : (
           <Stack spacing={2}>
@@ -522,9 +524,11 @@ export default function Store() {
               segment={segment}
               cart={segmentCart}
               prices={prices}
+              search={search}
               onChange={setQuantity}
             />
-            <IncludedFields
+            <AboutLeads
+              help={`${SOURCE_HELP[segment.source]}${segment.verifiedOnly ? '' : ` ${VERIFIED_HELP}`}`}
               fields={
                 segment.source === 'instant'
                   ? INSTANT_FORM_FIELDS
@@ -559,23 +563,9 @@ export default function Store() {
               spacing={2}
               sx={{ py: 1.5 }}
             >
-              <Typography variant='body2' color='text.secondary'>
-                <Box
-                  component='span'
-                  sx={{ fontWeight: 700, color: 'text.primary' }}
-                >
-                  {cartCount}
-                </Box>{' '}
-                {cartCount === 1 ? 'lead' : 'leads'} in cart •{' '}
-                <Box component='span' sx={{ fontWeight: 600 }}>
-                  Total:
-                </Box>{' '}
-                <Box
-                  component='span'
-                  sx={{ fontWeight: 700, color: 'text.primary' }}
-                >
-                  {formatMoney(cartTotal)}
-                </Box>
+              <Typography sx={{ fontWeight: 600 }}>
+                {cartCount} {cartCount === 1 ? 'lead' : 'leads'} ·{' '}
+                {formatMoney(cartTotal)}
               </Typography>
               <Button
                 variant='contained'
@@ -585,7 +575,7 @@ export default function Store() {
                 endIcon={<ArrowForwardIcon />}
                 sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
               >
-                Review Order & Checkout
+                Checkout
               </Button>
             </Stack>
           </Container>

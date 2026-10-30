@@ -260,14 +260,14 @@ export function AgedBanked() {
             summary={summarizeSegments(bySegment, AGED_SEGMENTS)}
             icon={HistoryOutlinedIcon}
             title='Aged Leads'
-            description='Older GSQ leads at a fraction of the price, 31–90 or 91–180 days old.'
+            description='31–180 days old, at a lower price.'
             emptyMessage='No aged leads are available right now.'
           />
           <InventoryTile
             summary={summarizeSegments(bySegment, BANKED_SEGMENTS)}
             icon={AccountBalanceOutlinedIcon}
             title='Banked Leads'
-            description='Fresh leads from the last 72 hours that were never issued to an agent.'
+            description='Under 72 hours old, never issued to an agent.'
             emptyMessage='No fresh leads are banked right now.'
           />
         </Box>
