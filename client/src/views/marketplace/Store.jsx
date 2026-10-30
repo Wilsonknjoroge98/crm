@@ -147,12 +147,10 @@ const typesOf = (segmentKey) =>
     ? ['verified']
     : ['verified', 'unverified'];
 
-const STATE_WIDTH = 125;
-const COLUMN_MIN = 205;
+const STATE_WIDTH = 110;
+// Wide enough for "317 Available" beside its label and box.
+const COLUMN_MIN = 218;
 const COLUMN_MAX = 300;
-// Below this the columns can't fit "available", so the shorter "left" shows.
-const NARROW = '@media (max-width: 1429px)';
-const NOT_NARROW = '@media (min-width: 1430px)';
 const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
@@ -170,7 +168,7 @@ function QtyBox({ label, count, qty, onChange }) {
       placeholder=''
       ariaLabel={`Quantity, ${label}, ${count} available`}
       sx={{
-        width: 56,
+        width: 48,
         height: 30,
         border: '1px solid',
         borderColor: picked ? BAND : '#C4CBD2',
@@ -191,20 +189,22 @@ function QtyBox({ label, count, qty, onChange }) {
 }
 
 /** One line of a state's cell: the lead type, how many, and the quantity. */
-function TypeLine({ type, label, count, qty, onChange, roomy }) {
+function TypeLine({ type, label, count, qty, onChange }) {
   return (
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: '66px 1fr 56px',
-        columnGap: 0.75,
+        gridTemplateColumns: '62px minmax(0, 1fr) 48px',
+        columnGap: 0.5,
         alignItems: 'center',
         justifyItems: 'center',
         textAlign: 'center',
         minHeight: 34,
       }}
     >
-      <Typography variant='body2' sx={{ fontWeight: qty > 0 ? 700 : 500 }}>
+      <Typography
+        sx={{ fontSize: '0.8125rem', fontWeight: qty > 0 ? 700 : 500 }}
+      >
         {TYPE_LABEL[type]}
       </Typography>
       {count > 0 ? (
@@ -213,22 +213,11 @@ function TypeLine({ type, label, count, qty, onChange, roomy }) {
             color='text.secondary'
             sx={{
               fontSize: '0.8125rem',
+              lineHeight: 1.2,
               fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap',
             }}
           >
-            {count.toLocaleString()}
-            <Box component='span' sx={roomy ? {} : { [NARROW]: { display: 'none' } }}>
-              {' '}
-              available
-            </Box>
-            <Box
-              component='span'
-              sx={roomy ? { display: 'none' } : { [NOT_NARROW]: { display: 'none' } }}
-            >
-              {' '}
-              left
-            </Box>
+            {count.toLocaleString()} Available
           </Typography>
           <QtyBox label={label} count={count} qty={qty} onChange={onChange} />
         </>
@@ -419,7 +408,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               <Box
                 key={column.id}
                 sx={{
-                  px: 1.25,
+                  px: 1,
                   py: 1.75,
                   minHeight: 64,
                   display: 'flex',
@@ -432,7 +421,6 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 {column.types.map((type) => (
                   <TypeLine
                     key={type}
-                    roomy={n < 4}
                     type={type}
                     label={`${state}, ${column.groupTitle}${column.setTitle ? `, ${column.setTitle}` : ''}, ${TYPE_LABEL[type]}`}
                     count={countOf(column, state, type)}

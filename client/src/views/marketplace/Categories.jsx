@@ -224,7 +224,7 @@ function InventoryTile({ summary, to, title, description, emptyMessage }) {
       to={to}
       title={title}
       figure={!loading && available > 0 ? available.toLocaleString() : null}
-      figureNote='available'
+      figureNote='Available'
       highlight={
         loading
           ? 'Checking what’s available…'

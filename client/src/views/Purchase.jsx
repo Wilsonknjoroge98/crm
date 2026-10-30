@@ -61,7 +61,7 @@ const Purchase = () => {
             figureNote='per lead'
             highlight={
               inventory.available > 0
-                ? `${inventory.available.toLocaleString()} available`
+                ? `${inventory.available.toLocaleString()} Available`
                 : null
             }
           />
