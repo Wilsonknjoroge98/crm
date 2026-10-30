@@ -1,9 +1,6 @@
 // Marketplace landing: the agent picks what they're looking for, and the next
 // page shows what that category offers.
 import { Box, Stack, Typography } from '@mui/material';
-import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import {
   AGED_BANKED_PATH,
   AGED_SEGMENTS,
@@ -49,7 +46,6 @@ const Purchase = () => {
         >
           <ProductTile
             to={FRESH_LEADS_PATH}
-            icon={BoltOutlinedIcon}
             title='Fresh Leads'
             description='New leads and live calls sent to you as they come in.'
             figurePrefix='From'
@@ -58,7 +54,6 @@ const Purchase = () => {
           />
           <ProductTile
             to={AGED_BANKED_PATH}
-            icon={Inventory2OutlinedIcon}
             title='Aged & Banked Leads'
             description='Leads you can buy right now, by state, at a lower price.'
             figurePrefix={inventory.price == null ? null : 'From'}
@@ -72,7 +67,6 @@ const Purchase = () => {
           />
           <ProductTile
             to={SOFTWARE_PATH}
-            icon={ChatBubbleOutlineIcon}
             title='Software'
             description='Your own texting line, and an AI assistant that follows up and books calls.'
             figurePrefix='From'

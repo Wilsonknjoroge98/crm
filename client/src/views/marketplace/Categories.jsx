@@ -1,8 +1,6 @@
 // The Marketplace's category pages: what each tile on the landing page offers.
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { useSelector } from 'react-redux';
-import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
-import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import { MARKETPLACE_PATH } from './api.js';
 import {
   AGED_PATH,
@@ -218,13 +216,12 @@ export const Software = () => (
 );
 
 /** Aged or banked: how many are available, what they are, and what they cost. */
-function InventoryTile({ summary, to, icon, title, description, emptyMessage }) {
+function InventoryTile({ summary, to, title, description, emptyMessage }) {
   const { available, loading, price } = summary;
   const empty = available === 0;
   return (
     <ProductTile
       to={to}
-      icon={icon}
       title={title}
       figure={!loading && available > 0 ? available.toLocaleString() : null}
       figureNote='available'
@@ -265,7 +262,6 @@ export function AgedBanked() {
           <InventoryTile
             summary={summarizeSegments(bySegment, AGED_SEGMENTS)}
             to={AGED_PATH}
-            icon={HistoryOutlinedIcon}
             title='Aged Leads'
             description='31–180 days old, at a lower price.'
             emptyMessage='No aged leads are available right now.'
@@ -273,7 +269,6 @@ export function AgedBanked() {
           <InventoryTile
             summary={summarizeSegments(bySegment, BANKED_SEGMENTS)}
             to={BANKED_PATH}
-            icon={AccountBalanceOutlinedIcon}
             title='Banked Leads'
             description='Under 72 hours old, never issued to an agent.'
             emptyMessage='No fresh leads are banked right now.'

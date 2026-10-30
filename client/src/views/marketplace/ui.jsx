@@ -148,12 +148,11 @@ export function CartLink() {
 
 /**
  * A large tile that opens the next step of the Marketplace: a colored band with
- * the icon, then the name, one big figure, a line or two and a link. A
+ * the product's name, then one big figure, a line or two and a link. A
  * `disabled` tile has nothing to open.
  */
 export function ProductTile({
   to,
-  icon: Icon,
   title,
   figurePrefix,
   figure,
@@ -192,8 +191,10 @@ export function ProductTile({
       >
         <Box
           sx={{
-            height: 112,
+            minHeight: 96,
             flexShrink: 0,
+            px: 3,
+            py: 2,
             bgcolor: disabled ? '#B8C0C8' : BAND,
             color: '#FFFFFF',
             display: 'flex',
@@ -201,7 +202,19 @@ export function ProductTile({
             justifyContent: 'center',
           }}
         >
-          <Icon sx={{ fontSize: 48 }} />
+          <Typography
+            component='h2'
+            sx={{
+              fontFamily: SANS,
+              fontWeight: 700,
+              fontSize: '1.4rem',
+              textAlign: 'center',
+              textTransform: 'uppercase',
+              color: '#FFFFFF',
+            }}
+          >
+            {title}
+          </Typography>
         </Box>
         <Box
           sx={{
@@ -212,18 +225,6 @@ export function ProductTile({
             alignItems: 'flex-start',
           }}
         >
-          <Typography
-            component='h2'
-            sx={{
-              fontWeight: 700,
-              fontSize: '1.2rem',
-              fontFamily: SANS,
-              textTransform: 'uppercase',
-            }}
-            color={disabled ? 'text.disabled' : 'text.primary'}
-          >
-            {title}
-          </Typography>
           {figure != null && (
             <Stack
               direction='row'
@@ -231,7 +232,6 @@ export function ProductTile({
               alignItems='baseline'
               useFlexGap
               flexWrap='wrap'
-              sx={{ mt: 2 }}
             >
               {figurePrefix && (
                 <Typography sx={{ fontSize: '1.1rem' }} color={muted}>
