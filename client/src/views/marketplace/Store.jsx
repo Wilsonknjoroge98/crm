@@ -147,7 +147,7 @@ const typesOf = (segmentKey) =>
     ? ['verified']
     : ['verified', 'unverified'];
 
-const STATE_WIDTH = 110;
+const STATE_WIDTH = 125;
 const COLUMN_MIN = 205;
 const COLUMN_MAX = 300;
 // Below this the columns can't fit "available", so the shorter "left" shows.
@@ -319,8 +319,20 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               left: 0,
               zIndex: 1,
               bgcolor: '#FFFFFF',
+              borderRight: SET_SPLIT,
+              pl: 1.5,
+              pr: 1,
+              display: 'flex',
+              alignItems: 'center',
             }}
-          />
+          >
+            <Box
+              component='img'
+              src='/fexdigital.png'
+              alt='FEX Digital'
+              sx={{ width: '100%', height: 'auto', display: 'block' }}
+            />
+          </Box>
           {groupCells.map(({ key, column, start, span }) => (
             <Typography
               key={key}
@@ -391,6 +403,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 left: 0,
                 zIndex: 1,
                 bgcolor: 'inherit',
+                borderRight: SET_SPLIT,
               }}
             >
               <Typography sx={{ fontWeight: 600, lineHeight: 1.25 }}>
