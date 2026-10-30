@@ -1,6 +1,5 @@
-// Store.jsx — browse inventory by state and build a cart for one segment
-// (banked, 31–90 day aged or 91–180 day aged, for quote-funnel or instant-form
-// leads).
+// Store.jsx — one list per product (aged or banked): every state, with a
+// quantity for every lead type sold under it, funnel and instant form split.
 import {
   Alert,
   Box,
@@ -20,23 +19,19 @@ import {
   Typography,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
-import {
-  Link as RouterLink,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
-  AGED_PATH,
-  BANKED_PATH,
+  AGED_BANKED_PATH,
   CART_PATH,
+  SEGMENT_BY_KEY,
   SOURCE_HELP,
   cartLines,
-  getSegment,
   linesCount,
   linesTotal,
   rememberStore,
@@ -45,14 +40,17 @@ import {
   useMarketplaceInventory,
 } from './cartState.js';
 import {
+  BAND,
+  BAND_DARK,
   BORDER,
   DIVIDER,
   GOLD,
+  INK,
   MarketplaceHeader,
-  QtyStepper,
   formatMoney,
   formatPrice,
 } from './ui.jsx';
+import QtyInput from './QtyInput.jsx';
 import PageContainer from '../../components/PageContainer';
 
 const INCLUDED_FIELDS = [
@@ -102,150 +100,377 @@ const FRESH_EXPLAINER = [
 // Folded away with the lead's fields.
 const VERIFIED_HELP = 'Verified means the phone number was confirmed by text.';
 
+// What each list sells, left to right. Each segment's verifiedOnly flag decides
+// whether it gets an Unverified column.
+const LISTS = {
+  aged: {
+    title: 'Aged Leads',
+    groups: [
+      {
+        source: 'funnel',
+        title: 'Funnel',
+        fields: INCLUDED_FIELDS,
+        sets: [
+          { key: 'aged_second', title: '31–90 days' },
+          { key: 'aged_third', title: '91–180 days' },
+        ],
+      },
+      {
+        source: 'instant',
+        title: 'Instant Form',
+        fields: INSTANT_FORM_FIELDS,
+        sets: [
+          { key: 'instant_aged_second', title: '31–90 days' },
+          { key: 'instant_aged_third', title: '91–180 days' },
+        ],
+      },
+    ],
+  },
+  banked: {
+    title: 'Banked Leads',
+    groups: [
+      {
+        source: 'funnel',
+        title: 'Funnel',
+        fields: INCLUDED_FIELDS,
+        sets: [{ key: 'banked' }],
+      },
+      {
+        source: 'instant',
+        title: 'Instant Form',
+        fields: INSTANT_FORM_FIELDS,
+        sets: [{ key: 'instant_banked' }],
+      },
+    ],
+  },
+};
+
+const TYPE_LABEL = { verified: 'Verified', unverified: 'Unverified' };
+const typesOf = (segmentKey) =>
+  SEGMENT_BY_KEY[segmentKey].verifiedOnly
+    ? ['verified']
+    : ['verified', 'unverified'];
+
+const STATE_WIDTH = 180;
+const COLUMN_MIN = 136;
+const COLUMN_MAX = 180;
+const GROUP_SPLIT = `2px solid ${BAND}`;
+const SET_SPLIT = `1px solid ${BORDER}`;
+// Marks the instant-form side of a row without hiding the row's hover color
+const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
+
 /**
- * One state's quantity for one lead type: what's left and a plus button, with
- * the full stepper appearing once any are picked.
+ * One state's quantity for one lead type: how many are left and a plus. Tap
+ * the plus to add one, or tap the number and type a quantity.
  */
 function QtyCell({ label, count, qty, onChange }) {
+  const picked = qty > 0;
+  const buttonSx = {
+    width: 26,
+    height: 30,
+    borderRadius: 0,
+    color: 'text.primary',
+    '&.Mui-disabled': { color: 'text.disabled', opacity: 0.5 },
+  };
   return (
-    <Box>
-      {/* The column header says this on wider screens */}
-      <Typography
-        variant='caption'
-        color='text.secondary'
-        sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5 }}
+    <Stack direction='row' spacing={0.5} alignItems='center'>
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          border: '1px solid',
+          borderColor: picked ? BORDER : 'transparent',
+          borderRadius: 1,
+          bgcolor: picked ? '#FFFFFF' : 'transparent',
+          overflow: 'hidden',
+          '&:focus-within': { borderColor: INK, bgcolor: '#FFFFFF' },
+        }}
       >
-        {label}
-      </Typography>
-      {count === 0 ? (
-        <Typography variant='body2' color='text.disabled'>
-          —
-        </Typography>
-      ) : qty > 0 ? (
-        <Stack direction='row' spacing={1} alignItems='center'>
-          <QtyStepper size='small' value={qty} max={count} onChange={onChange} />
-          <Typography
-            variant='caption'
-            color='text.secondary'
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            of {count.toLocaleString()}
-          </Typography>
-        </Stack>
-      ) : (
-        <Stack direction='row' spacing={1.25} alignItems='center'>
+        {picked && (
           <IconButton
-            size='small'
-            aria-label={`Add ${label}`}
-            onClick={() => onChange(1)}
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: 1,
-              border: `1px solid ${BORDER}`,
-              bgcolor: '#FFFFFF',
-              color: 'text.primary',
-            }}
+            aria-label={`Remove one, ${label}`}
+            onClick={() => onChange(qty - 1)}
+            sx={buttonSx}
           >
-            <AddIcon fontSize='small' />
+            <RemoveIcon sx={{ fontSize: 16 }} />
           </IconButton>
-          <Typography variant='body2' color='text.secondary'>
-            {count.toLocaleString()} left
-          </Typography>
-        </Stack>
+        )}
+        <QtyInput
+          value={qty}
+          max={count}
+          onChange={onChange}
+          placeholder={count.toLocaleString()}
+          ariaLabel={`Quantity, ${label}, ${count} available`}
+          sx={{
+            width: 36,
+            height: 30,
+            // Lines the number up under its column's heading until it's picked
+            ...(!picked && { textAlign: 'left', pl: '3px' }),
+            fontSize: '0.875rem',
+            fontVariantNumeric: 'tabular-nums',
+            color: 'text.primary',
+            '&::placeholder': {
+              color: 'text.secondary',
+              opacity: 1,
+              fontWeight: 400,
+            },
+            '&:focus::placeholder': { color: 'transparent' },
+          }}
+        />
+        <IconButton
+          aria-label={`Add one, ${label}`}
+          disabled={qty >= count}
+          onClick={() => onChange(Math.min(count, qty + 1))}
+          sx={buttonSx}
+        >
+          <AddIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Box>
+      {picked && (
+        <Typography
+          variant='caption'
+          color='text.secondary'
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          of {count.toLocaleString()}
+        </Typography>
       )}
-    </Box>
+    </Stack>
   );
 }
 
-/** Every state with leads, with a quantity picker per lead type. */
-function StateTable({ states, segment, cart, prices, search, onChange }) {
-  const verifiedOnly = segment.verifiedOnly;
-  const visible = states.filter(
-    (s) =>
-      (s.verified > 0 || (!verifiedOnly && s.unverified > 0)) &&
-      s.name.toLowerCase().includes(search.toLowerCase()),
+/** The columns in order, with where the splits fall. */
+function columnsOf(list, bySegment) {
+  return list.groups.flatMap((group, g) =>
+    group.sets.flatMap((set, s) =>
+      typesOf(set.key).map((type, t) => ({
+        id: `${set.key}-${type}`,
+        segmentKey: set.key,
+        type,
+        groupTitle: group.title,
+        setTitle: set.title,
+        instant: group.source === 'instant',
+        price: bySegment[set.key].data?.prices?.[type] ?? null,
+        firstInGroup: g > 0 && s === 0 && t === 0,
+        firstInSet: (s > 0 || g === 0) && t === 0 && !(g === 0 && s === 0),
+      })),
+    ),
   );
-  const columns = {
-    xs: 'minmax(0, 1fr)',
-    // A set width for the state, so the quantities sit close to it on wide screens
-    md: verifiedOnly ? 'minmax(110px, 240px) 1fr' : 'minmax(110px, 240px) 1fr 1fr',
-  };
-  const verifiedLabel = `Verified ${formatPrice(prices.verified)}`;
-  const unverifiedLabel = `Unverified ${formatPrice(prices.unverified)}`;
+}
+
+const splitSx = (column) => ({
+  ...(column.firstInGroup && { borderLeft: GROUP_SPLIT }),
+  ...(column.firstInSet && { borderLeft: SET_SPLIT }),
+});
+
+/** Every state with leads, and a quantity for every lead type in the list. */
+function LeadTable({ list, columns, bySegment, cart, search, onChange }) {
+  const rows = [
+    ...new Set(
+      columns.flatMap((c) =>
+        Object.keys(bySegment[c.segmentKey].data?.states || {}),
+      ),
+    ),
+  ]
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({
+      name,
+      counts: Object.fromEntries(
+        columns.map((c) => [
+          c.id,
+          bySegment[c.segmentKey].data?.states?.[name]?.[c.type] ?? 0,
+        ]),
+      ),
+    }))
+    .filter(
+      (row) =>
+        Object.values(row.counts).some((n) => n > 0) &&
+        row.name.toLowerCase().includes(search.toLowerCase()),
+    );
+
+  const hasAges = list.groups.some((g) => g.sets.some((s) => s.title));
+  const n = columns.length;
+  const grid = `${STATE_WIDTH}px repeat(${n}, minmax(${COLUMN_MIN}px, 1fr))`;
+
+  // Header cells that run across several columns, built from the columns so
+  // the spans can never disagree with them.
+  const spans = (keyOf) =>
+    columns.reduce((out, column, i) => {
+      const key = keyOf(column);
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.span += 1;
+      else out.push({ key, column, start: i + 2, span: 1 });
+      return out;
+    }, []);
+  const groupCells = spans((c) => c.groupTitle);
+  const setCells = spans((c) => c.segmentKey);
+  const typeRow = hasAges ? 3 : 2;
+
   return (
-      <Paper
-        variant='outlined'
-        sx={{
-          borderRadius: 2,
-          overflowY: 'auto',
-          maxHeight: { md: 'max(360px, calc(100vh - 340px))' },
-        }}
-      >
+    <Paper
+      variant='outlined'
+      sx={{
+        borderRadius: 2,
+        overflow: 'auto',
+        maxHeight: 'max(360px, calc(100vh - 320px))',
+        maxWidth: STATE_WIDTH + n * COLUMN_MAX,
+      }}
+    >
+      <Box sx={{ minWidth: STATE_WIDTH + n * COLUMN_MIN }}>
         <Box
           sx={{
-            display: { xs: 'none', md: 'grid' },
-            gridTemplateColumns: columns.md,
-            columnGap: 2,
-            px: 2.5,
-            py: 1.5,
+            display: 'grid',
+            gridTemplateColumns: grid,
             position: 'sticky',
             top: 0,
-            zIndex: 1,
-            bgcolor: '#FAFAF7',
+            zIndex: 2,
+            bgcolor: '#FFFFFF',
             borderBottom: `1px solid ${BORDER}`,
           }}
         >
-          <Typography variant='body2' sx={{ fontWeight: 600 }}>
-            State
-          </Typography>
-          <Typography variant='body2' sx={{ fontWeight: 600 }}>
-            {verifiedLabel}
-          </Typography>
-          {!verifiedOnly && (
-            <Typography variant='body2' sx={{ fontWeight: 600 }}>
-              {unverifiedLabel}
-            </Typography>
-          )}
-        </Box>
-        {visible.map((state) => {
-          const qty = cart[state.name] || { verified: 0, unverified: 0 };
-          const picked = qty.verified + qty.unverified > 0;
-          return (
-            <Box
-              key={state.name}
+          {/* The corner stays put when the table scrolls either way */}
+          <Box
+            sx={{
+              gridColumn: 1,
+              gridRow: `1 / span ${typeRow}`,
+              position: 'sticky',
+              left: 0,
+              zIndex: 1,
+              bgcolor: '#FFFFFF',
+            }}
+          />
+          {groupCells.map(({ key, column, start, span }) => (
+            <Typography
+              key={key}
               sx={{
-                display: 'grid',
-                gridTemplateColumns: columns,
-                columnGap: 2,
-                rowGap: 1,
-                alignItems: 'center',
-                px: 2.5,
+                gridColumn: `${start} / span ${span}`,
+                gridRow: 1,
+                px: 1.5,
                 py: 1,
-                '& + &': { borderTop: `1px solid ${DIVIDER}` },
+                fontWeight: 700,
+                color: '#FFFFFF',
+                bgcolor: column.instant ? BAND_DARK : BAND,
+                ...(column.firstInGroup && {
+                  borderLeft: '2px solid #FFFFFF',
+                }),
               }}
             >
-              <Typography sx={{ fontWeight: picked ? 600 : 500 }}>
-                {state.name}
+              {key}
+            </Typography>
+          ))}
+          {hasAges &&
+            setCells.map(({ key, column, start, span }) => (
+              <Typography
+                key={key}
+                variant='body2'
+                sx={{
+                  gridColumn: `${start} / span ${span}`,
+                  gridRow: 2,
+                  px: 1.5,
+                  pt: 1,
+                  fontWeight: 700,
+                  ...(column.instant && { bgcolor: INSTANT_TINT }),
+                  ...splitSx(column),
+                }}
+              >
+                {column.setTitle}
               </Typography>
-              <QtyCell
-                label={verifiedLabel}
-                count={state.verified}
-                qty={qty.verified}
-                onChange={(n) => onChange(state, 'verified', n)}
-              />
-              {!verifiedOnly && (
-                <QtyCell
-                  label={unverifiedLabel}
-                  count={state.unverified}
-                  qty={qty.unverified}
-                  onChange={(n) => onChange(state, 'unverified', n)}
-                />
+            ))}
+          {columns.map((column, i) => (
+            <Typography
+              key={column.id}
+              variant='body2'
+              color='text.secondary'
+              sx={{
+                gridColumn: i + 2,
+                gridRow: typeRow,
+                px: 1.5,
+                pt: hasAges ? 0.25 : 1,
+                pb: 1,
+                whiteSpace: 'nowrap',
+                ...(column.instant && { bgcolor: INSTANT_TINT }),
+                ...splitSx(column),
+              }}
+            >
+              {TYPE_LABEL[column.type]}
+              {column.price != null && (
+                <Box
+                  component='span'
+                  sx={{ ml: 0.75, fontWeight: 700, color: 'text.primary' }}
+                >
+                  {formatPrice(column.price)}
+                </Box>
               )}
+            </Typography>
+          ))}
+        </Box>
+
+        {rows.map((row) => {
+          const quantities = columns.map(
+            (c) => cart[c.segmentKey]?.[row.name]?.[c.type] || 0,
+          );
+          const picked = quantities.some((q) => q > 0);
+          return (
+            <Box
+              key={row.name}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: grid,
+                bgcolor: '#FFFFFF',
+                '& + &': { borderTop: `1px solid ${DIVIDER}` },
+                '&:hover': { bgcolor: '#F7F7F4' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: picked ? 700 : 500,
+                  pl: 2,
+                  pr: 1,
+                  py: 1,
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 1,
+                  bgcolor: 'inherit',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {row.name}
+              </Typography>
+              {columns.map((column, i) => (
+                <Box
+                  key={column.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    px: 1,
+                    py: 0.5,
+                    ...(column.instant && { bgcolor: INSTANT_TINT }),
+                    ...splitSx(column),
+                  }}
+                >
+                  {row.counts[column.id] > 0 && (
+                    <QtyCell
+                      label={`${row.name}, ${column.groupTitle}${column.setTitle ? `, ${column.setTitle}` : ''}, ${TYPE_LABEL[column.type]}`}
+                      count={row.counts[column.id]}
+                      qty={quantities[i]}
+                      onChange={(value) =>
+                        onChange(
+                          column.segmentKey,
+                          row.name,
+                          column.type,
+                          Math.min(value, row.counts[column.id]),
+                        )
+                      }
+                    />
+                  )}
+                </Box>
+              ))}
             </Box>
           );
         })}
-        {visible.length === 0 && (
+        {rows.length === 0 && (
           <Typography
             variant='body2'
             color='text.secondary'
@@ -254,12 +479,13 @@ function StateTable({ states, segment, cart, prices, search, onChange }) {
             {search ? `No states match "${search}".` : 'No leads here right now.'}
           </Typography>
         )}
-      </Paper>
+      </Box>
+    </Paper>
   );
 }
 
 /** What the words mean and what comes with a lead, folded away until asked for. */
-function AboutLeads({ help, fields }) {
+function AboutLeads({ groups }) {
   const [open, setOpen] = useState(false);
   return (
     <Box>
@@ -289,46 +515,49 @@ function AboutLeads({ help, fields }) {
       </Link>
       <Collapse in={open}>
         <Typography variant='body2' color='text.secondary' sx={{ mt: 1.5 }}>
-          {help}
+          {VERIFIED_HELP}
         </Typography>
-        <Typography variant='body2' sx={{ fontWeight: 600, mt: 1.5 }}>
-          Every lead includes
-        </Typography>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: 'repeat(2, 1fr)',
-              md: 'repeat(4, 1fr)',
-            },
-            gap: 1,
-            mt: 1,
-          }}
-        >
-          {fields.map((field) => (
-            <Typography key={field} variant='body2' color='text.secondary'>
-              {field}
+        {groups.map((group) => (
+          <Box key={group.source} sx={{ mt: 2 }}>
+            <Typography variant='body2' sx={{ fontWeight: 700 }}>
+              {group.title}
             </Typography>
-          ))}
-        </Box>
+            <Typography variant='body2' color='text.secondary'>
+              {SOURCE_HELP[group.source]}
+            </Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'repeat(2, 1fr)',
+                  md: 'repeat(4, 1fr)',
+                },
+                gap: 1,
+                mt: 1,
+              }}
+            >
+              {group.fields.map((field) => (
+                <Typography key={field} variant='body2' color='text.secondary'>
+                  {field}
+                </Typography>
+              ))}
+            </Box>
+          </Box>
+        ))}
       </Collapse>
     </Box>
   );
 }
 
-export default function Store() {
-  const { leadType } = useParams();
-  const [searchParams] = useSearchParams();
-  const tier = searchParams.get('tier') === 'third' ? 'third' : 'second';
-  const segment = getSegment(leadType, tier, searchParams.get('source'));
-  // The explainer describes quote-funnel banked leads
-  const isFresh = segment.key === 'banked';
-  // One cart across every segment; this page edits its own segment's slice.
+function Store({ listKey }) {
+  const list = LISTS[listKey];
+  const isBanked = listKey === 'banked';
+  const segmentKeys = list.groups.flatMap((g) => g.sets.map((s) => s.key));
+  // One cart across every segment.
   const [cart, updateCart] = useCart();
-  const segmentCart = cart[segment.key] || {};
   const [search, setSearch] = useState('');
   const [showExplainer, setShowExplainer] = useState(() => {
-    if (!isFresh) return false;
+    if (!isBanked) return false;
     try {
       return !localStorage.getItem('fex-fresh-explainer-seen');
     } catch {
@@ -346,45 +575,29 @@ export default function Store() {
   };
 
   useEffect(() => {
-    rememberStore(segment.key);
-  }, [segment.key]);
+    rememberStore(segmentKeys[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey]);
 
-  // Every segment's inventory: this page's for the picker, all of them to
-  // price the shared cart.
+  // Every segment's inventory: this list's for the table, all of them to price
+  // the shared cart.
   const marketplaceInventory = useMarketplaceInventory();
-  const {
-    data: inventory,
-    isLoading: loading,
-    isError: error,
-    refetch: refetchInventory,
-  } = marketplaceInventory.bySegment[segment.key];
+  const { bySegment } = marketplaceInventory;
+  const queries = segmentKeys.map((key) => bySegment[key]);
+  const loading = queries.some((q) => q.isLoading);
+  const failed = queries.filter((q) => q.isError);
+  const columns = columnsOf(list, bySegment);
+  const anyLeads = columns.some((c) =>
+    Object.values(bySegment[c.segmentKey].data?.states || {}).some(
+      (counts) => counts[c.type] > 0,
+    ),
+  );
 
-  const states = inventory?.states;
-  const verifiedPrice = inventory?.prices?.verified ?? 0;
-  const unverifiedPrice = inventory?.prices?.unverified ?? 0;
-
-  const allStates = states
-    ? Object.entries(states)
-        .map(([name, counts]) => ({
-          name,
-          ...counts,
-          total: counts.verified + counts.unverified,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-    : [];
-
-  const prices = {
-    verified: verifiedPrice,
-    unverified: unverifiedPrice,
+  const setQuantity = (segmentKey, state, type, value) => {
+    updateCart((prev) => setLineQty(prev, segmentKey, state, type, value));
   };
 
-  const setQuantity = (state, type, value) => {
-    updateCart((prev) =>
-      setLineQty(prev, segment.key, state.name, type, Math.min(value, state[type])),
-    );
-  };
-
-  // Totals cover the whole shared cart, not just this segment.
+  // Totals cover the whole shared cart, not just this list.
   const lines = cartLines(cart, marketplaceInventory.prices);
   const cartCount = linesCount(lines);
   const cartTotal = linesTotal(lines);
@@ -455,77 +668,68 @@ export default function Store() {
 
       <Stack spacing={2.5}>
         <MarketplaceHeader
-          title={segment.title}
-          breadcrumb={{
-            label: 'Back',
-            to: segment.leadType === 'fresh' ? BANKED_PATH : AGED_PATH,
-          }}
+          title={list.title}
+          breadcrumb={{ label: 'Back', to: AGED_BANKED_PATH }}
+          actions={
+            <TextField
+              size='small'
+              placeholder='Search states'
+              aria-label='Search states'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position='start'>
+                      <SearchOutlinedIcon fontSize='small' />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ width: { xs: '100%', sm: 200 }, bgcolor: '#FFFFFF' }}
+            />
+          }
         />
 
-        <Stack direction='row' justifyContent='flex-end'>
-          <TextField
-            size='small'
-            placeholder='Search'
-            aria-label='Search states'
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position='start'>
-                    <SearchOutlinedIcon fontSize='small' />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{ width: { xs: '100%', sm: 180 } }}
-          />
-        </Stack>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-            <CircularProgress color='inherit' />
-          </Box>
-        ) : error ? (
+        {failed.length > 0 && !loading && (
           <Alert
             severity='error'
             action={
               <Button
                 color='inherit'
                 size='small'
-                onClick={() => refetchInventory()}
+                onClick={() => failed.forEach((q) => q.refetch())}
               >
                 Retry
               </Button>
             }
           >
-            Failed to load inventory.
+            {failed.length === queries.length
+              ? 'Failed to load inventory.'
+              : 'Some of these leads failed to load, so their columns are empty.'}
           </Alert>
-        ) : allStates.length === 0 ? (
-          // the top bar already names the segment
+        )}
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+            <CircularProgress color='inherit' />
+          </Box>
+        ) : failed.length === queries.length ? null : !anyLeads ? (
           <Box sx={{ p: 6, textAlign: 'center' }}>
             <Typography variant='h6'>No leads available right now</Typography>
             <Typography color='text.secondary'>Check back soon.</Typography>
           </Box>
         ) : (
           <Stack spacing={2}>
-            <StateTable
-              key={segment.key}
-              states={allStates}
-              segment={segment}
-              cart={segmentCart}
-              prices={prices}
+            <LeadTable
+              list={list}
+              columns={columns}
+              bySegment={bySegment}
+              cart={cart}
               search={search}
               onChange={setQuantity}
             />
-            <AboutLeads
-              help={`${SOURCE_HELP[segment.source]}${segment.verifiedOnly ? '' : ` ${VERIFIED_HELP}`}`}
-              fields={
-                segment.source === 'instant'
-                  ? INSTANT_FORM_FIELDS
-                  : INCLUDED_FIELDS
-              }
-            />
+            <AboutLeads groups={list.groups} />
           </Stack>
         )}
       </Stack>
@@ -575,3 +779,6 @@ export default function Store() {
     </PageContainer>
   );
 }
+
+export const AgedLeads = () => <Store key='aged' listKey='aged' />;
+export const BankedLeads = () => <Store key='banked' listKey='banked' />;

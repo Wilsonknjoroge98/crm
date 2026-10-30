@@ -52,22 +52,22 @@ const Purchase = () => {
             icon={BoltOutlinedIcon}
             title='Fresh Leads'
             description='New leads and live calls sent to you as they come in.'
-            meta={`From ${formatPrice(LOWEST_FRESH_PRICE)} per lead`}
+            figurePrefix='From'
+            figure={formatPrice(LOWEST_FRESH_PRICE)}
+            figureNote='per lead'
           />
           <ProductTile
             to={AGED_BANKED_PATH}
             icon={Inventory2OutlinedIcon}
             title='Aged & Banked Leads'
             description='Leads you can buy right now, by state, at a lower price.'
+            figurePrefix={inventory.price == null ? null : 'From'}
+            figure={inventory.price == null ? null : formatPrice(inventory.price)}
+            figureNote='per lead'
             highlight={
               inventory.available > 0
                 ? `${inventory.available.toLocaleString()} available`
                 : null
-            }
-            meta={
-              inventory.price == null
-                ? 'Lower-priced leads'
-                : `From ${formatPrice(inventory.price)} per lead`
             }
           />
           <ProductTile
@@ -75,7 +75,9 @@ const Purchase = () => {
             icon={ChatBubbleOutlineIcon}
             title='Software'
             description='Your own texting line, and an AI assistant that follows up and books calls.'
-            meta={`From ${formatPrice(LOWEST_SOFTWARE_PRICE)} per month`}
+            figurePrefix='From'
+            figure={formatPrice(LOWEST_SOFTWARE_PRICE)}
+            figureNote='per month'
           />
         </Box>
       </Stack>

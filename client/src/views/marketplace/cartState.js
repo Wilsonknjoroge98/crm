@@ -21,7 +21,6 @@ export const SOFTWARE_PATH = `${MARKETPLACE_PATH}/software`;
 export const SEGMENTS = [
   {
     key: 'aged_second',
-    title: 'Funnel, 31–90 days',
     source: 'funnel',
     leadType: 'aged',
     tier: 'second',
@@ -32,7 +31,6 @@ export const SEGMENTS = [
   },
   {
     key: 'aged_third',
-    title: 'Funnel, 91–180 days',
     source: 'funnel',
     leadType: 'aged',
     tier: 'third',
@@ -43,7 +41,6 @@ export const SEGMENTS = [
   },
   {
     key: 'banked',
-    title: 'Banked Funnel',
     source: 'funnel',
     leadType: 'fresh',
     tier: null,
@@ -54,7 +51,6 @@ export const SEGMENTS = [
   },
   {
     key: 'instant_aged_second',
-    title: 'Instant Form, 31–90 days',
     source: 'instant',
     leadType: 'aged',
     tier: 'second',
@@ -65,7 +61,6 @@ export const SEGMENTS = [
   },
   {
     key: 'instant_aged_third',
-    title: 'Instant Form, 91–180 days',
     source: 'instant',
     leadType: 'aged',
     tier: 'third',
@@ -76,7 +71,6 @@ export const SEGMENTS = [
   },
   {
     key: 'instant_banked',
-    title: 'Banked Instant Form',
     source: 'instant',
     leadType: 'fresh',
     tier: null,
@@ -97,25 +91,9 @@ export const SEGMENT_BY_KEY = Object.fromEntries(
   SEGMENTS.map((segment) => [segment.key, segment]),
 );
 
-/** The segment a store URL (/:leadType/store?tier=&source=) is showing. */
-export const getSegment = (leadType, tier, source) =>
-  SEGMENT_BY_KEY[
-    (source === 'instant' ? 'instant_' : '') +
-      (leadType === 'fresh'
-        ? 'banked'
-        : tier === 'third'
-          ? 'aged_third'
-          : 'aged_second')
-  ];
-
-export const storePath = (segmentKey) => {
-  const { leadType, tier, source } = SEGMENT_BY_KEY[segmentKey];
-  const params = new URLSearchParams();
-  if (tier) params.set('tier', tier);
-  if (source === 'instant') params.set('source', source);
-  const query = params.toString();
-  return `${MARKETPLACE_PATH}/${leadType}/store${query ? `?${query}` : ''}`;
-};
+/** The list a segment is sold on. */
+export const storePath = (segmentKey) =>
+  SEGMENT_BY_KEY[segmentKey].leadType === 'fresh' ? BANKED_PATH : AGED_PATH;
 
 // The store the agent last browsed this session, so "Continue Shopping" in
 // the shared cart returns there rather than to the Marketplace hub.
@@ -188,57 +166,41 @@ export function useMarketplaceInventory() {
   };
 }
 
-export const countAvailable = (inventory) =>
-  Object.values(inventory?.states || {}).reduce(
-    (sum, s) => sum + s.verified + s.unverified,
-    0,
-  );
-
-// Cheapest per-lead price across the given inventories, for "From $x".
-const lowestPrice = (inventories) => {
-  const prices = inventories
-    .flatMap((inv) => [inv?.prices?.unverified, inv?.prices?.verified])
-    .filter((p) => typeof p === 'number');
-  return prices.length ? Math.min(...prices) : null;
-};
-
-// One product's inventory across the segments it covers (quote funnel and
-// instant forms). `available` is null (not 0) when every lookup failed, so
-// its tile stays clickable and the agent can open the store and retry there.
-// `segmentKey` is the first segment with stock, so the tile opens a store
-// that has something to sell; `price` is the cheapest across all of them.
-export const summarizeSegments = (bySegment, keys) => {
-  const loaded = keys.filter((key) => bySegment[key].data);
-  const inventories = loaded.map((key) => bySegment[key].data);
-  const withStock = loaded.find(
-    (key) => countAvailable(bySegment[key].data) > 0,
-  );
-  return {
-    available: loaded.length
-      ? loaded.reduce(
-          (sum, key) => sum + countAvailable(bySegment[key].data),
-          0,
-        )
-      : null,
-    loading: keys.some((key) => bySegment[key].isLoading),
-    price: lowestPrice(inventories),
-    segmentKey: withStock || keys[0],
-  };
-};
-
 // How many leads a segment can actually sell, and what one costs. Instant-form
 // segments are verified only, so their unverified counts and prices don't apply.
-export const sellableCount = (segment, inventory) =>
+const sellableCount = (segment, inventory) =>
   Object.values(inventory?.states || {}).reduce(
     (sum, s) => sum + s.verified + (segment.verifiedOnly ? 0 : s.unverified),
     0,
   );
 
-export const sellablePrices = (segment, inventory) =>
+const sellablePrices = (segment, inventory) =>
   [
     inventory?.prices?.verified,
     segment.verifiedOnly ? null : inventory?.prices?.unverified,
   ].filter((p) => typeof p === 'number');
+
+// One product's inventory across the segments it covers (quote funnel and
+// instant forms). `available` is null (not 0) when every lookup failed, so
+// its tile stays clickable and the agent can open the list and retry there.
+// `price` is the cheapest across all of them.
+export const summarizeSegments = (bySegment, keys) => {
+  const loaded = keys.filter((key) => bySegment[key].data);
+  const prices = loaded.flatMap((key) =>
+    sellablePrices(SEGMENT_BY_KEY[key], bySegment[key].data),
+  );
+  return {
+    available: loaded.length
+      ? loaded.reduce(
+          (sum, key) =>
+            sum + sellableCount(SEGMENT_BY_KEY[key], bySegment[key].data),
+          0,
+        )
+      : null,
+    loading: keys.some((key) => bySegment[key].isLoading),
+    price: prices.length ? Math.min(...prices) : null,
+  };
+};
 
 export const AGED_SEGMENTS = [
   'aged_second',

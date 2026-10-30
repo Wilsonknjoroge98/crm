@@ -15,7 +15,6 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import QtyInput from './QtyInput.jsx';
@@ -34,6 +33,10 @@ export const BORDER = '#E0E0E0';
 export const DIVIDER = '#F0F0F0';
 export const INK = '#051118';
 export const SLATE = '#2F4E6F';
+// The band across the top of a tile, and the funnel side of a lead list.
+export const BAND = SLATE;
+// The instant-form side of a lead list.
+export const BAND_DARK = INK;
 export const GOLD = '#D4AF37';
 
 // Small uppercase label used above values and sections across the CRM.
@@ -144,27 +147,35 @@ export function CartLink() {
 }
 
 /**
- * A large tile that opens the next step of the Marketplace. A `disabled` tile
- * has nothing to open.
+ * A large tile that opens the next step of the Marketplace: a colored band with
+ * the icon, then the name, one big figure, a line or two and a link. A
+ * `disabled` tile has nothing to open.
  */
 export function ProductTile({
   to,
   icon: Icon,
   title,
+  figurePrefix,
+  figure,
+  figureNote,
   description,
   highlight,
-  meta,
+  cta = 'See options',
   disabled,
 }) {
+  const muted = disabled ? 'text.disabled' : 'text.secondary';
   return (
     <Paper
-      variant='outlined'
+      elevation={0}
       sx={{
-        borderRadius: 2,
+        borderRadius: 1,
         overflow: 'hidden',
-        bgcolor: disabled ? '#FAFAFA' : '#FFFFFF',
-        transition: 'border-color 0.15s ease',
-        '&:hover': disabled ? {} : { borderColor: INK },
+        bgcolor: '#FFFFFF',
+        boxShadow: '0 1px 6px rgba(5, 17, 24, 0.12)',
+        transition: 'box-shadow 0.15s ease',
+        '&:hover': disabled
+          ? {}
+          : { boxShadow: '0 4px 16px rgba(5, 17, 24, 0.2)' },
       }}
     >
       <CardActionArea
@@ -172,126 +183,101 @@ export function ProductTile({
         to={disabled ? undefined : to}
         disabled={disabled}
         sx={{
-          p: 4,
           height: '100%',
-          minHeight: { lg: 300 },
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'flex-start',
+          alignItems: 'stretch',
+          justifyContent: 'flex-start',
         }}
       >
         <Box
           sx={{
-            width: 56,
-            height: 56,
-            mb: 2.5,
-            borderRadius: '50%',
-            bgcolor: '#F4F6F8',
+            height: 112,
+            flexShrink: 0,
+            bgcolor: disabled ? '#B8C0C8' : BAND,
+            color: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: disabled ? 'text.disabled' : INK,
           }}
         >
-          <Icon />
+          <Icon sx={{ fontSize: 48 }} />
         </Box>
-        <Typography
-          variant='h5'
-          component='h2'
-          color={disabled ? 'text.disabled' : 'text.primary'}
+        <Box
+          sx={{
+            p: 3.5,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+          }}
         >
-          {title}
-        </Typography>
-        <Typography
-          color={disabled ? 'text.disabled' : 'text.secondary'}
-          sx={{ mt: 1, flex: 1 }}
-        >
-          {description}
-        </Typography>
-        {highlight && (
           <Typography
-            sx={{ mt: 2, fontWeight: 600 }}
+            component='h2'
+            sx={{
+              fontWeight: 700,
+              fontSize: '1.2rem',
+              fontFamily: SANS,
+              textTransform: 'uppercase',
+            }}
             color={disabled ? 'text.disabled' : 'text.primary'}
           >
-            {highlight}
+            {title}
           </Typography>
-        )}
-        <Stack
-          direction='row'
-          justifyContent='space-between'
-          alignItems='center'
-          sx={{ width: '100%', mt: highlight ? 0.5 : 2 }}
-        >
-          <Typography color={disabled ? 'text.disabled' : 'text.secondary'}>
-            {meta}
-          </Typography>
-          {!disabled && <ArrowForwardIcon sx={{ color: INK }} />}
-        </Stack>
-      </CardActionArea>
-    </Paper>
-  );
-}
-
-/**
- * A smaller tile for the last choice before the state list: what it is, how
- * many are left and what they cost. A `disabled` tile has nothing to open.
- */
-export function ChoiceTile({ to, title, note, highlight, meta, disabled }) {
-  return (
-    <Paper
-      variant='outlined'
-      sx={{
-        borderRadius: 2,
-        overflow: 'hidden',
-        bgcolor: disabled ? '#FAFAFA' : '#FFFFFF',
-        transition: 'border-color 0.15s ease',
-        '&:hover': disabled ? {} : { borderColor: INK },
-      }}
-    >
-      <CardActionArea
-        component={disabled ? 'div' : RouterLink}
-        to={disabled ? undefined : to}
-        disabled={disabled}
-        sx={{ p: 3 }}
-      >
-        <Stack
-          direction='row'
-          justifyContent='space-between'
-          alignItems='center'
-          spacing={2}
-        >
-          <Box>
-            <Typography
-              component='h3'
-              sx={{ fontWeight: 600, fontSize: '1.25rem' }}
-              color={disabled ? 'text.disabled' : 'text.primary'}
+          {figure != null && (
+            <Stack
+              direction='row'
+              spacing={0.75}
+              alignItems='baseline'
+              useFlexGap
+              flexWrap='wrap'
+              sx={{ mt: 2 }}
             >
-              {title}
-            </Typography>
-            {note && (
+              {figurePrefix && (
+                <Typography sx={{ fontSize: '1.1rem' }} color={muted}>
+                  {figurePrefix}
+                </Typography>
+              )}
               <Typography
-                sx={{ mt: 0.5 }}
-                color={disabled ? 'text.disabled' : 'text.secondary'}
+                sx={{
+                  fontFamily: SANS,
+                  fontWeight: 700,
+                  fontSize: '3rem',
+                  lineHeight: 1.1,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+                color={disabled ? 'text.disabled' : 'text.primary'}
               >
-                {note}
+                {figure}
               </Typography>
-            )}
-            <Typography
-              sx={{ mt: 0.5, fontWeight: note ? 600 : 400 }}
-              color={
-                disabled
-                  ? 'text.disabled'
-                  : note
-                    ? 'text.primary'
-                    : 'text.secondary'
-              }
-            >
+              {figureNote && (
+                <Typography sx={{ fontSize: '1.1rem' }} color={muted}>
+                  {figureNote}
+                </Typography>
+              )}
+            </Stack>
+          )}
+          {highlight && (
+            <Typography sx={{ mt: 1, fontWeight: 600 }} color={disabled ? 'text.disabled' : 'text.primary'}>
               {highlight}
-              {meta ? `, ${meta}` : ''}
             </Typography>
-          </Box>
-          {!disabled && <ArrowForwardIcon sx={{ color: INK }} />}
-        </Stack>
+          )}
+          <Typography color={muted} sx={{ mt: 1, mb: 2.5, flex: 1 }}>
+            {description}
+          </Typography>
+          {!disabled && (
+            <Typography
+              sx={{
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textTransform: 'uppercase',
+                color: BAND,
+              }}
+            >
+              {cta}
+            </Typography>
+          )}
+        </Box>
       </CardActionArea>
     </Paper>
   );
