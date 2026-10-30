@@ -43,7 +43,6 @@ import {
   BAND,
   BAND_DARK,
   BORDER,
-  DIVIDER,
   GOLD,
   INK,
   MarketplaceHeader,
@@ -111,8 +110,8 @@ const LISTS = {
         title: 'Funnel',
         fields: INCLUDED_FIELDS,
         sets: [
-          { key: 'aged_second', title: '31–90 days' },
-          { key: 'aged_third', title: '91–180 days' },
+          { key: 'aged_second', title: '31–90 Days' },
+          { key: 'aged_third', title: '91–180 Days' },
         ],
       },
       {
@@ -120,8 +119,8 @@ const LISTS = {
         title: 'Instant Form',
         fields: INSTANT_FORM_FIELDS,
         sets: [
-          { key: 'instant_aged_second', title: '31–90 days' },
-          { key: 'instant_aged_third', title: '91–180 days' },
+          { key: 'instant_aged_second', title: '31–90 Days' },
+          { key: 'instant_aged_third', title: '91–180 Days' },
         ],
       },
     ],
@@ -151,110 +150,133 @@ const typesOf = (segmentKey) =>
     ? ['verified']
     : ['verified', 'unverified'];
 
-const STATE_WIDTH = 180;
-const COLUMN_MIN = 136;
-const COLUMN_MAX = 180;
+const STATE_WIDTH = 110;
+const COLUMN_MIN = 205;
+const COLUMN_MAX = 300;
+// Below this the columns can't fit "available", so the shorter "left" shows.
+const NARROW = '@media (max-width: 1429px)';
+const NOT_NARROW = '@media (min-width: 1430px)';
 const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
 
-/**
- * One state's quantity for one lead type: how many are left and a plus. Tap
- * the plus to add one, or tap the number and type a quantity.
- */
-function QtyCell({ label, count, qty, onChange }) {
+/** A quantity: faint until something is picked, then a navy pill. */
+function QtyPicker({ label, count, qty, onChange }) {
   const picked = qty > 0;
   const buttonSx = {
-    width: 26,
-    height: 30,
+    width: 24,
+    height: 28,
     borderRadius: 0,
-    color: 'text.primary',
-    '&.Mui-disabled': { color: 'text.disabled', opacity: 0.5 },
+    color: picked ? '#FFFFFF' : 'text.secondary',
+    '&:hover': { color: picked ? '#FFFFFF' : 'text.primary' },
+    '&.Mui-disabled': {
+      color: picked ? 'rgba(255, 255, 255, 0.4)' : 'text.disabled',
+    },
   };
   return (
-    <Stack direction='row' spacing={0.5} alignItems='center'>
-      <Box
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          border: '1px solid',
-          borderColor: picked ? BORDER : 'transparent',
-          borderRadius: 1,
-          bgcolor: picked ? '#FFFFFF' : 'transparent',
-          overflow: 'hidden',
-          '&:focus-within': { borderColor: INK, bgcolor: '#FFFFFF' },
-        }}
+    <Box
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        borderRadius: 5,
+        overflow: 'hidden',
+        bgcolor: picked ? BAND : 'transparent',
+        '&:focus-within': picked
+          ? {}
+          : { bgcolor: '#FFFFFF', boxShadow: `inset 0 0 0 1px ${INK}` },
+      }}
+    >
+      <IconButton
+        aria-label={`Remove one, ${label}`}
+        onClick={() => onChange(qty - 1)}
+        sx={{ ...buttonSx, visibility: picked ? 'visible' : 'hidden' }}
       >
-        {picked && (
-          <IconButton
-            aria-label={`Remove one, ${label}`}
-            onClick={() => onChange(qty - 1)}
-            sx={buttonSx}
-          >
-            <RemoveIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        )}
-        <QtyInput
-          value={qty}
-          max={count}
-          onChange={onChange}
-          placeholder={count.toLocaleString()}
-          ariaLabel={`Quantity, ${label}, ${count} available`}
-          sx={{
-            width: 36,
-            height: 30,
-            // Lines the number up under its column's heading until it's picked
-            ...(!picked && { textAlign: 'left', pl: '3px' }),
-            fontSize: '0.875rem',
-            fontVariantNumeric: 'tabular-nums',
-            color: 'text.primary',
-            '&::placeholder': {
-              color: 'text.secondary',
-              opacity: 1,
-              fontWeight: 400,
-            },
-            '&:focus::placeholder': { color: 'transparent' },
-          }}
-        />
-        <IconButton
-          aria-label={`Add one, ${label}`}
-          disabled={qty >= count}
-          onClick={() => onChange(Math.min(count, qty + 1))}
-          sx={buttonSx}
-        >
-          <AddIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Box>
-      {picked && (
-        <Typography
-          variant='caption'
-          color='text.secondary'
-          sx={{ whiteSpace: 'nowrap' }}
-        >
-          of {count.toLocaleString()}
-        </Typography>
-      )}
-    </Stack>
+        <RemoveIcon sx={{ fontSize: 15 }} />
+      </IconButton>
+      <QtyInput
+        value={qty}
+        max={count}
+        onChange={onChange}
+        placeholder='0'
+        ariaLabel={`Quantity, ${label}, ${count} available`}
+        sx={{
+          width: 30,
+          height: 28,
+          fontSize: '0.875rem',
+          fontVariantNumeric: 'tabular-nums',
+          color: picked ? '#FFFFFF' : 'text.primary',
+          '&::placeholder': {
+            color: 'text.disabled',
+            opacity: 1,
+            fontWeight: 400,
+          },
+          '&:focus::placeholder': { color: 'transparent' },
+        }}
+      />
+      <IconButton
+        aria-label={`Add one, ${label}`}
+        disabled={qty >= count}
+        onClick={() => onChange(Math.min(count, qty + 1))}
+        sx={buttonSx}
+      >
+        <AddIcon sx={{ fontSize: 15 }} />
+      </IconButton>
+    </Box>
   );
 }
 
-/** The columns in order, with where the splits fall. */
+/** One line of a state's cell: the lead type, how many, and the quantity. */
+function TypeLine({ type, label, count, qty, onChange }) {
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: '66px 1fr auto',
+        columnGap: 0.75,
+        alignItems: 'center',
+        minHeight: 30,
+      }}
+    >
+      <Typography variant='body2' sx={{ fontWeight: qty > 0 ? 700 : 500 }}>
+        {TYPE_LABEL[type]}
+      </Typography>
+      <Typography
+        color='text.secondary'
+        sx={{
+          fontSize: '0.8125rem',
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {count.toLocaleString()}
+        <Box component='span' sx={{ [NARROW]: { display: 'none' } }}>
+          {' '}
+          available
+        </Box>
+        <Box component='span' sx={{ [NOT_NARROW]: { display: 'none' } }}>
+          {' '}
+          left
+        </Box>
+      </Typography>
+      <QtyPicker label={label} count={count} qty={qty} onChange={onChange} />
+    </Box>
+  );
+}
+
+/** The columns in order (one per age of leads), with where the splits fall. */
 function columnsOf(list, bySegment) {
   return list.groups.flatMap((group, g) =>
-    group.sets.flatMap((set, s) =>
-      typesOf(set.key).map((type, t) => ({
-        id: `${set.key}-${type}`,
-        segmentKey: set.key,
-        type,
-        groupTitle: group.title,
-        setTitle: set.title,
-        instant: group.source === 'instant',
-        price: bySegment[set.key].data?.prices?.[type] ?? null,
-        firstInGroup: g > 0 && s === 0 && t === 0,
-        firstInSet: (s > 0 || g === 0) && t === 0 && !(g === 0 && s === 0),
-      })),
-    ),
+    group.sets.map((set, s) => ({
+      id: set.key,
+      types: typesOf(set.key),
+      groupTitle: group.title,
+      setTitle: set.title,
+      instant: group.source === 'instant',
+      prices: bySegment[set.key].data?.prices || {},
+      firstInGroup: g > 0 && s === 0,
+      firstInSet: s > 0,
+    })),
   );
 }
 
@@ -264,47 +286,32 @@ const splitSx = (column) => ({
 });
 
 /** Every state with leads, and a quantity for every lead type in the list. */
-function LeadTable({ list, columns, bySegment, cart, search, onChange }) {
+function LeadTable({ columns, bySegment, cart, search, onChange }) {
+  const countOf = (column, state, type) =>
+    bySegment[column.id].data?.states?.[state]?.[type] ?? 0;
   const rows = [
     ...new Set(
-      columns.flatMap((c) =>
-        Object.keys(bySegment[c.segmentKey].data?.states || {}),
-      ),
+      columns.flatMap((c) => Object.keys(bySegment[c.id].data?.states || {})),
     ),
   ]
     .sort((a, b) => a.localeCompare(b))
-    .map((name) => ({
-      name,
-      counts: Object.fromEntries(
-        columns.map((c) => [
-          c.id,
-          bySegment[c.segmentKey].data?.states?.[name]?.[c.type] ?? 0,
-        ]),
-      ),
-    }))
     .filter(
-      (row) =>
-        Object.values(row.counts).some((n) => n > 0) &&
-        row.name.toLowerCase().includes(search.toLowerCase()),
+      (name) =>
+        columns.some((c) => c.types.some((t) => countOf(c, name, t) > 0)) &&
+        name.toLowerCase().includes(search.toLowerCase()),
     );
 
-  const hasAges = list.groups.some((g) => g.sets.some((s) => s.title));
   const n = columns.length;
   const grid = `${STATE_WIDTH}px repeat(${n}, minmax(${COLUMN_MIN}px, 1fr))`;
 
-  // Header cells that run across several columns, built from the columns so
-  // the spans can never disagree with them.
-  const spans = (keyOf) =>
-    columns.reduce((out, column, i) => {
-      const key = keyOf(column);
-      const last = out[out.length - 1];
-      if (last && last.key === key) last.span += 1;
-      else out.push({ key, column, start: i + 2, span: 1 });
-      return out;
-    }, []);
-  const groupCells = spans((c) => c.groupTitle);
-  const setCells = spans((c) => c.segmentKey);
-  const typeRow = hasAges ? 3 : 2;
+  // The bands run across their group's columns, built from the columns so the
+  // spans can never disagree with them.
+  const groupCells = columns.reduce((out, column, i) => {
+    const last = out[out.length - 1];
+    if (last && last.key === column.groupTitle) last.span += 1;
+    else out.push({ key: column.groupTitle, column, start: i + 2, span: 1 });
+    return out;
+  }, []);
 
   return (
     <Paper
@@ -312,7 +319,7 @@ function LeadTable({ list, columns, bySegment, cart, search, onChange }) {
       sx={{
         borderRadius: 2,
         overflow: 'auto',
-        maxHeight: 'max(360px, calc(100vh - 320px))',
+        maxHeight: 'max(360px, calc(100vh - 280px))',
         maxWidth: STATE_WIDTH + n * COLUMN_MAX,
       }}
     >
@@ -332,7 +339,7 @@ function LeadTable({ list, columns, bySegment, cart, search, onChange }) {
           <Box
             sx={{
               gridColumn: 1,
-              gridRow: `1 / span ${typeRow}`,
+              gridRow: '1 / span 2',
               position: 'sticky',
               left: 0,
               zIndex: 1,
@@ -345,7 +352,7 @@ function LeadTable({ list, columns, bySegment, cart, search, onChange }) {
               sx={{
                 gridColumn: `${start} / span ${span}`,
                 gridRow: 1,
-                px: 1.5,
+                px: 1.25,
                 py: 1,
                 fontWeight: 700,
                 color: '#FFFFFF',
@@ -358,118 +365,98 @@ function LeadTable({ list, columns, bySegment, cart, search, onChange }) {
               {key}
             </Typography>
           ))}
-          {hasAges &&
-            setCells.map(({ key, column, start, span }) => (
-              <Typography
-                key={key}
-                variant='body2'
-                sx={{
-                  gridColumn: `${start} / span ${span}`,
-                  gridRow: 2,
-                  px: 1.5,
-                  pt: 1,
-                  fontWeight: 700,
-                  ...(column.instant && { bgcolor: INSTANT_TINT }),
-                  ...splitSx(column),
-                }}
-              >
-                {column.setTitle}
-              </Typography>
-            ))}
           {columns.map((column, i) => (
-            <Typography
+            <Box
               key={column.id}
-              variant='body2'
-              color='text.secondary'
               sx={{
                 gridColumn: i + 2,
-                gridRow: typeRow,
-                px: 1.5,
-                pt: hasAges ? 0.25 : 1,
-                pb: 1,
-                whiteSpace: 'nowrap',
+                gridRow: 2,
+                px: 1.25,
+                py: 1,
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
               }}
             >
-              {TYPE_LABEL[column.type]}
-              {column.price != null && (
-                <Box
-                  component='span'
-                  sx={{ ml: 0.75, fontWeight: 700, color: 'text.primary' }}
-                >
-                  {formatPrice(column.price)}
-                </Box>
+              {column.setTitle && (
+                <Typography variant='body2' sx={{ fontWeight: 700 }}>
+                  {column.setTitle}
+                </Typography>
               )}
-            </Typography>
+              <Typography variant='caption' color='text.secondary'>
+                {column.types
+                  .filter((type) => column.prices[type] != null)
+                  .map(
+                    (type) =>
+                      `${TYPE_LABEL[type]} ${formatPrice(column.prices[type])}`,
+                  )
+                  .join(' · ')}
+              </Typography>
+            </Box>
           ))}
         </Box>
 
-        {rows.map((row) => {
-          const quantities = columns.map(
-            (c) => cart[c.segmentKey]?.[row.name]?.[c.type] || 0,
-          );
-          const picked = quantities.some((q) => q > 0);
-          return (
+        {rows.map((state) => (
+          <Box
+            key={state}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: grid,
+              bgcolor: '#FFFFFF',
+              '& + &': { borderTop: `1px solid ${BORDER}` },
+              '&:hover': { bgcolor: '#F7F7F4' },
+            }}
+          >
             <Box
-              key={row.name}
               sx={{
-                display: 'grid',
-                gridTemplateColumns: grid,
-                bgcolor: '#FFFFFF',
-                '& + &': { borderTop: `1px solid ${DIVIDER}` },
-                '&:hover': { bgcolor: '#F7F7F4' },
+                pl: 2,
+                pr: 1,
+                display: 'flex',
+                alignItems: 'center',
+                position: 'sticky',
+                left: 0,
+                zIndex: 1,
+                bgcolor: 'inherit',
               }}
             >
-              <Typography
+              <Typography sx={{ fontWeight: 600, lineHeight: 1.25 }}>
+                {state}
+              </Typography>
+            </Box>
+            {columns.map((column) => (
+              <Box
+                key={column.id}
                 sx={{
-                  fontWeight: picked ? 700 : 500,
-                  pl: 2,
-                  pr: 1,
-                  py: 1,
-                  position: 'sticky',
-                  left: 0,
-                  zIndex: 1,
-                  bgcolor: 'inherit',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  px: 1.25,
+                  py: 1.75,
+                  minHeight: 64,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  ...(column.instant && { bgcolor: INSTANT_TINT }),
+                  ...splitSx(column),
                 }}
               >
-                {row.name}
-              </Typography>
-              {columns.map((column, i) => (
-                <Box
-                  key={column.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    px: 1,
-                    py: 0.5,
-                    ...(column.instant && { bgcolor: INSTANT_TINT }),
-                    ...splitSx(column),
-                  }}
-                >
-                  {row.counts[column.id] > 0 && (
-                    <QtyCell
-                      label={`${row.name}, ${column.groupTitle}${column.setTitle ? `, ${column.setTitle}` : ''}, ${TYPE_LABEL[column.type]}`}
-                      count={row.counts[column.id]}
-                      qty={quantities[i]}
-                      onChange={(value) =>
-                        onChange(
-                          column.segmentKey,
-                          row.name,
-                          column.type,
-                          Math.min(value, row.counts[column.id]),
-                        )
-                      }
-                    />
-                  )}
-                </Box>
-              ))}
-            </Box>
-          );
-        })}
+                {column.types.filter((type) => countOf(column, state, type) > 0).map((type) => (
+                  <TypeLine
+                    key={type}
+                    type={type}
+                    label={`${state}, ${column.groupTitle}${column.setTitle ? `, ${column.setTitle}` : ''}, ${TYPE_LABEL[type]}`}
+                    count={countOf(column, state, type)}
+                    qty={cart[column.id]?.[state]?.[type] || 0}
+                    onChange={(value) =>
+                      onChange(
+                        column.id,
+                        state,
+                        type,
+                        Math.min(value, countOf(column, state, type)),
+                      )
+                    }
+                  />
+                ))}
+              </Box>
+            ))}
+          </Box>
+        ))}
         {rows.length === 0 && (
           <Typography
             variant='body2'
@@ -588,8 +575,8 @@ function Store({ listKey }) {
   const failed = queries.filter((q) => q.isError);
   const columns = columnsOf(list, bySegment);
   const anyLeads = columns.some((c) =>
-    Object.values(bySegment[c.segmentKey].data?.states || {}).some(
-      (counts) => counts[c.type] > 0,
+    Object.values(bySegment[c.id].data?.states || {}).some((counts) =>
+      c.types.some((type) => counts[type] > 0),
     ),
   );
 
@@ -722,7 +709,6 @@ function Store({ listKey }) {
         ) : (
           <Stack spacing={2}>
             <LeadTable
-              list={list}
               columns={columns}
               bySegment={bySegment}
               cart={cart}

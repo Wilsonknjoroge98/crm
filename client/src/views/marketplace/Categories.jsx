@@ -245,7 +245,7 @@ export function AgedBanked() {
     <PageContainer>
       <Stack spacing={3}>
         <MarketplaceHeader
-          title='Aged & Banked Leads'
+          title='Lead Vault'
           breadcrumb={{ label: 'Marketplace', to: MARKETPLACE_PATH }}
           actions={<CartLink />}
         />

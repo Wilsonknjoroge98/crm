@@ -54,7 +54,7 @@ const Purchase = () => {
           />
           <ProductTile
             to={AGED_BANKED_PATH}
-            title='Aged & Banked Leads'
+            title='Lead Vault'
             description='Leads you can buy right now, by state, at a lower price.'
             figurePrefix={inventory.price == null ? null : 'From'}
             figure={inventory.price == null ? null : formatPrice(inventory.price)}
