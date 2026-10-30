@@ -328,13 +328,32 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               sx={{
                 gridColumn: i + 2,
                 gridRow: 2,
-                px: 1.25,
+                px: 1,
                 py: 1,
                 textAlign: 'center',
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
               }}
             >
+              {/* The same width as the lines below, so this sits over the boxes */}
+              <Box
+                sx={{ position: 'relative', maxWidth: LINE_MAX, mx: 'auto' }}
+              >
+                <Typography
+                  variant='caption'
+                  sx={{
+                    position: 'absolute',
+                    top: 1,
+                    right: 0,
+                    width: 48,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                  }}
+                >
+                  Quantity
+                </Typography>
+              </Box>
               {column.setTitle && (
                 <Typography variant='body2' sx={{ fontWeight: 700 }}>
                   {column.setTitle}
