@@ -18,7 +18,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import QtyInput from './QtyInput.jsx';
-import { CART_PATH, SEGMENTS, storePath } from './cartState.js';
+import { CART_PATH, SEGMENTS, SEGMENT_BY_KEY, storePath } from './cartState.js';
 
 export const MONO = '"JetBrains Mono", monospace';
 export const SANS = '"Inter", sans-serif';
@@ -44,6 +44,18 @@ export const formatMoney = (amount) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+
+// A list price: "$39", but "$1.50" when there are cents to show.
+export const formatPrice = (amount) =>
+  Number.isInteger(Number(amount)) ? `$${amount}` : formatMoney(amount);
+
+// The price beside a product or lead type, on the store and the hub.
+export const priceSx = {
+  fontWeight: 600,
+  fontSize: '1.125rem',
+  lineHeight: 1.3,
+  fontVariantNumeric: 'tabular-nums',
+};
 
 /**
  * Page title row, matching the Business tab: serif h4 on the left, actions on
@@ -96,96 +108,84 @@ export function MarketplaceHeader({
 }
 
 /**
- * Gold "Cart (n) • $x" action that opens the shared cart. `compact` renders a
- * quiet outlined "🛒 n" instead, for pages where another gold CTA (the store's
- * checkout bar) is already the primary path.
+ * Quiet link to the shared cart. The store's checkout bar is the primary path
+ * once something is in the cart, so this stays out of the way.
  */
-export function CartButton({ count, total, to = CART_PATH, compact }) {
-  if (compact) {
-    return (
-      <Button
-        variant='outlined'
-        color='primary'
-        component={RouterLink}
-        to={to}
-        aria-label={`Cart, ${count} lead${count === 1 ? '' : 's'}`}
-        startIcon={<ShoppingBagOutlinedIcon />}
-        sx={{ borderColor: BORDER, fontFamily: MONO, fontWeight: 700 }}
-      >
-        {count}
-      </Button>
-    );
-  }
+export function CartButton({ count, to = CART_PATH }) {
   return (
     <Button
-      variant='contained'
-      color='action'
+      variant='outlined'
+      color='primary'
       component={RouterLink}
       to={to}
+      aria-label={`Cart, ${count} lead${count === 1 ? '' : 's'}`}
       startIcon={<ShoppingBagOutlinedIcon />}
-      sx={{ fontWeight: 700, px: 2.5, whiteSpace: 'nowrap' }}
+      sx={{ borderColor: BORDER, whiteSpace: 'nowrap' }}
     >
-      Cart (
-      <Box component='span' sx={{ fontFamily: MONO }}>
-        {count}
-      </Box>
-      )
-      <Box component='span' sx={{ mx: 0.75, opacity: 0.6 }}>
-        •
-      </Box>
-      <Box component='span' sx={{ fontFamily: MONO }}>
-        {formatMoney(total)}
-      </Box>
+      Cart{count > 0 && ` (${count})`}
     </Button>
   );
 }
 
+// The store's two choices, which together name one segment.
+const SOURCE_OPTIONS = [
+  { value: 'funnel', label: 'Funnel' },
+  { value: 'instant', label: 'Instant Form' },
+];
+const AGE_OPTIONS = [
+  { value: 'aged_second', label: '31–90 days' },
+  { value: 'aged_third', label: '91–180 days' },
+  { value: 'banked', label: 'Banked' },
+];
+
+const toggleSx = {
+  px: 2,
+  fontWeight: 600,
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+};
+
 /**
- * Switches between every storefront segment, quote-funnel and instant-form,
- * in one row that scrolls sideways when it doesn't fit. `activeCount` shows
- * the selected segment's availability inline, e.g. "Funnel 31–90 (333)".
+ * Picks the store's segment with two separate choices: where the lead came
+ * from, and how old it is.
  */
-export function SegmentToggle({ segmentKey, activeCount }) {
+export function SegmentToggle({ segmentKey }) {
   const navigate = useNavigate();
+  const { source } = SEGMENT_BY_KEY[segmentKey];
+  const age = segmentKey.replace('instant_', '');
+  const go = (nextSource, nextAge) =>
+    navigate(
+      storePath(`${nextSource === 'instant' ? 'instant_' : ''}${nextAge}`),
+    );
   return (
-    <ToggleButtonGroup
-      value={segmentKey}
-      exclusive
-      size='small'
-      sx={{ maxWidth: '100%', overflowX: 'auto' }}
-      onChange={(event, value) => {
-        if (!value || value === segmentKey) return;
-        navigate(storePath(value));
-      }}
-    >
-      {SEGMENTS.map((segment) => (
-        <ToggleButton
-          key={segment.key}
-          value={segment.key}
-          sx={{
-            px: 2,
-            fontWeight: 600,
-            textTransform: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {segment.shortLabel}
-          {segment.key === segmentKey && activeCount != null && (
-            <Box
-              component='span'
-              sx={{
-                ml: 0.75,
-                fontFamily: MONO,
-                fontWeight: 500,
-                color: 'text.secondary',
-              }}
-            >
-              ({activeCount.toLocaleString()})
-            </Box>
-          )}
-        </ToggleButton>
-      ))}
-    </ToggleButtonGroup>
+    <Stack direction='row' spacing={1.5} useFlexGap flexWrap='wrap'>
+      <ToggleButtonGroup
+        value={source}
+        exclusive
+        size='small'
+        aria-label='Lead source'
+        onChange={(event, value) => value && go(value, age)}
+      >
+        {SOURCE_OPTIONS.map(({ value, label }) => (
+          <ToggleButton key={value} value={value} sx={toggleSx}>
+            {label}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+      <ToggleButtonGroup
+        value={age}
+        exclusive
+        size='small'
+        aria-label='Lead age'
+        onChange={(event, value) => value && go(source, value)}
+      >
+        {AGE_OPTIONS.map(({ value, label }) => (
+          <ToggleButton key={value} value={value} sx={toggleSx}>
+            {label}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+    </Stack>
   );
 }
 

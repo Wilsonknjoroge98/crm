@@ -12,8 +12,7 @@ export const CHECKOUT_PATH = `${MARKETPLACE_PATH}/checkout`;
 // segments. Banked leads are the API's `fresh` lead type; aged is split into
 // two age windows (`tier`). `source` separates GSQ quote-funnel leads from
 // Meta instant-form leads, which have their own stores and prices and are
-// only sold verified. `shortLabel` is the segment's name in the store's top
-// bar, where all six sit in one row; `label` is used everywhere else.
+// only sold verified.
 export const SEGMENTS = [
   {
     key: 'aged_second',
@@ -22,7 +21,6 @@ export const SEGMENTS = [
     tier: 'second',
     verifiedOnly: false,
     label: '31–90 Day Aged',
-    shortLabel: 'Funnel 31–90',
     unit: 'aged lead',
     window: 'Submitted 31–90 days ago',
   },
@@ -33,7 +31,6 @@ export const SEGMENTS = [
     tier: 'third',
     verifiedOnly: false,
     label: '91–180 Day Aged',
-    shortLabel: 'Funnel 91–180',
     unit: 'aged lead',
     window: 'Submitted 91–180 days ago',
   },
@@ -44,7 +41,6 @@ export const SEGMENTS = [
     tier: null,
     verifiedOnly: false,
     label: 'Banked Leads',
-    shortLabel: 'Funnel Banked',
     unit: 'banked lead',
     window: 'Submitted within the last 72 hours',
   },
@@ -55,7 +51,6 @@ export const SEGMENTS = [
     tier: 'second',
     verifiedOnly: true,
     label: '31–90 Day Aged Instant Forms',
-    shortLabel: 'Instant 31–90',
     unit: 'aged instant form lead',
     window: 'Submitted 31–90 days ago',
   },
@@ -66,7 +61,6 @@ export const SEGMENTS = [
     tier: 'third',
     verifiedOnly: true,
     label: '91–180 Day Aged Instant Forms',
-    shortLabel: 'Instant 91–180',
     unit: 'aged instant form lead',
     window: 'Submitted 91–180 days ago',
   },
@@ -77,7 +71,6 @@ export const SEGMENTS = [
     tier: null,
     verifiedOnly: true,
     label: 'Banked Instant Forms',
-    shortLabel: 'Instant Banked',
     unit: 'banked instant form lead',
     window: 'Submitted within the last 72 hours',
   },
