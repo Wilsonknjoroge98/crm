@@ -10,6 +10,7 @@ import {
   DialogActions,
   DialogContent,
   InputAdornment,
+  Link,
   Paper,
   Stack,
   TextField,
@@ -17,6 +18,7 @@ import {
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
@@ -38,12 +40,11 @@ import {
   BORDER,
   GOLD,
   INK,
-  MarketplaceHeader,
   formatMoney,
   formatPrice,
 } from './ui.jsx';
 import QtyInput from './QtyInput.jsx';
-import PageContainer, { PAGE_FILL_HEIGHT } from '../../components/PageContainer';
+import PageContainer from '../../components/PageContainer';
 
 const FRESH_EXPLAINER = [
   {
@@ -119,7 +120,9 @@ const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
-const CHECKOUT_BAR_OVERLAP = 36;
+const CHECKOUT_BAR_HEIGHT = 68;
+// Wide enough for the title row to share the NavBar's height with its buttons.
+const TITLE_IN_NAVBAR = '@media (min-width: 1280px)';
 
 /** The box a quantity is typed into; navy once something is picked. */
 function QtyBox({ label, count, qty, onChange }) {
@@ -335,17 +338,40 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 ...splitSx(column),
               }}
             >
-              {/* The same width as the lines below, so this sits over the boxes */}
+              {/* The same width as the lines below, so Quantity sits over the boxes */}
               <Box
-                sx={{ position: 'relative', maxWidth: LINE_MAX, mx: 'auto' }}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1fr) 48px',
+                  columnGap: 0.5,
+                  alignItems: 'center',
+                  maxWidth: LINE_MAX,
+                  mx: 'auto',
+                }}
               >
+                <Box>
+                  {column.setTitle && (
+                    <Typography variant='body2' sx={{ fontWeight: 700 }}>
+                      {column.setTitle}
+                    </Typography>
+                  )}
+                  <Typography
+                    variant='caption'
+                    color='text.secondary'
+                    sx={{ display: 'block', lineHeight: 1.3 }}
+                  >
+                    {column.types
+                      .filter((type) => column.prices[type] != null)
+                      .map(
+                        (type) =>
+                          `${TYPE_LABEL[type]} ${formatPrice(column.prices[type])}`,
+                      )
+                      .join(' · ')}
+                  </Typography>
+                </Box>
                 <Typography
                   variant='caption'
                   sx={{
-                    position: 'absolute',
-                    top: 1,
-                    right: 0,
-                    width: 48,
                     display: 'flex',
                     justifyContent: 'center',
                     fontWeight: 700,
@@ -354,20 +380,6 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                   Quantity
                 </Typography>
               </Box>
-              {column.setTitle && (
-                <Typography variant='body2' sx={{ fontWeight: 700 }}>
-                  {column.setTitle}
-                </Typography>
-              )}
-              <Typography variant='caption' color='text.secondary'>
-                {column.types
-                  .filter((type) => column.prices[type] != null)
-                  .map(
-                    (type) =>
-                      `${TYPE_LABEL[type]} ${formatPrice(column.prices[type])}`,
-                  )
-                  .join(' · ')}
-              </Typography>
             </Box>
           ))}
         </Box>
@@ -505,16 +517,18 @@ function Store({ listKey }) {
   const cartTotal = linesTotal(lines);
 
   return (
-    // The full width of the page, and just tall enough that the table scrolls
-    // inside it. App's padding sits under this, and the checkout bar covers that
-    // padding and CHECKOUT_BAR_OVERLAP more.
+    // The full width of the page and the full height of the window below the
+    // NavBar (cancelling App's bottom padding), so the table scrolls inside it
+    // and clears the checkout bar.
     <PageContainer
       width={false}
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: `max(480px, ${PAGE_FILL_HEIGHT})`,
-        pb: cartCount > 0 ? `${CHECKOUT_BAR_OVERLAP}px` : 0,
+        height: 'max(480px, calc(100vh - 64px))',
+        mb: '-48px',
+        pt: 0,
+        pb: cartCount > 0 ? `${CHECKOUT_BAR_HEIGHT + 12}px` : 2,
       }}
     >
       <Dialog
@@ -578,30 +592,59 @@ function Store({ listKey }) {
         </DialogActions>
       </Dialog>
 
-      <Stack spacing={2.5} sx={{ flex: 1, minHeight: 0 }}>
-        <MarketplaceHeader
-          title={list.title}
-          breadcrumb={{ label: 'Back', to: AGED_BANKED_PATH }}
-          actions={
-            <TextField
-              size='small'
-              placeholder='Search states'
-              aria-label='Search states'
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>
-                      <SearchOutlinedIcon fontSize='small' />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-              sx={{ width: { xs: '100%', sm: 200 }, bgcolor: '#FFFFFF' }}
-            />
-          }
-        />
+      <Stack spacing={1.5} sx={{ flex: 1, minHeight: 0 }}>
+        {/* In the empty left side of the NavBar, so the table gets the height.
+            Only as wide as its contents, the NavBar's buttons stay clickable. */}
+        <Stack
+          direction='row'
+          spacing={2}
+          alignItems='center'
+          sx={{
+            flexShrink: 0,
+            height: 64,
+            width: 'fit-content',
+            position: 'relative',
+            // && to outrank the margin Stack gives its children
+            [TITLE_IN_NAVBAR]: { '&&': { mt: '-64px' } },
+          }}
+        >
+          <Typography variant='h4' sx={{ whiteSpace: 'nowrap' }}>
+            {list.title}
+          </Typography>
+          <Link
+            component={RouterLink}
+            to={AGED_BANKED_PATH}
+            underline='hover'
+            color='text.secondary'
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.5,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+          >
+            <ArrowBackIcon sx={{ fontSize: 16 }} />
+            Back
+          </Link>
+          <TextField
+            size='small'
+            placeholder='Search states'
+            aria-label='Search states'
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position='start'>
+                    <SearchOutlinedIcon fontSize='small' />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ width: 190, bgcolor: '#FFFFFF' }}
+          />
+        </Stack>
 
         {failed.length > 0 && !loading && (
           <Alert
