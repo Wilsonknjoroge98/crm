@@ -148,8 +148,11 @@ const typesOf = (segmentKey) =>
     : ['verified', 'unverified'];
 
 const STATE_WIDTH = 110;
-// Wide enough for "317 Available" beside its label and box.
-const COLUMN_MIN = 218;
+// Each wide enough for "317 Available" beside its label and box. Funnel columns
+// hold two lead types and more leads, so they get the extra room.
+const FUNNEL_MIN = 230;
+const INSTANT_MIN = 206;
+const FUNNEL_SHARE = 1.25;
 const COLUMN_MAX = 300;
 const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
@@ -189,12 +192,12 @@ function QtyBox({ label, count, qty, onChange }) {
 }
 
 /** One line of a state's cell: the lead type, how many, and the quantity. */
-function TypeLine({ type, label, count, qty, onChange }) {
+function TypeLine({ type, label, count, qty, onChange, labelWidth }) {
   return (
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: '62px minmax(0, 1fr) 48px',
+        gridTemplateColumns: `${labelWidth}px minmax(0, 1fr) 48px`,
         columnGap: 0.5,
         alignItems: 'center',
         justifyItems: 'center',
@@ -268,7 +271,18 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
     );
 
   const n = columns.length;
-  const grid = `${STATE_WIDTH}px repeat(${n}, minmax(${COLUMN_MIN}px, 1fr))`;
+  const grid = [
+    `${STATE_WIDTH}px`,
+    ...columns.map((c) =>
+      c.instant
+        ? `minmax(${INSTANT_MIN}px, 1fr)`
+        : `minmax(${FUNNEL_MIN}px, ${FUNNEL_SHARE}fr)`,
+    ),
+  ].join(' ');
+  const minWidth = columns.reduce(
+    (sum, c) => sum + (c.instant ? INSTANT_MIN : FUNNEL_MIN),
+    STATE_WIDTH,
+  );
 
   // The bands run across their group's columns, built from the columns so the
   // spans can never disagree with them.
@@ -289,7 +303,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
         maxWidth: STATE_WIDTH + n * COLUMN_MAX,
       }}
     >
-      <Box sx={{ minWidth: STATE_WIDTH + n * COLUMN_MIN }}>
+      <Box sx={{ minWidth }}>
         <Box
           sx={{
             display: 'grid',
@@ -421,6 +435,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 {column.types.map((type) => (
                   <TypeLine
                     key={type}
+                    labelWidth={column.types.length > 1 ? 62 : 52}
                     type={type}
                     label={`${state}, ${column.groupTitle}${column.setTitle ? `, ${column.setTitle}` : ''}, ${TYPE_LABEL[type]}`}
                     count={countOf(column, state, type)}
