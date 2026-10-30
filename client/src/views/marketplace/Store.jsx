@@ -196,9 +196,11 @@ function TypeLine({ type, label, count, qty, onChange, roomy }) {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: '66px 1fr auto',
+        gridTemplateColumns: '66px 1fr 56px',
         columnGap: 0.75,
         alignItems: 'center',
+        justifyItems: 'center',
+        textAlign: 'center',
         minHeight: 34,
       }}
     >
@@ -320,10 +322,10 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               zIndex: 1,
               bgcolor: '#FFFFFF',
               borderRight: SET_SPLIT,
-              pl: 1.5,
-              pr: 1,
+              px: 1.25,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <Box
@@ -342,6 +344,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 px: 1.25,
                 py: 1,
                 fontWeight: 700,
+                textAlign: 'center',
                 color: '#FFFFFF',
                 bgcolor: column.instant ? BAND_DARK : BAND,
                 ...(column.firstInGroup && {
@@ -360,6 +363,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 gridRow: 2,
                 px: 1.25,
                 py: 1,
+                textAlign: 'center',
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
               }}
@@ -395,10 +399,11 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
           >
             <Box
               sx={{
-                pl: 2,
-                pr: 1,
+                px: 1,
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
                 position: 'sticky',
                 left: 0,
                 zIndex: 1,
@@ -417,6 +422,9 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                   px: 1.25,
                   py: 1.75,
                   minHeight: 64,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
                   ...(column.instant && { bgcolor: INSTANT_TINT }),
                   ...splitSx(column),
                 }}
