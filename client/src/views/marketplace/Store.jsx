@@ -9,9 +9,7 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  Collapse,
   InputAdornment,
-  Link,
   Paper,
   Stack,
   TextField,
@@ -22,12 +20,10 @@ import { Link as RouterLink } from 'react-router-dom';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   AGED_BANKED_PATH,
   CART_PATH,
   SEGMENT_BY_KEY,
-  SOURCE_HELP,
   cartLines,
   linesCount,
   linesTotal,
@@ -47,36 +43,7 @@ import {
   formatPrice,
 } from './ui.jsx';
 import QtyInput from './QtyInput.jsx';
-import PageContainer from '../../components/PageContainer';
-
-const INCLUDED_FIELDS = [
-  'Full Name',
-  'Email Address',
-  'Phone Number',
-  'Reason for Coverage',
-  'State',
-  'Gender',
-  'Date of Birth',
-  'Height / Weight',
-  'Tobacco Use',
-  'Health Rating',
-  'Coverage Amount',
-  'Monthly Budget',
-  'Beneficiary',
-  'Best Time to Call',
-  'Selected Carrier',
-  'Selected Plan',
-];
-
-// Meta instant forms collect contact details plus the form's own qualifying
-// questions, delivered as one column.
-const INSTANT_FORM_FIELDS = [
-  'Full Name',
-  'Email Address',
-  'Phone Number',
-  'State',
-  'Instant Form Answers',
-];
+import PageContainer, { PAGE_FILL_HEIGHT } from '../../components/PageContainer';
 
 const FRESH_EXPLAINER = [
   {
@@ -93,9 +60,6 @@ const FRESH_EXPLAINER = [
   },
 ];
 
-// Folded away with the lead's fields.
-const VERIFIED_HELP = 'Verified means the phone number was confirmed by text.';
-
 // What each list sells, left to right. Each segment's verifiedOnly flag decides
 // whether it gets an Unverified column.
 const LISTS = {
@@ -105,7 +69,6 @@ const LISTS = {
       {
         source: 'funnel',
         title: 'Funnel',
-        fields: INCLUDED_FIELDS,
         sets: [
           { key: 'aged_second', title: '31–90 Days' },
           { key: 'aged_third', title: '91–180 Days' },
@@ -114,7 +77,6 @@ const LISTS = {
       {
         source: 'instant',
         title: 'Instant Form',
-        fields: INSTANT_FORM_FIELDS,
         sets: [
           { key: 'instant_aged_second', title: '31–90 Days' },
           { key: 'instant_aged_third', title: '91–180 Days' },
@@ -128,13 +90,11 @@ const LISTS = {
       {
         source: 'funnel',
         title: 'Funnel',
-        fields: INCLUDED_FIELDS,
         sets: [{ key: 'banked' }],
       },
       {
         source: 'instant',
         title: 'Instant Form',
-        fields: INSTANT_FORM_FIELDS,
         sets: [{ key: 'instant_banked' }],
       },
     ],
@@ -153,11 +113,13 @@ const STATE_WIDTH = 110;
 const FUNNEL_MIN = 230;
 const INSTANT_MIN = 206;
 const FUNNEL_SHARE = 1.25;
-const COLUMN_MAX = 300;
+// A line stays together in the middle of a wide column.
+const LINE_MAX = 320;
 const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
+const CHECKOUT_BAR_OVERLAP = 36;
 
 /** The box a quantity is typed into; navy once something is picked. */
 function QtyBox({ label, count, qty, onChange }) {
@@ -203,6 +165,9 @@ function TypeLine({ type, label, count, qty, onChange, labelWidth }) {
         justifyItems: 'center',
         textAlign: 'center',
         minHeight: 34,
+        width: '100%',
+        maxWidth: LINE_MAX,
+        alignSelf: 'center',
       }}
     >
       <Typography
@@ -270,7 +235,6 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
         name.toLowerCase().includes(search.toLowerCase()),
     );
 
-  const n = columns.length;
   const grid = [
     `${STATE_WIDTH}px`,
     ...columns.map((c) =>
@@ -299,8 +263,8 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
       sx={{
         borderRadius: 2,
         overflow: 'auto',
-        maxHeight: 'max(360px, calc(100vh - 280px))',
-        maxWidth: STATE_WIDTH + n * COLUMN_MAX,
+        flex: '0 1 auto',
+        minHeight: 0,
       }}
     >
       <Box sx={{ minWidth }}>
@@ -468,71 +432,6 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
   );
 }
 
-/** What the words mean and what comes with a lead, folded away until asked for. */
-function AboutLeads({ groups }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Box>
-      <Link
-        component='button'
-        type='button'
-        underline='hover'
-        color='text.secondary'
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 0.5,
-          fontSize: '0.875rem',
-          fontWeight: 600,
-        }}
-      >
-        About these leads
-        <ExpandMoreIcon
-          sx={{
-            fontSize: 18,
-            transition: 'transform 0.15s ease',
-            transform: open ? 'rotate(180deg)' : 'none',
-          }}
-        />
-      </Link>
-      <Collapse in={open}>
-        <Typography variant='body2' color='text.secondary' sx={{ mt: 1.5 }}>
-          {VERIFIED_HELP}
-        </Typography>
-        {groups.map((group) => (
-          <Box key={group.source} sx={{ mt: 2 }}>
-            <Typography variant='body2' sx={{ fontWeight: 700 }}>
-              {group.title}
-            </Typography>
-            <Typography variant='body2' color='text.secondary'>
-              {SOURCE_HELP[group.source]}
-            </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                  xs: 'repeat(2, 1fr)',
-                  md: 'repeat(4, 1fr)',
-                },
-                gap: 1,
-                mt: 1,
-              }}
-            >
-              {group.fields.map((field) => (
-                <Typography key={field} variant='body2' color='text.secondary'>
-                  {field}
-                </Typography>
-              ))}
-            </Box>
-          </Box>
-        ))}
-      </Collapse>
-    </Box>
-  );
-}
-
 function Store({ listKey }) {
   const list = LISTS[listKey];
   const isBanked = listKey === 'banked';
@@ -587,8 +486,18 @@ function Store({ listKey }) {
   const cartTotal = linesTotal(lines);
 
   return (
-    // Capped at lg (1200px) like the marketplace landing page.
-    <PageContainer sx={{ pb: cartCount > 0 ? 12 : 3 }}>
+    // The full width of the page, and just tall enough that the table scrolls
+    // inside it. App's padding sits under this, and the checkout bar covers that
+    // padding and CHECKOUT_BAR_OVERLAP more.
+    <PageContainer
+      width={false}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: `max(480px, ${PAGE_FILL_HEIGHT})`,
+        pb: cartCount > 0 ? `${CHECKOUT_BAR_OVERLAP}px` : 0,
+      }}
+    >
       <Dialog
         open={showExplainer}
         onClose={handleCloseExplainer}
@@ -650,7 +559,7 @@ function Store({ listKey }) {
         </DialogActions>
       </Dialog>
 
-      <Stack spacing={2.5}>
+      <Stack spacing={2.5} sx={{ flex: 1, minHeight: 0 }}>
         <MarketplaceHeader
           title={list.title}
           breadcrumb={{ label: 'Back', to: AGED_BANKED_PATH }}
@@ -704,16 +613,13 @@ function Store({ listKey }) {
             <Typography color='text.secondary'>Check back soon.</Typography>
           </Box>
         ) : (
-          <Stack spacing={2}>
-            <LeadTable
-              columns={columns}
-              bySegment={bySegment}
-              cart={cart}
-              search={search}
-              onChange={setQuantity}
-            />
-            <AboutLeads groups={list.groups} />
-          </Stack>
+          <LeadTable
+            columns={columns}
+            bySegment={bySegment}
+            cart={cart}
+            search={search}
+            onChange={setQuantity}
+          />
         )}
       </Stack>
 
@@ -733,7 +639,7 @@ function Store({ listKey }) {
           }}
         >
           {/* the bar spans the viewport; its contents line up with the page */}
-          <Container maxWidth='lg' sx={{ px: { xs: 2, md: 3 } }}>
+          <Container maxWidth={false} sx={{ px: { xs: 2, md: 3 } }}>
             <Stack
               direction='row'
               justifyContent='space-between'

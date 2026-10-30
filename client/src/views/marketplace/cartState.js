@@ -81,12 +81,6 @@ export const SEGMENTS = [
   },
 ];
 
-// Plain words for where a lead came from.
-export const SOURCE_HELP = {
-  funnel: 'Filled out the quote form on GetSeniorQuotes and selected a quote.',
-  instant: 'Filled out a short form on Facebook or Instagram.',
-};
-
 export const SEGMENT_BY_KEY = Object.fromEntries(
   SEGMENTS.map((segment) => [segment.key, segment]),
 );
