@@ -5,8 +5,15 @@ import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import { MARKETPLACE_PATH } from './api.js';
 import {
+  AGED_BANKED_PATH,
+  AGED_PATH,
   AGED_SEGMENTS,
+  BANKED_PATH,
   BANKED_SEGMENTS,
+  SEGMENT_BY_KEY,
+  SOURCE_HELP,
+  sellableCount,
+  sellablePrices,
   storePath,
   summarizeSegments,
   useMarketplaceInventory,
@@ -14,6 +21,7 @@ import {
 import {
   BORDER,
   CartLink,
+  ChoiceTile,
   LeadTypeChip,
   MarketplaceHeader,
   ProductTile,
@@ -217,15 +225,15 @@ export const Software = () => (
 );
 
 /** Aged or banked: how many are available, what they are, and what they cost. */
-function InventoryTile({ summary, icon, title, description, emptyMessage }) {
-  const { available, loading, price, segmentKey } = summary;
+function InventoryTile({ summary, to, icon, title, description, emptyMessage }) {
+  const { available, loading, price } = summary;
   const empty = available === 0;
   let highlight = null;
   if (empty) highlight = emptyMessage;
   else if (available > 0) highlight = `${available.toLocaleString()} available`;
   return (
     <ProductTile
-      to={storePath(segmentKey)}
+      to={to}
       icon={icon}
       title={title}
       description={description}
@@ -258,6 +266,7 @@ export function AgedBanked() {
         >
           <InventoryTile
             summary={summarizeSegments(bySegment, AGED_SEGMENTS)}
+            to={AGED_PATH}
             icon={HistoryOutlinedIcon}
             title='Aged Leads'
             description='31–180 days old, at a lower price.'
@@ -265,10 +274,123 @@ export function AgedBanked() {
           />
           <InventoryTile
             summary={summarizeSegments(bySegment, BANKED_SEGMENTS)}
+            to={BANKED_PATH}
             icon={AccountBalanceOutlinedIcon}
             title='Banked Leads'
             description='Under 72 hours old, never issued to an agent.'
             emptyMessage='No fresh leads are banked right now.'
+          />
+        </Box>
+      </Stack>
+    </PageContainer>
+  );
+}
+
+/** One age or source of leads: how many are left and what they cost. */
+function SegmentTile({ segmentKey, title, note, bySegment }) {
+  const segment = SEGMENT_BY_KEY[segmentKey];
+  const { data, isLoading } = bySegment[segmentKey];
+  // A failed lookup stays clickable, so the agent can open the store and retry.
+  const count = data ? sellableCount(segment, data) : null;
+  const prices = sellablePrices(segment, data);
+  const low = Math.min(...prices);
+  const high = Math.max(...prices);
+  let highlight = '';
+  if (isLoading) highlight = 'Checking what’s available…';
+  else if (count === 0) highlight = 'None right now';
+  else if (count > 0) highlight = `${count.toLocaleString()} left`;
+  let meta = '';
+  if (count > 0 && prices.length) {
+    meta =
+      low === high
+        ? `${formatPrice(low)} each`
+        : `${formatPrice(low)} to ${formatPrice(high)} each`;
+  }
+  return (
+    <ChoiceTile
+      to={storePath(segmentKey)}
+      title={title}
+      note={note}
+      highlight={highlight}
+      meta={meta}
+      disabled={count === 0}
+    />
+  );
+}
+
+function SourceSection({ source, title, children }) {
+  return (
+    <Box>
+      <Typography variant='h6' component='h2' sx={{ fontWeight: 600 }}>
+        {title}
+      </Typography>
+      <Typography color='text.secondary' sx={{ mb: 1.5 }}>
+        {SOURCE_HELP[source]}
+      </Typography>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+          gap: 2,
+        }}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+export function AgedLeads() {
+  const { bySegment } = useMarketplaceInventory();
+  return (
+    <PageContainer>
+      <Stack spacing={3}>
+        <MarketplaceHeader
+          title='Aged Leads'
+          breadcrumb={{ label: 'Back', to: AGED_BANKED_PATH }}
+          actions={<CartLink />}
+        />
+        <SourceSection source='funnel' title='Funnel'>
+          <SegmentTile segmentKey='aged_second' title='31–90 days' bySegment={bySegment} />
+          <SegmentTile segmentKey='aged_third' title='91–180 days' bySegment={bySegment} />
+        </SourceSection>
+        <SourceSection source='instant' title='Instant Form'>
+          <SegmentTile segmentKey='instant_aged_second' title='31–90 days' bySegment={bySegment} />
+          <SegmentTile segmentKey='instant_aged_third' title='91–180 days' bySegment={bySegment} />
+        </SourceSection>
+      </Stack>
+    </PageContainer>
+  );
+}
+
+export function BankedLeads() {
+  const { bySegment } = useMarketplaceInventory();
+  return (
+    <PageContainer>
+      <Stack spacing={3}>
+        <MarketplaceHeader
+          title='Banked Leads'
+          breadcrumb={{ label: 'Back', to: AGED_BANKED_PATH }}
+          actions={<CartLink />}
+        />
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+            gap: 2,
+          }}
+        >
+          <SegmentTile
+            segmentKey='banked'
+            title='Funnel'
+            note={SOURCE_HELP.funnel}
+            bySegment={bySegment}
+          />
+          <SegmentTile
+            segmentKey='instant_banked'
+            title='Instant Form'
+            note={SOURCE_HELP.instant}
+            bySegment={bySegment}
           />
         </Box>
       </Stack>

@@ -36,6 +36,16 @@ const MarketplaceAgedBanked = lazy(() =>
     default: m.AgedBanked,
   })),
 );
+const MarketplaceAgedLeads = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.AgedLeads,
+  })),
+);
+const MarketplaceBankedLeads = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.BankedLeads,
+  })),
+);
 const MarketplaceSoftware = lazy(() =>
   import('../views/marketplace/Categories').then((m) => ({
     default: m.Software,
@@ -262,6 +272,8 @@ const router = createBrowserRouter([
       },
       marketplaceRoute('/fresh-leads', MarketplaceFreshLeads),
       marketplaceRoute('/aged-banked', MarketplaceAgedBanked),
+      marketplaceRoute('/aged-banked/aged', MarketplaceAgedLeads),
+      marketplaceRoute('/aged-banked/banked', MarketplaceBankedLeads),
       marketplaceRoute('/software', MarketplaceSoftware),
       marketplaceRoute('/:leadType/store', MarketplaceStore),
       // One shared cart across segments.

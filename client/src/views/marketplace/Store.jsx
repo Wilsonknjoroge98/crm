@@ -31,8 +31,10 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
-  AGED_BANKED_PATH,
+  AGED_PATH,
+  BANKED_PATH,
   CART_PATH,
+  SOURCE_HELP,
   cartLines,
   getSegment,
   linesCount,
@@ -48,7 +50,6 @@ import {
   GOLD,
   MarketplaceHeader,
   QtyStepper,
-  SegmentToggle,
   formatMoney,
   formatPrice,
 } from './ui.jsx';
@@ -98,11 +99,7 @@ const FRESH_EXPLAINER = [
   },
 ];
 
-// Plain words for the sub-categories, folded away with the lead's fields.
-const SOURCE_HELP = {
-  funnel: 'Funnel leads filled out the quote form on GetSeniorQuotes and selected a quote.',
-  instant: 'Instant Form leads filled out a short form on Facebook or Instagram.',
-};
+// Folded away with the lead's fields.
 const VERIFIED_HELP = 'Verified means the phone number was confirmed by text.';
 
 /**
@@ -350,7 +347,6 @@ export default function Store() {
 
   useEffect(() => {
     rememberStore(segment.key);
-    setSearch('');
   }, [segment.key]);
 
   // Every segment's inventory: this page's for the picker, all of them to
@@ -459,19 +455,14 @@ export default function Store() {
 
       <Stack spacing={2.5}>
         <MarketplaceHeader
-          title={segment.leadType === 'fresh' ? 'Banked Leads' : 'Aged Leads'}
-          breadcrumb={{ label: 'Back', to: AGED_BANKED_PATH }}
+          title={segment.title}
+          breadcrumb={{
+            label: 'Back',
+            to: segment.leadType === 'fresh' ? BANKED_PATH : AGED_PATH,
+          }}
         />
 
-        <Stack
-          direction='row'
-          justifyContent='space-between'
-          alignItems='center'
-          useFlexGap
-          flexWrap='wrap'
-          spacing={2}
-        >
-          <SegmentToggle segmentKey={segment.key} />
+        <Stack direction='row' justifyContent='flex-end'>
           <TextField
             size='small'
             placeholder='Search'

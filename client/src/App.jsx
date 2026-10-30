@@ -44,7 +44,9 @@ const App = () => {
   // The Marketplace's choice pages sit on a tinted canvas, applied here so it
   // reaches under the nav offset and through the footer.
   const pageBackground =
-    /^\/purchase-leads(\/(fresh-leads|aged-banked|software))?$/.test(pathname)
+    /^\/purchase-leads(\/(fresh-leads|aged-banked(\/(aged|banked))?|software))?$/.test(
+      pathname,
+    )
       ? theme.palette.background.tinted
       : theme.palette.background.default;
 

@@ -10,11 +10,9 @@ import {
   Link,
   Paper,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -24,10 +22,8 @@ import QtyInput from './QtyInput.jsx';
 import {
   CART_PATH,
   SEGMENTS,
-  SEGMENT_BY_KEY,
   cartLines,
   linesCount,
-  storePath,
   useCart,
   useMarketplaceInventory,
 } from './cartState.js';
@@ -147,71 +143,6 @@ export function CartLink() {
   return count > 0 ? <CartButton count={count} /> : null;
 }
 
-// The store's sub-categories. Banked leads have no age choice.
-const SOURCE_OPTIONS = [
-  { value: 'funnel', label: 'Funnel' },
-  { value: 'instant', label: 'Instant Form' },
-];
-const AGE_OPTIONS = [
-  { value: 'aged_second', label: '31–90 days' },
-  { value: 'aged_third', label: '91–180 days' },
-];
-
-const toggleSx = {
-  px: 2,
-  fontWeight: 600,
-  textTransform: 'none',
-  whiteSpace: 'nowrap',
-};
-
-function ToggleGroup({ label, value, options, onPick }) {
-  return (
-    <ToggleButtonGroup
-      value={value}
-      exclusive
-      size='small'
-      aria-label={label}
-      onChange={(event, next) => next && onPick(next)}
-    >
-      {options.map((option) => (
-        <ToggleButton key={option.value} value={option.value} sx={toggleSx}>
-          {option.label}
-        </ToggleButton>
-      ))}
-    </ToggleButtonGroup>
-  );
-}
-
-/**
- * The store's sub-categories: where the lead came from and, for aged leads,
- * how old it is.
- */
-export function SegmentToggle({ segmentKey }) {
-  const navigate = useNavigate();
-  const { source, leadType } = SEGMENT_BY_KEY[segmentKey];
-  const age = segmentKey.replace('instant_', '');
-  const keyFor = (nextSource, nextAge) =>
-    `${nextSource === 'instant' ? 'instant_' : ''}${nextAge}`;
-  return (
-    <Stack direction='row' spacing={1.5} useFlexGap flexWrap='wrap'>
-      <ToggleGroup
-        label='Lead source'
-        value={source}
-        options={SOURCE_OPTIONS}
-        onPick={(value) => navigate(storePath(keyFor(value, age)))}
-      />
-      {leadType === 'aged' && (
-        <ToggleGroup
-          label='Lead age'
-          value={age}
-          options={AGE_OPTIONS}
-          onPick={(value) => navigate(storePath(keyFor(source, value)))}
-        />
-      )}
-    </Stack>
-  );
-}
-
 /**
  * A large tile that opens the next step of the Marketplace. A `disabled` tile
  * has nothing to open.
@@ -294,6 +225,71 @@ export function ProductTile({
           <Typography color={disabled ? 'text.disabled' : 'text.secondary'}>
             {meta}
           </Typography>
+          {!disabled && <ArrowForwardIcon sx={{ color: INK }} />}
+        </Stack>
+      </CardActionArea>
+    </Paper>
+  );
+}
+
+/**
+ * A smaller tile for the last choice before the state list: what it is, how
+ * many are left and what they cost. A `disabled` tile has nothing to open.
+ */
+export function ChoiceTile({ to, title, note, highlight, meta, disabled }) {
+  return (
+    <Paper
+      variant='outlined'
+      sx={{
+        borderRadius: 2,
+        overflow: 'hidden',
+        bgcolor: disabled ? '#FAFAFA' : '#FFFFFF',
+        transition: 'border-color 0.15s ease',
+        '&:hover': disabled ? {} : { borderColor: INK },
+      }}
+    >
+      <CardActionArea
+        component={disabled ? 'div' : RouterLink}
+        to={disabled ? undefined : to}
+        disabled={disabled}
+        sx={{ p: 3 }}
+      >
+        <Stack
+          direction='row'
+          justifyContent='space-between'
+          alignItems='center'
+          spacing={2}
+        >
+          <Box>
+            <Typography
+              component='h3'
+              sx={{ fontWeight: 600, fontSize: '1.25rem' }}
+              color={disabled ? 'text.disabled' : 'text.primary'}
+            >
+              {title}
+            </Typography>
+            {note && (
+              <Typography
+                sx={{ mt: 0.5 }}
+                color={disabled ? 'text.disabled' : 'text.secondary'}
+              >
+                {note}
+              </Typography>
+            )}
+            <Typography
+              sx={{ mt: 0.5, fontWeight: note ? 600 : 400 }}
+              color={
+                disabled
+                  ? 'text.disabled'
+                  : note
+                    ? 'text.primary'
+                    : 'text.secondary'
+              }
+            >
+              {highlight}
+              {meta ? `, ${meta}` : ''}
+            </Typography>
+          </Box>
           {!disabled && <ArrowForwardIcon sx={{ color: INK }} />}
         </Stack>
       </CardActionArea>

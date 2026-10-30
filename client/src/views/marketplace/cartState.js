@@ -9,6 +9,8 @@ export const CART_PATH = `${MARKETPLACE_PATH}/cart`;
 export const CHECKOUT_PATH = `${MARKETPLACE_PATH}/checkout`;
 export const FRESH_LEADS_PATH = `${MARKETPLACE_PATH}/fresh-leads`;
 export const AGED_BANKED_PATH = `${MARKETPLACE_PATH}/aged-banked`;
+export const AGED_PATH = `${AGED_BANKED_PATH}/aged`;
+export const BANKED_PATH = `${AGED_BANKED_PATH}/banked`;
 export const SOFTWARE_PATH = `${MARKETPLACE_PATH}/software`;
 
 // What the storefront sells, in order of sales volume. Keys match GSQ's
@@ -19,6 +21,7 @@ export const SOFTWARE_PATH = `${MARKETPLACE_PATH}/software`;
 export const SEGMENTS = [
   {
     key: 'aged_second',
+    title: 'Funnel, 31–90 days',
     source: 'funnel',
     leadType: 'aged',
     tier: 'second',
@@ -29,6 +32,7 @@ export const SEGMENTS = [
   },
   {
     key: 'aged_third',
+    title: 'Funnel, 91–180 days',
     source: 'funnel',
     leadType: 'aged',
     tier: 'third',
@@ -39,6 +43,7 @@ export const SEGMENTS = [
   },
   {
     key: 'banked',
+    title: 'Banked Funnel',
     source: 'funnel',
     leadType: 'fresh',
     tier: null,
@@ -49,6 +54,7 @@ export const SEGMENTS = [
   },
   {
     key: 'instant_aged_second',
+    title: 'Instant Form, 31–90 days',
     source: 'instant',
     leadType: 'aged',
     tier: 'second',
@@ -59,6 +65,7 @@ export const SEGMENTS = [
   },
   {
     key: 'instant_aged_third',
+    title: 'Instant Form, 91–180 days',
     source: 'instant',
     leadType: 'aged',
     tier: 'third',
@@ -69,6 +76,7 @@ export const SEGMENTS = [
   },
   {
     key: 'instant_banked',
+    title: 'Banked Instant Form',
     source: 'instant',
     leadType: 'fresh',
     tier: null,
@@ -78,6 +86,12 @@ export const SEGMENTS = [
     window: 'Submitted within the last 72 hours',
   },
 ];
+
+// Plain words for where a lead came from.
+export const SOURCE_HELP = {
+  funnel: 'Filled out the quote form on GetSeniorQuotes and selected a quote.',
+  instant: 'Filled out a short form on Facebook or Instagram.',
+};
 
 export const SEGMENT_BY_KEY = Object.fromEntries(
   SEGMENTS.map((segment) => [segment.key, segment]),
@@ -211,6 +225,20 @@ export const summarizeSegments = (bySegment, keys) => {
     segmentKey: withStock || keys[0],
   };
 };
+
+// How many leads a segment can actually sell, and what one costs. Instant-form
+// segments are verified only, so their unverified counts and prices don't apply.
+export const sellableCount = (segment, inventory) =>
+  Object.values(inventory?.states || {}).reduce(
+    (sum, s) => sum + s.verified + (segment.verifiedOnly ? 0 : s.unverified),
+    0,
+  );
+
+export const sellablePrices = (segment, inventory) =>
+  [
+    inventory?.prices?.verified,
+    segment.verifiedOnly ? null : inventory?.prices?.unverified,
+  ].filter((p) => typeof p === 'number');
 
 export const AGED_SEGMENTS = [
   'aged_second',
