@@ -46,6 +46,19 @@ const makeLookupQuery = (result) => {
   return query;
 };
 
+// The leads table both answers the aged-order source lookup and takes the
+// insert; a plain fresh delivery never touches the lookup.
+const makeLeadsTable = (insert, sourceResult = { data: [], error: null }) => {
+  const query = {
+    select: jest.fn(() => query),
+    eq: jest.fn(() => query),
+    not: jest.fn(() => query),
+    order: jest.fn(() => query),
+    limit: jest.fn().mockResolvedValue(sourceResult),
+  };
+  return { insert, ...query };
+};
+
 const makeResponse = () => {
   const res = {
     status: jest.fn(() => res),
@@ -223,7 +236,7 @@ describe('inboundGSQ premium payload', () => {
           return makeLookupQuery({ data: { id: 'agent-id' }, error: null });
         }
         if (table === 'leads') {
-          return { insert };
+          return makeLeadsTable(insert);
         }
         throw new Error(`Unexpected table: ${table}`);
       });
@@ -272,6 +285,102 @@ describe('inboundGSQ premium payload', () => {
       expect.objectContaining({ sex: expected }),
     );
   });
+});
+
+describe('inboundGSQ aged order source', () => {
+  const originalToken = process.env.GSQ_TOKEN;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.GSQ_TOKEN = 'test-gsq-token';
+    mockGetHyrosSource.mockResolvedValue('hyros-source');
+  });
+
+  afterAll(() => {
+    if (originalToken === undefined) {
+      delete process.env.GSQ_TOKEN;
+    } else {
+      process.env.GSQ_TOKEN = originalToken;
+    }
+  });
+
+  const mockTables = (leadsTable) =>
+    mockSupabaseFrom.mockImplementation((table) => {
+      if (table === 'lead_vendors') {
+        return makeLookupQuery({ data: { id: 'vendor-id' }, error: null });
+      }
+      if (table === 'agents') {
+        return makeLookupQuery({ data: { id: 'agent-id' }, error: null });
+      }
+      if (table === 'leads') {
+        return leadsTable;
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+  const sendAged = async (segment) => {
+    const request = makeRequest('67.35');
+    request.body.segment = segment;
+    const res = makeResponse();
+    await inboundGSQ(request, res);
+    return res;
+  };
+
+  test.each(['aged_second', 'aged_third'])(
+    'carries the fresh lead source over for %s without calling Hyros',
+    async (segment) => {
+      const insert = jest.fn().mockResolvedValue({ error: null });
+      const leads = makeLeadsTable(insert, {
+        data: [{ gsq_source: 'FE Grandkids v3' }],
+        error: null,
+      });
+      mockTables(leads);
+
+      const res = await sendAged(segment);
+
+      expect(leads.eq).toHaveBeenCalledWith('gsq_id', 'gsq-test-id');
+      expect(mockGetHyrosSource).not.toHaveBeenCalled();
+      expect(insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gsq_source: 'FE Grandkids v3',
+          gsq_segment: segment,
+        }),
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+    },
+  );
+
+  test.each([
+    ['no fresh lead has a source', { data: [], error: null }],
+    ['the lookup fails', { data: null, error: { message: 'boom' } }],
+  ])('falls back to Hyros when %s', async (_label, sourceResult) => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockTables(makeLeadsTable(insert, sourceResult));
+
+    await sendAged('aged_second');
+
+    expect(mockGetHyrosSource).toHaveBeenCalledWith('2025550199');
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({ gsq_source: 'hyros-source' }),
+    );
+  });
+
+  test.each(['fresh', 'banked'])(
+    'still asks Hyros for a %s delivery',
+    async (segment) => {
+      const insert = jest.fn().mockResolvedValue({ error: null });
+      const leads = makeLeadsTable(insert);
+      mockTables(leads);
+
+      await sendAged(segment);
+
+      expect(leads.select).not.toHaveBeenCalled();
+      expect(mockGetHyrosSource).toHaveBeenCalledWith('2025550199');
+      expect(insert).toHaveBeenCalledWith(
+        expect.objectContaining({ gsq_source: 'hyros-source' }),
+      );
+    },
+  );
 });
 
 describe('inboundGSQ instant form payload', () => {
