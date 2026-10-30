@@ -8,6 +8,7 @@ export default function QtyInput({
   sx,
   placeholder,
   ariaLabel,
+  live,
 }) {
   // With a placeholder, nothing picked shows it instead of a 0.
   const shown = (n) => (placeholder !== undefined && n === 0 ? '' : String(n));
@@ -35,7 +36,15 @@ export default function QtyInput({
       value={local}
       placeholder={placeholder}
       aria-label={ariaLabel}
-      onChange={(e) => setLocal(e.target.value.replace(/[^0-9]/g, ''))}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/[^0-9]/g, '');
+        // Live: counts as soon as it's typed, so there's nothing to leave or confirm.
+        if (live && digits) commit(digits);
+        else if (live) {
+          setLocal('');
+          if (value !== 0) onChange(0);
+        } else setLocal(digits);
+      }}
       onBlur={(e) => commit(e.target.value)}
       onFocus={(e) => e.target.select()}
       onKeyDown={(e) => {

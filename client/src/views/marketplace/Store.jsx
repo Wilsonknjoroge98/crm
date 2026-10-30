@@ -10,7 +10,6 @@ import {
   DialogActions,
   DialogContent,
   Collapse,
-  IconButton,
   InputAdornment,
   Link,
   Paper,
@@ -21,8 +20,6 @@ import {
 import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -161,73 +158,40 @@ const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
 
-/** A quantity: faint until something is picked, then a navy pill. */
-function QtyPicker({ label, count, qty, onChange }) {
+/** The box a quantity is typed into; navy once something is picked. */
+function QtyBox({ label, count, qty, onChange }) {
   const picked = qty > 0;
-  const buttonSx = {
-    width: 24,
-    height: 28,
-    borderRadius: 0,
-    color: picked ? '#FFFFFF' : 'text.secondary',
-    '&:hover': { color: picked ? '#FFFFFF' : 'text.primary' },
-    '&.Mui-disabled': {
-      color: picked ? 'rgba(255, 255, 255, 0.4)' : 'text.disabled',
-    },
-  };
   return (
-    <Box
+    <QtyInput
+      live
+      value={qty}
+      max={count}
+      onChange={onChange}
+      placeholder=''
+      ariaLabel={`Quantity, ${label}, ${count} available`}
       sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        borderRadius: 5,
-        overflow: 'hidden',
-        bgcolor: picked ? BAND : 'transparent',
-        '&:focus-within': picked
-          ? {}
-          : { bgcolor: '#FFFFFF', boxShadow: `inset 0 0 0 1px ${INK}` },
+        width: 56,
+        height: 30,
+        border: '1px solid',
+        borderColor: picked ? BAND : '#C4CBD2',
+        borderRadius: 1,
+        bgcolor: picked ? BAND : '#FFFFFF',
+        color: picked ? '#FFFFFF' : 'text.primary',
+        fontSize: '0.875rem',
+        fontVariantNumeric: 'tabular-nums',
+        '&:hover': { borderColor: INK },
+        '&:focus': {
+          borderColor: INK,
+          bgcolor: '#FFFFFF',
+          color: 'text.primary',
+        },
       }}
-    >
-      <IconButton
-        aria-label={`Remove one, ${label}`}
-        onClick={() => onChange(qty - 1)}
-        sx={{ ...buttonSx, visibility: picked ? 'visible' : 'hidden' }}
-      >
-        <RemoveIcon sx={{ fontSize: 15 }} />
-      </IconButton>
-      <QtyInput
-        value={qty}
-        max={count}
-        onChange={onChange}
-        placeholder='0'
-        ariaLabel={`Quantity, ${label}, ${count} available`}
-        sx={{
-          width: 30,
-          height: 28,
-          fontSize: '0.875rem',
-          fontVariantNumeric: 'tabular-nums',
-          color: picked ? '#FFFFFF' : 'text.primary',
-          '&::placeholder': {
-            color: 'text.disabled',
-            opacity: 1,
-            fontWeight: 400,
-          },
-          '&:focus::placeholder': { color: 'transparent' },
-        }}
-      />
-      <IconButton
-        aria-label={`Add one, ${label}`}
-        disabled={qty >= count}
-        onClick={() => onChange(Math.min(count, qty + 1))}
-        sx={buttonSx}
-      >
-        <AddIcon sx={{ fontSize: 15 }} />
-      </IconButton>
-    </Box>
+    />
   );
 }
 
 /** One line of a state's cell: the lead type, how many, and the quantity. */
-function TypeLine({ type, label, count, qty, onChange }) {
+function TypeLine({ type, label, count, qty, onChange, roomy }) {
   return (
     <Box
       sx={{
@@ -235,31 +199,42 @@ function TypeLine({ type, label, count, qty, onChange }) {
         gridTemplateColumns: '66px 1fr auto',
         columnGap: 0.75,
         alignItems: 'center',
-        minHeight: 30,
+        minHeight: 34,
       }}
     >
       <Typography variant='body2' sx={{ fontWeight: qty > 0 ? 700 : 500 }}>
         {TYPE_LABEL[type]}
       </Typography>
-      <Typography
-        color='text.secondary'
-        sx={{
-          fontSize: '0.8125rem',
-          fontVariantNumeric: 'tabular-nums',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {count.toLocaleString()}
-        <Box component='span' sx={{ [NARROW]: { display: 'none' } }}>
-          {' '}
-          available
-        </Box>
-        <Box component='span' sx={{ [NOT_NARROW]: { display: 'none' } }}>
-          {' '}
-          left
-        </Box>
-      </Typography>
-      <QtyPicker label={label} count={count} qty={qty} onChange={onChange} />
+      {count > 0 ? (
+        <>
+          <Typography
+            color='text.secondary'
+            sx={{
+              fontSize: '0.8125rem',
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {count.toLocaleString()}
+            <Box component='span' sx={roomy ? {} : { [NARROW]: { display: 'none' } }}>
+              {' '}
+              available
+            </Box>
+            <Box
+              component='span'
+              sx={roomy ? { display: 'none' } : { [NOT_NARROW]: { display: 'none' } }}
+            >
+              {' '}
+              left
+            </Box>
+          </Typography>
+          <QtyBox label={label} count={count} qty={qty} onChange={onChange} />
+        </>
+      ) : (
+        <Typography color='text.disabled' sx={{ fontSize: '0.8125rem' }}>
+          None
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -429,16 +404,14 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                   px: 1.25,
                   py: 1.75,
                   minHeight: 64,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
                   ...(column.instant && { bgcolor: INSTANT_TINT }),
                   ...splitSx(column),
                 }}
               >
-                {column.types.filter((type) => countOf(column, state, type) > 0).map((type) => (
+                {column.types.map((type) => (
                   <TypeLine
                     key={type}
+                    roomy={n < 4}
                     type={type}
                     label={`${state}, ${column.groupTitle}${column.setTitle ? `, ${column.setTitle}` : ''}, ${TYPE_LABEL[type]}`}
                     count={countOf(column, state, type)}
