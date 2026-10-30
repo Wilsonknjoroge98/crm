@@ -7,6 +7,9 @@ import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
 
 export const CART_PATH = `${MARKETPLACE_PATH}/cart`;
 export const CHECKOUT_PATH = `${MARKETPLACE_PATH}/checkout`;
+export const FRESH_LEADS_PATH = `${MARKETPLACE_PATH}/fresh-leads`;
+export const AGED_BANKED_PATH = `${MARKETPLACE_PATH}/aged-banked`;
+export const SOFTWARE_PATH = `${MARKETPLACE_PATH}/software`;
 
 // What the storefront sells, in order of sales volume. Keys match GSQ's
 // segments. Banked leads are the API's `fresh` lead type; aged is split into
@@ -170,6 +173,52 @@ export function useMarketplaceInventory() {
     refetch: () => Promise.all(queries.map((q) => q.refetch())),
   };
 }
+
+export const countAvailable = (inventory) =>
+  Object.values(inventory?.states || {}).reduce(
+    (sum, s) => sum + s.verified + s.unverified,
+    0,
+  );
+
+// Cheapest per-lead price across the given inventories, for "From $x".
+const lowestPrice = (inventories) => {
+  const prices = inventories
+    .flatMap((inv) => [inv?.prices?.unverified, inv?.prices?.verified])
+    .filter((p) => typeof p === 'number');
+  return prices.length ? Math.min(...prices) : null;
+};
+
+// One product's inventory across the segments it covers (quote funnel and
+// instant forms). `available` is null (not 0) when every lookup failed, so
+// its tile stays clickable and the agent can open the store and retry there.
+// `segmentKey` is the first segment with stock, so the tile opens a store
+// that has something to sell; `price` is the cheapest across all of them.
+export const summarizeSegments = (bySegment, keys) => {
+  const loaded = keys.filter((key) => bySegment[key].data);
+  const inventories = loaded.map((key) => bySegment[key].data);
+  const withStock = loaded.find(
+    (key) => countAvailable(bySegment[key].data) > 0,
+  );
+  return {
+    available: loaded.length
+      ? loaded.reduce(
+          (sum, key) => sum + countAvailable(bySegment[key].data),
+          0,
+        )
+      : null,
+    loading: keys.some((key) => bySegment[key].isLoading),
+    price: lowestPrice(inventories),
+    segmentKey: withStock || keys[0],
+  };
+};
+
+export const AGED_SEGMENTS = [
+  'aged_second',
+  'aged_third',
+  'instant_aged_second',
+  'instant_aged_third',
+];
+export const BANKED_SEGMENTS = ['banked', 'instant_banked'];
 
 // --- cart storage -----------------------------------------------------------
 // { [segmentKey]: { [state]: { verified, unverified } } }

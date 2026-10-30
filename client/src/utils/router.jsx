@@ -26,6 +26,21 @@ const ForgotPassword = lazy(() => import('../views/ForgotPassword'));
 const Profile = lazy(() => import('../views/Profile'));
 const AdPublish = lazy(() => import('../views/AdPublish'));
 const MarketplaceStore = lazy(() => import('../views/marketplace/Store'));
+const MarketplaceFreshLeads = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.FreshLeads,
+  })),
+);
+const MarketplaceAgedBanked = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.AgedBanked,
+  })),
+);
+const MarketplaceSoftware = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.Software,
+  })),
+);
 const MarketplaceCart = lazy(() => import('../views/marketplace/Cart'));
 const MarketplaceCheckout = lazy(() => import('../views/marketplace/Checkout'));
 const MarketplaceOrderConfirmation = lazy(
@@ -245,6 +260,9 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      marketplaceRoute('/fresh-leads', MarketplaceFreshLeads),
+      marketplaceRoute('/aged-banked', MarketplaceAgedBanked),
+      marketplaceRoute('/software', MarketplaceSoftware),
       marketplaceRoute('/:leadType/store', MarketplaceStore),
       // One shared cart across segments.
       marketplaceRoute('/cart', MarketplaceCart),

@@ -4,9 +4,11 @@
 import {
   Box,
   Button,
+  CardActionArea,
   Chip,
   IconButton,
   Link,
+  Paper,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
@@ -15,10 +17,20 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import QtyInput from './QtyInput.jsx';
-import { CART_PATH, SEGMENTS, SEGMENT_BY_KEY, storePath } from './cartState.js';
+import {
+  CART_PATH,
+  SEGMENTS,
+  SEGMENT_BY_KEY,
+  cartLines,
+  linesCount,
+  storePath,
+  useCart,
+  useMarketplaceInventory,
+} from './cartState.js';
 
 export const MONO = '"JetBrains Mono", monospace';
 export const SANS = '"Inter", sans-serif';
@@ -127,7 +139,15 @@ export function CartButton({ count, to = CART_PATH }) {
   );
 }
 
-// The store's two choices, which together name one segment.
+/** The cart button on the choice pages, once something is in the cart. */
+export function CartLink() {
+  const [cart] = useCart();
+  const { prices } = useMarketplaceInventory();
+  const count = linesCount(cartLines(cart, prices));
+  return count > 0 ? <CartButton count={count} /> : null;
+}
+
+// The store's sub-categories. Banked leads have no age choice.
 const SOURCE_OPTIONS = [
   { value: 'funnel', label: 'Funnel' },
   { value: 'instant', label: 'Instant Form' },
@@ -135,7 +155,6 @@ const SOURCE_OPTIONS = [
 const AGE_OPTIONS = [
   { value: 'aged_second', label: '31–90 days' },
   { value: 'aged_third', label: '91–180 days' },
-  { value: 'banked', label: 'Banked' },
 ];
 
 const toggleSx = {
@@ -145,47 +164,154 @@ const toggleSx = {
   whiteSpace: 'nowrap',
 };
 
-/**
- * Picks the store's segment with two separate choices: where the lead came
- * from, and how old it is.
- */
-export function SegmentToggle({ segmentKey }) {
-  const navigate = useNavigate();
-  const { source } = SEGMENT_BY_KEY[segmentKey];
-  const age = segmentKey.replace('instant_', '');
-  const go = (nextSource, nextAge) =>
-    navigate(
-      storePath(`${nextSource === 'instant' ? 'instant_' : ''}${nextAge}`),
-    );
+function ToggleGroup({ label, value, options, count, onPick }) {
   return (
-    <Stack direction='row' spacing={1.5} useFlexGap flexWrap='wrap'>
+    <Box>
+      <Typography sx={{ ...labelSx, mb: 0.75 }}>{label}</Typography>
       <ToggleButtonGroup
+        value={value}
+        exclusive
+        size='small'
+        aria-label={label}
+        onChange={(event, next) => next && onPick(next)}
+      >
+        {options.map((option) => (
+          <ToggleButton key={option.value} value={option.value} sx={toggleSx}>
+            {option.label}
+            {count(option.value) != null && (
+              <Box
+                component='span'
+                sx={{ ml: 0.75, fontWeight: 500, color: 'text.secondary' }}
+              >
+                ({count(option.value).toLocaleString()})
+              </Box>
+            )}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+    </Box>
+  );
+}
+
+/**
+ * The store's sub-categories: where the lead came from and, for aged leads,
+ * how old it is. `counts` holds each segment's availability (null until it
+ * loads).
+ */
+export function SegmentToggle({ segmentKey, counts = {} }) {
+  const navigate = useNavigate();
+  const { source, leadType } = SEGMENT_BY_KEY[segmentKey];
+  const age = segmentKey.replace('instant_', '');
+  const keyFor = (nextSource, nextAge) =>
+    `${nextSource === 'instant' ? 'instant_' : ''}${nextAge}`;
+  return (
+    <Stack direction='row' spacing={3} useFlexGap flexWrap='wrap'>
+      <ToggleGroup
+        label='Lead source'
         value={source}
-        exclusive
-        size='small'
-        aria-label='Lead source'
-        onChange={(event, value) => value && go(value, age)}
-      >
-        {SOURCE_OPTIONS.map(({ value, label }) => (
-          <ToggleButton key={value} value={value} sx={toggleSx}>
-            {label}
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
-      <ToggleButtonGroup
-        value={age}
-        exclusive
-        size='small'
-        aria-label='Lead age'
-        onChange={(event, value) => value && go(source, value)}
-      >
-        {AGE_OPTIONS.map(({ value, label }) => (
-          <ToggleButton key={value} value={value} sx={toggleSx}>
-            {label}
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
+        options={SOURCE_OPTIONS}
+        count={(value) => counts[keyFor(value, age)]}
+        onPick={(value) => navigate(storePath(keyFor(value, age)))}
+      />
+      {leadType === 'aged' && (
+        <ToggleGroup
+          label='Lead age'
+          value={age}
+          options={AGE_OPTIONS}
+          count={(value) => counts[keyFor(source, value)]}
+          onPick={(value) => navigate(storePath(keyFor(source, value)))}
+        />
+      )}
     </Stack>
+  );
+}
+
+/**
+ * A large tile that opens the next step of the Marketplace. A `disabled` tile
+ * has nothing to open.
+ */
+export function ProductTile({
+  to,
+  icon: Icon,
+  title,
+  description,
+  highlight,
+  meta,
+  disabled,
+}) {
+  return (
+    <Paper
+      variant='outlined'
+      sx={{
+        borderRadius: 2,
+        overflow: 'hidden',
+        bgcolor: disabled ? '#FAFAFA' : '#FFFFFF',
+        transition: 'border-color 0.15s ease',
+        '&:hover': disabled ? {} : { borderColor: INK },
+      }}
+    >
+      <CardActionArea
+        component={disabled ? 'div' : RouterLink}
+        to={disabled ? undefined : to}
+        disabled={disabled}
+        sx={{
+          p: 4,
+          height: '100%',
+          minHeight: 300,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+        }}
+      >
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            mb: 2.5,
+            borderRadius: '50%',
+            bgcolor: '#F4F6F8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: disabled ? 'text.disabled' : INK,
+          }}
+        >
+          <Icon />
+        </Box>
+        <Typography
+          variant='h5'
+          component='h2'
+          color={disabled ? 'text.disabled' : 'text.primary'}
+        >
+          {title}
+        </Typography>
+        <Typography
+          color={disabled ? 'text.disabled' : 'text.secondary'}
+          sx={{ mt: 1, flex: 1 }}
+        >
+          {description}
+        </Typography>
+        {highlight && (
+          <Typography
+            sx={{ mt: 2, fontWeight: 600 }}
+            color={disabled ? 'text.disabled' : 'text.primary'}
+          >
+            {highlight}
+          </Typography>
+        )}
+        <Stack
+          direction='row'
+          justifyContent='space-between'
+          alignItems='center'
+          sx={{ width: '100%', mt: highlight ? 0.5 : 2 }}
+        >
+          <Typography color={disabled ? 'text.disabled' : 'text.secondary'}>
+            {meta}
+          </Typography>
+          {!disabled && <ArrowForwardIcon sx={{ color: INK }} />}
+        </Stack>
+      </CardActionArea>
+    </Paper>
   );
 }
 

@@ -13,11 +13,7 @@ import {
   Collapse,
   InputAdornment,
   Link,
-  List,
-  ListItemButton,
-  MenuItem,
   Paper,
-  Select,
   Stack,
   TextField,
   Typography,
@@ -32,10 +28,12 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { MARKETPLACE_PATH } from './api.js';
 import {
+  AGED_BANKED_PATH,
   CART_PATH,
+  SEGMENTS,
   cartLines,
+  countAvailable,
   getSegment,
   linesCount,
   linesTotal,
@@ -54,7 +52,6 @@ import {
   SegmentToggle,
   formatMoney,
   formatPrice,
-  priceSx,
 } from './ui.jsx';
 import PageContainer from '../../components/PageContainer';
 
@@ -102,201 +99,175 @@ const FRESH_EXPLAINER = [
   },
 ];
 
-/** One lead type in the state: what it is, its price, and how many to buy. */
-function TierRow({ verified, source, count, price, qty, onChange }) {
-  const detail =
-    // Meta text-verifies every instant form phone itself
-    source === 'instant'
-      ? 'Instant form lead, phone text-verified'
-      : verified
-        ? 'Quote selected, phone text-verified'
-        : 'Quote selected, phone not text-verified';
-  const soldOut = count === 0;
+// Plain words for the sub-categories, shown under them.
+const SOURCE_HELP = {
+  funnel:
+    'Funnel leads filled out the quote form on GetSeniorQuotes and selected a quote.',
+  instant: 'Instant Form leads filled out a short form on Facebook or Instagram.',
+};
+
+/** One state's quantity picker for one lead type. */
+function QtyCell({ label, count, qty, onChange }) {
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: {
-          xs: '1fr auto',
-          lg: 'minmax(0, 1fr) 96px 150px 88px',
-        },
-        alignItems: 'center',
-        columnGap: 2,
-        rowGap: 1.5,
-        p: 2.5,
-        '& + &': { borderTop: `1px solid ${DIVIDER}` },
-      }}
-    >
-      <Box sx={{ gridColumn: { xs: '1 / -1', lg: 'auto' }, minWidth: 0 }}>
-        <Typography
-          sx={{ fontWeight: 600, color: soldOut ? 'text.disabled' : undefined }}
-        >
-          {verified ? 'Text Verified' : 'Unverified'}
-        </Typography>
-        <Typography
-          variant='body2'
-          color={soldOut ? 'text.disabled' : 'text.secondary'}
-        >
-          {detail}
-        </Typography>
-      </Box>
-      <Box sx={{ textAlign: { lg: 'right' } }}>
-        <Typography
-          sx={{ ...priceSx, color: soldOut ? 'text.disabled' : undefined }}
-        >
-          {formatPrice(price)}
-        </Typography>
-        <Typography
-          variant='caption'
-          color={soldOut ? 'text.disabled' : 'text.secondary'}
-        >
-          per lead
-        </Typography>
-      </Box>
-      {soldOut ? (
-        <Typography
-          variant='body2'
-          color='text.disabled'
-          sx={{ gridColumn: { lg: '3 / -1' }, textAlign: 'right' }}
-        >
-          None available
+    <Box>
+      {/* The column header says this on wider screens */}
+      <Typography
+        variant='caption'
+        color='text.secondary'
+        sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5 }}
+      >
+        {label}
+      </Typography>
+      {count === 0 ? (
+        <Typography variant='body2' color='text.disabled'>
+          None
         </Typography>
       ) : (
-        <>
-          <Box
-            sx={{
-              justifySelf: { xs: 'end', lg: 'center' },
-              textAlign: 'center',
-            }}
-          >
-            <QtyStepper value={qty} max={count} onChange={onChange} />
-            <Typography
-              variant='caption'
-              color='text.secondary'
-              sx={{ display: 'block', mt: 0.5 }}
-            >
-              {count.toLocaleString()} available
-            </Typography>
-          </Box>
+        <Stack direction='row' spacing={1} alignItems='center'>
+          <QtyStepper size='small' value={qty} max={count} onChange={onChange} />
           <Typography
-            sx={{
-              gridColumn: { xs: '1 / -1', lg: 'auto' },
-              textAlign: 'right',
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-              // Holds its column on the wide layout so the row doesn't shift
-              // when it appears; takes no space when the row is stacked.
-              display: { xs: qty > 0 ? 'block' : 'none', lg: 'block' },
-              visibility: qty > 0 ? 'visible' : 'hidden',
-            }}
+            variant='caption'
+            color='text.secondary'
+            sx={{ whiteSpace: 'nowrap' }}
           >
-            {formatMoney(qty * price)}
+            of {count.toLocaleString()}
           </Typography>
-        </>
+        </Stack>
       )}
     </Box>
   );
 }
 
-/** Searchable list of states with inventory, left of the lead types. */
-function StateRail({ states, cart, selectedState, onSelect }) {
+/** Every state with leads, with a quantity picker per lead type. */
+function StateTable({ states, segment, cart, prices, onChange }) {
   const [search, setSearch] = useState('');
-  const visible = states.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()),
+  const verifiedOnly = segment.verifiedOnly;
+  const visible = states.filter(
+    (s) =>
+      (s.verified > 0 || (!verifiedOnly && s.unverified > 0)) &&
+      s.name.toLowerCase().includes(search.toLowerCase()),
   );
-
+  const columns = {
+    xs: 'minmax(0, 1fr)',
+    md: verifiedOnly
+      ? 'minmax(90px, 1fr) 170px 76px'
+      : 'minmax(90px, 1fr) 170px 170px 76px',
+  };
+  const verifiedLabel = `Text Verified, ${formatPrice(prices.verified)} each`;
+  const unverifiedLabel = `Unverified, ${formatPrice(prices.unverified)} each`;
   return (
-    <Paper
-      variant='outlined'
-      sx={{
-        width: 240,
-        flexShrink: 0,
-        borderRadius: 2,
-        overflow: 'hidden',
-        display: { xs: 'none', md: 'flex' },
-        flexDirection: 'column',
-        alignSelf: 'flex-start',
-        position: 'sticky',
-        top: 16,
-      }}
-    >
-      <Box sx={{ p: 1.5, borderBottom: `1px solid ${BORDER}` }}>
-        <TextField
-          size='small'
-          fullWidth
-          placeholder='Search states'
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position='start'>
-                  <SearchOutlinedIcon fontSize='small' />
-                </InputAdornment>
-              ),
-            },
+    <Stack spacing={1.5}>
+      <TextField
+        size='small'
+        placeholder='Search states'
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position='start'>
+                <SearchOutlinedIcon fontSize='small' />
+              </InputAdornment>
+            ),
+          },
+        }}
+        sx={{ width: { xs: '100%', sm: 260 } }}
+      />
+      <Paper
+        variant='outlined'
+        sx={{
+          borderRadius: 2,
+          overflowY: 'auto',
+          maxHeight: { md: 'max(360px, calc(100vh - 430px))' },
+        }}
+      >
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'grid' },
+            gridTemplateColumns: columns.md,
+            columnGap: 2,
+            px: 2.5,
+            py: 1.5,
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+            bgcolor: '#FAFAF7',
+            borderBottom: `1px solid ${BORDER}`,
           }}
-          sx={{ '& input': { fontSize: '0.85rem' } }}
-        />
-      </Box>
-      <List disablePadding sx={{ maxHeight: 560, overflowY: 'auto', py: 0.5 }}>
+        >
+          <Typography variant='body2' sx={{ fontWeight: 600 }}>
+            State
+          </Typography>
+          <Typography variant='body2' sx={{ fontWeight: 600 }}>
+            {verifiedLabel}
+          </Typography>
+          {!verifiedOnly && (
+            <Typography variant='body2' sx={{ fontWeight: 600 }}>
+              {unverifiedLabel}
+            </Typography>
+          )}
+          <Typography variant='body2' sx={{ fontWeight: 600, textAlign: 'right' }}>
+            Total
+          </Typography>
+        </Box>
         {visible.map((state) => {
-          const isSelected = selectedState === state.name;
-          const inCart =
-            (cart[state.name]?.verified || 0) +
-            (cart[state.name]?.unverified || 0);
+          const qty = cart[state.name] || { verified: 0, unverified: 0 };
+          const total =
+            qty.verified * prices.verified + qty.unverified * prices.unverified;
           return (
-            <ListItemButton
+            <Box
               key={state.name}
-              selected={isSelected}
-              onClick={() => onSelect(state.name)}
-              sx={{ py: 0.75, px: 1.5, gap: 1, alignItems: 'baseline' }}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: columns,
+                columnGap: 2,
+                rowGap: 1,
+                alignItems: 'center',
+                px: 2.5,
+                py: 1,
+                '& + &': { borderTop: `1px solid ${DIVIDER}` },
+              }}
             >
-              <Typography
-                sx={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: '0.875rem',
-                  fontWeight: isSelected ? 700 : 500,
-                }}
-              >
+              <Typography sx={{ fontWeight: total > 0 ? 600 : 500 }}>
                 {state.name}
               </Typography>
-              {inCart > 0 && (
-                <Typography
-                  sx={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: 'warning.main',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {inCart} in cart
-                </Typography>
+              <QtyCell
+                label={verifiedLabel}
+                count={state.verified}
+                qty={qty.verified}
+                onChange={(n) => onChange(state, 'verified', n)}
+              />
+              {!verifiedOnly && (
+                <QtyCell
+                  label={unverifiedLabel}
+                  count={state.unverified}
+                  qty={qty.unverified}
+                  onChange={(n) => onChange(state, 'unverified', n)}
+                />
               )}
               <Typography
                 sx={{
-                  fontSize: '0.8125rem',
-                  color: 'text.secondary',
+                  textAlign: { md: 'right' },
+                  fontWeight: 600,
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {state.total.toLocaleString()}
+                {total > 0 ? formatMoney(total) : ''}
               </Typography>
-            </ListItemButton>
+            </Box>
           );
         })}
         {visible.length === 0 && (
           <Typography
             variant='body2'
             color='text.secondary'
-            sx={{ p: 2, textAlign: 'center' }}
+            sx={{ p: 3, textAlign: 'center' }}
           >
-            No states match "{search}".
+            {search ? `No states match "${search}".` : 'No leads here right now.'}
           </Typography>
         )}
-      </List>
-    </Paper>
+      </Paper>
+    </Stack>
   );
 }
 
@@ -359,7 +330,6 @@ export default function Store() {
   const segment = getSegment(leadType, tier, searchParams.get('source'));
   // The explainer describes quote-funnel banked leads
   const isFresh = segment.key === 'banked';
-  const [selectedState, setSelectedState] = useState(null);
   // One cart across every segment; this page edits its own segment's slice.
   const [cart, updateCart] = useCart();
   const segmentCart = cart[segment.key] || {};
@@ -381,9 +351,7 @@ export default function Store() {
     setShowExplainer(false);
   };
 
-  // Switching segments starts the state picker over.
   useEffect(() => {
-    setSelectedState(null);
     rememberStore(segment.key);
   }, [segment.key]);
 
@@ -401,16 +369,6 @@ export default function Store() {
   const verifiedPrice = inventory?.prices?.verified ?? 0;
   const unverifiedPrice = inventory?.prices?.unverified ?? 0;
 
-  // Auto-select the first state once inventory first arrives. Runs only
-  // while selectedState is null, so refetches don't hijack a state the user
-  // has clicked on.
-  useEffect(() => {
-    if (states && !selectedState) {
-      const firstState = Object.keys(states).sort()[0];
-      if (firstState) setSelectedState(firstState);
-    }
-  }, [states, selectedState]);
-
   const allStates = states
     ? Object.entries(states)
         .map(([name, counts]) => ({
@@ -420,34 +378,30 @@ export default function Store() {
         }))
         .sort((a, b) => a.name.localeCompare(b.name))
     : [];
-  const totalAvailable = allStates.reduce((sum, s) => sum + s.total, 0);
 
-  const activeState =
-    selectedState && states?.[selectedState]
-      ? { name: selectedState, ...states[selectedState] }
-      : null;
+  const prices = {
+    verified: verifiedPrice,
+    unverified: unverifiedPrice,
+  };
 
-  const setQuantity = (type, value) => {
-    if (!activeState) return;
+  const setQuantity = (state, type, value) => {
     updateCart((prev) =>
-      setLineQty(
-        prev,
-        segment.key,
-        selectedState,
-        type,
-        Math.min(value, activeState[type]),
-      ),
+      setLineQty(prev, segment.key, state.name, type, Math.min(value, state[type])),
     );
   };
+
+  // What each sub-category holds, shown on its button.
+  const counts = Object.fromEntries(
+    SEGMENTS.map(({ key }) => {
+      const { data } = marketplaceInventory.bySegment[key];
+      return [key, data ? countAvailable(data) : null];
+    }),
+  );
 
   // Totals cover the whole shared cart, not just this segment.
   const lines = cartLines(cart, marketplaceInventory.prices);
   const cartCount = linesCount(lines);
   const cartTotal = linesTotal(lines);
-  const currentQty = segmentCart[selectedState] || {
-    verified: 0,
-    unverified: 0,
-  };
 
   return (
     // Capped at lg (1200px) like the marketplace landing page.
@@ -518,26 +472,19 @@ export default function Store() {
 
       <Stack spacing={2.5}>
         <MarketplaceHeader
-          title='Aged & Banked Leads'
-          breadcrumb={{ label: 'Marketplace', to: MARKETPLACE_PATH }}
+          title={segment.leadType === 'fresh' ? 'Banked Leads' : 'Aged Leads'}
+          breadcrumb={{ label: 'Aged & Banked Leads', to: AGED_BANKED_PATH }}
           actions={<CartButton count={cartCount} />}
         />
 
-        <Stack
-          direction='row'
-          justifyContent='space-between'
-          alignItems='center'
-          useFlexGap
-          flexWrap='wrap'
-          spacing={1.5}
-        >
-          <SegmentToggle segmentKey={segment.key} />
-          {!loading && !error && (
-            <Typography variant='body2' color='text.secondary'>
-              {totalAvailable.toLocaleString()} leads available
-            </Typography>
-          )}
-        </Stack>
+        <Box>
+          <SegmentToggle segmentKey={segment.key} counts={counts} />
+          <Typography variant='body2' color='text.secondary' sx={{ mt: 1.5 }}>
+            {SOURCE_HELP[segment.source]} {segment.window}.
+            {!segment.verifiedOnly &&
+              ' Text Verified means the phone number was confirmed by text.'}
+          </Typography>
+        </Box>
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -567,72 +514,22 @@ export default function Store() {
             </Typography>
           </Box>
         ) : (
-          <Stack direction='row' spacing={3} alignItems='flex-start'>
-            <StateRail
+          <Stack spacing={2}>
+            <StateTable
+              key={segment.key}
               states={allStates}
+              segment={segment}
               cart={segmentCart}
-              selectedState={selectedState}
-              onSelect={setSelectedState}
+              prices={prices}
+              onChange={setQuantity}
             />
-
-            <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
-              {/* State picker for narrow screens, where the rail is hidden */}
-              <Select
-                size='small'
-                value={selectedState || ''}
-                onChange={(e) => setSelectedState(e.target.value)}
-                sx={{ display: { xs: 'flex', md: 'none' } }}
-              >
-                {allStates.map((state) => (
-                  <MenuItem key={state.name} value={state.name}>
-                    {state.name} — {state.total} available
-                  </MenuItem>
-                ))}
-              </Select>
-
-              {activeState && (
-                <>
-                  <Box>
-                    <Typography variant='h5'>{activeState.name}</Typography>
-                    <Typography variant='body2' color='text.secondary'>
-                      {(
-                        activeState.verified + activeState.unverified
-                      ).toLocaleString()}{' '}
-                      leads available. {segment.window}.
-                    </Typography>
-                  </Box>
-
-                  <Paper variant='outlined' sx={{ borderRadius: 2 }}>
-                    <TierRow
-                      verified
-                      source={segment.source}
-                      count={activeState.verified}
-                      price={verifiedPrice}
-                      qty={currentQty.verified}
-                      onChange={(n) => setQuantity('verified', n)}
-                    />
-                    {!segment.verifiedOnly && (
-                      <TierRow
-                        verified={false}
-                        source={segment.source}
-                        count={activeState.unverified}
-                        price={unverifiedPrice}
-                        qty={currentQty.unverified}
-                        onChange={(n) => setQuantity('unverified', n)}
-                      />
-                    )}
-                  </Paper>
-                </>
-              )}
-
-              <IncludedFields
-                fields={
-                  segment.source === 'instant'
-                    ? INSTANT_FORM_FIELDS
-                    : INCLUDED_FIELDS
-                }
-              />
-            </Stack>
+            <IncludedFields
+              fields={
+                segment.source === 'instant'
+                  ? INSTANT_FORM_FIELDS
+                  : INCLUDED_FIELDS
+              }
+            />
           </Stack>
         )}
       </Stack>

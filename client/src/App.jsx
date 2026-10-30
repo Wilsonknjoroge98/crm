@@ -41,10 +41,10 @@ const App = () => {
   // Legal pages are open to everyone; logged-out visitors see them without
   // the app chrome, logged-in agents keep the nav and side panel.
   const isPublicRoute = isAuthRoute || (isLegalRoute && !isAuthenticated);
-  // The Marketplace hub sits on a tinted canvas, applied here so it reaches
-  // under the nav offset and through the footer.
+  // The Marketplace's choice pages sit on a tinted canvas, applied here so it
+  // reaches under the nav offset and through the footer.
   const pageBackground =
-    pathname === '/purchase-leads'
+    /^\/purchase-leads(\/(fresh-leads|aged-banked|software))?$/.test(pathname)
       ? theme.palette.background.tinted
       : theme.palette.background.default;
 
