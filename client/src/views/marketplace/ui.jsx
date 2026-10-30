@@ -257,7 +257,7 @@ export function ProductTile({
         sx={{
           p: 4,
           height: '100%',
-          minHeight: 300,
+          minHeight: { lg: 300 },
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',

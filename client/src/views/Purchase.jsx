@@ -42,7 +42,8 @@ const Purchase = () => {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+            // The CRM's side panel is always there, so three tiles need a wide screen
+            gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' },
             gap: 2,
           }}
         >

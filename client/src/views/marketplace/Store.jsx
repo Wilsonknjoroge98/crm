@@ -151,8 +151,8 @@ function StateTable({ states, segment, cart, prices, onChange }) {
     xs: 'minmax(0, 1fr)',
     // Spread evenly, so the quantities sit close to their state on wide screens
     md: verifiedOnly
-      ? 'minmax(130px, 1fr) minmax(170px, 1.5fr) 90px'
-      : 'minmax(130px, 0.7fr) minmax(170px, 1fr) minmax(170px, 1fr) 90px',
+      ? 'minmax(110px, 1fr) minmax(160px, 1.5fr) 80px'
+      : 'minmax(110px, 0.7fr) minmax(160px, 1fr) minmax(160px, 1fr) 80px',
   };
   const verifiedLabel = `Text Verified, ${formatPrice(prices.verified)} each`;
   const unverifiedLabel = `Unverified, ${formatPrice(prices.unverified)} each`;
