@@ -68,6 +68,43 @@ const parseSegment = (value) => {
   return GSQ_SEGMENTS.has(segment) ? segment : 'fresh';
 };
 
+const AGED_SEGMENTS = new Set(['aged_second', 'aged_third']);
+
+// An aged order resells the same gsq lead doc, so the crm already holds the
+// fresh row under the same gsq_id. Its source is the original ad, which is
+// what Hyros would answer anyway, so reuse it and only ask Hyros when the
+// fresh row is missing or never got one.
+const getFreshLeadSource = async (gsqId) => {
+  if (!gsqId) return null;
+
+  const { data, error } = await supabaseService
+    .from('leads')
+    .select('gsq_source')
+    .eq('gsq_id', gsqId)
+    .not('gsq_source', 'is', null)
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (error) {
+    logger.error('Error looking up fresh lead source:', {
+      gsqId,
+      code: error.code,
+      message: error.message,
+    });
+    return null;
+  }
+
+  return data?.[0]?.gsq_source ?? null;
+};
+
+const resolveFunnelSource = async (gsqId, phone, segment) => {
+  if (AGED_SEGMENTS.has(segment)) {
+    const freshSource = await getFreshLeadSource(gsqId);
+    if (freshSource) return freshSource;
+  }
+  return getHyrosSource(phone);
+};
+
 const inboundGSQ = async (req, res) => {
   try {
     const auth = req.headers['authorization']?.split(' ')[1];
@@ -99,7 +136,10 @@ const inboundGSQ = async (req, res) => {
       return res.status(400).send({ message: 'Missing required fields' });
     }
 
-    const hyrosSource = isInstantForm ? null : await getHyrosSource(phone);
+    const segment = parseSegment(req.body.segment);
+    const hyrosSource = isInstantForm
+      ? null
+      : await resolveFunnelSource(gsqId, phone, segment);
     const { data: leadVendor } = await supabaseService
       .from('lead_vendors')
       .select('id')
@@ -167,7 +207,7 @@ const inboundGSQ = async (req, res) => {
       gsq_source: hyrosSource,
       gsq_id: lead.gsqId,
       gsq_instant_form: isInstantForm,
-      gsq_segment: parseSegment(lead.segment),
+      gsq_segment: segment,
       lead_vendor_id: leadVendor.id,
       sex: lead.sex ? String(lead.sex).trim() : null,
     };
