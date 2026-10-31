@@ -371,10 +371,11 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
           >
             <Box
               sx={{
-                pl: 0.75,
-                pr: 0.25,
+                px: 0.5,
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
                 position: 'sticky',
                 left: 0,
                 zIndex: 1,
