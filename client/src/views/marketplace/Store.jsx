@@ -763,13 +763,14 @@ export default function Store() {
                   key={group.source}
                   variant='outlined'
                   sx={{
-                    p: 2,
+                    px: 2,
+                    py: 1.5,
                     bgcolor: '#FBFBFA',
                     borderColor: '#E5E7EB',
                     borderRadius: 2,
                   }}
                 >
-                  <Typography sx={{ ...labelSx, mb: 1.5 }}>
+                  <Typography sx={{ ...labelSx, mb: 1 }}>
                     Data fields delivered with every{' '}
                     {group.source === 'instant' ? 'instant form' : 'funnel'}{' '}
                     lead
@@ -781,7 +782,8 @@ export default function Store() {
                         xs: 'repeat(2, 1fr)',
                         md: 'repeat(4, 1fr)',
                       },
-                      gap: 1,
+                      rowGap: 0.25,
+                      columnGap: 1,
                     }}
                   >
                     {(group.source === 'instant'
