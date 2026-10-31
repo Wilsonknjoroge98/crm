@@ -1,7 +1,7 @@
 // Marketplace hub, in three tiers by how agents buy: real-time campaigns
-// (per-lead Stripe payment links), the Sendblue software suite (monthly
-// Stripe subscriptions), and the on-demand inventory storefront (aged +
-// banked).
+// (per-lead Stripe payment links), the in-stock storefront (aged + banked),
+// and the Sendblue software suite (monthly Stripe subscriptions). Leads come
+// first, in order of sales volume; software sits last.
 import {
   Box,
   Button,
@@ -269,9 +269,13 @@ function CampaignCard({
  * Storefront inventory card. Same anatomy as CampaignCard — label, price
  * anchor, description, CTA — with live availability as a badge top-right.
  * When `available` is known to be 0 the CTA gives way to `emptyMessage`.
+ * `badge` sits beside the count as the same green chip CampaignCard uses;
+ * `flex` sets the card's share of its row.
  */
 function InventoryCard({
   title,
+  badge,
+  flex = 1,
   accent,
   price,
   available,
@@ -289,6 +293,7 @@ function InventoryCard({
       variant='outlined'
       sx={{
         ...cardSx(empty ? BORDER : accent),
+        flex,
         bgcolor: empty ? '#FAFAFA' : '#FFFFFF',
       }}
     >
@@ -299,24 +304,27 @@ function InventoryCard({
         spacing={1}
       >
         <Typography sx={labelSx}>{title}</Typography>
-        {loading ? (
-          <Skeleton variant='rounded' width={96} height={24} />
-        ) : (
-          count != null && (
-            <Chip
-              size='small'
-              label={
-                <>
-                  <Box component='span' sx={{ fontFamily: MONO }}>
-                    {count}
-                  </Box>{' '}
-                  Available
-                </>
-              }
-              sx={{ ...badgeSx, ...(empty && { color: 'text.disabled' }) }}
-            />
-          )
-        )}
+        <Stack direction='row' spacing={1} alignItems='center'>
+          {badge && !empty && <LeadTypeChip verified label={badge} />}
+          {loading ? (
+            <Skeleton variant='rounded' width={96} height={24} />
+          ) : (
+            count != null && (
+              <Chip
+                size='small'
+                label={
+                  <>
+                    <Box component='span' sx={{ fontFamily: MONO }}>
+                      {count}
+                    </Box>{' '}
+                    Available
+                  </>
+                }
+                sx={{ ...badgeSx, ...(empty && { color: 'text.disabled' }) }}
+              />
+            )
+          )}
+        </Stack>
       </Stack>
 
       {loading ? (
@@ -414,23 +422,14 @@ const Purchase = () => {
         </Box>
 
         <Box>
-          <SectionLabel>Software & Automation</SectionLabel>
+          <SectionLabel>Aged & Banked Leads</SectionLabel>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            {SUBSCRIPTIONS.map((subscription) => (
-              <CampaignCard
-                key={subscription.title}
-                {...subscription}
-                href={withCrmEmail(subscription.href, email)}
-              />
-            ))}
-          </Stack>
-        </Box>
-
-        <Box>
-          <SectionLabel>On-Demand Inventory</SectionLabel>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            {/* Aged outsells banked, so it leads the row and takes more of it.
+                Its stripe stays slate: gold is the flagship's alone. */}
             <InventoryCard
               title='Aged Leads'
+              badge='★ Best Value'
+              flex={2}
               accent={SLATE}
               price={aged.price}
               available={aged.available}
@@ -454,6 +453,19 @@ const Purchase = () => {
               to={storePath(bankedSummary.segmentKey)}
               emptyMessage='No fresh leads are banked right now.'
             />
+          </Stack>
+        </Box>
+
+        <Box>
+          <SectionLabel>Software & Automation</SectionLabel>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            {SUBSCRIPTIONS.map((subscription) => (
+              <CampaignCard
+                key={subscription.title}
+                {...subscription}
+                href={withCrmEmail(subscription.href, email)}
+              />
+            ))}
           </Stack>
         </Box>
       </Stack>
