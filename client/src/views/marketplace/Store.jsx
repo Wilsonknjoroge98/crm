@@ -134,6 +134,7 @@ const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
+const AGE_SHADE = 'rgba(47, 78, 111, 0.12)';
 const CHECKOUT_BAR_HEIGHT = 68;
 
 /** The box a quantity is typed into; a light gold once it has a number. */
@@ -319,13 +320,12 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 gridColumn: i + 2,
                 gridRow: 2,
                 px: CELL_PX,
-                pt: 2,
-                pb: 1.25,
+                py: 1.25,
                 fontSize: '1rem',
                 lineHeight: 1.5,
                 fontWeight: 700,
                 textAlign: 'center',
-                ...(column.instant && { bgcolor: INSTANT_TINT }),
+                bgcolor: AGE_SHADE,
                 ...splitSx(column),
               }}
             >
@@ -340,7 +340,8 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 gridColumn: i + 2,
                 gridRow: 3,
                 px: CELL_PX,
-                pb: 1.25,
+                pt: 0.75,
+                pb: 1,
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
               }}
