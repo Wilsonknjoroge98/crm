@@ -91,12 +91,12 @@ const LISTS = {
       {
         source: 'funnel',
         title: 'Funnel',
-        sets: [{ key: 'banked' }],
+        sets: [{ key: 'banked', title: '0–72 Hours' }],
       },
       {
         source: 'instant',
         title: 'Instant Form',
-        sets: [{ key: 'instant_banked' }],
+        sets: [{ key: 'instant_banked', title: '0–72 Hours' }],
       },
     ],
   },
