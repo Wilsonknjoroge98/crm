@@ -1,11 +1,22 @@
 import { Box } from '@mui/material';
 import { useState, useEffect } from 'react';
 
-export default function QtyInput({ value, max, onChange, sx }) {
-  const [local, setLocal] = useState(String(value));
+export default function QtyInput({
+  value,
+  max,
+  onChange,
+  sx,
+  placeholder,
+  ariaLabel,
+  live,
+}) {
+  // With a placeholder, nothing picked shows it instead of a 0.
+  const shown = (n) => (placeholder !== undefined && n === 0 ? '' : String(n));
+  const [local, setLocal] = useState(shown(value));
 
   useEffect(() => {
-    setLocal(String(value));
+    setLocal(shown(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const commit = (raw) => {
@@ -13,7 +24,7 @@ export default function QtyInput({ value, max, onChange, sx }) {
     let n = parseInt(digits, 10);
     if (isNaN(n) || n < 0) n = 0;
     if (n > max) n = max;
-    setLocal(String(n));
+    setLocal(shown(n));
     if (n !== value) onChange(n);
   };
 
@@ -23,7 +34,17 @@ export default function QtyInput({ value, max, onChange, sx }) {
       type='text'
       inputMode='numeric'
       value={local}
-      onChange={(e) => setLocal(e.target.value.replace(/[^0-9]/g, ''))}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/[^0-9]/g, '');
+        // Live: counts as soon as it's typed, so there's nothing to leave or confirm.
+        if (live && digits) commit(digits);
+        else if (live) {
+          setLocal('');
+          if (value !== 0) onChange(0);
+        } else setLocal(digits);
+      }}
       onBlur={(e) => commit(e.target.value)}
       onFocus={(e) => e.target.select()}
       onKeyDown={(e) => {

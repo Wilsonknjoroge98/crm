@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import App from '../App';
 import { MoonLoader } from 'react-spinners';
 
@@ -25,7 +25,31 @@ const ResetPassword = lazy(() => import('../views/ResetPassword'));
 const ForgotPassword = lazy(() => import('../views/ForgotPassword'));
 const Profile = lazy(() => import('../views/Profile'));
 const AdPublish = lazy(() => import('../views/AdPublish'));
-const MarketplaceStore = lazy(() => import('../views/marketplace/Store'));
+const MarketplaceFreshLeads = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.FreshLeads,
+  })),
+);
+const MarketplaceAgedBanked = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.AgedBanked,
+  })),
+);
+const MarketplaceAgedLeads = lazy(() =>
+  import('../views/marketplace/Store').then((m) => ({
+    default: m.AgedLeads,
+  })),
+);
+const MarketplaceBankedLeads = lazy(() =>
+  import('../views/marketplace/Store').then((m) => ({
+    default: m.BankedLeads,
+  })),
+);
+const MarketplaceSoftware = lazy(() =>
+  import('../views/marketplace/Categories').then((m) => ({
+    default: m.Software,
+  })),
+);
 const MarketplaceCart = lazy(() => import('../views/marketplace/Cart'));
 const MarketplaceCheckout = lazy(() => import('../views/marketplace/Checkout'));
 const MarketplaceOrderConfirmation = lazy(
@@ -60,6 +84,12 @@ const lazyRoute = (path, Page) => ({
     </Suspense>
   ),
 });
+
+const OldStoreRedirect = () => {
+  const { leadType } = useParams();
+  const list = leadType === 'fresh' ? 'banked' : 'aged';
+  return <Navigate to={`/purchase-leads/aged-banked/${list}`} replace />;
+};
 
 // Lead storefront pages, nested under the Marketplace tab (/purchase-leads).
 const marketplaceRoute = (path, Page) =>
@@ -245,7 +275,16 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      marketplaceRoute('/:leadType/store', MarketplaceStore),
+      marketplaceRoute('/fresh-leads', MarketplaceFreshLeads),
+      marketplaceRoute('/aged-banked', MarketplaceAgedBanked),
+      marketplaceRoute('/aged-banked/aged', MarketplaceAgedLeads),
+      marketplaceRoute('/aged-banked/banked', MarketplaceBankedLeads),
+      marketplaceRoute('/software', MarketplaceSoftware),
+      // Store links from before all of a product's leads shared one list.
+      {
+        path: '/purchase-leads/:leadType/store',
+        element: <OldStoreRedirect />,
+      },
       // One shared cart across segments.
       marketplaceRoute('/cart', MarketplaceCart),
       marketplaceRoute('/checkout', MarketplaceCheckout),

@@ -7,13 +7,17 @@ import { MARKETPLACE_PATH, marketplaceFetch } from './api.js';
 
 export const CART_PATH = `${MARKETPLACE_PATH}/cart`;
 export const CHECKOUT_PATH = `${MARKETPLACE_PATH}/checkout`;
+export const FRESH_LEADS_PATH = `${MARKETPLACE_PATH}/fresh-leads`;
+export const AGED_BANKED_PATH = `${MARKETPLACE_PATH}/aged-banked`;
+export const AGED_PATH = `${AGED_BANKED_PATH}/aged`;
+export const BANKED_PATH = `${AGED_BANKED_PATH}/banked`;
+export const SOFTWARE_PATH = `${MARKETPLACE_PATH}/software`;
 
 // What the storefront sells, in order of sales volume. Keys match GSQ's
 // segments. Banked leads are the API's `fresh` lead type; aged is split into
 // two age windows (`tier`). `source` separates GSQ quote-funnel leads from
 // Meta instant-form leads, which have their own stores and prices and are
-// only sold verified. `shortLabel` is the segment's name in the store's top
-// bar, where all six sit in one row; `label` is used everywhere else.
+// only sold verified.
 export const SEGMENTS = [
   {
     key: 'aged_second',
@@ -22,7 +26,6 @@ export const SEGMENTS = [
     tier: 'second',
     verifiedOnly: false,
     label: '31–90 Day Aged',
-    shortLabel: 'Funnel 31–90',
     unit: 'aged lead',
     window: 'Submitted 31–90 days ago',
   },
@@ -33,7 +36,6 @@ export const SEGMENTS = [
     tier: 'third',
     verifiedOnly: false,
     label: '91–180 Day Aged',
-    shortLabel: 'Funnel 91–180',
     unit: 'aged lead',
     window: 'Submitted 91–180 days ago',
   },
@@ -44,7 +46,6 @@ export const SEGMENTS = [
     tier: null,
     verifiedOnly: false,
     label: 'Banked Leads',
-    shortLabel: 'Funnel Banked',
     unit: 'banked lead',
     window: 'Submitted within the last 72 hours',
   },
@@ -55,7 +56,6 @@ export const SEGMENTS = [
     tier: 'second',
     verifiedOnly: true,
     label: '31–90 Day Aged Instant Forms',
-    shortLabel: 'Instant 31–90',
     unit: 'aged instant form lead',
     window: 'Submitted 31–90 days ago',
   },
@@ -66,7 +66,6 @@ export const SEGMENTS = [
     tier: 'third',
     verifiedOnly: true,
     label: '91–180 Day Aged Instant Forms',
-    shortLabel: 'Instant 91–180',
     unit: 'aged instant form lead',
     window: 'Submitted 91–180 days ago',
   },
@@ -77,7 +76,6 @@ export const SEGMENTS = [
     tier: null,
     verifiedOnly: true,
     label: 'Banked Instant Forms',
-    shortLabel: 'Instant Banked',
     unit: 'banked instant form lead',
     window: 'Submitted within the last 72 hours',
   },
@@ -87,25 +85,9 @@ export const SEGMENT_BY_KEY = Object.fromEntries(
   SEGMENTS.map((segment) => [segment.key, segment]),
 );
 
-/** The segment a store URL (/:leadType/store?tier=&source=) is showing. */
-export const getSegment = (leadType, tier, source) =>
-  SEGMENT_BY_KEY[
-    (source === 'instant' ? 'instant_' : '') +
-      (leadType === 'fresh'
-        ? 'banked'
-        : tier === 'third'
-          ? 'aged_third'
-          : 'aged_second')
-  ];
-
-export const storePath = (segmentKey) => {
-  const { leadType, tier, source } = SEGMENT_BY_KEY[segmentKey];
-  const params = new URLSearchParams();
-  if (tier) params.set('tier', tier);
-  if (source === 'instant') params.set('source', source);
-  const query = params.toString();
-  return `${MARKETPLACE_PATH}/${leadType}/store${query ? `?${query}` : ''}`;
-};
+/** The list a segment is sold on. */
+export const storePath = (segmentKey) =>
+  SEGMENT_BY_KEY[segmentKey].leadType === 'fresh' ? BANKED_PATH : AGED_PATH;
 
 // The store the agent last browsed this session, so "Continue Shopping" in
 // the shared cart returns there rather than to the Marketplace hub.
@@ -177,6 +159,50 @@ export function useMarketplaceInventory() {
     refetch: () => Promise.all(queries.map((q) => q.refetch())),
   };
 }
+
+// How many leads a segment can actually sell, and what one costs. Instant-form
+// segments are verified only, so their unverified counts and prices don't apply.
+const sellableCount = (segment, inventory) =>
+  Object.values(inventory?.states || {}).reduce(
+    (sum, s) => sum + s.verified + (segment.verifiedOnly ? 0 : s.unverified),
+    0,
+  );
+
+const sellablePrices = (segment, inventory) =>
+  [
+    inventory?.prices?.verified,
+    segment.verifiedOnly ? null : inventory?.prices?.unverified,
+  ].filter((p) => typeof p === 'number');
+
+// One product's inventory across the segments it covers (quote funnel and
+// instant forms). `available` is null (not 0) when every lookup failed, so
+// its tile stays clickable and the agent can open the list and retry there.
+// `price` is the cheapest across all of them.
+export const summarizeSegments = (bySegment, keys) => {
+  const loaded = keys.filter((key) => bySegment[key].data);
+  const prices = loaded.flatMap((key) =>
+    sellablePrices(SEGMENT_BY_KEY[key], bySegment[key].data),
+  );
+  return {
+    available: loaded.length
+      ? loaded.reduce(
+          (sum, key) =>
+            sum + sellableCount(SEGMENT_BY_KEY[key], bySegment[key].data),
+          0,
+        )
+      : null,
+    loading: keys.some((key) => bySegment[key].isLoading),
+    price: prices.length ? Math.min(...prices) : null,
+  };
+};
+
+export const AGED_SEGMENTS = [
+  'aged_second',
+  'aged_third',
+  'instant_aged_second',
+  'instant_aged_third',
+];
+export const BANKED_SEGMENTS = ['banked', 'instant_banked'];
 
 // --- cart storage -----------------------------------------------------------
 // { [segmentKey]: { [state]: { verified, unverified } } }

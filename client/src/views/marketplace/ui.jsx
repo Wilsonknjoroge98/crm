@@ -4,21 +4,28 @@
 import {
   Box,
   Button,
+  CardActionArea,
   Chip,
   IconButton,
   Link,
+  Paper,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import QtyInput from './QtyInput.jsx';
-import { CART_PATH, SEGMENTS, storePath } from './cartState.js';
+import {
+  CART_PATH,
+  SEGMENTS,
+  cartLines,
+  linesCount,
+  useCart,
+  useMarketplaceInventory,
+} from './cartState.js';
 
 export const MONO = '"JetBrains Mono", monospace';
 export const SANS = '"Inter", sans-serif';
@@ -26,6 +33,10 @@ export const BORDER = '#E0E0E0';
 export const DIVIDER = '#F0F0F0';
 export const INK = '#051118';
 export const SLATE = '#2F4E6F';
+// The band across the top of a tile, and the funnel side of a lead list.
+export const BAND = SLATE;
+// The instant-form side of a lead list.
+export const BAND_DARK = INK;
 export const GOLD = '#D4AF37';
 
 // Small uppercase label used above values and sections across the CRM.
@@ -44,6 +55,18 @@ export const formatMoney = (amount) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+
+// A list price: "$39", but "$1.50" when there are cents to show.
+export const formatPrice = (amount) =>
+  Number.isInteger(Number(amount)) ? `$${amount}` : formatMoney(amount);
+
+// The price beside a product or lead type, on the store and the hub.
+export const priceSx = {
+  fontWeight: 600,
+  fontSize: '1.125rem',
+  lineHeight: 1.3,
+  fontVariantNumeric: 'tabular-nums',
+};
 
 /**
  * Page title row, matching the Business tab: serif h4 on the left, actions on
@@ -96,96 +119,167 @@ export function MarketplaceHeader({
 }
 
 /**
- * Gold "Cart (n) • $x" action that opens the shared cart. `compact` renders a
- * quiet outlined "🛒 n" instead, for pages where another gold CTA (the store's
- * checkout bar) is already the primary path.
+ * Quiet link to the shared cart. The store's checkout bar is the primary path
+ * once something is in the cart, so this stays out of the way.
  */
-export function CartButton({ count, total, to = CART_PATH, compact }) {
-  if (compact) {
-    return (
-      <Button
-        variant='outlined'
-        color='primary'
-        component={RouterLink}
-        to={to}
-        aria-label={`Cart, ${count} lead${count === 1 ? '' : 's'}`}
-        startIcon={<ShoppingBagOutlinedIcon />}
-        sx={{ borderColor: BORDER, fontFamily: MONO, fontWeight: 700 }}
-      >
-        {count}
-      </Button>
-    );
-  }
+export function CartButton({ count, to = CART_PATH }) {
   return (
     <Button
-      variant='contained'
-      color='action'
+      variant='outlined'
+      color='primary'
       component={RouterLink}
       to={to}
+      aria-label={`Cart, ${count} lead${count === 1 ? '' : 's'}`}
       startIcon={<ShoppingBagOutlinedIcon />}
-      sx={{ fontWeight: 700, px: 2.5, whiteSpace: 'nowrap' }}
+      sx={{ borderColor: BORDER, whiteSpace: 'nowrap' }}
     >
-      Cart (
-      <Box component='span' sx={{ fontFamily: MONO }}>
-        {count}
-      </Box>
-      )
-      <Box component='span' sx={{ mx: 0.75, opacity: 0.6 }}>
-        •
-      </Box>
-      <Box component='span' sx={{ fontFamily: MONO }}>
-        {formatMoney(total)}
-      </Box>
+      Cart{count > 0 && ` (${count})`}
     </Button>
   );
 }
 
+/** The cart button on the choice pages, once something is in the cart. */
+export function CartLink() {
+  const [cart] = useCart();
+  const { prices } = useMarketplaceInventory();
+  const count = linesCount(cartLines(cart, prices));
+  return count > 0 ? <CartButton count={count} /> : null;
+}
+
 /**
- * Switches between every storefront segment, quote-funnel and instant-form,
- * in one row that scrolls sideways when it doesn't fit. `activeCount` shows
- * the selected segment's availability inline, e.g. "Funnel 31–90 (333)".
+ * A large tile that opens the next step of the Marketplace: a colored band with
+ * the product's name, then one big figure, a line or two and a link. A
+ * `disabled` tile has nothing to open.
  */
-export function SegmentToggle({ segmentKey, activeCount }) {
-  const navigate = useNavigate();
+export function ProductTile({
+  to,
+  title,
+  figurePrefix,
+  figure,
+  figureNote,
+  description,
+  highlight,
+  cta = 'See options',
+  disabled,
+}) {
+  const muted = disabled ? 'text.disabled' : 'text.secondary';
   return (
-    <ToggleButtonGroup
-      value={segmentKey}
-      exclusive
-      size='small'
-      sx={{ maxWidth: '100%', overflowX: 'auto' }}
-      onChange={(event, value) => {
-        if (!value || value === segmentKey) return;
-        navigate(storePath(value));
+    <Paper
+      elevation={0}
+      sx={{
+        borderRadius: 1,
+        overflow: 'hidden',
+        bgcolor: '#FFFFFF',
+        boxShadow: '0 1px 6px rgba(5, 17, 24, 0.12)',
+        transition: 'box-shadow 0.15s ease',
+        '&:hover': disabled
+          ? {}
+          : { boxShadow: '0 4px 16px rgba(5, 17, 24, 0.2)' },
       }}
     >
-      {SEGMENTS.map((segment) => (
-        <ToggleButton
-          key={segment.key}
-          value={segment.key}
+      <CardActionArea
+        component={disabled ? 'div' : RouterLink}
+        to={disabled ? undefined : to}
+        disabled={disabled}
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          justifyContent: 'flex-start',
+        }}
+      >
+        <Box
           sx={{
-            px: 2,
-            fontWeight: 600,
-            textTransform: 'none',
-            whiteSpace: 'nowrap',
+            minHeight: 96,
+            flexShrink: 0,
+            px: 3,
+            py: 2,
+            bgcolor: disabled ? '#B8C0C8' : BAND,
+            color: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          {segment.shortLabel}
-          {segment.key === segmentKey && activeCount != null && (
-            <Box
-              component='span'
+          <Typography
+            component='h2'
+            sx={{
+              fontFamily: SANS,
+              fontWeight: 700,
+              fontSize: '1.4rem',
+              textAlign: 'center',
+              textTransform: 'uppercase',
+              color: '#FFFFFF',
+            }}
+          >
+            {title}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            p: 3.5,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+          }}
+        >
+          {figure != null && (
+            <Stack
+              direction='row'
+              spacing={0.75}
+              alignItems='baseline'
+              useFlexGap
+              flexWrap='wrap'
+            >
+              {figurePrefix && (
+                <Typography sx={{ fontSize: '1.1rem' }} color={muted}>
+                  {figurePrefix}
+                </Typography>
+              )}
+              <Typography
+                sx={{
+                  fontFamily: SANS,
+                  fontWeight: 700,
+                  fontSize: '3rem',
+                  lineHeight: 1.1,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+                color={disabled ? 'text.disabled' : 'text.primary'}
+              >
+                {figure}
+              </Typography>
+              {figureNote && (
+                <Typography sx={{ fontSize: '1.1rem' }} color={muted}>
+                  {figureNote}
+                </Typography>
+              )}
+            </Stack>
+          )}
+          {highlight && (
+            <Typography sx={{ mt: 1, fontWeight: 600 }} color={disabled ? 'text.disabled' : 'text.primary'}>
+              {highlight}
+            </Typography>
+          )}
+          <Typography color={muted} sx={{ mt: 1, mb: 2.5, flex: 1 }}>
+            {description}
+          </Typography>
+          {!disabled && (
+            <Typography
               sx={{
-                ml: 0.75,
-                fontFamily: MONO,
-                fontWeight: 500,
-                color: 'text.secondary',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textTransform: 'uppercase',
+                color: BAND,
               }}
             >
-              ({activeCount.toLocaleString()})
-            </Box>
+              {cta}
+            </Typography>
           )}
-        </ToggleButton>
-      ))}
-    </ToggleButtonGroup>
+        </Box>
+      </CardActionArea>
+    </Paper>
   );
 }
 
