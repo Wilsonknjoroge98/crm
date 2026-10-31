@@ -108,7 +108,7 @@ const typesOf = (segmentKey) =>
     ? ['verified']
     : ['verified', 'unverified'];
 
-const STATE_WIDTH = 118;
+const STATE_WIDTH = 106;
 // Each fits its lead type, price, count and box without crowding. The funnel's
 // columns hold two lead types and more leads, so they get the extra room.
 const FUNNEL_MIN = 224;
@@ -284,7 +284,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               zIndex: 1,
               bgcolor: '#FFFFFF',
               borderRight: SET_SPLIT,
-              px: 1.25,
+              px: 1.5,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -375,8 +375,8 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
           >
             <Box
               sx={{
-                pl: 1,
-                pr: 0.5,
+                pl: 0.75,
+                pr: 0.25,
                 display: 'flex',
                 alignItems: 'center',
                 position: 'sticky',
@@ -386,7 +386,14 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 borderRight: SET_SPLIT,
               }}
             >
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.25 }}>
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  lineHeight: 1.25,
+                  overflowWrap: 'anywhere',
+                }}
+              >
                 {state}
               </Typography>
             </Box>
