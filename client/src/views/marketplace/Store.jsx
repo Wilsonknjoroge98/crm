@@ -108,7 +108,7 @@ const typesOf = (segmentKey) =>
     ? ['verified']
     : ['verified', 'unverified'];
 
-const STATE_WIDTH = 106;
+const STATE_WIDTH = 110;
 // Each fits its lead type, price, count and box without crowding. The funnel's
 // columns hold two lead types and more leads, so they get the extra room.
 const FUNNEL_MIN = 224;
