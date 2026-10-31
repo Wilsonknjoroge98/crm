@@ -111,29 +111,28 @@ const typesOf = (segmentKey) =>
 const STATE_WIDTH = 110;
 // Each fits its lead type, price, count and box without crowding. The funnel's
 // columns hold two lead types and more leads, so they get the extra room.
-const FUNNEL_MIN = 222;
-const INSTANT_MIN = 210;
+const FUNNEL_MIN = 226;
+const INSTANT_MIN = 214;
 const FUNNEL_SHARE = 1.25;
 const CELL_PX = 0.75;
 // The same four spreadsheet columns in the heading and on every line, so each
 // value sits right under its label.
 const lineColumns = (labelWidth) => ({
   display: 'grid',
-  gridTemplateColumns: `minmax(${labelWidth}px, 1.3fr) minmax(36px, 0.8fr) minmax(52px, 1fr) minmax(48px, 0.8fr)`,
+  gridTemplateColumns: `${labelWidth}px 36px minmax(52px, 1fr) 48px`,
   columnGap: 0.5,
   alignItems: 'center',
-  // Words start on the left, numbers and boxes end on the right
-  justifyItems: 'end',
-  '& > :first-child': { justifySelf: 'start' },
+  // The price right after the type, the count midway to the box
+  justifyItems: 'start',
+  '& > :nth-child(3)': { justifySelf: 'center' },
+  '& > :nth-child(4)': { justifySelf: 'end' },
 });
-const labelWidthOf = (column) => (column.types.length > 1 ? 62 : 50);
+const labelWidthOf = (column) => (column.types.length > 1 ? 66 : 54);
 const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
 const CHECKOUT_BAR_HEIGHT = 68;
-// Wide enough for the title row to share the NavBar's height with its buttons.
-const TITLE_IN_NAVBAR = '@media (min-width: 1280px)';
 
 /** The box a quantity is typed into; navy once something is picked. */
 function QtyBox({ label, count, qty, onChange }) {
@@ -568,21 +567,12 @@ function Store({ listKey }) {
         </DialogActions>
       </Dialog>
 
-      <Stack spacing={1.5} sx={{ flex: 1, minHeight: 0 }}>
-        {/* In the empty left side of the NavBar, so the table gets the height.
-            Only as wide as its contents, the NavBar's buttons stay clickable. */}
+      <Stack spacing={1} sx={{ flex: 1, minHeight: 0 }}>
         <Stack
           direction='row'
           spacing={2}
           alignItems='center'
-          sx={{
-            flexShrink: 0,
-            height: 64,
-            width: 'fit-content',
-            position: 'relative',
-            // && to outrank the margin Stack gives its children
-            [TITLE_IN_NAVBAR]: { '&&': { mt: '-64px' } },
-          }}
+          sx={{ flexShrink: 0, height: 56 }}
         >
           <Typography variant='h4' sx={{ whiteSpace: 'nowrap' }}>
             {list.title}
@@ -618,7 +608,7 @@ function Store({ listKey }) {
                 ),
               },
             }}
-            sx={{ width: 190, bgcolor: '#FFFFFF' }}
+            sx={{ width: 200, ml: 'auto !important', bgcolor: '#FFFFFF' }}
           />
         </Stack>
 
