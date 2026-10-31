@@ -109,13 +109,24 @@ const typesOf = (segmentKey) =>
     : ['verified', 'unverified'];
 
 const STATE_WIDTH = 110;
-// Each wide enough for "317 Available" beside its label and box. Funnel columns
-// hold two lead types and more leads, so they get the extra room.
-const FUNNEL_MIN = 230;
-const INSTANT_MIN = 206;
+// Each fits its lead type, price, count and box without crowding. The funnel's
+// columns hold two lead types and more leads, so they get the extra room.
+const FUNNEL_MIN = 222;
+const INSTANT_MIN = 210;
 const FUNNEL_SHARE = 1.25;
-// A line stays together in the middle of a wide column.
-const LINE_MAX = 320;
+const CELL_PX = 0.75;
+// The same four spreadsheet columns in the heading and on every line, so each
+// value sits right under its label.
+const lineColumns = (labelWidth) => ({
+  display: 'grid',
+  gridTemplateColumns: `minmax(${labelWidth}px, 1.3fr) minmax(36px, 0.8fr) minmax(52px, 1fr) minmax(48px, 0.8fr)`,
+  columnGap: 0.5,
+  alignItems: 'center',
+  // Words start on the left, numbers and boxes end on the right
+  justifyItems: 'end',
+  '& > :first-child': { justifySelf: 'start' },
+});
+const labelWidthOf = (column) => (column.types.length > 1 ? 62 : 50);
 const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
@@ -136,7 +147,7 @@ function QtyBox({ label, count, qty, onChange }) {
       placeholder=''
       ariaLabel={`Quantity, ${label}, ${count} available`}
       sx={{
-        width: 48,
+        width: 44,
         height: 30,
         border: '1px solid',
         borderColor: picked ? BAND : '#C4CBD2',
@@ -156,40 +167,20 @@ function QtyBox({ label, count, qty, onChange }) {
   );
 }
 
-/** One line of a state's cell: the lead type, how many, and the quantity. */
-function TypeLine({ type, label, count, qty, onChange, labelWidth }) {
+/** One line of a state's cell: lead type, price, how many, and the quantity. */
+function TypeLine({ type, label, price, count, qty, onChange, labelWidth }) {
+  const valueSx = { fontSize: '0.8125rem', fontVariantNumeric: 'tabular-nums' };
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: `${labelWidth}px minmax(0, 1fr) 48px`,
-        columnGap: 0.5,
-        alignItems: 'center',
-        justifyItems: 'center',
-        textAlign: 'center',
-        minHeight: 34,
-        width: '100%',
-        maxWidth: LINE_MAX,
-        alignSelf: 'center',
-      }}
-    >
-      <Typography
-        sx={{ fontSize: '0.8125rem', fontWeight: qty > 0 ? 700 : 500 }}
-      >
+    <Box sx={{ ...lineColumns(labelWidth), minHeight: 34 }}>
+      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 500 }}>
         {TYPE_LABEL[type]}
+      </Typography>
+      <Typography sx={valueSx}>
+        {price != null ? formatPrice(price) : ''}
       </Typography>
       {count > 0 ? (
         <>
-          <Typography
-            color='text.secondary'
-            sx={{
-              fontSize: '0.8125rem',
-              lineHeight: 1.2,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {count.toLocaleString()} Available
-          </Typography>
+          <Typography sx={valueSx}>{count.toLocaleString()}</Typography>
           <QtyBox label={label} count={count} qty={qty} onChange={onChange} />
         </>
       ) : (
@@ -286,7 +277,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
           <Box
             sx={{
               gridColumn: 1,
-              gridRow: '1 / span 2',
+              gridRow: '1 / span 3',
               position: 'sticky',
               left: 0,
               zIndex: 1,
@@ -311,10 +302,9 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               sx={{
                 gridColumn: `${start} / span ${span}`,
                 gridRow: 1,
-                px: 1.25,
+                px: CELL_PX,
                 py: 1,
                 fontWeight: 700,
-                textAlign: 'center',
                 color: '#FFFFFF',
                 bgcolor: column.instant ? BAND_DARK : BAND,
                 ...(column.firstInGroup && {
@@ -326,60 +316,46 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
             </Typography>
           ))}
           {columns.map((column, i) => (
-            <Box
+            <Typography
               key={column.id}
+              variant='body2'
               sx={{
                 gridColumn: i + 2,
                 gridRow: 2,
-                px: 1,
-                py: 1,
-                textAlign: 'center',
+                px: CELL_PX,
+                pt: 1,
+                pb: 0.5,
+                fontWeight: 700,
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
               }}
             >
-              {/* The same width as the lines below, so Quantity sits over the boxes */}
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(0, 1fr) 48px',
-                  columnGap: 0.5,
-                  alignItems: 'center',
-                  maxWidth: LINE_MAX,
-                  mx: 'auto',
-                }}
-              >
-                <Box>
-                  {column.setTitle && (
-                    <Typography variant='body2' sx={{ fontWeight: 700 }}>
-                      {column.setTitle}
-                    </Typography>
-                  )}
-                  <Typography
-                    variant='caption'
-                    color='text.secondary'
-                    sx={{ display: 'block', lineHeight: 1.3 }}
-                  >
-                    {column.types
-                      .filter((type) => column.prices[type] != null)
-                      .map(
-                        (type) =>
-                          `${TYPE_LABEL[type]} ${formatPrice(column.prices[type])}`,
-                      )
-                      .join(' · ')}
-                  </Typography>
-                </Box>
+              {column.setTitle}
+            </Typography>
+          ))}
+          {columns.map((column, i) => (
+            <Box
+              key={column.id}
+              sx={{
+                ...lineColumns(labelWidthOf(column)),
+                gridColumn: i + 2,
+                gridRow: 3,
+                px: CELL_PX,
+                pb: 0.75,
+                ...(column.instant && { bgcolor: INSTANT_TINT }),
+                ...splitSx(column),
+              }}
+            >
+              {['Type', 'Price', 'Available', 'Quantity'].map((heading) => (
                 <Typography
+                  key={heading}
                   variant='caption'
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                  }}
+                  color='text.secondary'
+                  sx={{ fontWeight: 700 }}
                 >
-                  Quantity
+                  {heading}
                 </Typography>
-              </Box>
+              ))}
             </Box>
           ))}
         </Box>
@@ -397,11 +373,10 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
           >
             <Box
               sx={{
-                px: 1,
+                pl: 1.5,
+                pr: 0.5,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center',
                 position: 'sticky',
                 left: 0,
                 zIndex: 1,
@@ -417,8 +392,8 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               <Box
                 key={column.id}
                 sx={{
-                  px: 1,
-                  py: 1.75,
+                  px: CELL_PX,
+                  py: 1.25,
                   minHeight: 64,
                   display: 'flex',
                   flexDirection: 'column',
@@ -430,7 +405,8 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 {column.types.map((type) => (
                   <TypeLine
                     key={type}
-                    labelWidth={column.types.length > 1 ? 62 : 52}
+                    labelWidth={labelWidthOf(column)}
+                    price={column.prices[type]}
                     type={type}
                     label={`${state}, ${column.groupTitle}${column.setTitle ? `, ${column.setTitle}` : ''}, ${TYPE_LABEL[type]}`}
                     count={countOf(column, state, type)}
