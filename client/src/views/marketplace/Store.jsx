@@ -136,9 +136,8 @@ const SET_SPLIT = `1px solid ${BORDER}`;
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
 const CHECKOUT_BAR_HEIGHT = 68;
 
-/** The box a quantity is typed into; navy once something is picked. */
+/** The box a quantity is typed into. */
 function QtyBox({ label, count, qty, onChange }) {
-  const picked = qty > 0;
   return (
     <QtyInput
       live
@@ -150,19 +149,13 @@ function QtyBox({ label, count, qty, onChange }) {
       sx={{
         width: 44,
         height: 30,
-        border: '1px solid',
-        borderColor: picked ? BAND : '#C4CBD2',
+        border: '1px solid #C4CBD2',
         borderRadius: 1,
-        bgcolor: picked ? BAND : '#FFFFFF',
-        color: picked ? '#FFFFFF' : 'text.primary',
+        bgcolor: '#FFFFFF',
+        color: 'text.primary',
         fontSize: '0.875rem',
         fontVariantNumeric: 'tabular-nums',
-        '&:hover': { borderColor: INK },
-        '&:focus': {
-          borderColor: INK,
-          bgcolor: '#FFFFFF',
-          color: 'text.primary',
-        },
+        '&:hover, &:focus': { borderColor: INK },
       }}
     />
   );
