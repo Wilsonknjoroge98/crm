@@ -324,6 +324,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 fontSize: '1rem',
                 lineHeight: 1.5,
                 fontWeight: 700,
+                textAlign: 'center',
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
               }}
