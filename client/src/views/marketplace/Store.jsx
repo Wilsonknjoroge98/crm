@@ -108,18 +108,18 @@ const typesOf = (segmentKey) =>
     ? ['verified']
     : ['verified', 'unverified'];
 
-const STATE_WIDTH = 110;
+const STATE_WIDTH = 118;
 // Each fits its lead type, price, count and box without crowding. The funnel's
 // columns hold two lead types and more leads, so they get the extra room.
-const FUNNEL_MIN = 226;
-const INSTANT_MIN = 214;
+const FUNNEL_MIN = 224;
+const INSTANT_MIN = 212;
 const FUNNEL_SHARE = 1.25;
 const CELL_PX = 0.75;
 // The same four spreadsheet columns in the heading and on every line, so each
 // value sits right under its label.
 const lineColumns = (labelWidth) => ({
   display: 'grid',
-  gridTemplateColumns: `${labelWidth}px 36px minmax(52px, 1fr) 48px`,
+  gridTemplateColumns: `${labelWidth} 36px minmax(50px, 1fr) 44px`,
   columnGap: 0.5,
   alignItems: 'center',
   // The price right after the type, the count midway to the box
@@ -127,7 +127,9 @@ const lineColumns = (labelWidth) => ({
   '& > :nth-child(3)': { justifySelf: 'center' },
   '& > :nth-child(4)': { justifySelf: 'end' },
 });
-const labelWidthOf = (column) => (column.types.length > 1 ? 66 : 54);
+// The price moves out from the type as the column gets room.
+const labelWidthOf = (column) =>
+  column.types.length > 1 ? 'clamp(70px, 30%, 96px)' : 'clamp(54px, 28%, 84px)';
 const GROUP_SPLIT = `2px solid ${BAND}`;
 const SET_SPLIT = `1px solid ${BORDER}`;
 // Marks the instant-form side of a row without hiding the row's hover color
@@ -322,8 +324,10 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 gridColumn: i + 2,
                 gridRow: 2,
                 px: CELL_PX,
-                pt: 1,
-                pb: 0.5,
+                pt: 2,
+                pb: 1.25,
+                fontSize: '1rem',
+                lineHeight: 1.5,
                 fontWeight: 700,
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
@@ -340,7 +344,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 gridColumn: i + 2,
                 gridRow: 3,
                 px: CELL_PX,
-                pb: 0.75,
+                pb: 1.25,
                 ...(column.instant && { bgcolor: INSTANT_TINT }),
                 ...splitSx(column),
               }}
@@ -348,9 +352,8 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
               {['Type', 'Price', 'Available', 'Quantity'].map((heading) => (
                 <Typography
                   key={heading}
-                  variant='caption'
                   color='text.secondary'
-                  sx={{ fontWeight: 700 }}
+                  sx={{ fontSize: '0.72rem', fontWeight: 700 }}
                 >
                   {heading}
                 </Typography>
@@ -372,7 +375,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
           >
             <Box
               sx={{
-                pl: 1.5,
+                pl: 1,
                 pr: 0.5,
                 display: 'flex',
                 alignItems: 'center',
@@ -383,7 +386,7 @@ function LeadTable({ columns, bySegment, cart, search, onChange }) {
                 borderRight: SET_SPLIT,
               }}
             >
-              <Typography sx={{ fontWeight: 600, lineHeight: 1.25 }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.25 }}>
                 {state}
               </Typography>
             </Box>
