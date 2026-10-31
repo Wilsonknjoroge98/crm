@@ -136,8 +136,9 @@ const SET_SPLIT = `1px solid ${BORDER}`;
 const INSTANT_TINT = 'rgba(47, 78, 111, 0.05)';
 const CHECKOUT_BAR_HEIGHT = 68;
 
-/** The box a quantity is typed into. */
+/** The box a quantity is typed into; a light gold once it has a number. */
 function QtyBox({ label, count, qty, onChange }) {
+  const picked = qty > 0;
   return (
     <QtyInput
       live
@@ -149,9 +150,10 @@ function QtyBox({ label, count, qty, onChange }) {
       sx={{
         width: 44,
         height: 30,
-        border: '1px solid #C4CBD2',
+        border: '1px solid',
+        borderColor: picked ? GOLD : '#C4CBD2',
         borderRadius: 1,
-        bgcolor: '#FFFFFF',
+        bgcolor: picked ? '#FBF5DF' : '#FFFFFF',
         color: 'text.primary',
         fontSize: '0.875rem',
         fontVariantNumeric: 'tabular-nums',
