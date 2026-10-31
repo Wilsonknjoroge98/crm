@@ -119,8 +119,8 @@ const AGE_MIN = 372;
 const ABOUT_ROWS = [
   ['Funnel', 'Quote form, with full quote details.'],
   ['Instant Form', 'Facebook or Instagram form answers.'],
-  ['Verified', 'Funnel phone confirmed by text.'],
-  ['Unverified', 'Funnel phone not confirmed.'],
+  ['Verified', 'Entered a 6-digit code texted to their cell.'],
+  ['Unverified', 'Did not enter a texted code.'],
 ];
 const ABOUT_DELIVERY = {
   aged: [['Delivery', 'Emailed to you as a CSV.']],
@@ -129,7 +129,6 @@ const ABOUT_DELIVERY = {
       'Delivery',
       'Emailed as a CSV, and sent to any Ringy, GHL, SendBlue or InsurDial account linked to your email.',
     ],
-    ['Final Sale', 'No refunds or replacements.'],
   ],
 };
 
