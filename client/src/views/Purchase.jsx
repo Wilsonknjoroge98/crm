@@ -428,7 +428,6 @@ const Purchase = () => {
                 Its stripe stays slate: gold is the flagship's alone. */}
             <InventoryCard
               title='Aged Leads'
-              badge='★ Best Value'
               flex={2}
               accent={SLATE}
               price={aged.price}
