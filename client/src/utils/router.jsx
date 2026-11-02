@@ -38,6 +38,7 @@ const MarketplaceTermsOfService = lazy(
   () => import('../views/marketplace/TermsOfService'),
 );
 import ErrorBoundary from '../views/ErrorBoundary';
+import Home from '../views/landing/Home';
 
 const lazyRoute = (path, Page) => ({
   path,
@@ -71,10 +72,8 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
-      {
-        index: true,
-        element: <Navigate to='/business' replace />,
-      },
+      // Public landing page for visitors; signed-in agents go to /business.
+      { index: true, element: <Home /> },
       {
         path: '/premiums',
         element: (
