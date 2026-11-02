@@ -40,6 +40,7 @@ import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import AgentCardSettings from './AgentCardSettings';
+import SendblueKeysDialog from './SendblueKeysDialog';
 
 const SERIF = '"Libre Baskerville", serif';
 const SANS = '"Inter", sans-serif';
@@ -136,6 +137,7 @@ const MetricRow = ({ label, value }) => (
 const AccountDetails = ({ data, defaultTab }) => {
   const [openStatesDlg, setOpenStatesDlg] = useState(false);
   const [openApiKeyDialog, setOpenApiKeyDialog] = useState(false);
+  const [openSendblueKeys, setOpenSendblueKeys] = useState(false);
   const [token, setToken] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
   const [activeTab, setActiveTab] = useState(defaultTab ?? 0);
@@ -208,6 +210,8 @@ const AccountDetails = ({ data, defaultTab }) => {
       const message =
         crm === 'insurDialEnabled' ? (
           'Set InsurDial API key before enabling.'
+        ) : crm === 'sendBlueEnabled' ? (
+          'Your Sendblue line is still being provisioned.'
         ) : crm === 'ringyEnabled' || crm === 'ghlEnabled' ? (
           <>
             <Link
@@ -335,6 +339,12 @@ const AccountDetails = ({ data, defaultTab }) => {
         onClose={() => setOpenStatesDlg(false)}
         states={states}
         mutate={mutate}
+      />
+
+      <SendblueKeysDialog
+        open={openSendblueKeys}
+        onClose={() => setOpenSendblueKeys(false)}
+        email={agent?.email}
       />
 
       {/* InsurDial API Key Dialog */}
@@ -826,6 +836,11 @@ const AccountDetails = ({ data, defaultTab }) => {
               ({ key, label, field, description, informational, setupUrl }) => {
                 const connected = (crmOverrides[key] ?? data?.[field]) === true;
                 const updatePending = isCrmPending;
+                // Sendblue is provisioned by us, not self-serve: agents with a
+                // line get a dispatch toggle, everyone else the contact tooltip
+                const showHelp =
+                  informational &&
+                  !(key === 'sendblue' && agent?.sendblue_number);
 
                 return (
                   <Card
@@ -893,7 +908,8 @@ const AccountDetails = ({ data, defaultTab }) => {
                     </Stack>
 
                     <Stack direction='row' spacing={1.5} alignItems='center'>
-                      {key === 'insurDial' && (
+                      {(key === 'insurDial' ||
+                        (key === 'sendblue' && agent?.sendblue_number)) && (
                         <Button
                           size='small'
                           variant='outlined'
@@ -902,7 +918,11 @@ const AccountDetails = ({ data, defaultTab }) => {
                               sx={{ fontSize: '0.9rem !important' }}
                             />
                           }
-                          onClick={() => setOpenApiKeyDialog(true)}
+                          onClick={() =>
+                            key === 'sendblue'
+                              ? setOpenSendblueKeys(true)
+                              : setOpenApiKeyDialog(true)
+                          }
                           sx={{
                             py: 0.4,
                             px: 1.25,
@@ -929,7 +949,7 @@ const AccountDetails = ({ data, defaultTab }) => {
                         </Button>
                       )}
 
-                      {informational ? (
+                      {showHelp ? (
                         <Tooltip
                           title='Contact info@fexdigital.com for additional information and onboarding instructions.'
                           arrow
