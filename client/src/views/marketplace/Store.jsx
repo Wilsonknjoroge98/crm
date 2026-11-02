@@ -46,7 +46,6 @@ import {
   GOLD,
   INK,
   MONO,
-  SLATE,
   CartButton,
   MarketplaceHeader,
   QtyStepper,
@@ -260,7 +259,7 @@ function AgeCell({ price, count, failed, qty, onChange }) {
             height: 22,
             fontSize: '0.75rem',
             fontWeight: 500,
-            bgcolor: '#F3F4F6',
+            bgcolor: 'background.muted',
             color: 'text.secondary',
           }}
         />
@@ -311,13 +310,16 @@ function FieldsBadge({ source }) {
           py: 0.5,
           borderRadius: 1,
           // Same chip as the inventory counts on the Marketplace hub.
-          bgcolor: '#F0F4F8',
+          bgcolor: 'secondary.light',
           color: 'secondary.main',
           border: '1px solid',
           borderColor: 'divider',
           fontSize: '0.8125rem',
           cursor: 'default',
-          '&:focus-visible': { outline: `2px solid ${SLATE}` },
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineColor: 'secondary.main',
+          },
         }}
       >
         <Box component='span' sx={{ fontWeight: 700 }}>
@@ -358,7 +360,8 @@ function GroupCard({ group, state, bySegment, cart, onChange }) {
         borderRadius: 2,
         borderColor: BORDER,
         // Same stripe as the Aged and Banked cards on the Marketplace hub.
-        borderTop: `3px solid ${SLATE}`,
+        borderTop: '3px solid',
+        borderTopColor: 'secondary.main',
         overflow: 'hidden',
       }}
     >
@@ -515,7 +518,9 @@ function StateRail({ states, cart, selectedState, onSelect }) {
                   fontFamily: MONO,
                   fontSize: '0.72rem',
                   fontWeight: 700,
-                  bgcolor: isSelected ? 'rgba(255,255,255,0.12)' : '#F4F6F8',
+                  bgcolor: isSelected
+                    ? 'rgba(255,255,255,0.12)'
+                    : 'background.muted',
                   color: isSelected ? '#FFFFFF' : '#667085',
                 }}
               >
@@ -553,8 +558,8 @@ function StateRail({ states, cart, selectedState, onSelect }) {
                     height: 20,
                     fontSize: '0.65rem',
                     fontWeight: 700,
-                    bgcolor: '#FFF8E7',
-                    color: '#B78103',
+                    bgcolor: 'warning.light',
+                    color: 'warning.main',
                     border: '1px solid #F5E1A4',
                   }}
                 />

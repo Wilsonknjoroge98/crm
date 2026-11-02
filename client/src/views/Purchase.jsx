@@ -185,7 +185,7 @@ function SectionLabel({ children }) {
 // Inventory availability badges, styled like BusinessCard's lifecycle
 // status chip.
 const badgeSx = {
-  bgcolor: '#F0F4F8',
+  bgcolor: 'secondary.light',
   color: 'secondary.main',
   border: '1px solid',
   borderColor: 'divider',

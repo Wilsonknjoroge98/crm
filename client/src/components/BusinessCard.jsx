@@ -614,7 +614,7 @@ const BusinessCard = ({
                 label={person.lifecycle_status}
                 size='small'
                 sx={{
-                  bgcolor: isSale ? '#E6F1EC' : '#F0F4F8',
+                  bgcolor: isSale ? '#E6F1EC' : 'secondary.light',
                   color: isSale ? 'success.main' : 'secondary.main',
                   border: '1px solid',
                   borderColor: 'divider',

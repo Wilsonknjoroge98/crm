@@ -202,7 +202,7 @@ export function LeadTypeChip({ verified, label }) {
       sx={{
         // Unverified stays neutral grey: gold is the marketplace's CTA and
         // "most popular" accent. Same grey as the profile's Paused chip.
-        bgcolor: verified ? '#E6F1EC' : '#F3F4F6',
+        bgcolor: verified ? '#E6F1EC' : 'background.muted',
         color: verified ? 'success.main' : 'text.secondary',
         border: '1px solid',
         borderColor: 'divider',

@@ -9,6 +9,7 @@ export const createAppTheme = () => {
       },
       secondary: {
         main: '#2F4E6F', // Slate Blue
+        light: '#F0F4F8', // Slate Tint (for neutral info chips: LEAD, inventory counts)
         contrastText: '#F2F2F2',
       },
       action: {
@@ -60,6 +61,8 @@ export const createAppTheme = () => {
         paper: '#FFFFFF',
         // Warm off-white behind white cards (form fills, the Marketplace).
         tinted: '#FAFAF7',
+        // Neutral grey behind inactive chips and badges (Unverified, Paused).
+        muted: '#F3F4F6',
       },
       text: {
         primary: '#1C1A17', // Dark Warm Charcoal
