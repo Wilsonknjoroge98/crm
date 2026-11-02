@@ -48,7 +48,6 @@ import {
   MONO,
   CartButton,
   MarketplaceHeader,
-  LeadTypeChip,
   QtyStepper,
   formatMoney,
   labelSx,
@@ -217,8 +216,11 @@ const LISTS = {
 };
 
 const TYPES = {
-  verified: { note: 'Entered a 6-digit code texted to their cell' },
-  unverified: { note: 'Did not enter the texted code' },
+  verified: {
+    label: 'Verified',
+    note: 'Entered a 6-digit code texted to their cell',
+  },
+  unverified: { label: 'Unverified', note: 'Did not enter the texted code' },
 };
 const typesOf = (segmentKey) =>
   SEGMENT_BY_KEY[segmentKey].verifiedOnly
@@ -402,11 +404,12 @@ function GroupCard({ group, state, bySegment, cart, onChange }) {
               }}
             >
               <Box>
-                {/* Same green chip as Text Verified elsewhere in the Marketplace */}
-                <LeadTypeChip verified={type === 'verified'} />
+                <Typography sx={{ fontWeight: 600 }}>
+                  {TYPES[type].label}
+                </Typography>
                 <Typography
                   color='text.secondary'
-                  sx={{ fontSize: '0.8125rem', mt: 0.75 }}
+                  sx={{ fontSize: '0.8125rem' }}
                 >
                   {TYPES[type].note}
                 </Typography>
