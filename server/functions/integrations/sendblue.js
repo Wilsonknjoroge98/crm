@@ -82,6 +82,37 @@ const getSendblueCredentials = async (email) => {
   return sharedCredentials();
 };
 
+/**
+ * The agent's own Sendblue subaccount keys, for display in their profile.
+ * Unlike getSendblueCredentials this never falls back to the shared
+ * account, those secrets must not reach the client. Not gated on the
+ * sendBlueEnabled dispatch flag: agents keep access to their keys with
+ * dispatch off, the caller gates on the agent having a line.
+ * @param {string} email authenticated agent email
+ * @return {Promise<object>} { configured, apiKey?, apiSecret?, sendblueNumber? }
+ */
+const getAgentSendblueKeys = async (email) => {
+  const docId = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!docId) return { configured: false };
+
+  const snap = await getGsqDb()
+    .collection(SENDBLUE_CONFIG_COLLECTION)
+    .doc(docId)
+    .get();
+
+  const data = snap.exists ? snap.data() : null;
+  if (!data?.apiKey || !data?.apiSecret) {
+    return { configured: false };
+  }
+
+  return {
+    configured: true,
+    apiKey: data.apiKey,
+    apiSecret: data.apiSecret,
+    sendblueNumber: data.sendblueNumber || null,
+  };
+};
+
 const sendblueHeaders = (credentials) => {
   if (!credentials?.apiKey || !credentials?.apiSecret) {
     const missing = new Error('Sendblue credentials are not configured');
@@ -221,6 +252,7 @@ module.exports = {
   SENDBLUE_CONFIG_COLLECTION,
   toE164,
   getSendblueCredentials,
+  getAgentSendblueKeys,
   fetchMessages,
   sendMessage,
   inboundSendblue,
