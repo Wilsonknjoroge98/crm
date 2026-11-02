@@ -19,6 +19,7 @@ import {
   Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
@@ -26,6 +27,7 @@ import { Link as RouterLink, useParams } from 'react-router-dom';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { MARKETPLACE_PATH } from './api.js';
 import {
   CART_PATH,
@@ -137,6 +139,22 @@ const INSTANT_FORM_FIELDS = [
   'State',
   'Instant Form Answers',
 ];
+
+// What each source delivers, and the fields named in its card's header badge
+// (the rest are counted as "+N more" and listed on hover).
+const FIELDS = {
+  funnel: {
+    all: INCLUDED_FIELDS,
+    preview: [
+      'Date of Birth',
+      'Height / Weight',
+      'Health Rating',
+      'Monthly Budget',
+      'Selected Plan',
+    ],
+  },
+  instant: { all: INSTANT_FORM_FIELDS, preview: INSTANT_FORM_FIELDS },
+};
 
 const FRESH_EXPLAINER = [
   {
@@ -262,6 +280,64 @@ function AgeCell({ price, count, failed, qty, onChange }) {
   );
 }
 
+/**
+ * "16 data fields included: Date of Birth • … +11 more", in the header of a
+ * source's card so what a lead carries sits next to its price. Hovering or
+ * focusing it lists every field.
+ */
+function FieldsBadge({ source }) {
+  const { all, preview } = FIELDS[source];
+  const more = all.length - preview.length;
+  return (
+    <Tooltip
+      placement='bottom-start'
+      title={
+        <Box component='ul' sx={{ m: 0, py: 0.5, pl: 2 }}>
+          {all.map((field) => (
+            <li key={field}>{field}</li>
+          ))}
+        </Box>
+      }
+    >
+      <Box
+        tabIndex={0}
+        aria-label={`${all.length} data fields included: ${all.join(', ')}`}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          columnGap: 0.75,
+          px: 1.25,
+          py: 0.5,
+          borderRadius: 1,
+          // Same chip as the inventory counts on the Marketplace hub.
+          bgcolor: '#F0F4F8',
+          color: 'secondary.main',
+          border: '1px solid',
+          borderColor: 'divider',
+          fontSize: '0.8125rem',
+          cursor: 'default',
+          '&:focus-visible': { outline: `2px solid ${SLATE}` },
+        }}
+      >
+        <Box component='span' sx={{ fontWeight: 700 }}>
+          <Box component='span' sx={{ fontFamily: MONO }}>
+            {all.length}
+          </Box>{' '}
+          data fields included:
+        </Box>
+        <span>{preview.join(' • ')}</span>
+        {more > 0 && (
+          <Box component='span' sx={{ fontWeight: 700 }}>
+            +{more} more
+          </Box>
+        )}
+        <InfoOutlinedIcon sx={{ fontSize: 15 }} />
+      </Box>
+    </Tooltip>
+  );
+}
+
 /** One source of leads (funnel or instant form) for the selected state. */
 function GroupCard({ group, state, bySegment, cart, onChange }) {
   const types = ['verified', 'unverified'].filter((type) =>
@@ -286,18 +362,16 @@ function GroupCard({ group, state, bySegment, cart, onChange }) {
         overflow: 'hidden',
       }}
     >
-      <Stack
-        direction='row'
-        spacing={1.5}
-        alignItems='baseline'
-        sx={{ px: 3, py: 2 }}
-      >
-        <Typography sx={{ ...labelSx, fontSize: '0.8rem', color: INK }}>
-          {group.title}
-        </Typography>
-        <Typography color='text.secondary' sx={{ fontSize: '0.875rem' }}>
-          {group.description}
-        </Typography>
+      <Stack spacing={1.25} alignItems='flex-start' sx={{ px: 3, py: 2 }}>
+        <Stack direction='row' spacing={1.5} alignItems='baseline'>
+          <Typography sx={{ ...labelSx, fontSize: '0.8rem', color: INK }}>
+            {group.title}
+          </Typography>
+          <Typography color='text.secondary' sx={{ fontSize: '0.875rem' }}>
+            {group.description}
+          </Typography>
+        </Stack>
+        <FieldsBadge source={group.source} />
       </Stack>
       <Box sx={{ overflowX: 'auto' }}>
         <Box sx={{ minWidth: 'fit-content' }}>
@@ -756,62 +830,6 @@ export default function Store() {
                   ))}
                 </>
               )}
-
-              {/* same surface as the profile's Leads tab panels, one per source */}
-              {list.groups.map((group) => (
-                <Paper
-                  key={group.source}
-                  variant='outlined'
-                  sx={{
-                    px: 2,
-                    py: 1.5,
-                    bgcolor: '#FBFBFA',
-                    borderColor: '#E5E7EB',
-                    borderRadius: 2,
-                  }}
-                >
-                  <Typography sx={{ ...labelSx, mb: 1 }}>
-                    Data fields delivered with every{' '}
-                    {group.source === 'instant' ? 'instant form' : 'website'}{' '}
-                    lead
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: {
-                        xs: 'repeat(2, 1fr)',
-                        md: 'repeat(4, 1fr)',
-                      },
-                      rowGap: 0.25,
-                      columnGap: 1,
-                    }}
-                  >
-                    {(group.source === 'instant'
-                      ? INSTANT_FORM_FIELDS
-                      : INCLUDED_FIELDS
-                    ).map((field) => (
-                      <Typography
-                        key={field}
-                        variant='caption'
-                        sx={{ display: 'flex', alignItems: 'center' }}
-                      >
-                        <Box
-                          component='span'
-                          sx={{
-                            width: 4,
-                            height: 4,
-                            mr: 1,
-                            flexShrink: 0,
-                            borderRadius: '50%',
-                            bgcolor: 'secondary.main',
-                          }}
-                        />
-                        {field}
-                      </Typography>
-                    ))}
-                  </Box>
-                </Paper>
-              ))}
             </Stack>
           </Stack>
         )}
