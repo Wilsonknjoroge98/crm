@@ -32,13 +32,13 @@ import PageContainer from '../components/PageContainer';
 // so it alone gets the gold stripe and gold CTA.
 const CAMPAIGNS = [
   {
-    title: 'Funnel Leads',
+    title: 'Website Leads',
     badge: '★ Popular',
     accent: GOLD,
     price: 39,
     unit: 'lead',
     description: 'High-intent leads generated on GetSeniorQuotes',
-    cta: 'Order Funnel Leads',
+    cta: 'Order Website Leads',
     ctaColor: 'action',
     href: 'https://buy.stripe.com/8x24gz9KsgUD9gKeKN6Ri0p',
   },
@@ -57,7 +57,7 @@ const CAMPAIGNS = [
     price: 60,
     unit: 'transfer',
     description:
-      'Live inbound calls from the GSQ web funnel. Charged only if the call lasts 90+ seconds.',
+      'Live inbound calls from the GSQ website. Charged only if the call lasts 90+ seconds.',
     cta: 'Order Live Transfers',
     href: 'https://buy.stripe.com/dRm00j7CkgUDdx01Y16Ri0b',
   },

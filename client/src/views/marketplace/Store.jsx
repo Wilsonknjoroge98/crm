@@ -161,7 +161,7 @@ const LISTS = {
     groups: [
       {
         source: 'funnel',
-        title: 'Funnel',
+        title: 'Website',
         description: 'Quote form, with full quote details',
         sets: [
           { key: 'aged_second', title: '31–90 Days' },
@@ -184,7 +184,7 @@ const LISTS = {
     groups: [
       {
         source: 'funnel',
-        title: 'Funnel',
+        title: 'Website',
         description: 'Quote form, with full quote details',
         sets: [{ key: 'banked', title: '0–72 Hours' }],
       },
@@ -772,7 +772,7 @@ export default function Store() {
                 >
                   <Typography sx={{ ...labelSx, mb: 1 }}>
                     Data fields delivered with every{' '}
-                    {group.source === 'instant' ? 'instant form' : 'funnel'}{' '}
+                    {group.source === 'instant' ? 'instant form' : 'website'}{' '}
                     lead
                   </Typography>
                   <Box

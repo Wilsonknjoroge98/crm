@@ -472,7 +472,7 @@ const AccountDetails = ({ data, defaultTab }) => {
                   mb: 1,
                 }}
               >
-                Standard Funnel
+                Website Leads
               </Typography>
 
               {/* Funnel Flow Switch & Last Issued */}

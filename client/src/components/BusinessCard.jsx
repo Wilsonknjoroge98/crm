@@ -890,7 +890,7 @@ const BusinessCard = ({
         {/* Column 4: funnel data — answered rows first, blanks behind show-more */}
         <Grid size={{ xs: 20, md: 4 }}>
           <ColumnHeading>
-            {isInstantForm ? 'Form Responses' : 'Funnel Data'}
+            {isInstantForm ? 'Form Responses' : 'Website Data'}
           </ColumnHeading>
           <Box component='ul' sx={{ m: 0, pl: 2 }}>
             {visibleFunnelRows.map((row) => (
@@ -945,7 +945,7 @@ const BusinessCard = ({
                 isGsqProtected ? (
                   <>
                     <SegmentChip segment={person.gsq_segment} />
-                    {isInstantForm ? 'GSQ Instant Form' : 'GSQ Funnel'}
+                    {isInstantForm ? 'GSQ Instant Form' : 'GSQ Website'}
                   </>
                 ) : (
                   formatVendorName(person.lead_vendor_name)
