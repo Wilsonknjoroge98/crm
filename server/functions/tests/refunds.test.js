@@ -19,7 +19,7 @@ const {
 } = require('../integrations/GSQ');
 
 // Fixtures date their leads in September 2026; pin the clock inside the
-// refund window for them so the 7-day rule doesn't age them out.
+// refund window for them so the 14-day rule doesn't age them out.
 const FIXTURE_NOW = Date.parse('2026-09-24T00:00:00Z');
 beforeEach(() => {
   jest.spyOn(Date, 'now').mockReturnValue(FIXTURE_NOW);
@@ -526,8 +526,8 @@ describe('POST /refunds', () => {
     expect(res.status).toBe(201);
   });
 
-  test('rejects a lead delivered more than 7 days ago', async () => {
-    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:01Z'));
+  test('rejects a lead delivered more than 14 days ago', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-10-04T00:00:01Z'));
     const supabase = makeSupabase([
       {
         table: 'leads',
@@ -558,12 +558,12 @@ describe('POST /refunds', () => {
     const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/within 7 days of delivery/i);
+    expect(res.body.error).toMatch(/within 14 days of delivery/i);
     expect(supabase.callCount()).toBe(1);
   });
 
-  test('applies the 7-day window to admins filing for an agent', async () => {
-    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:01Z'));
+  test('applies the 14-day window to admins filing for an agent', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-10-04T00:00:01Z'));
     const supabase = makeSupabase([
       {
         table: 'leads',
@@ -595,11 +595,11 @@ describe('POST /refunds', () => {
     const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/within 7 days of delivery/i);
+    expect(res.body.error).toMatch(/within 14 days of delivery/i);
   });
 
-  test('accepts a lead delivered exactly 7 days ago', async () => {
-    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:00Z'));
+  test('accepts a lead delivered exactly 14 days ago', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-10-04T00:00:00Z'));
     const supabase = makeSupabase([
       {
         table: 'leads',
