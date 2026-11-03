@@ -6,6 +6,7 @@ import { MoonLoader } from 'react-spinners';
 const Clients = lazy(() => import('../views/Clients'));
 const Policies = lazy(() => import('../views/Policies'));
 const Login = lazy(() => import('../views/Login'));
+const Landing = lazy(() => import('../views/Landing'));
 const SignUp = lazy(() => import('../views/SignUp'));
 const Insights = lazy(() => import('../views/Insights'));
 const Premiums = lazy(() => import('../views/Premiums'));
@@ -71,10 +72,8 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
-      {
-        index: true,
-        element: <Navigate to='/business' replace />,
-      },
+      // Public landing page; it sends logged-in agents on to /business.
+      { index: true, element: lazyRoute('/', Landing).element },
       {
         path: '/premiums',
         element: (
