@@ -2,15 +2,37 @@ const crypto = require('crypto');
 const axios = require('axios');
 const STATE_ABBREV_MAP = require('../shared/constants/state_abbrev_map');
 
-const pixelClient = axios.create({
-  baseURL: process.env.META_CONVERSIONS_URL,
-  headers: {
-    'Content-Type': 'application/json',
+// Each brand has its own Meta pixel (dataset). GSQ's endpoint is the
+// META_CONVERSIONS_URL secret; Keyley's is built from KEYLEY_META_PIXEL_ID, as
+// gsq's keyley/meta.js does. One Conversions API token (META_CONVERSIONS_TOKEN)
+// has access to both pixels.
+const KEYLEY_GRAPH_VERSION = 'v26.0';
+const PIXELS = {
+  gsq: {
+    url: () => process.env.META_CONVERSIONS_URL,
+    eventSourceUrl: 'https://getseniorquotes.com',
   },
-  params: {
-    access_token: process.env.META_CONVERSIONS_TOKEN,
+  keyley: {
+    url: () =>
+      process.env.KEYLEY_META_PIXEL_ID
+        ? `https://graph.facebook.com/${KEYLEY_GRAPH_VERSION}/${process.env.KEYLEY_META_PIXEL_ID}/events`
+        : null,
+    eventSourceUrl: 'https://keyley.com',
   },
-});
+};
+
+// Keyley lead docs keep the visitor's ip / user agent under consent and the
+// Meta cookies under meta (gsq keyley/lead.js); GSQ's keep them at the top.
+const pixelLead = (lead, brand) =>
+  brand === 'keyley'
+    ? {
+        ...lead,
+        ip: lead.consent?.ip,
+        userAgent: lead.consent?.userAgent,
+        fbc: lead.meta?.fbc,
+        fbp: lead.meta?.fbp,
+      }
+    : lead;
 
 // Meta wants trimmed, lowercased values hashed with sha256. Missing values
 // return undefined so the key is dropped from the payload instead of
@@ -45,8 +67,16 @@ const normalizeGender = (sex) => {
   return undefined;
 };
 
-const sendPurchaseToMeta = async (ap, lead, client) => {
-  if (!lead || !lead.email || !lead.name || !lead.phone || !lead.state) {
+const sendPurchaseToMeta = async (ap, gsqLead, client, brand = 'gsq') => {
+  const pixel = PIXELS[brand];
+  const url = pixel?.url();
+  if (!url) {
+    console.error('No Meta pixel configured for brand', brand);
+    return;
+  }
+  const lead = pixelLead(gsqLead || {}, brand);
+
+  if (!lead.email || !lead.name || !lead.phone || !lead.state) {
     console.error('Missing lead information');
     return;
   }
@@ -71,7 +101,7 @@ const sendPurchaseToMeta = async (ap, lead, client) => {
         event_name: 'Purchase',
         event_time: eventTime,
         action_source: 'website',
-        event_source_url: 'https://getseniorquotes.com',
+        event_source_url: pixel.eventSourceUrl,
         event_id: `purchase-${lead.email}-${eventTime}`,
         user_data: {
           client_ip_address: lead.ip,
@@ -113,7 +143,10 @@ const sendPurchaseToMeta = async (ap, lead, client) => {
   }
 
   try {
-    const res = await pixelClient.post('/', META_PURCHASE_PAYLOAD);
+    const res = await axios.post(url, META_PURCHASE_PAYLOAD, {
+      headers: { 'Content-Type': 'application/json' },
+      params: { access_token: process.env.META_CONVERSIONS_TOKEN },
+    });
 
     console.log('Meta Purchase event sent:', res.data);
   } catch (err) {

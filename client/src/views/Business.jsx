@@ -51,13 +51,11 @@ import ReleaseNotificationDialog, {
   STORAGE_KEY as RELEASE_NOTIFICATION_STORAGE_KEY,
 } from '../components/ReleaseNotificationDialog';
 import PageContainer from '../components/PageContainer';
+import { isHouseLead } from '../utils/brands';
 
 const SANS = '"Inter", sans-serif';
 const LOCAL_TIME_TICK_MS = 30000;
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
-// GSQ leads/clients stay selectable (export, etc.) but the backend refuses
-// to delete them, so bulk-delete messaging needs to call them out by name.
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 // Same columns Clients.jsx exported before the business view replaced the
 // separate Clients/Policies pages — one row per person, one row per policy.
@@ -438,29 +436,27 @@ const Business = () => {
     });
   };
 
-  // GSQ-sourced people stay selectable (e.g. for CSV export) but the backend
-  // refuses to delete them, so the confirmation should say so rather than
-  // implying every selected record will go.
+  // House leads (GSQ, Keyley) stay selectable (e.g. for CSV export) but the
+  // backend refuses to delete them, so the confirmation should say so rather
+  // than implying every selected record will go.
   const handleBulkDelete = () => {
     if (!selectedIds.length) return;
-    const gsqSelectedCount = selectedRows.filter(
-      (row) => row.lead_vendor_id === GSQ_LEAD_VENDOR_ID,
-    ).length;
-    const deletableCount = selectedIds.length - gsqSelectedCount;
+    const houseSelectedCount = selectedRows.filter(isHouseLead).length;
+    const deletableCount = selectedIds.length - houseSelectedCount;
 
     if (deletableCount === 0) {
       enqueueSnackbar(
-        'Selected records are GSQ, which are kept for tracking and cannot be deleted',
+        'Selected records are House Leads (GSQ, Keyley), which are kept for tracking and cannot be deleted',
         SNACKBAR_ERROR_OPTIONS,
       );
       return;
     }
 
     const message =
-      gsqSelectedCount > 0
+      houseSelectedCount > 0
         ? `${deletableCount} of the ${selectedIds.length} selected records ` +
-          `will be deleted. ${gsqSelectedCount} GSQ ${
-            gsqSelectedCount === 1 ? 'record is' : 'records are'
+          `will be deleted. ${houseSelectedCount} House Lead ${
+            houseSelectedCount === 1 ? 'record is' : 'records are'
           } kept for tracking and will be skipped.`
         : `Delete ${selectedIds.length} selected ${
             selectedIds.length === 1 ? 'record' : 'records'

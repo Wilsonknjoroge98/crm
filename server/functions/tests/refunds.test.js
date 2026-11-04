@@ -8,10 +8,7 @@ jest.mock('firebase-functions/logger', () => ({
   error: jest.fn(),
 }));
 
-const {
-  createRefundsRouter,
-  GSQ_LEAD_VENDOR_ID,
-} = require('../endpoints/refunds');
+const { createRefundsRouter } = require('../endpoints/refunds');
 const { SUPERUSER_ID } = require('../endpoints/business_access');
 const {
   GSQ_PLATFORM_EMAIL,
@@ -131,7 +128,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
           },
           error: null,
         },
@@ -173,6 +170,35 @@ describe('POST /refunds', () => {
     expect(supabase.callCount()).toBe(1);
   });
 
+  // Keyley's pool has no refund credit path yet (decided 2026-11-14)
+  test('refuses a Keyley lead, even an unverified one', async () => {
+    const supabase = makeSupabase([
+      {
+        table: 'leads',
+        result: {
+          data: {
+            id: 'lead-1',
+            verified: false,
+            sold: false,
+            refund_status: null,
+            agent_id: 'agent-1',
+            gsq_id: 'keyley-session-1',
+            brand: 'keyley',
+            created_at: '2026-09-20T00:00:00Z',
+          },
+          error: null,
+        },
+      },
+    ]);
+    const app = makeApp({ supabase });
+
+    const res = await request(app).post('/refunds').send({ leadId: 'lead-1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/keyley/i);
+    expect(supabase.callCount()).toBe(1);
+  });
+
   test('rejects a sold lead even if unverified', async () => {
     const supabase = makeSupabase([
       {
@@ -185,7 +211,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
           },
           error: null,
         },
@@ -211,7 +237,7 @@ describe('POST /refunds', () => {
             refund_status: 'requested',
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
           },
           error: null,
         },
@@ -236,7 +262,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
           },
           error: null,
         },
@@ -270,7 +296,7 @@ describe('POST /refunds', () => {
               refund_status: null,
               agent_id: 'agent-1',
               gsq_id: 'gsq-1',
-              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              brand: 'gsq',
               created_at: '2026-09-20T00:00:00Z',
             },
             error: null,
@@ -358,7 +384,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
@@ -397,7 +423,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
@@ -465,7 +491,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-18T23:59:59Z',
           },
           error: null,
@@ -501,7 +527,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-19T00:00:00Z',
           },
           error: null,
@@ -543,7 +569,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
@@ -579,7 +605,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
@@ -615,7 +641,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
@@ -652,7 +678,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
           },
           error: null,
         },
@@ -681,7 +707,7 @@ describe('POST /refunds', () => {
             refund_status: 'denied',
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
           },
           error: null,
         },
@@ -713,7 +739,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-20T00:00:00Z',
           },
           error: null,
@@ -752,7 +778,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: null,
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
           },
           error: null,
         },
@@ -785,7 +811,7 @@ describe('POST /refunds', () => {
             refund_status: null,
             agent_id: 'agent-1',
             gsq_id: 'gsq-1',
-            lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+            brand: 'gsq',
             created_at: '2026-09-20T00:00:00Z',
           },
           error: null,

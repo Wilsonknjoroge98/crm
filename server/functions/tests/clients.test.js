@@ -6,7 +6,7 @@ const request = require('supertest');
 const mockSupabaseFrom = jest.fn();
 const mockMarkSoldInGSQ = jest.fn().mockResolvedValue(undefined);
 const mockGetHyrosSource = jest.fn().mockResolvedValue(null);
-const mockIsGSQLiveTransfer = jest.fn().mockResolvedValue(false);
+const mockIsLiveTransfer = jest.fn().mockResolvedValue(false);
 const mockSendPurchaseToMeta = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('firebase-functions/logger', () => ({
@@ -23,7 +23,7 @@ jest.mock('../services/supabase', () => ({
 
 jest.mock('../integrations/GSQ', () => ({
   markSoldInGSQ: (...args) => mockMarkSoldInGSQ(...args),
-  isGSQLiveTransfer: (...args) => mockIsGSQLiveTransfer(...args),
+  isLiveTransfer: (...args) => mockIsLiveTransfer(...args),
 }));
 
 jest.mock('../integrations/hyros', () => ({
@@ -164,10 +164,8 @@ describe('POST /client', () => {
     );
   });
 
-  describe('gsq live transfer', () => {
-    const GSQ_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
-
-    const postNewGSQLead = async (body = {}) => {
+  describe('house brand live transfer', () => {
+    const postNewHouseLead = async (body = {}) => {
       const supabase = makeSupabase([
         { result: { data: [], error: null } },
         { result: { data: { id: 'lead-new' }, error: null } },
@@ -177,30 +175,81 @@ describe('POST /client', () => {
       const app = makeApp(supabase);
       const res = await request(app)
         .post('/client')
-        .send({ client: { ...baseClient, lead_vendor_id: GSQ_VENDOR_ID, ...body } });
+        .send({ client: { ...baseClient, brand: 'gsq', ...body } });
       const [, leadInsert, clientInsert] = supabase.queries;
       return { res, leadInsert, clientInsert };
     };
 
     test('flags the new lead from gsq call logs', async () => {
-      mockIsGSQLiveTransfer.mockResolvedValueOnce(true);
+      mockIsLiveTransfer.mockResolvedValueOnce(true);
 
-      const { res, leadInsert } = await postNewGSQLead();
+      const { res, leadInsert, clientInsert } = await postNewHouseLead();
 
       expect(res.status).toBe(201);
-      expect(mockIsGSQLiveTransfer).toHaveBeenCalledWith(
+      expect(mockIsLiveTransfer).toHaveBeenCalledWith(
         baseClient.phone,
         'agent@example.com',
+        'gsq',
       );
       expect(leadInsert.query.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ gsq_live_transfer: true }),
+        expect.objectContaining({
+          gsq_live_transfer: true,
+          brand: 'gsq',
+          lead_vendor_id: null,
+        }),
+      );
+      // brand belongs to the lead; clients has no such column
+      expect(clientInsert.query.insert.mock.calls[0][0]).not.toHaveProperty('brand');
+    });
+
+    test('checks Keyley calls and Hyros for a Keyley sale', async () => {
+      mockIsLiveTransfer.mockResolvedValueOnce(true);
+      mockGetHyrosSource.mockResolvedValueOnce('keyley-ad-1');
+
+      const { res, leadInsert } = await postNewHouseLead({ brand: 'keyley' });
+
+      expect(res.status).toBe(201);
+      expect(mockIsLiveTransfer).toHaveBeenCalledWith(
+        baseClient.phone,
+        'agent@example.com',
+        'keyley',
+      );
+      expect(leadInsert.query.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          brand: 'keyley',
+          gsq_live_transfer: true,
+          gsq_source: 'keyley-ad-1',
+        }),
       );
     });
 
-    test('ignores a client-sent answer and keeps it off the client row', async () => {
-      mockIsGSQLiveTransfer.mockResolvedValueOnce(false);
+    test('an agent-sourced sale skips Hyros and the call logs', async () => {
+      mockIsLiveTransfer.mockClear();
+      mockGetHyrosSource.mockClear();
 
-      const { res, leadInsert, clientInsert } = await postNewGSQLead({
+      const { res, leadInsert } = await postNewHouseLead({
+        brand: null,
+        lead_vendor_id: 'other-vendor-id',
+      });
+
+      expect(res.status).toBe(201);
+      expect(mockIsLiveTransfer).not.toHaveBeenCalled();
+      expect(mockGetHyrosSource).not.toHaveBeenCalled();
+      expect(leadInsert.query.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ brand: null, lead_vendor_id: 'other-vendor-id' }),
+      );
+    });
+
+    test('refuses a new lead with neither a brand nor a vendor', async () => {
+      const { res } = await postNewHouseLead({ brand: null });
+
+      expect(res.status).toBe(400);
+    });
+
+    test('ignores a client-sent answer and keeps it off the client row', async () => {
+      mockIsLiveTransfer.mockResolvedValueOnce(false);
+
+      const { res, leadInsert, clientInsert } = await postNewHouseLead({
         live_transfer: true,
       });
 
@@ -214,9 +263,9 @@ describe('POST /client', () => {
     });
 
     test('a failed lookup still creates the client', async () => {
-      mockIsGSQLiveTransfer.mockRejectedValueOnce(new Error('firestore down'));
+      mockIsLiveTransfer.mockRejectedValueOnce(new Error('firestore down'));
 
-      const { res, leadInsert } = await postNewGSQLead();
+      const { res, leadInsert } = await postNewHouseLead();
 
       expect(res.status).toBe(201);
       expect(leadInsert.query.insert).toHaveBeenCalledWith(

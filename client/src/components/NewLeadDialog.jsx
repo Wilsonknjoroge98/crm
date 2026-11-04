@@ -16,6 +16,11 @@ import dayjs from 'dayjs';
 import { enqueueSnackbar } from 'notistack';
 import { getLeadVendors, postLead } from '../utils/query';
 import {
+  DEFAULT_SOURCE,
+  sourceFields,
+  sourceOptions,
+} from '../utils/brands';
+import {
   SNACKBAR_SUCCESS_OPTIONS,
   STATES,
 } from '../utils/constants';
@@ -27,7 +32,8 @@ const EMPTY_FORM = {
   phone: '',
   date_of_birth: '',
   state: '',
-  lead_vendor_id: '',
+  // one of our brands or a lead vendor (utils/brands.js)
+  source: DEFAULT_SOURCE,
 };
 
 const NewLeadDialog = ({ open, onClose, onCreated }) => {
@@ -39,21 +45,11 @@ const NewLeadDialog = ({ open, onClose, onCreated }) => {
     enabled: open,
   });
   const leadVendors = leadVendorsData || [];
-  const defaultLeadVendorId = leadVendors[0]?.id || '';
 
   useEffect(() => {
     if (!open) return;
     setForm(EMPTY_FORM);
   }, [open]);
-
-  useEffect(() => {
-    if (!open || !defaultLeadVendorId) return;
-    setForm((current) =>
-      current.lead_vendor_id
-        ? current
-        : { ...current, lead_vendor_id: defaultLeadVendorId },
-    );
-  }, [open, defaultLeadVendorId]);
 
   const requiredComplete = useMemo(
     () =>
@@ -64,7 +60,7 @@ const NewLeadDialog = ({ open, onClose, onCreated }) => {
         'phone',
         'date_of_birth',
         'state',
-        'lead_vendor_id',
+        'source',
       ].every((field) => String(form[field] || '').trim()),
     [form],
   );
@@ -90,7 +86,8 @@ const NewLeadDialog = ({ open, onClose, onCreated }) => {
   };
 
   const handleSubmit = () => {
-    mutate(form);
+    const { source, ...fields } = form;
+    mutate({ ...fields, ...sourceFields(source) });
   };
 
   return (
@@ -176,17 +173,17 @@ const NewLeadDialog = ({ open, onClose, onCreated }) => {
           </Grid>
           <Grid size={12}>
             <TextField
-              name='lead_vendor_id'
+              name='source'
               label='Lead Source'
-              value={form.lead_vendor_id}
+              value={form.source}
               onChange={handleChange}
               select
               required
               fullWidth
             >
-              {leadVendors.map((vendor) => (
-                <MenuItem key={vendor.id} value={vendor.id}>
-                  {vendor.name}
+              {sourceOptions(leadVendors).map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
                 </MenuItem>
               ))}
             </TextField>

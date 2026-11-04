@@ -10,8 +10,9 @@ const {
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,
 } = require('../integrations/GSQ');
+const { isHouseLead } = require('../shared/brands');
 const {
-  GSQ_LEAD_VENDOR_ID,
+  isRefundableBrand,
   REFUND_ELIGIBILITY_CUTOFF,
   REFUND_WINDOW_DAYS,
   isWithinRefundWindow,
@@ -83,17 +84,22 @@ const createRefundsRouter = ({
       let query = supabase
         .from('leads')
         .select(
-          'id,first_name,last_name,email,phone,verified,sold,refund_status,agent_id,gsq_id,lead_vendor_id,created_at',
+          'id,first_name,last_name,email,phone,verified,sold,refund_status,agent_id,gsq_id,brand,created_at',
         )
         .eq('id', leadId);
       if (agentId !== SUPERUSER_ID) query = query.eq('agent_id', agentId);
       const { data: lead, error } = await query.maybeSingle();
       if (error) throw error;
       if (!lead) return res.status(404).json({ error: 'Lead not found' });
-      if (lead.lead_vendor_id !== GSQ_LEAD_VENDOR_ID) {
+      if (!isHouseLead(lead)) {
         return res
           .status(400)
           .json({ error: 'Only GSQ leads are eligible for a refund' });
+      }
+      if (!isRefundableBrand(lead.brand)) {
+        return res
+          .status(400)
+          .json({ error: 'Refunds are not available for Keyley leads yet' });
       }
       // strict false, null means a non gsq lead that was never verified either way
       if (lead.verified !== false || lead.sold) {
@@ -384,4 +390,3 @@ const createRefundsRouter = ({
 module.exports = createRefundsRouter();
 module.exports.createRefundsRouter = createRefundsRouter;
 module.exports.REFUND_LIST_FIELDS = REFUND_LIST_FIELDS;
-module.exports.GSQ_LEAD_VENDOR_ID = GSQ_LEAD_VENDOR_ID;

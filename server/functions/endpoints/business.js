@@ -12,6 +12,7 @@ const {
   isMarketplaceSale,
   isRefundCandidate,
 } = require('../shared/refund_eligibility');
+const { isHouseLead } = require('../shared/brands');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -21,7 +22,6 @@ const MAX_INDEXED_SEARCH_IDS = 100;
 const MAX_NOTES_LENGTH = 10000;
 const METRICS_PAGE_SIZE = 1000;
 const METRICS_ID_CHUNK_SIZE = 100;
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 // leads.gsq_segment's check constraint; see add_lead_gsq_segment.sql.
 const GSQ_SEGMENTS = new Set(['fresh', 'banked', 'aged_second', 'aged_third']);
 // Card rows surface contact, notes, and the underwriting summary directly,
@@ -51,6 +51,7 @@ const BUSINESS_LIST_FIELDS = [
   'beneficiary',
   'why',
   'notes',
+  'brand',
   'lead_vendor_id',
   'lead_vendor_name',
   'lead_created_at',
@@ -94,6 +95,18 @@ const BUSINESS_LIST_FIELDS = [
   'updated_at',
   // the card's Sale amount: clients.monthly_premium captured at close
   'monthly_premium',
+  // Keyley's mortgage answers (add_lead_mortgage_columns.sql); the property
+  // address rides on address/city/zip above
+  'mortgage_balance',
+  'mortgage_balance_adjusted',
+  'mortgage_years_left',
+  'term_years',
+  'homeowner',
+  'home_value',
+  'home_equity',
+  'home_value_confidence',
+  'record_owners',
+  'owner_name_match',
 ].join(',');
 // Detail is a single row looked up by id with no ORDER BY, so the lateral runs
 // once and the rollup can stay in the projection.
@@ -141,8 +154,21 @@ const BUSINESS_DETAIL_FIELDS = [
   'gsq_live_transfer',
   'gsq_instant_form',
   'gsq_segment',
+  'brand',
   'lead_vendor_id',
   'lead_vendor_name',
+  // Keyley's mortgage answers (add_lead_mortgage_columns.sql); the property
+  // address rides on address/city/zip above
+  'mortgage_balance',
+  'mortgage_balance_adjusted',
+  'mortgage_years_left',
+  'term_years',
+  'homeowner',
+  'home_value',
+  'home_equity',
+  'home_value_confidence',
+  'record_owners',
+  'owner_name_match',
   'notes',
   'lead_created_at',
   'client_created_at',
@@ -228,7 +254,7 @@ const fetchVisibleClientIds = async ({
   supabase,
   agentId,
   isSuperuser,
-  gsqOnly = false,
+  houseOnly = false,
 }) => {
   const buildQuery = (ownershipFilter) => {
     let query = supabase
@@ -236,8 +262,8 @@ const fetchVisibleClientIds = async ({
       .select('client_id')
       .not('client_id', 'is', null)
       .order('client_id', { ascending: true });
-    if (gsqOnly) {
-      query = query.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+    if (houseOnly) {
+      query = query.not('brand', 'is', null);
     }
     return ownershipFilter(query);
   };
@@ -467,7 +493,8 @@ const parsePeopleQuery = (query) => {
     throw new QueryValidationError('status must be lead or sale');
   }
   const status = normalizedStatus ? normalizedStatus.toUpperCase() : null;
-  const gsqOnly = query.gsqOnly === 'true';
+  // House Leads: only leads from our own brands (leads.brand set)
+  const houseOnly = query.houseOnly === 'true';
 
   if (query.state !== undefined && typeof query.state !== 'string') {
     throw new QueryValidationError('state must be a string');
@@ -506,7 +533,7 @@ const parsePeopleQuery = (query) => {
     sortOrder,
     search,
     status,
-    gsqOnly,
+    houseOnly,
     states,
     segments,
   };
@@ -616,7 +643,7 @@ const applyPeopleFilters = ({
   isSuperuser,
   searchMatches,
   status,
-  gsqOnly,
+  houseOnly,
   states,
   segments = [],
 }) => {
@@ -634,8 +661,8 @@ const applyPeopleFilters = ({
     filteredQuery = filteredQuery.eq('lifecycle_status', status);
   }
 
-  if (gsqOnly) {
-    filteredQuery = filteredQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+  if (houseOnly) {
+    filteredQuery = filteredQuery.not('brand', 'is', null);
   }
 
   // prod has a sprinkle of two-letter codes next to the full names, match both.
@@ -652,11 +679,11 @@ const applyPeopleFilters = ({
   }
 
   // gsq_segment defaults to fresh on every lead, so a segment only means
-  // something on GSQ deliveries; scope to the vendor the way the card only
-  // shows the segment chip for GSQ leads.
+  // something on a house delivery; scope to house leads the way the card only
+  // shows the segment chip for them.
   if (segments.length > 0) {
     filteredQuery = filteredQuery
-      .eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID)
+      .not('brand', 'is', null)
       .in('gsq_segment', segments);
   }
 
@@ -764,7 +791,7 @@ const createBusinessRouter = ({
       sortOrder,
       search,
       status,
-      gsqOnly,
+      houseOnly,
       states,
       segments,
     } = parsedQuery;
@@ -806,7 +833,7 @@ const createBusinessRouter = ({
         isSuperuser,
         searchMatches,
         status,
-        gsqOnly,
+        houseOnly,
         states,
         segments,
       });
@@ -829,7 +856,7 @@ const createBusinessRouter = ({
           isSuperuser,
           searchMatches,
           status,
-          gsqOnly,
+          houseOnly,
           states,
           segments,
         });
@@ -891,14 +918,14 @@ const createBusinessRouter = ({
 
   // Header strip: all-time financial figures. Lead spend is the account's
   // actual Stripe charge history rather than a per-lead price estimate.
-  // gsqOnly scopes leadsDelivered/closedSales/totalClosed to the GSQ vendor,
+  // houseOnly scopes leadsDelivered/closedSales/totalClosed to house leads,
   // mirroring the GSQ switch on the list below.
   router.get('/metrics', async (req, res) => {
     const { agentId, isSuperuser, agentEmail } = await resolveAgentScope(
       req,
       supabase,
     );
-    const gsqOnly = req.query.gsqOnly === 'true';
+    const houseOnly = req.query.houseOnly === 'true';
 
     if (!agentId) {
       return res.status(403).json({ error: 'Agent profile required' });
@@ -911,25 +938,25 @@ const createBusinessRouter = ({
       if (!isSuperuser) {
         leadsQuery = leadsQuery.eq('agent_id', agentId);
       }
-      if (gsqOnly) {
-        leadsQuery = leadsQuery.eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID);
+      if (houseOnly) {
+        leadsQuery = leadsQuery.not('brand', 'is', null);
       }
 
       // The superuser's fast path (fetchAllClientPremiums, no client-id join)
-      // only applies when every client is in scope; gsqOnly needs the same
+      // only applies when every client is in scope; houseOnly needs the same
       // client-id filter regular agents use, just without the ownership leg.
       const fetchClients = async () => {
-        if (isSuperuser && !gsqOnly) return fetchAllClientPremiums(supabase);
+        if (isSuperuser && !houseOnly) return fetchAllClientPremiums(supabase);
         const visibleClientIds = await fetchVisibleClientIds({
           supabase,
           agentId,
           isSuperuser,
-          gsqOnly,
+          houseOnly,
         });
         return fetchClientPremiumsForClientIds(supabase, visibleClientIds);
       };
 
-      // Not gated on gsqOnly: every dollar in stripe_orders was already spent
+      // Not gated on houseOnly: every dollar in stripe_orders was already spent
       // buying GSQ leads, so it's the same total whichever way the switch is set.
       const [leadsResult, clients, leadSpendRaw] = await Promise.all([
         leadsQuery,
@@ -1088,7 +1115,7 @@ const createBusinessRouter = ({
     try {
       let peopleQuery = supabase
         .from('business')
-        .select('id,lead_id,client_id,lifecycle_status,lead_vendor_id')
+        .select('id,lead_id,client_id,lifecycle_status,brand')
         .in('id', ids);
 
       if (!isSuperuser) {
@@ -1103,15 +1130,11 @@ const createBusinessRouter = ({
           .json({ error: 'One or more people were not found' });
       }
 
-      // GSQ leads/clients are tracked permanently and never eligible for
-      // deletion, regardless of who requests it or how they were converted.
+      // House leads/clients (GSQ, Keyley) are tracked permanently and never
+      // eligible for deletion, regardless of who requests it or how they were
+      // converted.
       const protectedIdSet = new Set(
-        people
-          .filter(
-            ({ lead_vendor_id: leadVendorId }) =>
-              leadVendorId === GSQ_LEAD_VENDOR_ID,
-          )
-          .map(({ id }) => id),
+        people.filter(isHouseLead).map(({ id }) => id),
       );
       const deletablePeople = people.filter(
         ({ id }) => !protectedIdSet.has(id),
@@ -1267,5 +1290,4 @@ module.exports.createBusinessRouter = createBusinessRouter;
 module.exports.parsePeopleQuery = parsePeopleQuery;
 module.exports.buildSearchPatterns = buildSearchPatterns;
 module.exports.parseBulkPersonIds = parseBulkPersonIds;
-module.exports.GSQ_LEAD_VENDOR_ID = GSQ_LEAD_VENDOR_ID;
 module.exports.fetchAllRows = fetchAllRows;

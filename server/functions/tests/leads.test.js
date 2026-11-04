@@ -147,6 +147,53 @@ describe('POST /leads', () => {
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
+  test('a house brand is the source: brand set, no vendor', async () => {
+    const { app, query } = makeApp({ data: { id: 'lead-1' }, error: null });
+
+    const response = await request(app)
+      .post('/leads')
+      .send({ lead: { ...validLead, lead_vendor_id: undefined, brand: 'keyley' } });
+
+    expect(response.status).toBe(201);
+    expect(query.calls[0].args[0]).toEqual(
+      expect.objectContaining({ brand: 'keyley', lead_vendor_id: null }),
+    );
+  });
+
+  test('a lead vendor is the source: vendor set, no brand', async () => {
+    const { app, query } = makeApp({ data: { id: 'lead-1' }, error: null });
+
+    const response = await request(app).post('/leads').send({ lead: validLead });
+
+    expect(response.status).toBe(201);
+    expect(query.calls[0].args[0]).toEqual(
+      expect.objectContaining({ brand: null, lead_vendor_id: 'vendor-1' }),
+    );
+  });
+
+  test('rejects a lead with neither a brand nor a vendor', async () => {
+    const { app, supabase } = makeApp({ data: null, error: null });
+
+    const response = await request(app)
+      .post('/leads')
+      .send({ lead: { ...validLead, lead_vendor_id: undefined } });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('brand or lead_vendor_id');
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  test('rejects an unknown brand', async () => {
+    const { app, supabase } = makeApp({ data: null, error: null });
+
+    const response = await request(app)
+      .post('/leads')
+      .send({ lead: { ...validLead, brand: 'acme' } });
+
+    expect(response.status).toBe(400);
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
   test('rejects malformed premium input', async () => {
     const { app, supabase } = makeApp({ data: null, error: null });
 

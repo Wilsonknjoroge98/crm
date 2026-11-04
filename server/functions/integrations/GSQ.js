@@ -3,6 +3,7 @@ const { getHyrosSource } = require('./hyros');
 const { supabaseService } = require('../services/supabase');
 const logger = require('firebase-functions/logger');
 const { parsePremium } = require('./premium');
+const { BRANDS, ALL_LEAD_COLLECTIONS } = require('../shared/brands');
 
 // GSQ sends this literal email for leads issued to the platform itself
 // rather than a specific agent; ingestion and refunds both need to treat it
@@ -105,6 +106,49 @@ const resolveFunnelSource = async (gsqId, phone, segment) => {
   return getHyrosSource(phone);
 };
 
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+const toSmallInt = (value) => {
+  const n = toNumber(value);
+  return n === null ? null : Math.round(n);
+};
+const toBool = (value) => (typeof value === 'boolean' ? value : null);
+const toText = (value) => {
+  const s = String(value ?? '').trim();
+  return s || null;
+};
+
+// Keyley's mortgage-first answers -> the typed mortgage columns
+// (sql/add_lead_mortgage_columns.sql). Anything missing or malformed lands
+// as null rather than failing the insert.
+const keyleyColumns = (lead) => {
+  const confidence = toSmallInt(lead.homeValueConfidence);
+  return {
+    mortgage_balance: toNumber(lead.mortgageBalance),
+    mortgage_balance_adjusted: toBool(lead.mortgageBalanceAdjusted),
+    mortgage_years_left: toSmallInt(lead.mortgageYearsLeft),
+    term_years: toSmallInt(lead.termYears),
+    homeowner: toBool(lead.homeowner),
+    // the street line; gsq's lead doc keeps the full address as an object
+    address: typeof lead.address === 'string' ? toText(lead.address) : null,
+    city: toText(lead.city),
+    zip: toText(lead.zip),
+    home_value: toNumber(lead.homeValue),
+    home_equity: toNumber(lead.homeEquity),
+    home_value_confidence:
+      confidence !== null && confidence >= 0 && confidence <= 100
+        ? confidence
+        : null,
+    record_owners: Array.isArray(lead.recordOwners)
+      ? lead.recordOwners.map(toText).filter(Boolean)
+      : null,
+    owner_name_match: toBool(lead.ownerNameMatch),
+  };
+};
+
 const inboundGSQ = async (req, res) => {
   try {
     const auth = req.headers['authorization']?.split(' ')[1];
@@ -123,6 +167,10 @@ const inboundGSQ = async (req, res) => {
 
     // set by gsq's meta webhook, the funnel callers never send it
     const isInstantForm = req.body.leadType === 'instant_form';
+    // gsq's two brands. Keyley leads carry their mortgage answers in typed
+    // columns (keyleyColumns); everything else gsq sends is a GSQ lead.
+    const brand = req.body.brand === 'keyley' ? 'keyley' : 'gsq';
+    const isKeyley = brand === 'keyley';
 
     // meta forms don't always ask for email or state, and a single word
     // full_name has no last name, gsq has already issued the lead by now
@@ -137,14 +185,11 @@ const inboundGSQ = async (req, res) => {
     }
 
     const segment = parseSegment(req.body.segment);
+    // Keyley's site runs the same Hyros account as GSQ, so the phone lookup
+    // finds its ad too. Instant forms name their ad directly (adName).
     const hyrosSource = isInstantForm
       ? null
       : await resolveFunnelSource(gsqId, phone, segment);
-    const { data: leadVendor } = await supabaseService
-      .from('lead_vendors')
-      .select('id')
-      .eq('name', 'GetSeniorQuotes.com')
-      .single();
 
     // If the lead is issued to the GSQ platform email, override the email to match company
     if (issuedTo === GSQ_PLATFORM_EMAIL) {
@@ -208,7 +253,9 @@ const inboundGSQ = async (req, res) => {
       gsq_id: lead.gsqId,
       gsq_instant_form: isInstantForm,
       gsq_segment: segment,
-      lead_vendor_id: leadVendor.id,
+      // house leads have a brand instead of a lead vendor (leads_source_check)
+      brand,
+      lead_vendor_id: null,
       sex: lead.sex ? String(lead.sex).trim() : null,
     };
 
@@ -230,6 +277,8 @@ const inboundGSQ = async (req, res) => {
         }
       : {};
     Object.assign(payload, instantFormColumns);
+
+    if (isKeyley) Object.assign(payload, keyleyColumns(lead));
 
     // Dedup is gsq's job (30-day phone-issuance window ahead of this
     // endpoint) — the phone column no longer has a unique constraint, so
@@ -346,10 +395,10 @@ const inboundSendblueNumber = async (req, res) => {
   }
 };
 
-// Every gsq collection that holds a sellable lead identity. The fexdigital
-// storefront only lists docs with sold == false, so once an agent sells a
-// phone every copy of it has to flip, not just the funnel doc.
-const GSQ_LEAD_COLLECTIONS = ['leads', 'instant_form_leads'];
+// Every gsq collection that holds a sellable lead identity, in both brands.
+// The fexdigital storefront only lists docs with sold == false, and Keyley
+// drops a sold phone as a past customer, so once an agent sells a phone every
+// copy of it flips, in either brand (decided 2026-11-14).
 
 // gsq stores phones as 10 bare digits, crm clients can carry formatting
 const phoneVariants = (phone) => {
@@ -359,10 +408,15 @@ const phoneVariants = (phone) => {
   return [...new Set([raw, digits].filter(Boolean))];
 };
 
-const findLeadDocs = async (db, field, values) => {
+const findLeadDocs = async (
+  db,
+  field,
+  values,
+  collections = ALL_LEAD_COLLECTIONS,
+) => {
   if (values.length === 0) return [];
   const snapshots = await Promise.all(
-    GSQ_LEAD_COLLECTIONS.map((name) =>
+    collections.map((name) =>
       db.collection(name).where(field, 'in', values).get(),
     ),
   );
@@ -403,14 +457,21 @@ const markSoldInGSQ = async (phone, email) => {
 // gsq's Telnyx call control keys live transfers on the caller's E.164 number.
 // telnyx_calls holds every inbound call (bridged once an agent picks up);
 // telnyx_logs only gets bridged calls that ran past the billing threshold.
-// It only counts when the call was bridged to the selling agent and the phone
-// never came through as a normal lead (funnel or instant form) — a caller
-// who already had a lead is still that lead, not a live transfer.
-const isGSQLiveTransfer = async (phone, agentEmail) => {
+// Both carry brandLabel, the brand whose number was called ('GSQ' / 'Keyley';
+// calls from before the field existed are GSQ's, as in gsq's call control).
+// It only counts when the call was bridged to the selling agent on that
+// brand's number and the phone never came through as one of that brand's
+// leads: a caller who already had a lead is still that lead, not a live
+// transfer, and a lead of one brand calling the other brand is a new caller
+// (gsq functions/index.js leadCollections).
+const callBrand = (doc) =>
+  doc.data().brandLabel === BRANDS.keyley.callBrandLabel ? 'keyley' : 'gsq';
+
+const isLiveTransfer = async (phone, agentEmail, brand = 'gsq') => {
   const email = String(agentEmail ?? '')
     .trim()
     .toLowerCase();
-  if (!email) return false;
+  if (!email || !BRANDS[brand]) return false;
 
   const db = new Firestore({
     projectId: 'life-quoter',
@@ -427,12 +488,13 @@ const isGSQLiveTransfer = async (phone, agentEmail) => {
       .where('callerPhone', 'in', callerPhones)
       .get(),
     db.collection('telnyx_logs').where('callerPhone', 'in', callerPhones).get(),
-    findLeadDocs(db, 'phone', variants),
+    findLeadDocs(db, 'phone', variants, BRANDS[brand].leadCollections),
   ]);
 
   if (leadDocs.length > 0) return false;
 
   const bridgedToAgent = (doc) =>
+    callBrand(doc) === brand &&
     doc.data().bridged === true &&
     String(doc.data().bridgedAgentEmail ?? '')
       .trim()
@@ -445,7 +507,7 @@ module.exports = {
   inboundGSQ,
   inboundSendblueNumber,
   markSoldInGSQ,
-  isGSQLiveTransfer,
+  isLiveTransfer,
   GSQ_PLATFORM_EMAIL,
   SUPER_ADMIN_EMAIL,
 };

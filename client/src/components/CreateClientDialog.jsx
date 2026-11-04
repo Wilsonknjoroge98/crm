@@ -35,6 +35,12 @@ import { useLocation } from 'react-router-dom';
 import { toTitleCase, formatPhone } from '../utils/helpers';
 import SectionHeader from './SectionHeader';
 import { pillSx } from './Pill';
+import {
+  DEFAULT_SOURCE,
+  sourceFields,
+  sourceOptions,
+  sourceValue,
+} from '../utils/brands';
 
 // Client-only fields a lead won't have yet; not required to convert a lead
 // into a client. Sent as null (not '') so numeric columns like
@@ -47,8 +53,6 @@ const OPTIONAL_CLIENT_FIELDS = [
   'marital_status',
   'annual_income',
 ];
-
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 // The only fields the dialog blocks submit on (matches the NOT NULL client
 // columns). A malformed email also blocks. Whether a GSQ lead was a live
@@ -140,7 +144,8 @@ const CreateClientDialog = ({
     phone: '',
     date_of_birth: '',
     marital_status: '',
-    lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+    // one of our brands or a lead vendor (utils/brands.js sourceValue)
+    source: DEFAULT_SOURCE,
     address: '',
     city: '',
     state: '',
@@ -178,8 +183,9 @@ const CreateClientDialog = ({
         email: lead.email || '',
         phone: lead.phone || '',
         date_of_birth: lead.date_of_birth || '',
-        lead_vendor_id: lead.lead_vendor_id || GSQ_LEAD_VENDOR_ID,
+        source: sourceValue(lead) || DEFAULT_SOURCE,
         marital_status: lead.marital_status || '',
+        // a Keyley lead arrives with its property address (leads.address)
         address: lead.address || '',
         city: lead.city || '',
         state: lead.state || '',
@@ -309,7 +315,8 @@ const CreateClientDialog = ({
   };
 
   const handleSubmit = () => {
-    const data = { ...form };
+    const { source, ...fields } = form;
+    const data = { ...fields, ...sourceFields(source) };
     OPTIONAL_CLIENT_FIELDS.forEach((field) => {
       if (data[field] === '') data[field] = null;
     });
@@ -430,7 +437,7 @@ const CreateClientDialog = ({
             </Typography>
           </Grid>
           {/* Lead Source only matters when a client is keyed in by hand;
-              a converted lead already carries its vendor. */}
+              a converted lead already carries its brand or vendor. */}
           {!lead && (
             <Grid size={{ xs: 12, sm: 7 }}>
               {leadVendorsLoading ? (
@@ -438,16 +445,16 @@ const CreateClientDialog = ({
               ) : (
                 <TextField
                   select
-                  name='lead_vendor_id'
+                  name='source'
                   label='Lead Source'
-                  value={form.lead_vendor_id}
+                  value={form.source}
                   onChange={handleChange}
                   fullWidth
                   sx={REQUIRED_INPUT_SX}
                 >
-                  {leadVendors.map((vendor) => (
-                    <MenuItem key={vendor.id} value={vendor.id}>
-                      {vendor.name}
+                  {sourceOptions(leadVendors).map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
                     </MenuItem>
                   ))}
                 </TextField>

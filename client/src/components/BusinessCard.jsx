@@ -32,11 +32,11 @@ import { saveBusinessNotes } from '../utils/query';
 import { SEGMENT_CHIPS, SNACKBAR_SUCCESS_OPTIONS } from '../utils/constants';
 import { formatLocalTime } from '../utils/stateTimezones';
 import { toE164 } from '../utils/helpers';
+import { brandLabel, isHouseLead } from '../utils/brands';
 
 const SANS = '"Inter", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
 const NOTES_DEBOUNCE_MS = 800;
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 // Call/Text/Appointment aren't built yet, so they stay disabled placeholders
 // that route into the "notify me" signup. Mark Sold already has a real flow
@@ -57,8 +57,8 @@ const annualizedSaleAmount = (monthlyPremium) => {
   return monthly > 0 ? monthly * 12 : null;
 };
 
-// Display-only: the vendor's stored name is "GetSeniorQuotes.com", but the
-// card's Lead Info column is narrow, so use the short brand.
+// Display-only: older rows may still carry the "GetSeniorQuotes.com" vendor
+// name, but the card's Lead Info column is narrow, so use the short brand.
 const formatVendorName = (value) =>
   value === 'GetSeniorQuotes.com' ? 'GSQ' : value;
 
@@ -289,6 +289,73 @@ const buildFunnelRows = (person) => {
   ];
 };
 
+const yesNo = (value) =>
+  value === true ? 'Yes' : value === false ? 'No' : null;
+
+const money = (value) =>
+  value === null || value === undefined ? null : formatCurrency(value, 0);
+
+// Keyley's Website Data: the mortgage answers first (what the agent quotes
+// from), then the person. The balance notes when the lead corrected the
+// county-record estimate; the owner row says whether their name is on the
+// deed. The property address shows with the contact details.
+const buildMortgageRows = (person) => {
+  const owners = (person.record_owners || []).join(', ');
+  const ownerMatch = yesNo(person.owner_name_match);
+  return [
+    {
+      label: 'Coverage',
+      value: person.face_amount ? formatCurrency(person.face_amount, 0) : null,
+    },
+    {
+      label: 'Term',
+      value: person.term_years ? `${person.term_years} years` : null,
+    },
+    { label: 'Monthly quote', value: premiumLabel(person) },
+    {
+      label: 'Mortgage balance',
+      value:
+        money(person.mortgage_balance) &&
+        `${money(person.mortgage_balance)}${
+          person.mortgage_balance_adjusted ? " (lead's number)" : ''
+        }`,
+    },
+    {
+      label: 'Years left',
+      value:
+        person.mortgage_years_left != null
+          ? String(person.mortgage_years_left)
+          : null,
+    },
+    { label: 'Protecting', value: person.beneficiary || null },
+    { label: 'Homeowner', value: yesNo(person.homeowner) },
+    {
+      label: 'Age',
+      value: computeAge(person.date_of_birth),
+    },
+    { label: 'Sex', value: formatAnswer(person.sex) },
+    {
+      label: 'Smoker',
+      value: yesNo(person.smoker),
+    },
+    { label: 'Home value', value: money(person.home_value) },
+    { label: 'Equity', value: money(person.home_equity) },
+    {
+      label: 'Value confidence',
+      value:
+        person.home_value_confidence != null
+          ? `${person.home_value_confidence}/100`
+          : null,
+    },
+    {
+      label: 'Name on deed',
+      title: owners ? `Record owners: ${owners}` : undefined,
+      value: ownerMatch,
+    },
+    { label: 'Record owners', value: owners || null },
+  ];
+};
+
 const copyToClipboard = async (label, value) => {
   if (!value) return;
   try {
@@ -458,7 +525,10 @@ const BusinessCard = ({
   const localTime = formatLocalTime(person.state, now);
   const receivedAt = person.lead_created_at || person.created_at;
   const saleAmount = annualizedSaleAmount(person.monthly_premium);
-  const funnelRows = buildFunnelRows(person);
+  const isKeyley = person.brand === 'keyley';
+  const funnelRows = isKeyley
+    ? buildMortgageRows(person)
+    : buildFunnelRows(person);
   // Answered rows bubble to the top, then blanks fill out the remainder, so
   // the collapsed column is always exactly COLLAPSED_FUNNEL_ROWS tall and
   // every card opens at the same height.
@@ -475,21 +545,22 @@ const BusinessCard = ({
     : sortedFunnelRows.slice(0, COLLAPSED_FUNNEL_ROWS);
   const canToggleFunnel = hiddenFunnelCount > 0;
   // Only the admin needs to see who else's lead this is — but for every
-  // vendor and lifecycle stage, not just GSQ leads. Creative (the ad
-  // source) only ever exists for GSQ-sourced leads, so it stays scoped.
+  // vendor and lifecycle stage, not just house leads. Creative (the ad
+  // source) only ever exists for house leads (GSQ, Keyley), so it stays
+  // scoped.
   const showAgentAttribution = isAdmin;
-  const isGsqProtected = person.lead_vendor_id === GSQ_LEAD_VENDOR_ID;
-  const showCreativeAttribution = isAdmin && isGsqProtected;
-  // Refunds only exist for GSQ leads — crediting one means crediting the
-  // agent's counters in GSQ's own Firestore, which only exists for leads
-  // that actually came from GSQ. strict false, null means a non-gsq lead
-  // that was never verified either way. Once sold (converted to a client,
+  const isHouse = isHouseLead(person);
+  const showCreativeAttribution = isAdmin && isHouse;
+  // Refunds only exist for house leads — crediting one means crediting the
+  // agent's counters in GSQ's own Firestore. strict false, null means a lead
+  // that was never verified either way. The server refuses Keyley refunds
+  // for now (refund_eligible stays false). Once sold (converted to a client,
   // or a policy attached directly) the lead is no longer eligible even if
   // it was never marked verified. This gates showing a prior refund's status
   // badge, independent of the cutoff — a lead already carrying refund
   // history should still show it even if that history predates the cutoff.
   const isRefundRelevant =
-    isGsqProtected && person.verified === false && !isSale && !person.sold;
+    isHouse && person.verified === false && !isSale && !person.sold;
   // The server decides whether a refund can be requested (refund_eligible),
   // using the refunds route's own rules: the cutoff date, no prior refund,
   // and not a final-sale marketplace purchase.
@@ -925,10 +996,12 @@ const BusinessCard = ({
             <LabeledValue
               label='Source'
               value={
-                isGsqProtected ? (
+                isHouse ? (
                   <>
                     <SegmentChip segment={person.gsq_segment} />
-                    {isInstantForm ? 'GSQ Instant Form' : 'GSQ Website'}
+                    {`${brandLabel(person.brand)} ${
+                      isInstantForm ? 'Instant Form' : 'Website'
+                    }`}
                   </>
                 ) : (
                   formatVendorName(person.lead_vendor_name)

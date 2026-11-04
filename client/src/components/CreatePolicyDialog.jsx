@@ -80,7 +80,6 @@ const CreatePolicyDialog = ({ open, setOpen, client, refetchClients }) => {
       isFirstPolicy && client?.monthly_premium
         ? String(client.monthly_premium)
         : '',
-    lead_vendor_id: client?.lead_vendor_id || 'GetSeniorQuotes.com',
     product: '',
     premium_frequency: 'monthly',
     sold_date: '',

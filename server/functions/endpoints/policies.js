@@ -4,6 +4,7 @@ const dayjs = require('dayjs');
 const { WebClient } = require('@slack/web-api');
 const { supabaseService } = require('../services/supabase');
 const { buildPolicySlackPayload } = require('../integrations/slack');
+const { isHouseLead } = require('../shared/brands');
 
 const slackTargets = [
   process.env.SLACK_BOT_TOKEN,
@@ -13,7 +14,6 @@ const slackTargets = [
 const policyRouter = express.Router();
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 
 // Editable policy columns only. See clients.js EDITABLE_CLIENT_FIELDS: a
 // deny-list here would forward any future generated column on `policies`
@@ -227,7 +227,8 @@ policyRouter.post('/', async (req, res) => {
     ...policyFields
   } = policy;
 
-  let lead_vendor_id = null;
+  // the sold lead's brand: only house sales post to #sales
+  let leadBrand = null;
 
   const insertPayload = {
     ...policyFields,
@@ -302,11 +303,11 @@ policyRouter.post('/', async (req, res) => {
     if (clientData?.lead_id) {
       const { data: leadData } = await supabaseService
         .from('leads')
-        .select('lead_vendor_id')
+        .select('brand')
         .eq('id', clientData.lead_id)
         .single();
 
-      lead_vendor_id = leadData?.lead_vendor_id ?? null;
+      leadBrand = leadData?.brand ?? null;
     }
 
     await supabaseService
@@ -359,7 +360,7 @@ policyRouter.post('/', async (req, res) => {
       effectiveDate: eft,
     });
 
-    if (lead_vendor_id === GSQ_LEAD_VENDOR_ID) {
+    if (isHouseLead({ brand: leadBrand })) {
       await new WebClient(process.env.SLACK_BOT_TOKEN).chat.postMessage({
         channel: '#sales',
         text: payload.text,

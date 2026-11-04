@@ -3,6 +3,8 @@
 const mockSupabaseFrom = jest.fn();
 const mockMarkSoldInGSQ = jest.fn().mockResolvedValue(undefined);
 const mockSendPurchaseToMeta = jest.fn().mockResolvedValue(undefined);
+// gsq Firestore: which collection the pixel lookup read, and what it finds
+const mockPixelLookup = { collections: [], docs: [] };
 
 jest.mock('firebase-functions/logger', () => ({
   log: jest.fn(),
@@ -12,11 +14,19 @@ jest.mock('firebase-functions/logger', () => ({
 
 jest.mock('firebase-admin/firestore', () => ({
   Firestore: jest.fn().mockImplementation(() => ({
-    collection: () => ({
-      where: () => ({
-        limit: () => ({ get: async () => ({ empty: true, docs: [] }) }),
-      }),
-    }),
+    collection: (name) => {
+      mockPixelLookup.collections.push(name);
+      return {
+        where: () => ({
+          limit: () => ({
+            get: async () => ({
+              empty: mockPixelLookup.docs.length === 0,
+              docs: mockPixelLookup.docs.map((doc) => ({ data: () => doc })),
+            }),
+          }),
+        }),
+      };
+    },
   })),
 }));
 
@@ -26,7 +36,7 @@ jest.mock('../services/supabase', () => ({
 
 jest.mock('../integrations/GSQ', () => ({
   markSoldInGSQ: (...args) => mockMarkSoldInGSQ(...args),
-  isGSQLiveTransfer: jest.fn().mockResolvedValue(false),
+  isLiveTransfer: jest.fn().mockResolvedValue(false),
 }));
 
 jest.mock('../integrations/hyros', () => ({
@@ -77,6 +87,47 @@ beforeEach(() => {
   process.env.GSQ_SERVICE_ACCOUNT_KEY = '{}';
   mockSupabaseFrom.mockReset();
   mockSendPurchaseToMeta.mockClear();
+  mockPixelLookup.collections = [];
+  mockPixelLookup.docs = [];
+});
+
+describe('createClientSale Purchase pixel', () => {
+  const sale = async (leadBrand) => {
+    mockPixelLookup.docs = [{ name: 'Frank Doe', phone: CLIENT.phone }];
+    mockCalls([
+      { data: [{ id: 'lead-1', gsq_source: 'ad', brand: leadBrand }], error: null },
+      { data: { id: 'client-1', ...CLIENT }, error: null },
+      { data: null, error: null },
+    ]);
+    return createClientSale({ agent: AGENT, client: { ...CLIENT } });
+  };
+
+  test("a Keyley sale is matched in keyley_leads and sent to Keyley's pixel", async () => {
+    const { status } = await sale('keyley');
+
+    expect(status).toBe(201);
+    expect(mockPixelLookup.collections).toEqual(['keyley_leads']);
+    expect(mockSendPurchaseToMeta).toHaveBeenCalledWith(
+      22.03 * 12,
+      expect.objectContaining({ phone: CLIENT.phone }),
+      expect.objectContaining({ id: 'client-1' }),
+      'keyley',
+    );
+  });
+
+  test('a GSQ sale is matched in the funnel leads', async () => {
+    await sale('gsq');
+
+    expect(mockPixelLookup.collections).toEqual(['leads']);
+    expect(mockSendPurchaseToMeta.mock.calls[0][3]).toBe('gsq');
+  });
+
+  test('an agent-sourced sale fires no pixel', async () => {
+    await sale(null);
+
+    expect(mockPixelLookup.collections).toEqual([]);
+    expect(mockSendPurchaseToMeta).not.toHaveBeenCalled();
+  });
 });
 
 describe('createClientSale saleSource', () => {

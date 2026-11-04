@@ -1,9 +1,10 @@
 const logger = require('firebase-functions/logger');
 const { Firestore } = require('firebase-admin/firestore');
 const { supabaseService } = require('./supabase');
-const { markSoldInGSQ, isGSQLiveTransfer } = require('../integrations/GSQ');
+const { markSoldInGSQ, isLiveTransfer } = require('../integrations/GSQ');
 const { getHyrosSource } = require('../integrations/hyros');
 const { sendPurchaseToMeta } = require('../integrations/pixel');
+const { BRANDS, isBrand, parseLeadSource } = require('../shared/brands');
 
 // The mark-sold flow behind POST /client, shared with sales reported by
 // outside CRMs. Resolves to the HTTP status and body the caller should send.
@@ -15,7 +16,7 @@ const { sendPurchaseToMeta } = require('../integrations/pixel');
 const createClientSale = async ({
   agent,
   // eslint-disable-next-line camelcase
-  client: { lead_vendor_id: leadVendorId, ...client },
+  client: { lead_vendor_id: leadVendorId, brand: chosenBrand, ...client },
   saleSource = null,
 }) => {
   // derived from gsq's call logs below; older clients still send the answer
@@ -24,8 +25,16 @@ const createClientSale = async ({
   console.log('Received client creation request', {
     route: '/client',
     method: 'POST',
+    brand: chosenBrand,
     lead_vendor_id: leadVendorId,
     client,
+  });
+
+  // Where the sale came from when there is no lead to link: one of our
+  // brands, or a lead vendor (the Create Client dropdown sends one or the other).
+  const { source, error: sourceError } = parseLeadSource({
+    brand: chosenBrand,
+    lead_vendor_id: leadVendorId,
   });
 
   // phone is the only identity the pipeline needs (lead lookup + gsq sold
@@ -51,7 +60,7 @@ const createClientSale = async ({
   const { data: existingLeads, error: existingLeadError } =
     await supabaseService
       .from('leads')
-      .select('id, gsq_source')
+      .select('id, gsq_source, brand')
       .eq('phone', client.phone)
       .eq('agent_id', agent.id)
       .order('created_at', { ascending: false })
@@ -77,23 +86,34 @@ const createClientSale = async ({
 
   let liveTransfer = false;
 
+  // the brand of the sale: the linked lead's, or the one picked for a new lead
+  let saleBrand = existingLead ? existingLead.brand ?? null : null;
+
   if (!existingLead) {
+    if (sourceError) {
+      return { status: 400, body: { error: sourceError } };
+    }
+    saleBrand = source.brand ?? null;
+
     let hyrosSource = null;
-    if (leadVendorId === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba') {
+    if (isBrand(saleBrand)) {
       hyrosSource = await getHyrosSource(client.phone);
       // a failed lookup shouldn't block the sale; the lead just lands as a
       // non live transfer
-      liveTransfer = await isGSQLiveTransfer(client.phone, agent?.email).catch(
-        (error) => {
-          logger.error('Error checking GSQ live transfer in clients.js', {
-            route: '/client',
-            method: 'POST',
-            requesterId: agent?.id,
-            errorMessage: error?.message,
-          });
-          return false;
-        },
-      );
+      liveTransfer = await isLiveTransfer(
+        client.phone,
+        agent?.email,
+        saleBrand,
+      ).catch((error) => {
+        logger.error('Error checking live transfer in clients.js', {
+          route: '/client',
+          method: 'POST',
+          requesterId: agent?.id,
+          brand: saleBrand,
+          errorMessage: error?.message,
+        });
+        return false;
+      });
     }
 
     const { data: newLead, error: newLeadError } = await supabaseService
@@ -107,7 +127,8 @@ const createClientSale = async ({
         date_of_birth: client.date_of_birth,
         agent_id: agent?.id,
         sold: true,
-        lead_vendor_id: leadVendorId,
+        brand: source.brand ?? null,
+        lead_vendor_id: source.lead_vendor_id ?? null,
         gsq_live_transfer: liveTransfer,
         gsq_source: hyrosSource,
         health_class: client.health_class ?? null,
@@ -130,11 +151,7 @@ const createClientSale = async ({
   } else {
     leadId = existingLead?.id || null;
 
-    if (
-      leadId &&
-      leadVendorId === '1043bc55-a8cd-485f-bddc-46bcfc06d4ba' &&
-      !existingLead.gsq_source
-    ) {
+    if (leadId && isBrand(saleBrand) && !existingLead.gsq_source) {
       const hyrosSource = await getHyrosSource(client.phone);
       if (hyrosSource) {
         await supabaseService
@@ -235,20 +252,28 @@ const createClientSale = async ({
   try {
     const ap = Number(newClient.monthly_premium) * 12;
 
-    if (ap > 0 && newClient.phone) {
+    // the Purchase goes to the sale brand's own pixel, matched to that
+    // brand's lead doc; an agent's own lead has no pixel
+    const pixelCollection = BRANDS[saleBrand]?.pixelCollection;
+    if (ap > 0 && newClient.phone && pixelCollection) {
       const gsqDb = new Firestore({
         projectId: process.env.GSQ_PROJECT_ID,
         credentials: JSON.parse(process.env.GSQ_SERVICE_ACCOUNT_KEY),
       });
 
       const gsqSnapshot = await gsqDb
-        .collection('leads')
+        .collection(pixelCollection)
         .where('phone', '==', newClient.phone)
         .limit(1)
         .get();
 
       if (!gsqSnapshot.empty) {
-        await sendPurchaseToMeta(ap, gsqSnapshot.docs[0].data(), newClient);
+        await sendPurchaseToMeta(
+          ap,
+          gsqSnapshot.docs[0].data(),
+          newClient,
+          saleBrand,
+        );
       }
     }
   } catch (error) {

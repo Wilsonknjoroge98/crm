@@ -34,7 +34,7 @@ const CSV_HEADERS = [
   { label: 'Cholesterol Medication', key: 'cholesterol_medication' },
   { label: 'Blood Pressure Medication', key: 'blood_pressure_medication' },
   { label: 'Verified', key: 'verified' },
-  { label: 'Lead Vendor', key: 'lead_vendor_name' },
+  { label: 'Lead Source', key: 'lead_source' },
   { label: 'Sold', key: 'sold' },
 ];
 

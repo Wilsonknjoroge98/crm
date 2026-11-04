@@ -13,7 +13,6 @@ const {
   parsePeopleQuery,
   parseBulkPersonIds,
   buildSearchPatterns,
-  GSQ_LEAD_VENDOR_ID,
 } = require('../endpoints/business');
 
 // Independent copies of the API's projections. If a route starts selecting a
@@ -40,6 +39,7 @@ const EXPECTED_LIST_FIELDS = [
   'beneficiary',
   'why',
   'notes',
+  'brand',
   'lead_vendor_id',
   'lead_vendor_name',
   'lead_created_at',
@@ -70,6 +70,16 @@ const EXPECTED_LIST_FIELDS = [
   'client_created_at',
   'updated_at',
   'monthly_premium',
+  'mortgage_balance',
+  'mortgage_balance_adjusted',
+  'mortgage_years_left',
+  'term_years',
+  'homeowner',
+  'home_value',
+  'home_equity',
+  'home_value_confidence',
+  'record_owners',
+  'owner_name_match',
 ].join(',');
 // The page query must not ask for `policies`: combined with ORDER BY it makes
 // PostgreSQL build the rollup for every row in the view before paging.
@@ -118,8 +128,19 @@ const EXPECTED_DETAIL_FIELDS = [
   'gsq_live_transfer',
   'gsq_instant_form',
   'gsq_segment',
+  'brand',
   'lead_vendor_id',
   'lead_vendor_name',
+  'mortgage_balance',
+  'mortgage_balance_adjusted',
+  'mortgage_years_left',
+  'term_years',
+  'homeowner',
+  'home_value',
+  'home_equity',
+  'home_value_confidence',
+  'record_owners',
+  'owner_name_match',
   'notes',
   'lead_created_at',
   'client_created_at',
@@ -348,7 +369,7 @@ describe('parsePeopleQuery', () => {
       sortOrder: 'desc',
       search: '',
       status: null,
-      gsqOnly: false,
+      houseOnly: false,
       states: [],
       segments: [],
     });
@@ -363,7 +384,7 @@ describe('parsePeopleQuery', () => {
         direction: 'ASC',
         search: ' (555) 123-4567 ',
         status: ' Sale ',
-        gsqOnly: 'true',
+        houseOnly: 'true',
         state: ' Texas , Georgia,Texas ',
         segment: ' Banked,aged_second ,banked',
       }),
@@ -374,7 +395,7 @@ describe('parsePeopleQuery', () => {
       sortOrder: 'asc',
       search: '5551234567',
       status: 'SALE',
-      gsqOnly: true,
+      houseOnly: true,
       states: ['Texas', 'Georgia'],
       segments: ['banked', 'aged_second'],
     });
@@ -632,7 +653,7 @@ describe('GET /people', () => {
       lifecycle_status: 'LEAD',
       verified: false,
       sold: false,
-      lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+      brand: 'gsq',
       gsq_id: gsqId,
       lead_created_at: '2026-09-20T00:00:00Z',
     });
@@ -714,7 +735,7 @@ describe('GET /people', () => {
               lead_id: 'lead-1',
               verified: false,
               lifecycle_status: 'LEAD',
-              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              brand: 'gsq',
               gsq_id: 'gsq-1',
               lead_created_at: '2026-09-20T00:00:00Z',
             },
@@ -745,7 +766,7 @@ describe('GET /people', () => {
               lead_id: 'lead-1',
               verified: false,
               lifecycle_status: 'LEAD',
-              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              brand: 'gsq',
               gsq_id: 'gsq-1',
               lead_created_at: '2026-09-20T00:00:00Z',
             },
@@ -837,7 +858,7 @@ describe('GET /people', () => {
     });
   });
 
-  test('limits the list to GSQ-sourced people when gsqOnly is set', async () => {
+  test('limits the list to GSQ-sourced people when houseOnly is set', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
       business: [
@@ -847,13 +868,13 @@ describe('GET /people', () => {
     });
 
     const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
-      '/business?gsqOnly=true',
+      '/business?houseOnly=true',
     );
 
     expect(response.status).toBe(200);
     expect(findQuery(supabase, 'business').calls).toContainEqual({
-      method: 'eq',
-      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+      method: 'not',
+      args: ['brand', 'is', null],
     });
   });
 
@@ -873,8 +894,8 @@ describe('GET /people', () => {
     expect(response.status).toBe(200);
     const { calls } = findQuery(supabase, 'business');
     expect(calls).toContainEqual({
-      method: 'eq',
-      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+      method: 'not',
+      args: ['brand', 'is', null],
     });
     expect(calls).toContainEqual({
       method: 'in',
@@ -882,18 +903,18 @@ describe('GET /people', () => {
     });
   });
 
-  test('omits the vendor filter unless gsqOnly is exactly true', async () => {
+  test('omits the vendor filter unless houseOnly is exactly true', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
       business: [{ data: [], error: null, count: 0 }],
     });
 
     await request(makeApp(supabase, { id: 'agent-1' })).get(
-      '/business?gsqOnly=1',
+      '/business?houseOnly=1',
     );
 
     const vendorCalls = findQuery(supabase, 'business').calls.filter(
-      (call) => call.method === 'eq' && call.args[0] === 'lead_vendor_id',
+      (call) => call.method === 'not' && call.args[0] === 'brand',
     );
     expect(vendorCalls).toHaveLength(0);
   });
@@ -1177,7 +1198,7 @@ describe('GET /people', () => {
             {
               id: 'person-1',
               agent_id: 'agent-9',
-              lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
+              brand: 'gsq',
             },
           ],
           error: null,
@@ -1452,7 +1473,7 @@ describe('GET /business/metrics', () => {
     });
   });
 
-  test('scopes leadsDelivered, closedSales, and totalClosed to the GSQ vendor when gsqOnly is set', async () => {
+  test('scopes leadsDelivered, closedSales, and totalClosed to the GSQ vendor when houseOnly is set', async () => {
     const supabase = makeSupabase({
       leads: [{ data: null, error: null, count: 4 }],
       business: [{ data: [{ client_id: 'client-1' }], error: null }],
@@ -1469,7 +1490,7 @@ describe('GET /business/metrics', () => {
 
     const response = await request(
       makeApp(supabase, { id: 'agent-1', email: 'agent-1@example.com' }, firestore),
-    ).get('/business/metrics?gsqOnly=true');
+    ).get('/business/metrics?houseOnly=true');
 
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({
@@ -1483,20 +1504,20 @@ describe('GET /business/metrics', () => {
 
     const leadsQuery = findQuery(supabase, 'leads');
     expect(leadsQuery.calls).toContainEqual({
-      method: 'eq',
-      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+      method: 'not',
+      args: ['brand', 'is', null],
     });
 
     // Clients come through the client-id lookup (not fetchAllClientPremiums),
     // so the GSQ vendor filter on `business` applies even for this agent.
     const visibleIdsQuery = findQuery(supabase, 'business');
     expect(visibleIdsQuery.calls).toContainEqual({
-      method: 'eq',
-      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+      method: 'not',
+      args: ['brand', 'is', null],
     });
   });
 
-  test('superuser gsqOnly skips the all-clients fast path for the vendor-filtered lookup', async () => {
+  test('superuser houseOnly skips the all-clients fast path for the vendor-filtered lookup', async () => {
     const supabase = makeSupabase({
       leads: [{ data: null, error: null, count: 9 }],
       business: [{ data: [{ client_id: 'client-1' }], error: null }],
@@ -1517,7 +1538,7 @@ describe('GET /business/metrics', () => {
         { id: SUPERUSER_ID, email: 'super@example.com' },
         firestore,
       ),
-    ).get('/business/metrics?gsqOnly=true');
+    ).get('/business/metrics?houseOnly=true');
 
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({
@@ -1533,8 +1554,8 @@ describe('GET /business/metrics', () => {
     // with no ownership `or` filter applied.
     const visibleIdsQuery = findQuery(supabase, 'business');
     expect(visibleIdsQuery.calls).toContainEqual({
-      method: 'eq',
-      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+      method: 'not',
+      args: ['brand', 'is', null],
     });
     expect(visibleIdsQuery.calls).not.toContainEqual(
       expect.objectContaining({ method: 'or' }),
@@ -2148,8 +2169,9 @@ describe('DELETE /people', () => {
   });
 
   const gsqLeadId = '55555555-5555-4555-8555-555555555555';
+  const keyleyLeadId = '66666666-6666-4666-8666-666666666666';
 
-  test('excludes GSQ-sourced people from the cascade and reports them as protected', async () => {
+  test('excludes house leads (GSQ, Keyley) from the cascade and reports them as protected', async () => {
     const supabase = makeSupabase({
       business: [
         {
@@ -2166,7 +2188,14 @@ describe('DELETE /people', () => {
               lead_id: gsqLeadId,
               client_id: null,
               lifecycle_status: 'LEAD',
-              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              brand: 'gsq',
+            },
+            {
+              id: keyleyLeadId,
+              lead_id: keyleyLeadId,
+              client_id: null,
+              lifecycle_status: 'LEAD',
+              brand: 'keyley',
             },
           ],
           error: null,
@@ -2178,12 +2207,12 @@ describe('DELETE /people', () => {
 
     const response = await request(app)
       .delete('/business')
-      .send({ ids: [leadOnlyId, gsqLeadId] });
+      .send({ ids: [leadOnlyId, gsqLeadId, keyleyLeadId] });
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       deletedIds: [leadOnlyId],
-      protectedIds: [gsqLeadId],
+      protectedIds: [gsqLeadId, keyleyLeadId],
     });
     expect(findQuery(supabase, 'leads').calls).toContainEqual({
       method: 'in',
@@ -2201,7 +2230,7 @@ describe('DELETE /people', () => {
               lead_id: gsqLeadId,
               client_id: null,
               lifecycle_status: 'LEAD',
-              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              brand: 'gsq',
             },
           ],
           error: null,
@@ -2234,7 +2263,7 @@ describe('DELETE /people', () => {
               lead_id: saleLeadId,
               client_id: clientId,
               lifecycle_status: 'SALE',
-              lead_vendor_id: GSQ_LEAD_VENDOR_ID,
+              brand: 'gsq',
             },
           ],
           error: null,

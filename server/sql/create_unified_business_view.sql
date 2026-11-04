@@ -27,6 +27,25 @@ alter table public.leads
 alter table public.leads
   add column if not exists sex text;
 
+-- House brand ('gsq' / 'keyley') and Keyley's mortgage answers. The full
+-- definitions, constraints and backfill are in add_lead_brand.sql and
+-- add_lead_mortgage_columns.sql; this only makes the view's columns exist.
+alter table public.leads
+  add column if not exists brand text,
+  add column if not exists mortgage_balance numeric,
+  add column if not exists mortgage_balance_adjusted boolean,
+  add column if not exists mortgage_years_left smallint,
+  add column if not exists term_years smallint,
+  add column if not exists homeowner boolean,
+  add column if not exists address text,
+  add column if not exists city text,
+  add column if not exists zip text,
+  add column if not exists home_value numeric,
+  add column if not exists home_equity numeric,
+  add column if not exists home_value_confidence smallint,
+  add column if not exists record_owners text[],
+  add column if not exists owner_name_match boolean;
+
 -- Inline card notes autosave against whichever record the person currently
 -- is: the client row after conversion, the lead row before it.
 alter table public.leads
@@ -152,10 +171,11 @@ select
   -- trimmed so the state filter's case-insensitive match is exact
   trim(coalesce(c.state, l.state)) as state,
 
-  -- Client/profile fields.
-  c.address,
-  c.city,
-  c.zip,
+  -- Client/profile fields. The address is the client's once converted,
+  -- otherwise what the lead came in with (Keyley's property address).
+  coalesce(c.address, l.address) as address,
+  coalesce(c.city, l.city) as city,
+  coalesce(c.zip, l.zip) as zip,
   c.occupation,
   c.marital_status,
   c.annual_income,
@@ -211,7 +231,22 @@ select
   l.premium_max,
   l.availability,
   l.raw_fields,
-  l.sex
+  l.sex,
+
+  -- House brand: 'gsq' / 'keyley', null for a lead an agent brought in.
+  l.brand,
+
+  -- Keyley's mortgage answers (add_lead_mortgage_columns.sql).
+  l.mortgage_balance,
+  l.mortgage_balance_adjusted,
+  l.mortgage_years_left,
+  l.term_years,
+  l.homeowner,
+  l.home_value,
+  l.home_equity,
+  l.home_value_confidence,
+  l.record_owners,
+  l.owner_name_match
 from public.leads l
 full outer join public.clients c
   on c.lead_id = l.id

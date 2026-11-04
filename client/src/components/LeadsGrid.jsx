@@ -278,10 +278,8 @@ export default function LeadsGrid({
               icon={<AddCircleIcon />}
               label='Make Client'
               onClick={() => {
-                setLead({
-                  ...params.row,
-                  lead_vendor_id: '1043bc55-a8cd-485f-bddc-46bcfc06d4ba',
-                });
+                // the row carries its own brand or vendor
+                setLead(params.row);
                 setCreateClientOpen(true);
               }}
               showInMenu={true}

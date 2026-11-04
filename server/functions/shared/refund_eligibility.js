@@ -1,8 +1,13 @@
-// Who can request a refund on a GSQ lead. Shared by the refunds route (which
+// Who can request a refund on a house lead. Shared by the refunds route (which
 // enforces it) and the business list (which tells the card whether to offer
 // Request Refund through refund_eligible).
 
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+// Brands whose unverified leads can be refunded. A refund credits the agent
+// back in GSQ's lead ledger, and Keyley's pool (outstandingKeyley) has no
+// credit path yet, so Keyley refunds are refused until it does (decided
+// 2026-11-14). Every Keyley lead is verified today anyway.
+const REFUNDABLE_BRANDS = Object.freeze(['gsq']);
+const isRefundableBrand = (brand) => REFUNDABLE_BRANDS.includes(brand);
 
 // The refund flow only applies to leads generated on or after this date —
 // leads that dripped in earlier were never sold as refund-eligible.
@@ -17,13 +22,13 @@ const REFUND_WINDOW_MS = REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 const isWithinRefundWindow = (createdAt, nowMs = Date.now()) =>
   nowMs - new Date(createdAt).getTime() <= REFUND_WINDOW_MS;
 
-// The checks that only need the crm's own lead row: a GSQ lead that is
-// unverified (strict false, null means a non-gsq lead that was never
+// The checks that only need the crm's own lead row: a lead of a refundable
+// brand that is unverified (strict false, null means a lead that was never
 // verified either way), unsold, generated on or after the cutoff, delivered
 // within the refund window, and with no refund on record (every refund
 // outcome is terminal).
 const isRefundCandidate = (lead) =>
-  lead.lead_vendor_id === GSQ_LEAD_VENDOR_ID &&
+  isRefundableBrand(lead.brand) &&
   lead.verified === false &&
   !lead.sold &&
   !lead.refund_status &&
@@ -40,7 +45,8 @@ const isMarketplaceSale = (gsqLead) =>
   Boolean(gsqLead?.marketplaceSegment && !gsqLead.marketplaceReservedUntil);
 
 module.exports = {
-  GSQ_LEAD_VENDOR_ID,
+  REFUNDABLE_BRANDS,
+  isRefundableBrand,
   REFUND_ELIGIBILITY_CUTOFF,
   REFUND_WINDOW_DAYS,
   isWithinRefundWindow,

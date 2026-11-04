@@ -3,6 +3,7 @@ const logger = require('firebase-functions/logger');
 const dayjs = require('dayjs');
 const { supabaseService } = require('../services/supabase');
 const { parsePremium } = require('../integrations/premium');
+const { BRANDS, parseLeadSource } = require('../shared/brands');
 
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 const REQUIRED_LEAD_FIELDS = [
@@ -12,8 +13,10 @@ const REQUIRED_LEAD_FIELDS = [
   'phone',
   'date_of_birth',
   'state',
-  'lead_vendor_id',
 ];
+// A lead's source: one of our brands (house lead) or a lead vendor. Exactly
+// one is required on create; sending either on edit switches the source.
+const SOURCE_FIELDS = ['brand', 'lead_vendor_id'];
 const WRITABLE_LEAD_FIELDS = [
   ...REQUIRED_LEAD_FIELDS,
   'availability',
@@ -41,6 +44,15 @@ const hasValue = (value) =>
 
 const buildLeadPayload = (lead) => {
   const payload = {};
+
+  const sourceInput = Object.fromEntries(
+    SOURCE_FIELDS.filter((field) =>
+      Object.prototype.hasOwnProperty.call(lead, field),
+    ).map((field) => [field, lead[field]]),
+  );
+  const { source, error: sourceError } = parseLeadSource(sourceInput);
+  if (sourceError) return { error: sourceError };
+  Object.assign(payload, source);
 
   WRITABLE_LEAD_FIELDS.forEach((field) => {
     if (!Object.prototype.hasOwnProperty.call(lead, field)) return;
@@ -122,6 +134,8 @@ const createLeadRouter = ({ supabase = supabaseService } = {}) => {
         return {
           ...lead,
           lead_vendor_name: leadVendorName,
+          // the brand for a house lead, otherwise the vendor (CSV Lead Source)
+          lead_source: BRANDS[lead.brand]?.label ?? leadVendorName,
           age,
         };
       });
@@ -147,6 +161,9 @@ const createLeadRouter = ({ supabase = supabaseService } = {}) => {
     const missingFields = REQUIRED_LEAD_FIELDS.filter(
       (field) => !hasValue(lead[field]),
     );
+    if (!hasValue(lead.brand) && !hasValue(lead.lead_vendor_id)) {
+      missingFields.push('brand or lead_vendor_id');
+    }
     if (missingFields.length > 0) {
       return res.status(400).json({
         error: `Missing required lead fields: ${missingFields.join(', ')}`,

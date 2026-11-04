@@ -33,7 +33,7 @@ const {
   inboundGSQ,
   inboundSendblueNumber,
   markSoldInGSQ,
-  isGSQLiveTransfer,
+  isLiveTransfer,
 } = require('../integrations/GSQ');
 const { parsePremium } = require('../integrations/premium');
 
@@ -532,6 +532,160 @@ describe('inboundGSQ instant form payload', () => {
   });
 });
 
+describe('inboundGSQ brand', () => {
+  const originalToken = process.env.GSQ_TOKEN;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.GSQ_TOKEN = 'test-gsq-token';
+    mockGetHyrosSource.mockResolvedValue('keyley-ad');
+  });
+
+  afterAll(() => {
+    if (originalToken === undefined) {
+      delete process.env.GSQ_TOKEN;
+    } else {
+      process.env.GSQ_TOKEN = originalToken;
+    }
+  });
+
+  const makeKeyleyRequest = (overrides = {}) => ({
+    headers: { authorization: 'Bearer test-gsq-token' },
+    body: {
+      brand: 'keyley',
+      leadType: 'keyley',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      email: 'jane@example.com',
+      phone: '5125550101',
+      state: 'Texas',
+      dob: '1975-04-09',
+      sex: 'Female',
+      smoker: false,
+      faceAmount: '215000',
+      premium: '$39-$47',
+      healthClass: 'P',
+      issuedTo: 'agent@example.com',
+      sold: false,
+      verified: true,
+      gsqId: '00000000-0000-4000-8000-000000000010',
+      beneficiary: 'Spouse or partner, Children',
+      why: 'Mortgage protection',
+      mortgageBalance: 212340,
+      mortgageBalanceAdjusted: false,
+      mortgageYearsLeft: 22,
+      termYears: 20,
+      homeowner: true,
+      address: '1208 Maple St',
+      city: 'Austin',
+      zip: '78701',
+      homeValue: 400000,
+      homeEquity: 187660,
+      homeValueConfidence: 82,
+      recordOwners: ['JANE A DOE', 'JOHN DOE'],
+      ownerNameMatch: true,
+      ...overrides,
+    },
+  });
+
+  // lead_vendors is never queried: house leads carry a brand instead
+  const mockTables = (insert) =>
+    mockSupabaseFrom.mockImplementation((table) => {
+      if (table === 'agents') {
+        return makeLookupQuery({ data: { id: 'agent-id' }, error: null });
+      }
+      if (table === 'leads') return makeLeadsTable(insert);
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+  test('files a Keyley lead under its brand, mortgage answers in typed columns, Hyros source', async () => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockTables(insert);
+    const res = makeResponse();
+
+    await inboundGSQ(makeKeyleyRequest(), res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    // same Hyros account as GSQ: the Keyley ad is found by phone
+    expect(mockGetHyrosSource).toHaveBeenCalledWith('5125550101');
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        brand: 'keyley',
+        lead_vendor_id: null,
+        face_amount: 215000,
+        premium_min: 39,
+        premium_max: 47,
+        health_class: 'P',
+        gsq_source: 'keyley-ad',
+        gsq_instant_form: false,
+        beneficiary: 'Spouse or partner, Children',
+        why: 'Mortgage protection',
+        mortgage_balance: 212340,
+        mortgage_balance_adjusted: false,
+        mortgage_years_left: 22,
+        term_years: 20,
+        homeowner: true,
+        address: '1208 Maple St',
+        city: 'Austin',
+        zip: '78701',
+        home_value: 400000,
+        home_equity: 187660,
+        home_value_confidence: 82,
+        record_owners: ['JANE A DOE', 'JOHN DOE'],
+        owner_name_match: true,
+      }),
+    );
+    const payload = insert.mock.calls[0][0];
+    expect(payload).not.toHaveProperty('raw_fields');
+    expect(payload).not.toHaveProperty('others_on_mortgage');
+    expect(payload).not.toHaveProperty('street_address');
+  });
+
+  test('lands malformed or missing mortgage answers as null', async () => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockTables(insert);
+    const res = makeResponse();
+
+    await inboundGSQ(
+      makeKeyleyRequest({
+        mortgageBalance: 'lots',
+        homeowner: 'yes',
+        homeValueConfidence: 140,
+        recordOwners: undefined,
+        homeValue: null,
+        address: { line1: '1208 Maple St', line2: 'Austin, TX 78701' },
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mortgage_balance: null,
+        homeowner: null,
+        home_value_confidence: null,
+        record_owners: null,
+        home_value: null,
+        address: null,
+      }),
+    );
+  });
+
+  test('anything without brand keyley is a GSQ lead with no mortgage columns', async () => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockTables(insert);
+    const res = makeResponse();
+
+    await inboundGSQ(makeRequest('67.35'), res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({ brand: 'gsq', lead_vendor_id: null }),
+    );
+    expect(insert.mock.calls[0][0]).not.toHaveProperty('mortgage_balance');
+  });
+});
+
 describe('markSoldInGSQ', () => {
   const originalKey = process.env.GSQ_SERVICE_ACCOUNT_KEY;
 
@@ -586,9 +740,11 @@ describe('markSoldInGSQ', () => {
       phone: '2025550199',
       sold: true,
     });
+    const keyley = makeDoc('keyley_leads', 'keyley-1', { phone: '2025550199' });
     mockCollections({
       leads: { phone: [funnel, alreadySold] },
       instant_form_leads: { phone: [instant] },
+      keyley_leads: { phone: [keyley] },
     });
 
     await markSoldInGSQ('(202) 555-0199', 'someone@example.com');
@@ -606,10 +762,18 @@ describe('markSoldInGSQ', () => {
         op: 'in',
         values: ['(202) 555-0199', '2025550199'],
       },
+      {
+        name: 'keyley_leads',
+        field: 'phone',
+        op: 'in',
+        values: ['(202) 555-0199', '2025550199'],
+      },
     ]);
-    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    // a sale flips the phone in both brands
+    expect(batchUpdate).toHaveBeenCalledTimes(3);
     expect(batchUpdate).toHaveBeenCalledWith(funnel.ref, { sold: true });
     expect(batchUpdate).toHaveBeenCalledWith(instant.ref, { sold: true });
+    expect(batchUpdate).toHaveBeenCalledWith(keyley.ref, { sold: true });
     expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
@@ -633,7 +797,7 @@ describe('markSoldInGSQ', () => {
   });
 });
 
-describe('isGSQLiveTransfer', () => {
+describe('isLiveTransfer', () => {
   const originalKey = process.env.GSQ_SERVICE_ACCOUNT_KEY;
   const AGENT = 'agent@example.com';
   const PHONE = '+12025550199';
@@ -675,7 +839,7 @@ describe('isGSQLiveTransfer', () => {
   test('matches the e164 caller phone and the bare lead phone', async () => {
     mockGSQ({});
 
-    await isGSQLiveTransfer('(202) 555-0199', AGENT);
+    await isLiveTransfer('(202) 555-0199', AGENT);
 
     const leadPhones = ['(202) 555-0199', '2025550199'];
     const callerPhones = [...leadPhones, PHONE];
@@ -690,25 +854,25 @@ describe('isGSQLiveTransfer', () => {
   test('true for a call bridged to the selling agent', async () => {
     mockGSQ({ telnyx_calls: [bridgedCall({ bridgedAgentEmail: 'Agent@Example.com' })] });
 
-    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(true);
+    await expect(isLiveTransfer('2025550199', AGENT)).resolves.toBe(true);
   });
 
   test('true for a logged call bridged to the selling agent', async () => {
     mockGSQ({ telnyx_logs: [bridgedCall()] });
 
-    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(true);
+    await expect(isLiveTransfer('2025550199', AGENT)).resolves.toBe(true);
   });
 
   test('false when the call was bridged to another agent', async () => {
     mockGSQ({ telnyx_calls: [bridgedCall({ bridgedAgentEmail: 'other@example.com' })] });
 
-    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
+    await expect(isLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
   });
 
   test('false when the caller never reached an agent', async () => {
     mockGSQ({ telnyx_calls: [bridgedCall({ bridged: false })] });
 
-    await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
+    await expect(isLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
   });
 
   test.each(['leads', 'instant_form_leads'])(
@@ -719,14 +883,56 @@ describe('isGSQLiveTransfer', () => {
         [collection]: [{ phone: '2025550199' }],
       });
 
-      await expect(isGSQLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
+      await expect(isLiveTransfer('2025550199', AGENT)).resolves.toBe(false);
     },
   );
+
+  test('a Keyley sale checks only Keyley calls and Keyley leads', async () => {
+    mockGSQ({});
+
+    await isLiveTransfer('(202) 555-0199', AGENT, 'keyley');
+
+    expect(whereCalls.map(({ name }) => name)).toEqual([
+      'telnyx_calls',
+      'telnyx_logs',
+      'keyley_leads',
+    ]);
+  });
+
+  test('true for a call bridged on the Keyley number for a Keyley sale', async () => {
+    mockGSQ({ telnyx_calls: [bridgedCall({ brandLabel: 'Keyley' })] });
+
+    await expect(isLiveTransfer('2025550199', AGENT, 'keyley')).resolves.toBe(true);
+  });
+
+  test("a call on the other brand's number does not count", async () => {
+    mockGSQ({ telnyx_calls: [bridgedCall({ brandLabel: 'Keyley' })] });
+    await expect(isLiveTransfer('2025550199', AGENT, 'gsq')).resolves.toBe(false);
+
+    mockGSQ({ telnyx_calls: [bridgedCall({ brandLabel: 'GSQ' })] });
+    await expect(isLiveTransfer('2025550199', AGENT, 'keyley')).resolves.toBe(false);
+  });
+
+  test("a call from before brandLabel existed is GSQ's", async () => {
+    mockGSQ({ telnyx_logs: [bridgedCall()] });
+
+    await expect(isLiveTransfer('2025550199', AGENT, 'keyley')).resolves.toBe(false);
+    await expect(isLiveTransfer('2025550199', AGENT, 'gsq')).resolves.toBe(true);
+  });
+
+  test('false for a Keyley sale when the phone is already a keyley_leads doc', async () => {
+    mockGSQ({
+      telnyx_calls: [bridgedCall({ brandLabel: 'Keyley' })],
+      keyley_leads: [{ phone: '2025550199' }],
+    });
+
+    await expect(isLiveTransfer('2025550199', AGENT, 'keyley')).resolves.toBe(false);
+  });
 
   test('false without an agent email, without querying gsq', async () => {
     mockGSQ({ telnyx_calls: [bridgedCall()] });
 
-    await expect(isGSQLiveTransfer('2025550199', undefined)).resolves.toBe(false);
+    await expect(isLiveTransfer('2025550199', undefined)).resolves.toBe(false);
     expect(whereCalls).toEqual([]);
   });
 });

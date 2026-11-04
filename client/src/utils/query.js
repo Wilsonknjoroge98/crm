@@ -127,7 +127,7 @@ const getBusinessRecords = async ({
   status = 'all',
   state = [],
   segment = [],
-  gsqOnly = false,
+  houseOnly = false,
   agentId,
 } = {}) => {
   const response = await apiClient.request({
@@ -142,7 +142,7 @@ const getBusinessRecords = async ({
       status: status === 'all' ? undefined : status,
       state: state.length > 0 ? state.join(',') : undefined,
       segment: segment.length > 0 ? segment.join(',') : undefined,
-      gsqOnly: gsqOnly ? 'true' : undefined,
+      houseOnly: houseOnly ? 'true' : undefined,
       // Superuser-only: view the list scoped to a specific agent instead of
       // the caller's own. Ignored server-side for anyone else.
       agentId: agentId || undefined,
@@ -160,12 +160,12 @@ const getPerson = async (id) => {
   return response.data?.data;
 };
 
-const getBusinessMetrics = async ({ gsqOnly = false, agentId } = {}) => {
+const getBusinessMetrics = async ({ houseOnly = false, agentId } = {}) => {
   const response = await apiClient.request({
     method: 'GET',
     url: '/business/metrics',
     params: {
-      gsqOnly: gsqOnly ? 'true' : undefined,
+      houseOnly: houseOnly ? 'true' : undefined,
       // Superuser-only: view metrics scoped to a specific agent instead of
       // the caller's own. Ignored server-side for anyone else.
       agentId: agentId || undefined,
@@ -1168,11 +1168,11 @@ const getHierarchy = async ({ startDate, endDate } = {}) => {
   }
 };
 
-const getTeamLeaderboard = async ({ startDate, endDate, gsqOnly }) => {
+const getTeamLeaderboard = async ({ startDate, endDate, houseOnly }) => {
   const options = {
     method: 'GET',
     url: '/team-leaderboard',
-    params: { startDate, endDate, gsqOnly, mode: import.meta.env.MODE },
+    params: { startDate, endDate, houseOnly, mode: import.meta.env.MODE },
   };
   try {
     const response = await apiClient.request(options);
@@ -1198,11 +1198,11 @@ const getPersonalSummary = async ({ startDate, endDate }) => {
   }
 };
 
-const getTeamSummary = async ({ startDate, endDate, gsqOnly }) => {
+const getTeamSummary = async ({ startDate, endDate, houseOnly }) => {
   const options = {
     method: 'GET',
     url: '/summary/team',
-    params: { startDate, endDate, gsqOnly, mode: import.meta.env.MODE },
+    params: { startDate, endDate, houseOnly, mode: import.meta.env.MODE },
   };
   try {
     const response = await apiClient.request(options);

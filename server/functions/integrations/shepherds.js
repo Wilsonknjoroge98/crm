@@ -101,7 +101,7 @@ const inboundShepherdsSale = async (req, res) => {
     const { data: leads, error: leadError } = await supabaseService
       .from('leads')
       .select(
-        'id, first_name, last_name, email, phone, state, date_of_birth, lead_vendor_id',
+        'id, first_name, last_name, email, phone, state, date_of_birth, brand, lead_vendor_id',
       )
       .eq('agent_id', agent.id)
       .eq('phone', phone)
@@ -158,6 +158,7 @@ const inboundShepherdsSale = async (req, res) => {
         state: lead.state,
         date_of_birth: lead.date_of_birth,
         monthly_premium: monthlyPremium,
+        brand: lead.brand,
         lead_vendor_id: lead.lead_vendor_id,
       },
       saleSource: 'shepherds',

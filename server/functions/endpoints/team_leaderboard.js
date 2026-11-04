@@ -5,13 +5,12 @@ const { supabaseService } = require('../services/supabase');
 // eslint-disable-next-line new-cap
 const teamLeaderboardRouter = express.Router();
 
-const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 const SUPERUSER_ID = 'beeb19f7-c42e-4175-9477-0a91c393101c';
 const TOP_LEVEL_AGENT_ID = '3d670459-8730-42f9-8b98-08c34f98f4a6';
 
 teamLeaderboardRouter.get('/', async (req, res) => {
-  const { startDate, endDate, gsqOnly } = req.query;
-  const filterGsq = gsqOnly === 'true';
+  const { startDate, endDate, houseOnly } = req.query;
+  const filterHouse = houseOnly === 'true';
 
   try {
     logger.log('Getting team leaderboard', {
@@ -70,18 +69,16 @@ teamLeaderboardRouter.get('/', async (req, res) => {
     let clientsQuery = supabaseService
       .from('clients')
       .select(
-        filterGsq
-          ? `${clientSelect}, leads!clients_lead_id_fkey!inner(lead_vendor_id)`
+        filterHouse
+          ? `${clientSelect}, leads!clients_lead_id_fkey!inner(brand)`
           : clientSelect,
       )
       .in('agent_clients.agent_id', downlineIdList)
       .limit(50000);
 
-    if (filterGsq) {
-      clientsQuery = clientsQuery.eq(
-        'leads.lead_vendor_id',
-        GSQ_LEAD_VENDOR_ID,
-      );
+    if (filterHouse) {
+      // House Leads: clients from leads of our own brands
+      clientsQuery = clientsQuery.not('leads.brand', 'is', null);
     }
 
     if (startDate && endDate) {
