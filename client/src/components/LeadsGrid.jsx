@@ -2,6 +2,7 @@ import * as React from 'react';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import { Stack, Typography, Chip } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { styled } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
 
@@ -39,6 +40,8 @@ export default function LeadsGrid({
   agents,
   setLead,
   setCreateClientOpen,
+  hasEstimate,
+  viewEstimate,
 }) {
   const agentNameById = React.useMemo(() => {
     const map = {};
@@ -271,8 +274,21 @@ export default function LeadsGrid({
         align: 'right',
         headerAlign: 'right',
         getActions: (params) => {
-          if (params.row.sold) return [];
+          // Keyley leads: the estimate PDF the lead downloaded (sold or not).
+          const estimate = hasEstimate?.(params.row)
+            ? [
+                <GridActionsCellItem
+                  key='estimate'
+                  icon={<DescriptionOutlinedIcon />}
+                  label='View Estimate'
+                  onClick={() => viewEstimate(params.row)}
+                  showInMenu={true}
+                />,
+              ]
+            : [];
+          if (params.row.sold) return estimate;
           return [
+            ...estimate,
             <GridActionsCellItem
               key='add'
               icon={<AddCircleIcon />}
@@ -290,7 +306,7 @@ export default function LeadsGrid({
         },
       },
     ],
-    [isAdmin, agentNameById],
+    [isAdmin, agentNameById, hasEstimate, viewEstimate],
   );
 
   return (
