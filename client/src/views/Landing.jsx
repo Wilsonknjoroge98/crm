@@ -1,574 +1,285 @@
 // Landing.jsx
 // Public marketing page at "/". Logged-in agents are sent on to /business.
-// Built from the FExDigital hero mockup under the Design System v2.0 rules:
-// flat surfaces (no shadows or gradients), 1px hairlines, 999px capsules for
-// badges and tabs, 8px card containers, 4px inputs and keys, a serif title
-// face, Inter for UI and JetBrains Mono for data.
+// Design System v2.0: flat surfaces (no shadows or gradients), 1px hairlines,
+// 999px capsules, 8px cards, 4px inputs and keys, a serif title face, Inter
+// for UI, JetBrains Mono for phone numbers and dollar figures.
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link as RouterLink, Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import AgedLeadSections from './landing/AgedLeadSections';
+import FreshLeadSections from './landing/FreshLeadSections';
 
 // Brand tokens. Ink and Blue lead the page; the rest support them.
 const INK = '#050A30';
 const BLUE = '#233DFF';
 const BLUE_HOVER = '#1A30D9';
-const BLUE_TINT = '#EEF1FF';
-const BLUE_BORDER = '#C9D0FF';
 const INK_RULE = '#1B2150';
 const INK_MUTED = '#9AA3C7';
 const SLATE_BODY = '#334155';
 const SLATE_MUTED = '#64748B';
 const HAIRLINE = '#E2E8F0';
+const SLATE_REFERENCE = '#94A3B8';
 const HAIRLINE_STRONG = '#CBD5E1';
-const SURFACE = '#F8FAFC';
 const NEUTRAL = '#F1F5F9';
-const SLATE_NAVY = '#2F4E6F';
 const GREEN = '#2E6B4F';
-const GREEN_TINT = '#EAF4EE';
-const GREEN_BORDER = '#C5E0D0';
 
 const SERIF = '"Libre Baskerville", Georgia, serif';
 const SANS = '"Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace';
 
-// Lead access is invite-only, so the email capture opens a request email.
+const BRAND = 'FEX Digital';
+
+// Lead access isn't self-serve, so the email capture opens a request email.
 const ACCESS_REQUEST_EMAIL = 'info@finalexpensedigital.com';
+const CTA_LABEL = 'Request access';
+const CAPTURE_ID = 'get-started';
 
 const CAPSULE = '999px';
 const CARD = '8px';
 const KEY = '4px';
 
-const eyebrowSx = {
-  fontFamily: MONO,
-  fontSize: '0.7rem',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.8px',
+// Hero logo strip. Drop official logo files at these paths; until a file
+// exists, the name renders as a plain wordmark in the same muted slate.
+const STACK = [
+  { name: 'HighLevel', src: '/integrations/gohighlevel.svg' },
+  { name: 'Ringy', src: '/integrations/ringy.svg' },
+  { name: 'Sendblue', src: '/integrations/sendblue.svg' },
+  { name: 'CSV export' },
+];
+
+// Sample lead on the hero phone. The text matches the real agent alert
+// format: "You have a new lead! {name} ({state}). Call now: {phone}".
+const SAMPLE = {
+  name: 'Margaret Hall',
+  age: 67,
+  state: 'OH',
+  stateName: 'Ohio',
+  phone: '(614) 555-0142',
 };
 
-const pillSx = {
-  ...eyebrowSx,
-  fontSize: '0.625rem',
-  letterSpacing: '0.5px',
-  px: 1,
-  py: '2px',
-  borderRadius: CAPSULE,
-  lineHeight: 1.4,
-  border: '1px solid',
-  whiteSpace: 'nowrap',
+const PHONE_LABEL = `Sample phone lock screen. A text reads: "You have a new lead! ${SAMPLE.name} (${SAMPLE.state}). Call now: ${SAMPLE.phone}." Below it, her lead details: whole life, $25,000 of coverage, $68 a month with an A-rated carrier, buying to leave a legacy, phone verified.`;
+
+const card = {
+  bgcolor: '#FFFFFF',
+  color: INK,
+  border: `1px solid ${HAIRLINE}`,
+  borderRadius: '20px',
 };
 
-const pillTone = {
-  neutral: { bgcolor: NEUTRAL, color: SLATE_BODY, borderColor: HAIRLINE },
-  verified: { bgcolor: GREEN_TINT, color: GREEN, borderColor: GREEN_BORDER },
-  blue: { bgcolor: BLUE_TINT, color: BLUE, borderColor: BLUE_BORDER },
-};
+// Notification cards drop in once, then hold. Reduced motion skips it.
+const dropIn = (delay) => ({
+  animation: `fexDrop 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) ${delay}s both`,
+});
 
-function Pill({ tone = 'neutral', children }) {
-  return (
-    <Box component='span' sx={{ ...pillSx, ...pillTone[tone] }}>
-      {children}
-    </Box>
-  );
-}
-
-const PROOF_POINTS = [
-  { label: '100% Exclusive for 30 Days', dot: BLUE },
-  { label: 'SMS Text-Verified Phone', dot: GREEN },
-  { label: '16 Underwriting Fields Included', dot: SLATE_MUTED },
-  { label: 'Zero Monthly Retainers', dot: SLATE_NAVY },
-];
-
-const SPECS = [
-  { label: 'Age / State', value: '67 • Ohio' },
-  { label: 'Coverage Goal', value: '$25,000' },
-  { label: 'Monthly Budget', value: '$60 – $90 / mo' },
-  { label: 'Health / Tobacco', value: 'Good • Non-Smoker' },
-];
-
-const DISPATCH_LOG = [
-  {
-    time: '09:41:02',
-    desc: 'Requested final expense quote on GetSeniorQuotes',
-    tag: 'Inbound',
-    tone: 'neutral',
-  },
-  {
-    time: '09:41:19',
-    desc: 'Entered 6-digit confirmation pin sent via SMS',
-    tag: 'Verified',
-    tone: 'verified',
-  },
-  {
-    time: '09:41:20',
-    desc: 'Pushed to your FExDigital inbox and dialer queue',
-    tag: 'Exclusive',
-    tone: 'blue',
-    emphasis: true,
-  },
-];
-
-const LIFECYCLE = [
-  {
-    time: '09:40:15',
-    desc: 'Visitor lands on the quote underwriting funnel (OH IP address confirmed)',
-    tag: 'Session',
-    tone: 'neutral',
-  },
-  {
-    time: '09:41:02',
-    desc: 'Completed 6-question questionnaire (Budget: $60–$90/mo, Face: $25K)',
-    tag: 'Submitted',
-    tone: 'neutral',
-  },
-  {
-    time: '09:41:03',
-    desc: 'One-time PIN texted to (614) 555-0142',
-    tag: 'OTP Sent',
-    tone: 'verified',
-  },
-  {
-    time: '09:41:19',
-    desc: '6-digit PIN submitted and validated',
-    tag: 'Valid',
-    tone: 'verified',
-  },
-  {
-    time: '09:41:20',
-    desc: '30-day exclusivity lock executed. Lead assigned to a single agent.',
-    tag: 'Locked',
-    tone: 'blue',
-    emphasis: true,
-  },
-];
-
-const TABS = [
-  { key: 'card', label: 'Lead Card' },
-  { key: 'timeline', label: 'Audit Timeline' },
-  { key: 'json', label: 'Webhook JSON' },
-];
-
-function Timeline({ rows, gap = 1.25 }) {
+function HeroPhone() {
   return (
     <Box
       sx={{
-        borderLeft: `2px solid ${BLUE}`,
-        pl: 1.75,
-        ml: 0.5,
+        width: '100%',
+        alignSelf: 'end',
         display: 'flex',
-        flexDirection: 'column',
-        gap,
+        justifyContent: 'center',
+        // The device bleeds off the bottom of the hero into the navy band.
+        maxHeight: { xs: 470, md: 590 },
+        overflow: 'hidden',
+        '@keyframes fexDrop': {
+          from: { opacity: 0, transform: 'translateY(-16px) scale(0.98)' },
+          to: { opacity: 1, transform: 'none' },
+        },
+        '@media (prefers-reduced-motion: reduce)': {
+          '& .fex-anim': { animation: 'none' },
+        },
       }}
     >
-      {rows.map((row) => (
+      <Box
+        role='img'
+        aria-label={PHONE_LABEL}
+        sx={{
+          width: { xs: 280, md: 320 },
+          aspectRatio: '9 / 19.5',
+          flexShrink: 0,
+          bgcolor: INK,
+          borderRadius: '52px',
+          p: '11px',
+        }}
+      >
         <Box
-          key={row.time + row.tag}
+          aria-hidden='true'
           sx={{
+            height: '100%',
+            borderRadius: '42px',
+            bgcolor: NEUTRAL,
+            color: INK,
+            overflow: 'hidden',
             display: 'flex',
-            alignItems: 'baseline',
-            gap: 1,
-            fontFamily: MONO,
-            fontSize: '0.75rem',
+            flexDirection: 'column',
+            alignItems: 'center',
+            px: 1.25,
+            textAlign: 'left',
           }}
         >
           <Box
-            component='span'
-            sx={{ fontWeight: 700, color: INK, flexShrink: 0 }}
-          >
-            {row.time}
-          </Box>
-          <Box
-            component='span'
             sx={{
-              flex: 1,
-              pl: 1,
-              color: row.emphasis ? BLUE : SLATE_BODY,
-              fontWeight: row.emphasis ? 600 : 400,
+              width: 96,
+              height: 28,
+              mt: 1.25,
+              bgcolor: '#000000',
+              borderRadius: CAPSULE,
+            }}
+          />
+          <Box
+            sx={{
+              mt: 2.5,
+              fontSize: '0.9rem',
+              fontWeight: 500,
+              color: SLATE_BODY,
             }}
           >
-            {row.desc}
-          </Box>
-          <Box sx={{ flexShrink: 0 }}>
-            <Pill tone={row.tone}>{row.tag}</Pill>
-          </Box>
-        </Box>
-      ))}
-    </Box>
-  );
-}
-
-function SectionLabel({ children, aside }) {
-  return (
-    <Box
-      sx={{
-        ...eyebrowSx,
-        color: SLATE_MUTED,
-        mb: 1.5,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 1,
-      }}
-    >
-      <span>{children}</span>
-      {aside}
-    </Box>
-  );
-}
-
-function CardFooter({ left, right }) {
-  return (
-    <Box
-      sx={{
-        borderTop: `1px solid ${HAIRLINE}`,
-        pt: 1.75,
-        mt: 2,
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 1,
-        fontFamily: MONO,
-        fontSize: '0.7rem',
-        color: SLATE_MUTED,
-      }}
-    >
-      <span>{left}</span>
-      {right}
-    </Box>
-  );
-}
-
-function LeadCardPane() {
-  return (
-    <>
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-          pb: 2,
-          mb: 2.5,
-          borderBottom: `1px solid ${HAIRLINE}`,
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-            <Pill>Web Funnel • Fresh</Pill>
-            <Pill tone='verified'>✓ Verified Phone</Pill>
+            Thursday, November 5
           </Box>
           <Box
             sx={{
+              fontSize: { xs: '4.25rem', md: '5rem' },
+              fontWeight: 600,
+              lineHeight: 1,
+              letterSpacing: '-2px',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            9:41
+          </Box>
+
+          <Box
+            sx={{
+              mt: 3,
+              width: '100%',
               display: 'flex',
-              alignItems: 'baseline',
-              flexWrap: 'wrap',
+              flexDirection: 'column',
               gap: 1,
             }}
           >
+            {/* The text alert agents receive */}
             <Box
-              component='span'
-              sx={{ fontSize: '1.25rem', fontWeight: 800, color: INK }}
-            >
-              Margaret H.
-            </Box>
-            <Box
-              component='span'
+              className='fex-anim'
               sx={{
-                fontFamily: MONO,
-                fontSize: '0.875rem',
-                color: SLATE_MUTED,
+                ...card,
+                ...dropIn(0.6),
+                p: 1.5,
+                display: 'flex',
+                gap: 1.25,
               }}
             >
-              (614) 555-0142
-            </Box>
-          </Box>
-        </Box>
-        <Pill tone='blue'>16 Fields Included ⓘ</Pill>
-      </Box>
-
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 1.25,
-          mb: 2.5,
-        }}
-      >
-        {SPECS.map((spec) => (
-          <Box
-            key={spec.label}
-            sx={{
-              bgcolor: SURFACE,
-              border: `1px solid ${HAIRLINE}`,
-              borderRadius: KEY,
-              p: 1.5,
-            }}
-          >
-            <Box
-              sx={{
-                ...eyebrowSx,
-                fontSize: '0.625rem',
-                color: SLATE_MUTED,
-                mb: 0.5,
-              }}
-            >
-              {spec.label}
-            </Box>
-            <Box
-              sx={{
-                fontFamily: MONO,
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                color: INK,
-              }}
-            >
-              {spec.value}
-            </Box>
-          </Box>
-        ))}
-      </Box>
-
-      <SectionLabel
-        aside={
-          <Box component='span' sx={{ color: GREEN }}>
-            ● Direct to Dialer
-          </Box>
-        }
-      >
-        Real-Time Dispatch Log
-      </SectionLabel>
-      <Timeline rows={DISPATCH_LOG} />
-
-      <CardFooter
-        left='Immediate delivery via webhook, Sendblue SMS & CSV'
-        right={
-          <Box component='span' sx={{ color: INK, fontWeight: 700 }}>
-            Exclusive Tier:{' '}
-            <Box component='span' sx={{ color: GREEN }}>
-              $39.00
-            </Box>
-          </Box>
-        }
-      />
-    </>
-  );
-}
-
-function TimelinePane() {
-  return (
-    <>
-      <SectionLabel aside={<span>Latency: 18.2s Total</span>}>
-        Full Verification Lifecycle
-      </SectionLabel>
-      <Timeline rows={LIFECYCLE} gap={2} />
-      <CardFooter
-        left='Zero-sharing guarantee enforced at the database level'
-        right={
-          <Box component='span' sx={{ color: INK, fontWeight: 700 }}>
-            Status: Delivered
-          </Box>
-        }
-      />
-    </>
-  );
-}
-
-const jsonKey = (k) => (
-  <Box component='span' sx={{ color: INK_MUTED }}>
-    "{k}"
-  </Box>
-);
-const jsonStr = (v) => (
-  <Box component='span' sx={{ color: '#FDE68A' }}>
-    "{v}"
-  </Box>
-);
-const jsonNum = (v) => (
-  <Box component='span' sx={{ color: '#A5B4FC' }}>
-    {v}
-  </Box>
-);
-const jsonBool = (v) => (
-  <Box component='span' sx={{ color: '#86EFAC', fontWeight: 700 }}>
-    {String(v)}
-  </Box>
-);
-
-function JsonPane() {
-  return (
-    <>
-      <Box
-        component='pre'
-        sx={{
-          m: 0,
-          bgcolor: INK,
-          color: '#E0E7FF',
-          p: 2.25,
-          borderRadius: KEY,
-          border: `1px solid ${INK_RULE}`,
-          fontFamily: MONO,
-          fontSize: '0.75rem',
-          lineHeight: 1.6,
-          overflowX: 'auto',
-        }}
-      >
-        <code>
-          {'{\n  '}
-          {jsonKey('event')}: {jsonStr('lead.verified_delivered')}
-          {',\n  '}
-          {jsonKey('id')}: {jsonStr('lead_fex_98a72b14')}
-          {',\n  '}
-          {jsonKey('timestamp')}: {jsonStr('2026-11-02T14:41:20.104Z')}
-          {',\n  '}
-          {jsonKey('exclusive_until')}: {jsonStr('2026-12-02T14:41:20Z')}
-          {',\n  '}
-          {jsonKey('contact')}
-          {': {\n    '}
-          {jsonKey('first_name')}: {jsonStr('Margaret')}
-          {',\n    '}
-          {jsonKey('phone_e164')}: {jsonStr('+16145550142')}
-          {',\n    '}
-          {jsonKey('sms_verified')}: {jsonBool(true)}
-          {'\n  },\n  '}
-          {jsonKey('underwriting')}
-          {': {\n    '}
-          {jsonKey('age')}: {jsonNum(67)}
-          {',\n    '}
-          {jsonKey('state')}: {jsonStr('OH')}
-          {',\n    '}
-          {jsonKey('coverage_amount')}: {jsonNum(25000)}
-          {',\n    '}
-          {jsonKey('monthly_budget')}: {jsonStr('$60-$90')}
-          {',\n    '}
-          {jsonKey('tobacco_use')}: {jsonBool(false)}
-          {',\n    '}
-          {jsonKey('fields_delivered')}: {jsonNum(16)}
-          {'\n  }\n}'}
-        </code>
-      </Box>
-      <CardFooter
-        left='Works with any REST webhook endpoint'
-        right={
-          <Box component='span' sx={{ color: INK, fontWeight: 700 }}>
-            HTTP 200 OK
-          </Box>
-        }
-      />
-    </>
-  );
-}
-
-function DispatchPreview() {
-  const [tab, setTab] = useState('card');
-
-  return (
-    <Box
-      component='section'
-      aria-label='Lead dispatch preview'
-      sx={{
-        width: '100%',
-        maxWidth: 820,
-        bgcolor: '#FFFFFF',
-        border: `1px solid ${HAIRLINE_STRONG}`,
-        borderRadius: CARD,
-        overflow: 'hidden',
-        textAlign: 'left',
-      }}
-    >
-      <Box
-        sx={{
-          bgcolor: INK,
-          color: '#FFFFFF',
-          px: 2,
-          py: 1.25,
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{ display: 'flex', gap: '5px' }}>
-            {[0, 1, 2].map((i) => (
               <Box
-                key={i}
                 sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: CAPSULE,
-                  bgcolor: INK_RULE,
-                }}
-              />
-            ))}
-          </Box>
-          <Box
-            component='span'
-            sx={{
-              fontFamily: MONO,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: INK_MUTED,
-            }}
-          >
-            FEx_LEAD_DISPATCH // LIVE ROUTER
-          </Box>
-        </Box>
-
-        <Box
-          role='tablist'
-          sx={{
-            display: 'inline-flex',
-            border: `1px solid ${INK_RULE}`,
-            borderRadius: CAPSULE,
-            p: '2px',
-            gap: '2px',
-          }}
-        >
-          {TABS.map((t) => {
-            const active = t.key === tab;
-            return (
-              <Box
-                key={t.key}
-                component='button'
-                type='button'
-                role='tab'
-                aria-selected={active}
-                onClick={() => setTab(t.key)}
-                sx={{
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: MONO,
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  px: 1.25,
-                  py: 0.5,
-                  borderRadius: CAPSULE,
-                  bgcolor: active ? BLUE : 'transparent',
-                  color: active ? '#FFFFFF' : INK_MUTED,
-                  transition: 'background-color 0.15s, color 0.15s',
-                  '&:hover': { color: '#FFFFFF' },
-                  '&:focus-visible': {
-                    outline: `2px solid ${BLUE}`,
-                    outlineOffset: 2,
-                  },
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  borderRadius: '9px',
+                  bgcolor: INK,
+                  color: '#FFFFFF',
+                  fontSize: '0.6rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                {t.label}
+                FEX
               </Box>
-            );
-          })}
-        </Box>
-      </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  <Box component='span' sx={{ fontWeight: 700 }}>
+                    {BRAND}
+                  </Box>
+                  <Box component='span' sx={{ color: SLATE_MUTED }}>
+                    now
+                  </Box>
+                </Box>
+                <Box sx={{ fontSize: '0.8rem', lineHeight: 1.35 }}>
+                  {`You have a new lead! ${SAMPLE.name} (${SAMPLE.state}). Call now: ${SAMPLE.phone}`}
+                </Box>
+              </Box>
+            </Box>
 
-      <Box role='tabpanel' sx={{ p: { xs: 2, sm: 3 } }}>
-        {tab === 'card' && <LeadCardPane />}
-        {tab === 'timeline' && <TimelinePane />}
-        {tab === 'json' && <JsonPane />}
+            {/* What lands in the CRM at the same moment */}
+            <Box
+              className='fex-anim'
+              sx={{ ...card, ...dropIn(1.5), p: 1.5, fontSize: '0.8rem' }}
+            >
+              <Box
+                sx={{
+                  fontSize: '0.6rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  color: SLATE_MUTED,
+                  mb: 0.5,
+                }}
+              >
+                Lead details · in your CRM
+              </Box>
+              <Box sx={{ fontSize: '0.95rem', fontWeight: 800 }}>
+                {SAMPLE.name}, {SAMPLE.age} · {SAMPLE.stateName}
+              </Box>
+              <Box sx={{ fontWeight: 600, mt: 0.25 }}>
+                Whole life · $25,000 ·{' '}
+                <Box component='span' sx={{ fontFamily: MONO }}>
+                  $68/mo
+                </Box>
+              </Box>
+              <Box sx={{ color: SLATE_MUTED }}>A-rated carrier</Box>
+              <Box
+                sx={{
+                  borderTop: `1px solid ${HAIRLINE}`,
+                  mt: 1,
+                  pt: 1,
+                  lineHeight: 1.5,
+                }}
+              >
+                <Box>
+                  <Box component='span' sx={{ color: SLATE_MUTED }}>
+                    Reason:
+                  </Box>{' '}
+                  Leave a Legacy
+                </Box>
+                <Box sx={{ color: GREEN, fontWeight: 600 }}>
+                  ✓ Phone verified
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  mt: 1.25,
+                  py: 0.875,
+                  borderRadius: CAPSULE,
+                  bgcolor: BLUE,
+                  color: '#FFFFFF',
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.75,
+                }}
+              >
+                <Box
+                  component='svg'
+                  viewBox='0 0 24 24'
+                  sx={{ width: 15, height: 15, fill: '#FFFFFF' }}
+                >
+                  <path d='M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z' />
+                </Box>
+                Call now
+              </Box>
+            </Box>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );
@@ -579,9 +290,9 @@ function CaptureForm() {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    const subject = encodeURIComponent('Lead access request');
+    const subject = encodeURIComponent(`Access request: ${BRAND} leads`);
     const body = encodeURIComponent(
-      `Hi FExDigital team,\n\nI'd like access to exclusive leads. My work email is ${email}.\n`,
+      `Hi ${BRAND} team,\n\nI'd like to request access. You can reach me at ${email}.\n`,
     );
     window.location.href = `mailto:${ACCESS_REQUEST_EMAIL}?subject=${subject}&body=${body}`;
   };
@@ -589,8 +300,9 @@ function CaptureForm() {
   return (
     <Box
       component='form'
+      id={CAPTURE_ID}
       onSubmit={onSubmit}
-      sx={{ width: '100%', maxWidth: 540, mx: 'auto', mb: 2.5 }}
+      sx={{ width: '100%', maxWidth: 520, mx: { xs: 'auto', md: 0 }, mb: 2.5 }}
     >
       <Box
         sx={{
@@ -599,9 +311,10 @@ function CaptureForm() {
           alignItems: 'stretch',
           bgcolor: '#FFFFFF',
           border: `1px solid ${HAIRLINE_STRONG}`,
-          borderRadius: KEY,
-          p: 0.5,
-          gap: 0.5,
+          borderRadius: CARD,
+          height: { sm: 52 },
+          p: '4px',
+          gap: '4px',
           transition: 'border-color 0.15s',
           '&:focus-within': { borderColor: BLUE },
         }}
@@ -637,8 +350,8 @@ function CaptureForm() {
             component='input'
             type='email'
             required
-            aria-label='Work email'
-            placeholder="What's your work email?"
+            aria-label='Your email'
+            placeholder='Your email'
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             sx={{
@@ -667,8 +380,9 @@ function CaptureForm() {
             fontFamily: SANS,
             fontSize: '0.875rem',
             fontWeight: 700,
-            px: 2.75,
-            py: 1.5,
+            px: 2.5,
+            py: { xs: 1.5, sm: 0 },
+            height: { sm: '100%' },
             borderRadius: KEY,
             cursor: 'pointer',
             whiteSpace: 'nowrap',
@@ -680,7 +394,7 @@ function CaptureForm() {
             },
           }}
         >
-          Request lead access
+          {CTA_LABEL}
           <Box
             component='svg'
             viewBox='0 0 24 24'
@@ -701,6 +415,117 @@ function CaptureForm() {
   );
 }
 
+function StackLogo({ name, src }) {
+  const [failed, setFailed] = useState(!src);
+  const tone = {
+    color: SLATE_MUTED,
+    transition: 'color 0.15s, filter 0.15s',
+    '&:hover': { color: INK },
+  };
+  if (failed) {
+    return (
+      <Box
+        component='span'
+        sx={{
+          ...tone,
+          fontSize: '0.875rem',
+          fontWeight: 700,
+          lineHeight: '19px',
+        }}
+      >
+        {name}
+      </Box>
+    );
+  }
+  return (
+    <Box
+      component='img'
+      src={src}
+      alt={name}
+      onError={() => setFailed(true)}
+      sx={{
+        ...tone,
+        height: 19,
+        width: 'auto',
+        display: 'block',
+        filter: 'grayscale(1) opacity(0.75)',
+        '&:hover': { filter: 'grayscale(1) brightness(0.3)' },
+      }}
+    />
+  );
+}
+
+// "Pushes directly to your stack": the CRMs and dialers leads land in.
+function StackBar() {
+  return (
+    <Box sx={{ mb: 3 }}>
+      <Box
+        sx={{
+          fontFamily: MONO,
+          fontSize: '0.65rem',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: SLATE_REFERENCE,
+          mb: 1,
+        }}
+      >
+        Pushes directly to your stack
+      </Box>
+      <Box
+        component='ul'
+        sx={{
+          listStyle: 'none',
+          m: 0,
+          p: 0,
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: { xs: 'center', md: 'flex-start' },
+          alignItems: 'center',
+          columnGap: { xs: 2, sm: 3 },
+          rowGap: 1.5,
+        }}
+      >
+        {STACK.map((item) => (
+          <Box component='li' key={item.name}>
+            <StackLogo {...item} />
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+// One published result, linking to the full numbers.
+const statSx = { fontFamily: MONO, fontWeight: 700, color: INK };
+
+function ProofLine() {
+  return (
+    <Box sx={{ fontSize: '0.875rem', color: SLATE_BODY, lineHeight: 1.6 }}>
+      <Box component='strong' sx={statSx}>
+        $22,600
+      </Box>{' '}
+      avg. annual premium per 100 leads{' '}
+      <Box component='span' sx={{ color: SLATE_MUTED }}>
+        (11.2% close rate at $2,023 avg. premium)
+      </Box>{' '}
+      ·{' '}
+      <Box
+        component='a'
+        href='#fresh-leads'
+        sx={{
+          color: BLUE,
+          fontWeight: 600,
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+          '&:hover': { textDecoration: 'underline' },
+        }}
+      >
+        See the full breakdown →
+      </Box>
+    </Box>
+  );
+}
+
 function Header() {
   return (
     <Box
@@ -709,8 +534,8 @@ function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        bgcolor: INK,
-        borderBottom: `1px solid ${INK_RULE}`,
+        bgcolor: '#FFFFFF',
+        borderBottom: `1px solid ${HAIRLINE}`,
       }}
     >
       <Box
@@ -728,13 +553,13 @@ function Header() {
         <Box
           component={RouterLink}
           to='/'
-          aria-label='FExDigital home'
+          aria-label={`${BRAND} home`}
           sx={{ display: 'flex', alignItems: 'center' }}
         >
           <Box
             component='img'
-            src='/fexdigital-logo-white.svg'
-            alt='FExDigital'
+            src='/fexdigital-logo-blue.svg'
+            alt={BRAND}
             sx={{ height: 30, display: 'block' }}
           />
         </Box>
@@ -753,20 +578,27 @@ function Header() {
               fontFamily: SANS,
               fontSize: '0.875rem',
               fontWeight: 600,
-              color: '#FFFFFF',
+              color: INK,
               textDecoration: 'none',
               px: 1.5,
               py: 1,
               borderRadius: KEY,
               transition: 'background-color 0.15s',
-              '&:hover': { bgcolor: INK_RULE },
+              '&:hover': { bgcolor: NEUTRAL },
             }}
           >
             Sign In
           </Box>
           <Box
-            component={RouterLink}
-            to='/login'
+            component='a'
+            href={`#${CAPTURE_ID}`}
+            onClick={() => {
+              // Land the cursor in the email box after the scroll.
+              setTimeout(
+                () => document.querySelector(`#${CAPTURE_ID} input`)?.focus(),
+                300,
+              );
+            }}
             sx={{
               fontFamily: SANS,
               fontSize: '0.8125rem',
@@ -783,7 +615,7 @@ function Header() {
               '&:hover': { bgcolor: BLUE_HOVER, borderColor: BLUE_HOVER },
             }}
           >
-            Access Leads
+            {CTA_LABEL}
           </Box>
         </Box>
       </Box>
@@ -805,8 +637,7 @@ function Footer() {
         borderTop: `1px solid ${INK_RULE}`,
         px: { xs: 2, sm: 3 },
         py: 3,
-        fontFamily: MONO,
-        fontSize: '0.75rem',
+        fontSize: '0.8125rem',
         color: INK_MUTED,
       }}
     >
@@ -856,6 +687,8 @@ export default function Landing() {
         fontFamily: SANS,
         // Flat architecture: nothing on this page casts a shadow.
         '& *': { boxShadow: 'none', textShadow: 'none' },
+        // In-page links (#fresh-leads, #get-started) clear the sticky header.
+        '& [id]': { scrollMarginTop: '72px' },
       }}
     >
       <Header />
@@ -863,121 +696,74 @@ export default function Landing() {
       <Box
         component='main'
         sx={{
-          flex: 1,
           width: '100%',
-          maxWidth: 1040,
+          maxWidth: 1200,
           mx: 'auto',
           px: { xs: 2, sm: 3 },
           pt: { xs: 5, md: 8 },
-          pb: { xs: 6, md: 10 },
-          display: 'flex',
-          flexDirection: 'column',
+          pb: 0,
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            md: 'minmax(0, 1.1fr) minmax(0, 0.9fr)',
+          },
           alignItems: 'center',
-          textAlign: 'center',
+          gap: { xs: 5, md: 6 },
         }}
       >
         <Box
           sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 1,
-            bgcolor: BLUE_TINT,
-            border: `1px solid ${BLUE_BORDER}`,
-            borderRadius: CAPSULE,
-            pl: 0.75,
-            pr: 1.5,
-            py: 0.5,
-            mb: 3,
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: INK,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: { xs: 'center', md: 'flex-start' },
+            textAlign: { xs: 'center', md: 'left' },
+            pb: { md: 9 },
           }}
         >
           <Box
-            component='span'
+            component='h1'
             sx={{
-              ...pillSx,
-              bgcolor: BLUE,
-              borderColor: BLUE,
-              color: '#FFFFFF',
+              m: 0,
+              mb: 2.5,
+              fontFamily: SERIF,
+              fontWeight: 700,
+              fontSize: { xs: '2.5rem', sm: '3.25rem', md: '4rem' },
+              lineHeight: 1.08,
+              letterSpacing: { xs: '-0.5px', md: '-1.5px' },
+              color: INK,
             }}
           >
-            New
+            <Box component='span' sx={{ display: { md: 'block' } }}>
+              Real Intent.
+            </Box>{' '}
+            Real Results.
           </Box>
-          Instant CRM delivery &amp; real-time lead alerts
-        </Box>
 
-        <Box
-          component='h1'
-          sx={{
-            m: 0,
-            mb: 2.5,
-            maxWidth: 900,
-            fontFamily: SERIF,
-            fontWeight: 700,
-            fontSize: { xs: '2.25rem', sm: '3rem', md: '3.5rem' },
-            lineHeight: 1.1,
-            letterSpacing: { xs: '-0.5px', md: '-1px' },
-            color: INK,
-          }}
-        >
-          Life insurance leads,{' '}
-          <Box component='span' sx={{ color: BLUE, whiteSpace: 'nowrap' }}>
-            solved.
+          <Box
+            component='p'
+            sx={{
+              m: 0,
+              mb: 4,
+              maxWidth: 560,
+              fontSize: { xs: '1rem', md: '1.125rem' },
+              lineHeight: 1.6,
+              color: SLATE_BODY,
+            }}
+          >
+            Shoppers compare live rates from real carriers, and most pick a plan
+            before they reach you, so you get the carrier, the premium and the
+            reason they're buying.
           </Box>
+
+          <CaptureForm />
+          <StackBar />
+          <ProofLine />
         </Box>
 
-        <Box
-          component='p'
-          sx={{
-            m: 0,
-            mb: 4,
-            maxWidth: 660,
-            fontSize: { xs: '1rem', md: '1.125rem' },
-            lineHeight: 1.55,
-            color: SLATE_BODY,
-          }}
-        >
-          Exclusive web-funnel and live-transfer leads, SMS-verified and
-          delivered straight to your CRM in real time. Zero shared inventory.
-        </Box>
-
-        <CaptureForm />
-
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: { xs: 1.5, sm: 2.5 },
-            mb: 7,
-            fontSize: '0.8125rem',
-            fontWeight: 500,
-            color: SLATE_MUTED,
-          }}
-        >
-          {PROOF_POINTS.map((p) => (
-            <Box
-              key={p.label}
-              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}
-            >
-              <Box
-                component='span'
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: CAPSULE,
-                  bgcolor: p.dot,
-                }}
-              />
-              {p.label}
-            </Box>
-          ))}
-        </Box>
-
-        <DispatchPreview />
+        <HeroPhone />
       </Box>
 
+      <FreshLeadSections />
       <AgedLeadSections />
 
       <Footer />
