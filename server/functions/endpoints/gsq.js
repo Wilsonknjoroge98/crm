@@ -9,6 +9,7 @@ const {
 } = require('firebase-admin/firestore');
 const { supabaseService } = require('../services/supabase');
 const { SUPER_ADMIN_EMAIL } = require('../integrations/GSQ');
+const { bioProblem, normalizeBio } = require('../shared/bio');
 
 // eslint-disable-next-line new-cap
 const gsqRouter = express.Router();
@@ -355,12 +356,14 @@ gsqRouter.patch('/', async (req, res) => {
   }
 
   if (bio !== undefined) {
-    if (typeof bio !== 'string' || bio.trim().length > 200) {
-      return res
-        .status(400)
-        .send({ message: 'Bio must be 200 characters or fewer' });
+    if (typeof bio !== 'string') {
+      return res.status(400).send({ message: 'Bio must be text' });
     }
-    updateObject.bio = bio.trim();
+    const bioError = bioProblem(bio);
+    if (bioError) {
+      return res.status(400).send({ message: bioError });
+    }
+    updateObject.bio = normalizeBio(bio);
   }
 
   const agentName = [req.agent?.first_name, req.agent?.last_name]
