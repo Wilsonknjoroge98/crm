@@ -1,5 +1,5 @@
-// COPIED VERBATIM from the Keyley funnel: github.com/Wilsonknjoroge98/keyley client/src/lib/snapshot.ts
-// (branch feat/pdf-details-loading, commit 1d72178). Do not edit here: change it in the funnel and copy it again,
+// COPIED VERBATIM from the Keyley funnel: github.com/Wilsonknjoroge98/gsq apps/keyley-web/src/lib/snapshot.ts
+// (branch feat/keyley-pdf-address, commit 0f2b797). Do not edit here: change it in the funnel and copy it again,
 // so the agent sees exactly the estimate the lead downloaded.
 // Keyley Estimate: a 2-page PDF built in the lead's own browser (nothing is uploaded or stored).
 // Page 1 their equity, their estimate and their agent; page 2 four ways mortgage protection can work.
@@ -189,7 +189,7 @@ function topBlock(doc: JsPDF, d: SnapshotData) {
     blocks.push({ text: doc.splitTextToSize(text, width), font, style, size, lh, color });
   };
   add(`${d.firstName} ${d.lastName}`.trim() || 'Your estimate', 'times', 'bold', 30, 1.1, INK);
-  if (d.address) add(`${d.address.line1}, ${d.address.line2}`, 'helvetica', 'normal', 14, 1.3, CHAR);
+  if (d.address) add([d.address.line1, d.address.line2].filter(Boolean).join(', '), 'helvetica', 'normal', 14, 1.3, CHAR);
   const who = personLine(d.person);
   if (who) add(who, 'helvetica', 'normal', 12.5, 1.3, SLATE);
 
