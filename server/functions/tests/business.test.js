@@ -271,7 +271,7 @@ const makeFirestore = (docsByEmail = {}, options = {}) => {
 };
 
 // Fixtures date their leads in September 2026; pin the clock inside the
-// refund window for them so the 7-day rule doesn't age them out.
+// refund window for them so the 14-day rule doesn't age them out.
 const FIXTURE_NOW = Date.parse('2026-09-24T00:00:00Z');
 beforeEach(() => {
   jest.spyOn(Date, 'now').mockReturnValue(FIXTURE_NOW);
@@ -698,8 +698,8 @@ describe('GET /people', () => {
     });
   });
 
-  test('stops offering a refund once the 7-day window has passed', async () => {
-    Date.now.mockReturnValue(Date.parse('2026-09-27T00:00:01Z'));
+  test('stops offering a refund once the 14-day window has passed', async () => {
+    Date.now.mockReturnValue(Date.parse('2026-10-04T00:00:01Z'));
     const supabase = makeSupabase({
       business: [
         {

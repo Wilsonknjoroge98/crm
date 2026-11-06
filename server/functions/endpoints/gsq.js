@@ -10,6 +10,7 @@ const {
 const { supabaseService } = require('../services/supabase');
 const { SUPER_ADMIN_EMAIL } = require('../integrations/GSQ');
 const { bioProblem, normalizeBio } = require('../shared/bio');
+const { getAgentSendblueKeys } = require('../integrations/sendblue');
 
 // eslint-disable-next-line new-cap
 const gsqRouter = express.Router();
@@ -141,6 +142,47 @@ gsqRouter.patch('/insurdial-config', async (req, res) => {
   res.status(200).send({ message: 'InsurDial API key saved successfully' });
 });
 
+// The agent's own Sendblue subaccount keys for the profile CRMs tab.
+// Email comes from the session only, never the query, so an agent can
+// only ever read their own keys.
+gsqRouter.get('/sendblue-config', async (req, res) => {
+  const { data: authData, error: authError } =
+    await req.supabase.auth.getUser();
+  const email = authData?.user?.email;
+  if (authError || !email) {
+    return res.status(403).send({ message: 'Forbidden' });
+  }
+
+  // Anyone with a line can see their keys, whether dispatch is on or off
+  if (!req.agent?.sendblue_number) {
+    return res
+      .status(403)
+      .send({ message: 'No Sendblue line is set up for this account' });
+  }
+
+  res.set('Cache-Control', 'no-store');
+
+  let keys;
+  try {
+    keys = await getAgentSendblueKeys(email);
+  } catch (error) {
+    logger.error('Sendblue key lookup failed in endpoints/gsq.js', {
+      email,
+      message: error?.message,
+    });
+    return res
+      .status(503)
+      .send({ message: 'Could not load Sendblue API keys' });
+  }
+
+  return res.status(200).send({
+    configured: keys.configured,
+    apiKey: keys.apiKey,
+    apiSecret: keys.apiSecret,
+    sendblueNumber: keys.sendblueNumber,
+  });
+});
+
 gsqRouter.get('/', async (req, res) => {
   const { data: authData, error: authError } =
     await req.supabase.auth.getUser();
@@ -268,6 +310,7 @@ gsqRouter.patch('/', async (req, res) => {
       ringyEnabled,
       ghlEnabled,
       insurDialEnabled,
+      sendBlueEnabled,
       bio,
       imageUrl,
       image,
@@ -318,6 +361,14 @@ gsqRouter.patch('/', async (req, res) => {
       configCollection: 'id_config',
       label: 'InsurDial',
     },
+    {
+      field: 'sendBlueEnabled',
+      value: sendBlueEnabled,
+      configCollection: 'sendblue_config',
+      // gsq keys sendblue_config by lowercased email
+      configDocId: email.toLowerCase(),
+      label: 'Sendblue',
+    },
   ];
 
   for (const integration of integrationUpdates) {
@@ -333,7 +384,7 @@ gsqRouter.patch('/', async (req, res) => {
     if (integration.value === true) {
       const configSnapshot = await db
         .collection(integration.configCollection)
-        .doc(email)
+        .doc(integration.configDocId ?? email)
         .get();
 
       if (!configSnapshot.exists) {

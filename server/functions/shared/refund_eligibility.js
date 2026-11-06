@@ -8,10 +8,10 @@ const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
 // leads that dripped in earlier were never sold as refund-eligible.
 const REFUND_ELIGIBILITY_CUTOFF = new Date('2026-09-19T00:00:00Z');
 
-// Terms of Service section 11(a): a refund must be requested within 7 days
+// Terms of Service section 11(a): a refund must be requested within 14 days
 // of delivery. Delivery is the crm row's created_at, when the lead landed in
 // the agent's CRM.
-const REFUND_WINDOW_DAYS = 7;
+const REFUND_WINDOW_DAYS = 14;
 const REFUND_WINDOW_MS = REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 const isWithinRefundWindow = (createdAt, nowMs = Date.now()) =>
