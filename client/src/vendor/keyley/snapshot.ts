@@ -1,5 +1,5 @@
 // COPIED VERBATIM from the Keyley funnel: github.com/Wilsonknjoroge98/gsq apps/keyley-web/src/lib/snapshot.ts
-// (branch feat/keyley-pdf-address, commit 0f2b797). Do not edit here: change it in the funnel and copy it again,
+// (branch feat/keyley-one-type, commit 1733903). Do not edit here: change it in the funnel and copy it again,
 // so the agent sees exactly the estimate the lead downloaded.
 // Keyley Estimate: a 2-page PDF built in the lead's own browser (nothing is uploaded or stored).
 // Page 1 their equity, their estimate and their agent; page 2 four ways mortgage protection can work.
@@ -380,7 +380,7 @@ function pageHome(doc: JsPDF, d: SnapshotData) {
   doc.setFont('times', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(INK);
-  doc.text(d.agent ? `${d.agent.name}${d.agent.npn ? `  ·  NPN ${d.agent.npn}` : ''}` : 'A licensed agent will text you shortly', tx, y + 40);
+  doc.text(d.agent ? `${d.agent.name}${d.agent.npn ? `  ·  NPN ${d.agent.npn}` : ''}` : 'Talk to a licensed agent about your estimate', tx, y + 40);
   const bw = 172, bh = 32, bx = W - M - bw - 11, byy = y + (ah - bh) / 2;
   doc.setFillColor(CHAR);
   doc.roundedRect(bx, byy, bw, bh, 16, 16, 'F');

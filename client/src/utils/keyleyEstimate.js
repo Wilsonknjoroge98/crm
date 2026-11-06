@@ -18,7 +18,6 @@ const COLUMNS = {
   balance: ['mortgage_balance', 'mortgageBalance'],
   yearsLeft: ['mortgage_years_left', 'mortgageYearsLeft'],
   term: ['term_years', 'termYears'],
-  homeowner: ['homeowner'],
   street: ['street_address', 'streetAddress'],
   city: ['city'],
   zip: ['zip'],
@@ -89,16 +88,12 @@ const yes = (value) => value === true || /^(true|yes|y|1)$/i.test(String(value ?
 
 /**
  * The estimate for a lead, or null when the lead has no estimate: not a Keyley
- * lead, a Keyley TERM lead (non-owners never got a PDF), or a lead without the
- * balance and term the PDF needs.
+ * lead, or a lead without the balance and term the PDF needs.
  *
  *   agent: { name, npn, photoDataUrl } of the lead's agent, or null
  */
 export const estimateFromLead = (row, agent = null) => {
-  if (!isKeyleyLead(row)) return null;
-  if (/term life/i.test(String(row?.why || ''))) return null; // keyley term: no PDF on the site
-  const homeowner = pick(row, COLUMNS.homeowner);
-  if (homeowner !== null && !yes(homeowner)) return null;
+  if (!isKeyleyLead(row)) return null; // every Keyley lead, owner or not (one lead type, Shea 2026-11-06)
 
   const balance = num(pick(row, COLUMNS.balance));
   const term = num(pick(row, COLUMNS.term));

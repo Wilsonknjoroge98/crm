@@ -54,10 +54,10 @@ test('the price comes from premium_min / premium_max, with the text as a fallbac
   assert.deepEqual([t.quote.low, t.quote.high], [119, 154]);
 });
 
-test('no estimate for non-Keyley, term, non-owner or incomplete leads', () => {
+test('every Keyley lead gets one, owner or not; none for non-Keyley or incomplete leads', () => {
   assert.equal(estimateFromLead({ ...row, lead_vendor_name: 'GSQ' }), null);
-  assert.equal(estimateFromLead({ ...row, why: 'Term life' }), null);
-  assert.equal(estimateFromLead({ ...row, homeowner: false }), null);
+  assert.notEqual(estimateFromLead({ ...row, homeowner: false }), null);
+  assert.notEqual(estimateFromLead({ ...row, why: 'Term life' }), null); // older records
   assert.equal(estimateFromLead({ ...row, mortgage_balance: null }), null);
   assert.equal(estimateFromLead({ ...row, term_years: null }), null);
 });
