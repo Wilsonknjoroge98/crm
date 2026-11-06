@@ -11,9 +11,12 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Paper,
+  Radio,
+  RadioGroup,
   Select,
   Slider,
   Stack,
@@ -33,6 +36,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
 
 import { patchAccount } from '../utils/query';
+import {
+  BIO_MAX,
+  BIO_PRESETS,
+  bioProblem,
+  normalizeBio,
+  presetFor,
+} from '../utils/bio';
 import { stringToColor } from '../utils/helpers';
 import {
   SNACKBAR_ERROR_OPTIONS,
@@ -69,6 +79,7 @@ export default function AgentCardSettings({ accountData, agentData }) {
   const [imageSize, setImageSize] = React.useState({ width: 0, height: 0 });
   const [dragStart, setDragStart] = React.useState(null);
   const [bioDraft, setBioDraft] = React.useState('');
+  const [bioChoice, setBioChoice] = React.useState('custom');
   const [specialtyDraft, setSpecialtyDraft] = React.useState([]);
   const [scrollbarWidth, setScrollbarWidth] = React.useState(0);
   const [desktopZoom, setDesktopZoom] = React.useState(1);
@@ -129,9 +140,20 @@ export default function AgentCardSettings({ accountData, agentData }) {
   };
 
   const openBioEditor = () => {
-    setBioDraft(accountData?.bio || '');
+    const current = accountData?.bio || '';
+    const preset = presetFor(current);
+    setBioChoice(preset ? preset.id : current ? 'custom' : BIO_PRESETS[0].id);
+    setBioDraft(preset ? '' : current);
     setBioOpen(true);
   };
+
+  const chosenBio =
+    bioChoice === 'custom'
+      ? bioDraft
+      : BIO_PRESETS.find((preset) => preset.id === bioChoice)?.text || '';
+  const customBioProblem =
+    bioChoice === 'custom' ? bioProblem(bioDraft) : null;
+  const customBioLength = normalizeBio(bioDraft).length;
 
   const openTagsEditor = () => {
     setSpecialtyDraft(accountData?.specialties || []);
@@ -569,27 +591,84 @@ export default function AgentCardSettings({ accountData, agentData }) {
       </Paper>
 
       <Dialog open={bioOpen} onClose={() => setBioOpen(false)} fullWidth>
-        <DialogTitle>Edit Bio</DialogTitle>
+        <DialogTitle>Choose Your Bio</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={4}
-            placeholder="Example: I've spent 12 years helping families find coverage that actually fits their budget. I treat every client like I'd want someone to treat my own parents."
-            value={bioDraft}
-            onChange={(event) => setBioDraft(event.target.value.slice(0, 200))}
-            helperText={`${bioDraft.length}/200`}
-            sx={{ mt: 1 }}
-          />
+          <Typography variant='body2' color='text.secondary' sx={{ mb: 1.5 }}>
+            Your bio shows on every producer page your leads see. Pick one of
+            these or write your own (up to {BIO_MAX} characters).
+          </Typography>
+          <RadioGroup
+            value={bioChoice}
+            onChange={(event) => setBioChoice(event.target.value)}
+          >
+            {BIO_PRESETS.map((preset) => (
+              <FormControlLabel
+                key={preset.id}
+                value={preset.id}
+                control={<Radio size='small' />}
+                sx={{ alignItems: 'flex-start', mb: 1.5, mr: 0 }}
+                label={
+                  <Box sx={{ pt: 0.75 }}>
+                    <Typography variant='body2' fontWeight={600}>
+                      {preset.label}
+                    </Typography>
+                    <Typography
+                      variant='body2'
+                      color='text.secondary'
+                      sx={{ lineHeight: 1.6 }}
+                    >
+                      {preset.text}
+                    </Typography>
+                  </Box>
+                }
+              />
+            ))}
+            <FormControlLabel
+              value='custom'
+              control={<Radio size='small' />}
+              sx={{ mr: 0 }}
+              label={
+                <Typography variant='body2' fontWeight={600}>
+                  Write my own
+                </Typography>
+              }
+            />
+          </RadioGroup>
+          {bioChoice === 'custom' && (
+            <TextField
+              autoFocus
+              fullWidth
+              multiline
+              minRows={3}
+              placeholder='In 1-2 sentences, tell a potential client who you are and how you help.'
+              value={bioDraft}
+              onChange={(event) =>
+                setBioDraft(
+                  event.target.value.replace(/\n/g, ' ').slice(0, BIO_MAX + 20),
+                )
+              }
+              error={Boolean(bioDraft.trim()) && Boolean(customBioProblem)}
+              helperText={
+                (bioDraft.trim() && customBioProblem) ||
+                `${customBioLength}/${BIO_MAX}. No company names, promises, links or phone numbers.${
+                  accountData?.bio && !customBioLength
+                    ? ' Save it empty to remove your bio.'
+                    : ''
+                }`
+              }
+              sx={{ mt: 1 }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBioOpen(false)}>Cancel</Button>
           <Button
             variant='contained'
-            disabled={isPending}
+            disabled={isPending || Boolean(customBioProblem)}
             onClick={() =>
-              saveProfile({ data: { email: agentData?.email, bio: bioDraft } })
+              saveProfile({
+                data: { email: agentData?.email, bio: normalizeBio(chosenBio) },
+              })
             }
           >
             Save
