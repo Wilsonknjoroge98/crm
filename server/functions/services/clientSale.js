@@ -7,10 +7,16 @@ const { sendPurchaseToMeta } = require('../integrations/pixel');
 
 // The mark-sold flow behind POST /client, shared with sales reported by
 // outside CRMs. Resolves to the HTTP status and body the caller should send.
+//
+// saleSource names the outside CRM reporting the sale (e.g. 'shepherds').
+// It is stored on the client, and a unique index allows one client per lead
+// per source, so a webhook retried while the first request is still running
+// can't book the sale twice.
 const createClientSale = async ({
   agent,
   // eslint-disable-next-line camelcase
   client: { lead_vendor_id: leadVendorId, ...client },
+  saleSource = null,
 }) => {
   // derived from gsq's call logs below; older clients still send the answer
   delete client.live_transfer;
@@ -144,9 +150,36 @@ const createClientSale = async ({
     .insert({
       ...client,
       lead_id: leadId,
+      ...(saleSource ? { sale_source: saleSource } : {}),
     })
     .select('*')
     .maybeSingle();
+
+  // 23505 = unique violation on clients_lead_sale_source_key: a concurrent
+  // retry of this same sale already inserted the client. Answer like the
+  // caller's own "already recorded" check, before the agent link and the
+  // Meta Purchase event, so neither is sent twice.
+  if (saleSource && newClientError?.code === '23505') {
+    const { data: recorded } = await supabaseService
+      .from('clients')
+      .select('id')
+      .eq('lead_id', leadId)
+      .eq('sale_source', saleSource)
+      .limit(1);
+
+    logger.log('Sale already recorded', {
+      saleSource,
+      leadId,
+      clientId: recorded?.[0]?.id ?? null,
+    });
+    return {
+      status: 200,
+      body: {
+        message: 'Sale already recorded',
+        clientId: recorded?.[0]?.id ?? null,
+      },
+    };
+  }
 
   if (newClientError) {
     logger.error('Error creating client in clients.js', {

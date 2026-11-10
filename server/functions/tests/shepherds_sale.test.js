@@ -153,6 +153,35 @@ describe('inboundShepherdsSale', () => {
         monthly_premium: 85.5,
         lead_vendor_id: 'vendor-1',
       }),
+      saleSource: 'shepherds',
+    });
+  });
+
+  test('answers 200 when a concurrent retry already booked the sale', async () => {
+    mockGsqDocs.leads = [
+      {
+        id: 'g1',
+        data: { phone: body.client_phone, issuedTo: 'agent@shepherds.com' },
+      },
+    ];
+    mockTables({
+      agents: [{ data: AGENT, error: null }],
+      leads: [
+        { data: [{ id: 'lead-1', phone: body.client_phone }], error: null },
+      ],
+      clients: [{ data: [], error: null }],
+    });
+    mockCreateClientSale.mockResolvedValue({
+      status: 200,
+      body: { message: 'Sale already recorded', clientId: 'client-1' },
+    });
+
+    const res = await post();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      message: 'Sale already recorded',
+      clientId: 'client-1',
     });
   });
 
