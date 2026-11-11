@@ -21,6 +21,7 @@ import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 // import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
 import CurrencyExchangeOutlinedIcon from '@mui/icons-material/CurrencyExchangeOutlined';
+import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 // import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
@@ -118,6 +119,11 @@ const SidePanel = () => {
       text: 'Refunds',
       icon: <CurrencyExchangeOutlinedIcon />,
       path: '/refunds',
+    },
+    {
+      text: 'Access Requests',
+      icon: <PersonAddAltOutlinedIcon />,
+      path: '/access-requests',
     },
     {
       text: 'Sales Analytics',

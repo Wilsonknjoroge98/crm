@@ -47,7 +47,18 @@ publicRouter.get('/invite/validate', async (req, res) => {
         .json({ valid: false, error: 'This invite has expired' });
     }
 
-    return res.status(200).json({ valid: true });
+    // An invite minted by approving an access request carries the
+    // applicant's details, so the sign-up form can start filled in. Any
+    // other invite (or a failed lookup) just has no prefill.
+    const { data: request } = await supabaseService
+      .from('access_requests')
+      .select('first_name, last_name, email, npn')
+      .eq('invite_token', token)
+      .maybeSingle();
+
+    return res
+      .status(200)
+      .json({ valid: true, ...(request && { prefill: request }) });
   } catch (error) {
     logger.error('Unexpected error validating invite in endpoints/public.js', {
       error,

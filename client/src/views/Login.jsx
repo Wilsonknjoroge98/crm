@@ -9,7 +9,7 @@ import {
   Stack,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 
 const Login = () => {
@@ -68,6 +68,21 @@ const Login = () => {
             sx={{ maxHeight: 200, alignSelf: 'center', objectFit: 'contain' }}
           />
         )} */}
+
+        {/* The way back to the public landing page. */}
+        <Box
+          component={RouterLink}
+          to='/'
+          aria-label='FEX Digital home'
+          sx={{ alignSelf: 'flex-start', display: 'inline-flex' }}
+        >
+          <Box
+            component='img'
+            src='/fexdigital-logo-blue.svg'
+            alt='FEX Digital'
+            sx={{ height: 30, display: 'block' }}
+          />
+        </Box>
 
         <Stack spacing={0.5}>
           <Typography variant='h5' fontWeight={600}>
@@ -135,13 +150,16 @@ const Login = () => {
             textAlign='center'
           >
             Need access?{' '}
+            {/* Lands on the landing page's email box, which opens the
+                access request form. */}
             <Typography
-              component='span'
+              component={RouterLink}
+              to='/#get-started'
               variant='caption'
               color='text.primary'
               sx={{ fontWeight: 500 }}
             >
-              Ask your upline for an invite link.
+              Request access
             </Typography>
           </Typography>
         </Stack>

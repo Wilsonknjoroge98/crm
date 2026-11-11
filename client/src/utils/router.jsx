@@ -21,6 +21,7 @@ const Production = lazy(() => import('../views/Production'));
 const Agents = lazy(() => import('../views/Agents'));
 const ReviewTriage = lazy(() => import('../views/ReviewTriage'));
 const Refunds = lazy(() => import('../views/Refunds'));
+const AccessRequests = lazy(() => import('../views/AccessRequests'));
 const SalesAnalytics = lazy(() => import('../views/SalesAnalytics'));
 const ResetPassword = lazy(() => import('../views/ResetPassword'));
 const ForgotPassword = lazy(() => import('../views/ForgotPassword'));
@@ -199,6 +200,27 @@ const router = createBrowserRouter([
             }
           >
             <Refunds />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/access-requests',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <AccessRequests />
           </Suspense>
         ),
       },

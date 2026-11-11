@@ -6,21 +6,29 @@
 import { Link as RouterLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
 
-export const INK = '#050A30';
-export const BLUE = '#233DFF';
-export const BLUE_HOVER = '#1A30D9';
-export const INK_RULE = '#1B2150';
-export const INK_MUTED = '#9AA3C7';
-export const INK_BODY = '#D5D9EC';
-export const SLATE_NAVY = '#2F4E6F';
-export const SLATE_BODY = '#334155';
-export const SLATE_MUTED = '#64748B';
-export const SLATE_REFERENCE = '#94A3B8';
-export const HAIRLINE = '#E2E8F0';
-export const SURFACE = '#F8FAFC';
-export const NEUTRAL = '#F1F5F9';
-export const GREEN = '#2E6B4F';
-export const GREEN_ON_INK = '#86D3A8';
+import {
+  ACCENT,
+  GREEN,
+  GREEN_ON_INK,
+  HAIRLINE,
+  HAIRLINE_STRONG,
+  INK,
+  INK_BODY,
+  INK_MUTED,
+  INK_RULE,
+  NEUTRAL,
+  ON_INK,
+  SLATE_BODY,
+  SLATE_MUTED,
+  SLATE_NAVY,
+  SLATE_REFERENCE,
+  SURFACE,
+  WHITE,
+} from './tokens';
+
+// Colours live in tokens.js (all from the app theme); re-exported here so a
+// section can take its blocks and its colours from one import.
+export * from './tokens';
 
 export const SERIF = '"Libre Baskerville", Georgia, serif';
 export const MONO =
@@ -40,27 +48,30 @@ export const eyebrowSx = {
 
 const sectionPadding = { maxWidth: 1040, mx: 'auto', px: { xs: 2, sm: 3 } };
 
-export function Section({ id, eyebrow, title, intro, children, flushTop, sx }) {
+// Every section on the page shares this rhythm: the same space above and
+// below, the same heading size, and body copy at 1rem or larger.
+export function Section({ id, eyebrow, title, intro, children, sx }) {
   return (
     <Box
       component='section'
       id={id}
       sx={{
         ...sectionPadding,
-        pt: flushTop ? 0 : { xs: 5, md: 7 },
-        pb: { xs: 5, md: 7 },
+        // Sections sit in the page's flex column, so they need a set width.
+        width: '100%',
+        py: { xs: 5, md: 8 },
         ...sx,
       }}
     >
-      <Box sx={{ ...eyebrowSx, color: SLATE_NAVY, mb: 1 }}>{eyebrow}</Box>
+      <Box sx={{ ...eyebrowSx, color: SLATE_NAVY, mb: 1.5 }}>{eyebrow}</Box>
       <Box
         component='h2'
         sx={{
           m: 0,
-          mb: intro ? 1.25 : 3,
+          mb: intro ? 1.5 : { xs: 3, md: 5 },
           fontFamily: SERIF,
           fontWeight: 700,
-          fontSize: { xs: '1.5rem', md: '1.875rem' },
+          fontSize: { xs: '1.625rem', md: '2.125rem' },
           lineHeight: 1.25,
           color: INK,
         }}
@@ -72,10 +83,11 @@ export function Section({ id, eyebrow, title, intro, children, flushTop, sx }) {
           component='p'
           sx={{
             m: 0,
-            mb: 3,
+            mb: { xs: 3, md: 5 },
+            maxWidth: 720,
             color: SLATE_BODY,
-            fontSize: '1rem',
-            lineHeight: 1.6,
+            fontSize: { xs: '1rem', md: '1.0625rem' },
+            lineHeight: 1.65,
           }}
         >
           {intro}
@@ -92,8 +104,8 @@ export function Caption({ children }) {
       component='p'
       sx={{
         m: 0,
-        mt: 1.5,
-        fontSize: '0.8125rem',
+        mt: 2.5,
+        fontSize: '0.875rem',
         color: SLATE_MUTED,
         lineHeight: 1.6,
       }}
@@ -129,15 +141,15 @@ export function Chip({ children }) {
 // stats: [{ value, label, note, currency? }]
 export function StatsBand({ id, eyebrow, title, intro, stats }) {
   return (
-    <Box component='section' id={id} sx={{ bgcolor: INK, color: '#FFFFFF' }}>
-      <Box sx={{ ...sectionPadding, py: { xs: 5, md: 7 } }}>
-        <Box sx={{ ...eyebrowSx, color: INK_MUTED, mb: 1 }}>{eyebrow}</Box>
+    <Box component='section' id={id} sx={{ bgcolor: INK, color: ON_INK }}>
+      <Box sx={{ ...sectionPadding, py: { xs: 5, md: 8 } }}>
+        <Box sx={{ ...eyebrowSx, color: INK_MUTED, mb: 1.5 }}>{eyebrow}</Box>
         <Box
           component='h2'
           sx={{
             m: 0,
             mb: 1.5,
-            maxWidth: 760,
+            maxWidth: 900,
             fontFamily: SERIF,
             fontWeight: 700,
             fontSize: { xs: '1.625rem', md: '2.25rem' },
@@ -150,10 +162,10 @@ export function StatsBand({ id, eyebrow, title, intro, stats }) {
           component='p'
           sx={{
             m: 0,
-            mb: 4,
+            mb: { xs: 4, md: 6 },
             maxWidth: 680,
             color: INK_MUTED,
-            fontSize: '1rem',
+            fontSize: { xs: '1rem', md: '1.0625rem' },
             lineHeight: 1.6,
           }}
         >
@@ -174,10 +186,10 @@ export function StatsBand({ id, eyebrow, title, intro, stats }) {
             <Box
               key={s.label}
               sx={{
-                pt: 3,
+                pt: { xs: 3, md: 4 },
                 pb: { xs: 3, md: 0 },
-                pl: { xs: 0, md: i === 0 ? 0 : 3 },
-                pr: { md: 3 },
+                pl: { xs: 0, md: i === 0 ? 0 : 4 },
+                pr: { md: 4 },
                 borderLeft: { md: i === 0 ? 'none' : `1px solid ${INK_RULE}` },
                 borderBottom: {
                   xs: i < stats.length - 1 ? `1px solid ${INK_RULE}` : 'none',
@@ -188,21 +200,19 @@ export function StatsBand({ id, eyebrow, title, intro, stats }) {
               <Box
                 sx={{
                   fontFamily: MONO,
-                  fontSize: { xs: '2rem', md: '2.25rem' },
+                  fontSize: { xs: '2rem', md: '2.5rem' },
                   fontWeight: 500,
                   lineHeight: 1.1,
-                  color: s.currency ? GREEN_ON_INK : '#FFFFFF',
-                  mb: 1.25,
+                  color: s.currency ? GREEN_ON_INK : ON_INK,
+                  mb: 1.75,
                 }}
               >
                 {s.value}
               </Box>
-              <Box sx={{ ...eyebrowSx, color: INK_MUTED, mb: 0.75 }}>
+              <Box sx={{ ...eyebrowSx, color: INK_MUTED, mb: 1 }}>
                 {s.label}
               </Box>
-              <Box
-                sx={{ fontSize: '0.875rem', color: INK_BODY, lineHeight: 1.5 }}
-              >
+              <Box sx={{ fontSize: '1rem', color: INK_BODY, lineHeight: 1.6 }}>
                 {s.note}
               </Box>
             </Box>
@@ -352,78 +362,168 @@ export function ComparisonTable({
   );
 }
 
-// Horizontal bars from $0 with a direct value label on each. A single series
-// in Blue; a `reference` bar drops to muted slate so it reads as the benchmark.
-// bars: [{ label, meta, value, reference? }]
-export function CostPerSaleChart({
-  title,
-  bars,
-  caption,
-  max = 500,
-  flushTop = true,
-}) {
-  const summary = bars.map((b) => `${b.label} $${b.value}`).join(', ');
+// What a sale costs in leads next to what a sale brings in. Each product gets
+// two bars on one dollar scale from $0 (lead cost per sale in Ink, average
+// annual premium in Green) and the multiple between them. A `reference` row
+// drops to muted slate so it reads as the benchmark.
+// bars: [{ label, meta, value, premium, reference? }]
+const CHART_SERIES = [
+  {
+    key: 'value',
+    name: 'Lead cost per sale',
+    color: INK,
+    muted: SLATE_REFERENCE,
+  },
+  {
+    key: 'premium',
+    name: 'Average annual premium per sale',
+    color: GREEN,
+    muted: HAIRLINE_STRONG,
+  },
+];
+
+const dollars = (n) => `$${n.toLocaleString('en-US')}`;
+const multiple = (bar) => `${(bar.premium / bar.value).toFixed(1)}×`;
+
+export function CostPerSaleChart({ title, bars, caption }) {
+  const max = Math.max(...bars.map((b) => b.premium));
+  const summary = bars
+    .map(
+      (b) =>
+        `${b.label}: ${dollars(b.value)} in leads per sale, ${dollars(b.premium)} average annual premium, ${multiple(b)}`,
+    )
+    .join('. ');
   return (
-    <Section eyebrow='Lead cost per sale' title={title} flushTop={flushTop}>
+    <Section eyebrow='Lead cost per sale' title={title}>
+      <Box
+        aria-hidden='true'
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          columnGap: 3,
+          rowGap: 0.75,
+          mb: 3,
+          fontSize: '0.9375rem',
+          color: SLATE_BODY,
+        }}
+      >
+        {CHART_SERIES.map((series) => (
+          <Box
+            key={series.key}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+          >
+            <Box
+              sx={{
+                width: 14,
+                height: 14,
+                borderRadius: '3px',
+                bgcolor: series.color,
+              }}
+            />
+            {series.name}
+          </Box>
+        ))}
+      </Box>
+
       <Box
         role='img'
-        aria-label={`Lead cost per sale: ${summary}.`}
-        sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
+        aria-label={`Lead cost per sale compared with average annual premium. ${summary}.`}
+        sx={{ borderTop: `1px solid ${HAIRLINE}` }}
       >
         {bars.map((bar) => (
           <Box
             key={bar.label}
-            title={`${bar.label}: $${bar.value} per sale (${bar.meta})`}
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '220px 1fr' },
+              gridTemplateColumns: {
+                xs: 'minmax(0, 1fr) auto',
+                md: '250px minmax(0, 1fr) 170px',
+              },
               alignItems: 'center',
-              gap: { xs: 0.75, sm: 2 },
-              py: 0.5,
-              '&:hover .bar-fill': { opacity: 0.85 },
+              columnGap: { xs: 2, md: 4 },
+              rowGap: 2,
+              py: { xs: 3, md: 4 },
+              borderBottom: `1px solid ${HAIRLINE}`,
             }}
           >
             <Box>
-              <Box sx={{ fontWeight: 600, fontSize: '0.9375rem', color: INK }}>
+              <Box
+                sx={{
+                  fontWeight: 700,
+                  fontSize: '1.0625rem',
+                  color: INK,
+                  mb: 0.5,
+                }}
+              >
                 {bar.label}
               </Box>
               <Box
                 sx={{
                   fontFamily: MONO,
-                  fontSize: '0.75rem',
+                  fontSize: '0.8125rem',
                   color: SLATE_MUTED,
                 }}
               >
                 {bar.meta}
               </Box>
             </Box>
+
             <Box
               sx={{
+                // Under the label and the multiple on phones.
+                gridColumn: { xs: '1 / -1', md: 'auto' },
+                gridRow: { xs: 2, md: 'auto' },
                 display: 'flex',
-                alignItems: 'center',
-                gap: 1.25,
+                flexDirection: 'column',
+                gap: 1,
                 borderLeft: `1px solid ${HAIRLINE}`,
               }}
             >
-              <Box
-                className='bar-fill'
-                sx={{
-                  height: 24,
-                  width: `${(bar.value / max) * 85}%`,
-                  bgcolor: bar.reference ? SLATE_REFERENCE : BLUE,
-                  borderRadius: `0 ${KEY} ${KEY} 0`,
-                  transition: 'opacity 0.15s',
-                }}
-              />
+              {CHART_SERIES.map((series) => (
+                <Box
+                  key={series.key}
+                  title={`${bar.label}: ${dollars(bar[series.key])} ${series.name.toLowerCase()}`}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}
+                >
+                  <Box
+                    sx={{
+                      height: 28,
+                      // The value label sits after the bar, so leave it room.
+                      width: `calc((100% - 80px) * ${bar[series.key] / max})`,
+                      minWidth: 4,
+                      bgcolor: bar.reference ? series.muted : series.color,
+                      borderRadius: `0 ${KEY} ${KEY} 0`,
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      fontFamily: MONO,
+                      fontWeight: 700,
+                      fontSize: '1rem',
+                      color: bar.reference ? SLATE_MUTED : INK,
+                    }}
+                  >
+                    {dollars(bar[series.key])}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+
+            <Box sx={{ textAlign: 'right' }}>
               <Box
                 sx={{
                   fontFamily: MONO,
-                  fontWeight: 700,
-                  fontSize: '0.9375rem',
-                  color: INK,
+                  fontSize: { xs: '1.5rem', md: '2rem' },
+                  fontWeight: 500,
+                  lineHeight: 1.1,
+                  mb: 0.5,
+                  color: bar.reference ? SLATE_MUTED : INK,
                 }}
               >
-                ${bar.value}
+                {multiple(bar)}
+              </Box>
+              <Box sx={{ fontSize: '0.8125rem', color: SLATE_MUTED }}>
+                premium per $1 spent
               </Box>
             </Box>
           </Box>
@@ -442,39 +542,45 @@ export function StatCards({ eyebrow, title, cards, tinted = true }) {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
-          gap: 2,
+          gap: { xs: 2, md: 3 },
         }}
       >
         {cards.map((c) => (
           <Box
             key={c.title}
             sx={{
-              bgcolor: '#FFFFFF',
+              bgcolor: WHITE,
               border: `1px solid ${HAIRLINE}`,
-              borderTop: `3px solid ${BLUE}`,
+              borderTop: `3px solid ${ACCENT}`,
               borderRadius: CARD,
-              p: 3,
+              p: { xs: 3, md: 4 },
             }}
           >
             <Box
               sx={{
                 fontFamily: MONO,
-                fontSize: '1.75rem',
+                fontSize: { xs: '1.75rem', md: '2.25rem' },
                 fontWeight: 500,
+                lineHeight: 1.1,
                 color: INK,
-                mb: 1,
+                mb: 2,
               }}
             >
               {c.stat}
             </Box>
             <Box
-              sx={{ fontWeight: 700, fontSize: '1rem', color: INK, mb: 0.75 }}
+              sx={{
+                fontFamily: SERIF,
+                fontWeight: 700,
+                fontSize: '1.25rem',
+                lineHeight: 1.3,
+                color: INK,
+                mb: 1,
+              }}
             >
               {c.title}
             </Box>
-            <Box
-              sx={{ fontSize: '0.9rem', color: SLATE_BODY, lineHeight: 1.6 }}
-            >
+            <Box sx={{ fontSize: '1rem', color: SLATE_BODY, lineHeight: 1.65 }}>
               {c.body}
             </Box>
           </Box>
@@ -516,6 +622,55 @@ export function ChipSection({ eyebrow, title, intro, chipRows, flushTop }) {
   );
 }
 
+// The "How we measured it" footnote behind every published figure.
+function MethodologyText({ methodology, label = 'How we measured it.', sx }) {
+  return (
+    <Box
+      component='p'
+      sx={{
+        m: 0,
+        pt: 2,
+        borderTop: `1px solid ${HAIRLINE}`,
+        fontSize: '0.75rem',
+        color: SLATE_MUTED,
+        lineHeight: 1.6,
+        ...sx,
+      }}
+    >
+      <Box component='strong' sx={{ color: SLATE_BODY }}>
+        {label}
+      </Box>{' '}
+      {methodology}
+    </Box>
+  );
+}
+
+// The footnotes on their own, once, at the foot of the page.
+// notes: [{ label, text }]
+export function MethodologyNote({ notes }) {
+  return (
+    <Box
+      sx={{
+        ...sectionPadding,
+        width: '100%',
+        py: { xs: 4, md: 5 },
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+      }}
+    >
+      {notes.map((n) => (
+        <MethodologyText
+          key={n.label}
+          label={n.label}
+          methodology={n.text}
+          sx={{ pt: 0, border: 'none' }}
+        />
+      ))}
+    </Box>
+  );
+}
+
 // Numbered steps, a closing ink call-to-action card, and the methodology note.
 // steps: [{ n, title, body }]; cta: { title, body, label, to }
 export function GettingStarted({ title, steps, cta, methodology }) {
@@ -536,7 +691,7 @@ export function GettingStarted({ title, steps, cta, methodology }) {
                 fontFamily: MONO,
                 fontSize: '0.8125rem',
                 fontWeight: 700,
-                color: BLUE,
+                color: ACCENT,
                 mb: 1,
               }}
             >
@@ -578,7 +733,7 @@ export function GettingStarted({ title, steps, cta, methodology }) {
               fontFamily: SERIF,
               fontWeight: 700,
               fontSize: '1.375rem',
-              color: '#FFFFFF',
+              color: WHITE,
             }}
           >
             {cta.title}
@@ -590,9 +745,9 @@ export function GettingStarted({ title, steps, cta, methodology }) {
           to={cta.to}
           sx={{
             flexShrink: 0,
-            bgcolor: BLUE,
-            border: `1px solid ${BLUE}`,
-            color: '#FFFFFF',
+            bgcolor: ACCENT,
+            border: `1px solid ${ACCENT}`,
+            color: WHITE,
             textDecoration: 'none',
             fontWeight: 700,
             fontSize: '0.9375rem',
@@ -600,9 +755,9 @@ export function GettingStarted({ title, steps, cta, methodology }) {
             py: 1.5,
             borderRadius: KEY,
             transition: 'background-color 0.15s',
-            '&:hover': { bgcolor: BLUE_HOVER, borderColor: BLUE_HOVER },
+            '&:hover': { bgcolor: SLATE_NAVY, borderColor: SLATE_NAVY },
             '&:focus-visible': {
-              outline: '2px solid #FFFFFF',
+              outline: '2px solid ${WHITE}',
               outlineOffset: 2,
             },
           }}
@@ -611,23 +766,7 @@ export function GettingStarted({ title, steps, cta, methodology }) {
         </Box>
       </Box>
 
-      <Box
-        component='p'
-        sx={{
-          m: 0,
-          mt: 3,
-          pt: 2,
-          borderTop: `1px solid ${HAIRLINE}`,
-          fontSize: '0.75rem',
-          color: SLATE_MUTED,
-          lineHeight: 1.6,
-        }}
-      >
-        <Box component='strong' sx={{ color: SLATE_BODY }}>
-          How we measured it.
-        </Box>{' '}
-        {methodology}
-      </Box>
+      <MethodologyText methodology={methodology} sx={{ mt: 3 }} />
     </Section>
   );
 }

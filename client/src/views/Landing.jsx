@@ -3,26 +3,34 @@
 // Design System v2.0: flat surfaces (no shadows or gradients), 1px hairlines,
 // 999px capsules, 8px cards, 4px inputs and keys, a serif title face, Inter
 // for UI, JetBrains Mono for phone numbers and dollar figures.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link as RouterLink, Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
-import AgedLeadSections from './landing/AgedLeadSections';
-import FreshLeadSections from './landing/FreshLeadSections';
-
-// Brand tokens. Ink and Blue lead the page; the rest support them.
-const INK = '#050A30';
-const BLUE = '#233DFF';
-const BLUE_HOVER = '#1A30D9';
-const INK_RULE = '#1B2150';
-const INK_MUTED = '#9AA3C7';
-const SLATE_BODY = '#334155';
-const SLATE_MUTED = '#64748B';
-const HAIRLINE = '#E2E8F0';
-const SLATE_REFERENCE = '#94A3B8';
-const HAIRLINE_STRONG = '#CBD5E1';
-const NEUTRAL = '#F1F5F9';
-const GREEN = '#2E6B4F';
+import AgedLeadSections, { AGED_METHODOLOGY } from './landing/AgedLeadSections';
+import FreshLeadSections, {
+  FRESH_METHODOLOGY,
+} from './landing/FreshLeadSections';
+import LeadJourney from './landing/LeadJourney';
+import AccessRequestDialog from './landing/AccessRequestDialog';
+import LeadRules from './landing/LeadRules';
+import { MethodologyNote } from './landing/blocks';
+// Every colour comes from the app theme, by way of landing/tokens.js.
+import {
+  ACCENT,
+  GREEN,
+  HAIRLINE,
+  HAIRLINE_STRONG,
+  INK,
+  INK_MUTED,
+  INK_RULE,
+  NEUTRAL,
+  SLATE_BODY,
+  SLATE_MUTED,
+  SLATE_NAVY,
+  SLATE_REFERENCE,
+  WHITE,
+} from './landing/tokens';
 
 const SERIF = '"Libre Baskerville", Georgia, serif';
 const SANS = '"Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
@@ -30,9 +38,9 @@ const MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace';
 
 const BRAND = 'FEX Digital';
 
-// Lead access isn't self-serve, so the email capture opens a request email.
-const ACCESS_REQUEST_EMAIL = 'info@finalexpensedigital.com';
-const CTA_LABEL = 'Request access';
+// Lead access isn't self-serve: the email capture opens a request form, and
+// an admin approves each request in the CRM.
+const CTA_LABEL = 'Get access';
 const CAPTURE_ID = 'get-started';
 
 const CAPSULE = '999px';
@@ -61,7 +69,7 @@ const SAMPLE = {
 const PHONE_LABEL = `Sample phone lock screen. A text reads: "You have a new lead! ${SAMPLE.name} (${SAMPLE.state}). Call now: ${SAMPLE.phone}." Below it, her lead details: whole life, $25,000 of coverage, $68 a month with an A-rated carrier, buying to leave a legacy, phone verified.`;
 
 const card = {
-  bgcolor: '#FFFFFF',
+  bgcolor: WHITE,
   color: INK,
   border: `1px solid ${HAIRLINE}`,
   borderRadius: '20px',
@@ -124,7 +132,7 @@ function HeroPhone() {
               width: 96,
               height: 28,
               mt: 1.25,
-              bgcolor: '#000000',
+              bgcolor: INK,
               borderRadius: CAPSULE,
             }}
           />
@@ -177,7 +185,7 @@ function HeroPhone() {
                   flexShrink: 0,
                   borderRadius: '9px',
                   bgcolor: INK,
-                  color: '#FFFFFF',
+                  color: WHITE,
                   fontSize: '0.6rem',
                   fontWeight: 800,
                   display: 'flex',
@@ -258,8 +266,8 @@ function HeroPhone() {
                   mt: 1.25,
                   py: 0.875,
                   borderRadius: CAPSULE,
-                  bgcolor: BLUE,
-                  color: '#FFFFFF',
+                  bgcolor: INK,
+                  color: WHITE,
                   fontSize: '0.875rem',
                   fontWeight: 700,
                   display: 'flex',
@@ -271,7 +279,7 @@ function HeroPhone() {
                 <Box
                   component='svg'
                   viewBox='0 0 24 24'
-                  sx={{ width: 15, height: 15, fill: '#FFFFFF' }}
+                  sx={{ width: 15, height: 15, fill: WHITE }}
                 >
                   <path d='M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z' />
                 </Box>
@@ -285,133 +293,149 @@ function HeroPhone() {
   );
 }
 
-function CaptureForm() {
+// The email box that starts an access request: submitting it opens the
+// request dialog with the email filled in. It sits in the hero (with `id`,
+// so in-page links can jump to it) and again in the closing band.
+function CaptureForm({ id, sx }) {
   const [email, setEmail] = useState('');
 
+  const [open, setOpen] = useState(false);
+
+  // The email is step one; the dialog asks for the rest and sends it.
   const onSubmit = (e) => {
     e.preventDefault();
-    const subject = encodeURIComponent(`Access request: ${BRAND} leads`);
-    const body = encodeURIComponent(
-      `Hi ${BRAND} team,\n\nI'd like to request access. You can reach me at ${email}.\n`,
-    );
-    window.location.href = `mailto:${ACCESS_REQUEST_EMAIL}?subject=${subject}&body=${body}`;
+    setOpen(true);
   };
 
   return (
-    <Box
-      component='form'
-      id={CAPTURE_ID}
-      onSubmit={onSubmit}
-      sx={{ width: '100%', maxWidth: 520, mx: { xs: 'auto', md: 0 }, mb: 2.5 }}
-    >
+    <>
       <Box
+        component='form'
+        id={id}
+        onSubmit={onSubmit}
         sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: 'stretch',
-          bgcolor: '#FFFFFF',
-          border: `1px solid ${HAIRLINE_STRONG}`,
-          borderRadius: CARD,
-          height: { sm: 52 },
-          p: '4px',
-          gap: '4px',
-          transition: 'border-color 0.15s',
-          '&:focus-within': { borderColor: BLUE },
+          width: '100%',
+          maxWidth: 520,
+          mx: { xs: 'auto', md: 0 },
+          mb: 2.5,
+          ...sx,
         }}
       >
         <Box
-          component='label'
           sx={{
-            flex: 1,
             display: 'flex',
-            alignItems: 'center',
-            px: 1.5,
-            py: { xs: 1, sm: 0 },
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: 'stretch',
+            bgcolor: WHITE,
+            border: `1px solid ${HAIRLINE_STRONG}`,
+            borderRadius: CARD,
+            height: { sm: 52 },
+            p: '4px',
+            gap: '4px',
+            transition: 'border-color 0.15s',
+            '&:focus-within': { borderColor: ACCENT },
           }}
         >
           <Box
-            component='svg'
-            viewBox='0 0 24 24'
-            aria-hidden='true'
+            component='label'
             sx={{
-              width: 18,
-              height: 18,
-              mr: 1.25,
-              flexShrink: 0,
-              fill: 'none',
-              stroke: SLATE_MUTED,
-              strokeWidth: 2,
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              px: 1.5,
+              py: { xs: 1, sm: 0 },
             }}
           >
-            <path d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' />
-            <polyline points='22,6 12,13 2,6' />
+            <Box
+              component='svg'
+              viewBox='0 0 24 24'
+              aria-hidden='true'
+              sx={{
+                width: 18,
+                height: 18,
+                mr: 1.25,
+                flexShrink: 0,
+                fill: 'none',
+                stroke: SLATE_MUTED,
+                strokeWidth: 2,
+              }}
+            >
+              <path d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' />
+              <polyline points='22,6 12,13 2,6' />
+            </Box>
+            <Box
+              component='input'
+              type='email'
+              required
+              aria-label='Your email'
+              placeholder='Your email'
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              sx={{
+                width: '100%',
+                border: 'none',
+                outline: 'none',
+                bgcolor: 'transparent',
+                fontFamily: SANS,
+                fontSize: '0.95rem',
+                color: INK,
+                '&::placeholder': { color: SLATE_MUTED, opacity: 1 },
+              }}
+            />
           </Box>
           <Box
-            component='input'
-            type='email'
-            required
-            aria-label='Your email'
-            placeholder='Your email'
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            component='button'
+            type='submit'
             sx={{
-              width: '100%',
-              border: 'none',
-              outline: 'none',
-              bgcolor: 'transparent',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1,
+              border: `1px solid ${INK}`,
+              bgcolor: INK,
+              color: WHITE,
               fontFamily: SANS,
-              fontSize: '0.95rem',
-              color: INK,
-              '&::placeholder': { color: SLATE_MUTED, opacity: 1 },
-            }}
-          />
-        </Box>
-        <Box
-          component='button'
-          type='submit'
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 1,
-            border: `1px solid ${BLUE}`,
-            bgcolor: BLUE,
-            color: '#FFFFFF',
-            fontFamily: SANS,
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            px: 2.5,
-            py: { xs: 1.5, sm: 0 },
-            height: { sm: '100%' },
-            borderRadius: KEY,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'background-color 0.15s',
-            '&:hover': { bgcolor: BLUE_HOVER, borderColor: BLUE_HOVER },
-            '&:focus-visible': {
-              outline: `2px solid ${INK}`,
-              outlineOffset: 2,
-            },
-          }}
-        >
-          {CTA_LABEL}
-          <Box
-            component='svg'
-            viewBox='0 0 24 24'
-            aria-hidden='true'
-            sx={{
-              width: 14,
-              height: 14,
-              fill: 'none',
-              stroke: '#FFFFFF',
-              strokeWidth: 2.5,
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              px: 2.5,
+              py: { xs: 1.5, sm: 0 },
+              height: { sm: '100%' },
+              borderRadius: KEY,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'background-color 0.15s',
+              '&:hover': { bgcolor: SLATE_NAVY, borderColor: SLATE_NAVY },
+              '&:focus-visible': {
+                outline: `2px solid ${INK}`,
+                outlineOffset: 2,
+              },
             }}
           >
-            <polyline points='9 18 15 12 9 6' />
+            {CTA_LABEL}
+            <Box
+              component='svg'
+              viewBox='0 0 24 24'
+              aria-hidden='true'
+              sx={{
+                width: 14,
+                height: 14,
+                fill: 'none',
+                stroke: WHITE,
+                strokeWidth: 2.5,
+              }}
+            >
+              <polyline points='9 18 15 12 9 6' />
+            </Box>
           </Box>
         </Box>
       </Box>
-    </Box>
+      {/* Outside the form above: the dialog has a form of its own. */}
+      <AccessRequestDialog
+        open={open}
+        email={email}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }
 
@@ -513,7 +537,7 @@ function ProofLine() {
         component='a'
         href='#fresh-leads'
         sx={{
-          color: BLUE,
+          color: ACCENT,
           fontWeight: 600,
           textDecoration: 'none',
           whiteSpace: 'nowrap',
@@ -534,7 +558,7 @@ function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        bgcolor: '#FFFFFF',
+        bgcolor: WHITE,
         borderBottom: `1px solid ${HAIRLINE}`,
       }}
     >
@@ -592,27 +616,21 @@ function Header() {
           <Box
             component='a'
             href={`#${CAPTURE_ID}`}
-            onClick={() => {
-              // Land the cursor in the email box after the scroll.
-              setTimeout(
-                () => document.querySelector(`#${CAPTURE_ID} input`)?.focus(),
-                300,
-              );
-            }}
+            onClick={focusCapture}
             sx={{
               fontFamily: SANS,
               fontSize: '0.8125rem',
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: WHITE,
               textDecoration: 'none',
-              bgcolor: BLUE,
-              border: `1px solid ${BLUE}`,
+              bgcolor: INK,
+              border: `1px solid ${INK}`,
               px: 2,
               py: 1,
               borderRadius: KEY,
               whiteSpace: 'nowrap',
               transition: 'background-color 0.15s',
-              '&:hover': { bgcolor: BLUE_HOVER, borderColor: BLUE_HOVER },
+              '&:hover': { bgcolor: SLATE_NAVY, borderColor: SLATE_NAVY },
             }}
           >
             {CTA_LABEL}
@@ -623,11 +641,70 @@ function Header() {
   );
 }
 
+// Land the cursor in the hero email box after an in-page jump to it.
+function focusCapture() {
+  setTimeout(
+    () => document.querySelector(`#${CAPTURE_ID} input`)?.focus(),
+    300,
+  );
+}
+
+const METHODOLOGY_NOTES = [
+  { label: 'How we measured fresh leads.', text: FRESH_METHODOLOGY },
+  { label: 'How we measured aged leads.', text: AGED_METHODOLOGY },
+];
+
+// The page's last word: one ink band with the same email box as the hero,
+// so an agent can ask for access without scrolling back up.
+function ClosingCta() {
+  return (
+    <Box component='section' sx={{ width: '100%', bgcolor: INK }}>
+      <Box
+        sx={{
+          maxWidth: 1040,
+          mx: 'auto',
+          px: { xs: 2, sm: 3 },
+          py: { xs: 6, md: 8 },
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'stretch', md: 'center' },
+          justifyContent: 'space-between',
+          gap: { xs: 3, md: 6 },
+        }}
+      >
+        <Box>
+          <Box
+            component='h2'
+            sx={{
+              m: 0,
+              mb: 1,
+              fontFamily: SERIF,
+              fontWeight: 700,
+              fontSize: { xs: '1.625rem', md: '2.25rem' },
+              lineHeight: 1.2,
+              color: WHITE,
+            }}
+          >
+            Try them yourself
+          </Box>
+          <Box
+            component='p'
+            sx={{ m: 0, fontSize: '1rem', lineHeight: 1.6, color: INK_MUTED }}
+          >
+            Fresh leads are $39. Aged leads start at $1.50.
+          </Box>
+        </Box>
+        <CaptureForm sx={{ mx: 0, mb: 0, maxWidth: { md: 460 } }} />
+      </Box>
+    </Box>
+  );
+}
+
 function Footer() {
   const linkSx = {
     color: INK_MUTED,
     textDecoration: 'none',
-    '&:hover': { color: '#FFFFFF' },
+    '&:hover': { color: WHITE },
   };
   return (
     <Box
@@ -669,6 +746,15 @@ function Footer() {
 export default function Landing() {
   const { isAuthenticated } = useSelector((state) => state.user);
 
+  // Arriving at /#get-started (the login page's "Request access" link): the
+  // page loads lazily, after the browser has given up on the hash, so go to
+  // the email box ourselves.
+  useEffect(() => {
+    if (window.location.hash !== `#${CAPTURE_ID}`) return;
+    document.getElementById(CAPTURE_ID)?.scrollIntoView({ block: 'center' });
+    focusCapture();
+  }, []);
+
   // Supabase password-recovery links can land on the site root.
   if (window.location.hash.includes('type=recovery')) {
     return <Navigate to='/reset-password' replace />;
@@ -682,7 +768,7 @@ export default function Landing() {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: '#FFFFFF',
+        bgcolor: WHITE,
         color: INK,
         fontFamily: SANS,
         // Flat architecture: nothing on this page casts a shadow.
@@ -755,7 +841,7 @@ export default function Landing() {
             reason they're buying.
           </Box>
 
-          <CaptureForm />
+          <CaptureForm id={CAPTURE_ID} />
           <StackBar />
           <ProofLine />
         </Box>
@@ -763,8 +849,14 @@ export default function Landing() {
         <HeroPhone />
       </Box>
 
+      {/* Four chapters: how it works, fresh, aged, then the rules that
+          cover both. */}
+      <LeadJourney />
       <FreshLeadSections />
       <AgedLeadSections />
+      <LeadRules />
+      <MethodologyNote notes={METHODOLOGY_NOTES} />
+      <ClosingCta />
 
       <Footer />
     </Box>

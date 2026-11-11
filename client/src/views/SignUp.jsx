@@ -56,6 +56,18 @@ export default function SignUp() {
     }
   }, []);
 
+  // An invite that came from an approved access request carries the
+  // applicant's details; start the form with them, without overwriting
+  // anything already typed.
+  useEffect(() => {
+    const prefill = tokenValidation?.prefill;
+    if (!prefill) return;
+    setFirstName((v) => v || prefill.first_name || '');
+    setLastName((v) => v || prefill.last_name || '');
+    setEmail((v) => v || prefill.email || '');
+    setNpn((v) => v || prefill.npn || '');
+  }, [tokenValidation]);
+
   useEffect(() => {
     if (tokenErrorData) {
       enqueueSnackbar(
