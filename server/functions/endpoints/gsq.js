@@ -168,7 +168,7 @@ gsqRouter.get('/sendblue-config', async (req, res) => {
   } catch (error) {
     logger.error('Sendblue key lookup failed in endpoints/gsq.js', {
       email,
-      message: error?.message,
+      errorMessage: error?.message,
     });
     return res
       .status(503)

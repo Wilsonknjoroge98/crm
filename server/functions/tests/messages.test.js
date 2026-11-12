@@ -22,6 +22,7 @@ jest.mock('../services/supabase', () => ({
 }));
 
 const axios = require('axios');
+const logger = require('firebase-functions/logger');
 const express = require('express');
 const request = require('supertest');
 const {
@@ -167,6 +168,7 @@ describe('messages endpoints', () => {
       'sb-api-key-id': 'sub-key',
       'sb-api-secret-key': 'sub-secret',
     });
+    expect(options.timeout).toBe(15000);
     expect(options.params).toMatchObject({ number: LEAD, sendblue_number: LINE });
   });
 
@@ -237,8 +239,63 @@ describe('messages endpoints', () => {
     expect(res.status).toBe(201);
     const [, body, options] = axios.post.mock.calls[0];
     expect(body).toEqual({ from_number: LINE, number: LEAD, content: 'hello' });
+    expect(options.timeout).toBe(15000);
     expect(options.headers['sb-api-key-id']).toBe('sub-key');
     expect(options.headers['sb-api-secret-key']).toBe('sub-secret');
+  });
+
+  test.each(['ECONNABORTED', 'ETIMEDOUT'])('POST timeout %s is clear and safely logged', async (code) => {
+    mockConfigDocs({});
+    const queries = ownsLead();
+    axios.post.mockRejectedValueOnce(Object.assign(new Error('timeout'), {
+      code,
+      config: { headers: { 'sb-api-secret-key': 'do-not-log-this' } },
+    }));
+
+    const res = await request(makeApp(agent))
+      .post('/messages')
+      .send({ phone: LEAD, content: 'hi' });
+
+    expect(res.status).toBe(504);
+    expect(res.body.error).toMatch(/15 seconds/);
+    expect(res.body.error).toMatch(/check.*conversation/i);
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(queries.message_reads).toBeUndefined();
+    expect(logger.error).toHaveBeenCalledWith(
+      'Sendblue error in endpoints/messages.js',
+      expect.objectContaining({ errorMessage: res.body.error, upstreamStatus: 504, code }),
+    );
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain('do-not-log-this');
+    expect(logger.error.mock.calls[0][1]).not.toHaveProperty('message');
+  });
+
+  test('GET timeout is clear without retrying', async () => {
+    mockConfigDocs({});
+    axios.get.mockRejectedValueOnce(Object.assign(new Error('timeout'), { code: 'ECONNABORTED' }));
+    const res = await request(makeApp(agent)).get('/messages').query({ phone: LEAD });
+    expect(res.status).toBe(504);
+    expect(res.body.error).toMatch(/15 seconds/);
+    expect(axios.get).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([400, 401, 429, 500])('preserves upstream status %s in safe logs', async (status) => {
+    mockConfigDocs({});
+    axios.post.mockRejectedValueOnce({
+      code: 'ERR_BAD_RESPONSE',
+      response: { status, data: { error_message: 'Provider rejected message' } },
+      config: { headers: { 'sb-api-secret-key': 'do-not-log-this' } },
+    });
+    const res = await request(makeApp(agent))
+      .post('/messages')
+      .send({ phone: LEAD, content: 'hi' });
+    expect(res.status).toBe(status < 500 ? 400 : 502);
+    expect(logger.error).toHaveBeenCalledWith(
+      'Sendblue error in endpoints/messages.js',
+      expect.objectContaining({
+        errorMessage: 'Provider rejected message', upstreamStatus: status, code: 'ERR_BAD_RESPONSE',
+      }),
+    );
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain('do-not-log-this');
   });
 
   test('legacy agent without sendblue_config keeps using the shared account', async () => {

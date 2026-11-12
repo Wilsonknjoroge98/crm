@@ -4,6 +4,7 @@ const { Firestore } = require('firebase-admin/firestore');
 const { supabaseService } = require('../services/supabase');
 
 const SENDBLUE_BASE_URL = 'https://api.sendblue.co';
+const SENDBLUE_TIMEOUT_MS = 15000;
 
 // gsq writes each agent's Sendblue subaccount credentials here when it
 // provisions their line (gsq utils/sendblue.js), keyed by lowercased email
@@ -144,11 +145,23 @@ const toMessage = (m) => ({
 });
 
 const toSendblueError = (error, fallback) => {
+  // Only carry safe scalar fields across the integration boundary, never the
+  // Axios config/request/response objects (the config contains API credentials).
+  if (error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT') {
+    const timeout = new Error(
+      'Sendblue did not respond within 15 seconds. ' +
+      'Delivery is unconfirmed; check the conversation before sending again.',
+    );
+    timeout.status = 504;
+    timeout.code = error.code;
+    return timeout;
+  }
   const data = error?.response?.data;
   const message =
     data?.error_message || data?.message || error?.message || fallback;
   const wrapped = new Error(message);
   wrapped.status = error?.response?.status ?? null;
+  wrapped.code = error?.code ?? null;
   return wrapped;
 };
 
@@ -163,6 +176,7 @@ const fetchMessages = async ({
   try {
     response = await axios.get(`${SENDBLUE_BASE_URL}/api/v2/messages`, {
       headers,
+      timeout: SENDBLUE_TIMEOUT_MS,
       params: {
         number,
         sendblue_number: sendblueNumber,
@@ -190,7 +204,7 @@ const sendMessage = async ({ credentials, fromNumber, toNumber, content }) => {
     response = await axios.post(
       `${SENDBLUE_BASE_URL}/api/send-message`,
       { from_number: fromNumber, number: toNumber, content },
-      { headers },
+      { headers, timeout: SENDBLUE_TIMEOUT_MS },
     );
   } catch (error) {
     throw toSendblueError(error, 'Failed to send message through Sendblue');

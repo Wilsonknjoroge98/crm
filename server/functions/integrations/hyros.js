@@ -35,7 +35,11 @@ const getHyrosSource = async (phone) => {
 
     return source;
   } catch (error) {
-    logger.error('Error fetching Hyros data:', error);
+    logger.error('Error fetching Hyros data:', {
+      errorMessage: error?.message,
+      status: error?.response?.status,
+      code: error?.code,
+    });
     return null;
   }
 };

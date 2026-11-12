@@ -20,8 +20,11 @@ const authMiddleware = async (req, res, next) => {
     } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      if (error) logger.error('Auth error in auth.js', error);
-      else logger.warn('Auth user missing in auth.js', { token });
+      logger.warn('Auth session missing or invalid in auth.js', {
+        errorMessage: error?.message,
+        status: error?.status,
+        code: error?.code,
+      });
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -111,7 +114,19 @@ const authMiddleware = async (req, res, next) => {
 
     next();
   } catch (err) {
-    logger.error('Auth middleware error in auth.js', err);
+    if (err?.name === 'AuthSessionMissingError' || err?.status === 401) {
+      logger.warn('Auth session missing or invalid in auth.js', {
+        errorMessage: err.message,
+        status: err.status,
+        code: err.code,
+      });
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    logger.error('Auth middleware error in auth.js', {
+      errorMessage: err?.message,
+      status: err?.status,
+      code: err?.code,
+    });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

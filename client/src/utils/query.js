@@ -1,6 +1,7 @@
 import axios from 'axios';
 import store from './redux/store';
 import { supabase } from './supabase.js';
+import { sessionRecovery } from './sessionRecovery.js';
 
 const isDev = import.meta.env.MODE === 'development';
 
@@ -17,6 +18,7 @@ export const apiClient = axios.create({
   baseURL: BASE_URL,
 });
 apiClient.interceptors.request.use(async (config) => {
+  sessionRecovery.beforeRequest(config);
   // can't use a selector for redux state since we aren't in a react component
   const token = (await supabase.auth.getSession())?.data?.session?.access_token;
   // console.log('Attaching token to request:', token);
@@ -24,8 +26,12 @@ apiClient.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  return config;
+  return sessionRecovery.beforeRequest(config);
 });
+apiClient.interceptors.response.use(
+  (response) => response,
+  sessionRecovery.onResponseError,
+);
 const getOrganizations = async () => {
   const options = {
     method: 'GET',
