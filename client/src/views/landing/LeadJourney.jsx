@@ -1,6 +1,6 @@
 // LeadJourney.jsx
 // "How it works": the lead's trip, in order. They pick a quote, you get the
-// record, she meets you on your producer page, and we keep you posted. It
+// record, they meet you on your producer page, and we keep you posted. It
 // opens the page, ahead of the fresh and aged numbers, because it answers
 // "where are these coming from?" for both products.
 import Box from '@mui/material/Box';

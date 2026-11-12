@@ -1,8 +1,8 @@
 // ProducerPage.jsx
-// "She meets you before you call": the page a shopper lands on right after
-// confirming her number on GetSeniorQuotes. It shows the agent the lead was
+// "They meet you before you call": the page a shopper lands on right after
+// confirming their number on GetSeniorQuotes. It shows the agent the lead was
 // issued to (photo, name, bio, reviews) with a Call Now button, and is the
-// same card that is pinned to the top of the quotes if she comes back. The
+// same card that is pinned to the top of the quotes if they come back. The
 // mock-up follows gsq's thank-you page (ThankYou.tsx / AgentCard.tsx); an
 // agent gets one once they add a photo in the CRM.
 import Box from '@mui/material/Box';
@@ -31,7 +31,7 @@ import {
 const POINTS = [
   'Your photo, name, bio and Google reviews',
   'A Call Now button that rings your phone',
-  'Pinned to the top if she comes back for more quotes',
+  'Pinned to the top if they come back for more quotes',
 ];
 
 function Check() {
@@ -249,8 +249,8 @@ export default function ProducerPage() {
               color: SLATE_BODY,
             }}
           >
-            The moment she confirms her number, she lands on a page about you.
-            So when your call comes in, she already knows who it is.
+            The moment they confirm their number, they land on a page about you.
+            So when your call comes in, they already know who it is.
           </Box>
           <Box
             component='ul'

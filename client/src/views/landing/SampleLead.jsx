@@ -1,6 +1,6 @@
 // SampleLead.jsx
 // "Where your leads come from": the quotes a shopper compares on
-// GetSeniorQuotes (with the one she picks), then the sample lead record that
+// GetSeniorQuotes (with the one they pick), then the sample lead record that
 // pick becomes, the steps in between, and the field chips. Lives below the
 // fold; the hero only shows the lead arriving on a phone.
 import Box from '@mui/material/Box';
@@ -73,14 +73,14 @@ const SPECS = [
 const STEPS = [
   { tag: 'Shopped', desc: 'Compared live rates from real carriers' },
   { tag: 'Chose', desc: 'Picked a plan and a premium' },
-  { tag: 'Verified', desc: 'Confirmed her phone with a text code' },
+  { tag: 'Verified', desc: 'Confirmed their phone with a text code' },
   { tag: 'Yours', desc: 'Sent only to you, by text and to your CRM' },
 ];
 
 // Diameter of a stepper node, in px.
 const NODE = 28;
 
-// "1 · What she sees" / "2 · What lands in your CRM": the two halves of the
+// "1 · What the lead sees" / "2 · What lands in your CRM": the two halves of the
 // lead's trip from the quote page to the agent.
 function StepLabel({ n, children }) {
   return (
@@ -357,7 +357,7 @@ function SampleLeadCard() {
       </Box>
 
       <Box sx={{ ...labelSx, color: SLATE_MUTED, mb: 2.5 }}>
-        How she got to you
+        How they got to you
       </Box>
       {/* A stepper: four nodes on one line on desktop, stacked down a rail
           on phones. The last step, where the lead becomes yours, is filled. */}
