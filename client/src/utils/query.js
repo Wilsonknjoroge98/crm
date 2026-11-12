@@ -379,6 +379,16 @@ const postAccessRequest = async (request) => {
   return response.data;
 };
 
+// The landing page's headline totals: { totalClosed, closedSales }, the same
+// figures as the admin's Total Closed and Closed Sales cards. Public.
+const getPublicStats = async () => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/public-stats',
+  });
+  return response.data?.data;
+};
+
 // status is 'requested' (default, the review queue), 'approved', 'denied',
 // or 'all'
 const getAccessRequests = async ({ status } = {}) => {
@@ -1291,6 +1301,7 @@ export {
   getRefunds,
   reviewRefund,
   postAccessRequest,
+  getPublicStats,
   getAccessRequests,
   reviewAccessRequest,
   postError,

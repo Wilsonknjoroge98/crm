@@ -31,6 +31,10 @@ import {
 // on the confirmation. Left empty, the confirmation shows no link.
 const BOOK_CALL_URL = '';
 
+// The dialog renders outside the landing page's root, so it sets the page's
+// body font itself (the same stack as SANS in Landing.jsx).
+const SANS = '"Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+
 const EMPTY = { firstName: '', lastName: '', phone: '', npn: '' };
 
 const digits = (value) => value.replace(/\D/g, '');
@@ -200,6 +204,7 @@ export default function AccessRequestDialog({
         elevation: 0,
         sx: {
           border: `1px solid ${HAIRLINE}`,
+          fontFamily: SANS,
           borderRadius: '10px',
           p: { xs: 2.5, sm: 4 },
           m: { xs: 2, sm: 4 },

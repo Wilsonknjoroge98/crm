@@ -6,15 +6,14 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link as RouterLink, Navigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
-import AgedLeadSections, { AGED_METHODOLOGY } from './landing/AgedLeadSections';
-import FreshLeadSections, {
-  FRESH_METHODOLOGY,
-} from './landing/FreshLeadSections';
+import { getPublicStats } from '../utils/query';
+import AgedLeadSections from './landing/AgedLeadSections';
+import FreshLeadSections from './landing/FreshLeadSections';
 import LeadJourney from './landing/LeadJourney';
 import AccessRequestDialog from './landing/AccessRequestDialog';
 import LeadRules from './landing/LeadRules';
-import { MethodologyNote } from './landing/blocks';
 // Every colour comes from the app theme, by way of landing/tokens.js.
 import {
   ACCENT,
@@ -53,7 +52,6 @@ const STACK = [
   { name: 'HighLevel', src: '/integrations/gohighlevel.svg' },
   { name: 'Ringy', src: '/integrations/ringy.svg' },
   { name: 'Sendblue', src: '/integrations/sendblue.svg' },
-  { name: 'CSV export' },
 ];
 
 // Sample lead on the hero phone. The text matches the real agent alert
@@ -472,6 +470,8 @@ function StackLogo({ name, src }) {
         height: 19,
         width: 'auto',
         display: 'block',
+        // Small enough that all three logos share one row on a 320px phone.
+        '@media (max-width: 359px)': { height: 16 },
         filter: 'grayscale(1) opacity(0.75)',
         '&:hover': { filter: 'grayscale(1) brightness(0.3)' },
       }}
@@ -522,9 +522,48 @@ function StackBar() {
 // One published result, linking to the full numbers.
 const statSx = { fontFamily: MONO, fontWeight: 700, color: INK };
 
+// $12,224,842.80 -> "$12.2M". Rounded down, so the page never claims more
+// than the database holds.
+const formatTotal = (amount) => {
+  if (amount >= 1e6) return `$${(Math.floor(amount / 1e5) / 10).toFixed(1)}M`;
+  if (amount >= 1e3) return `$${Math.floor(amount / 1e3)}K`;
+  return `$${Math.floor(amount)}`;
+};
+
+// The first sentence is the live all-time total (the admin's Total Closed
+// card): proof the leads get written. The second scales it down to one
+// agent's order. If the total can't be loaded, only the second shows.
 function ProofLine() {
+  const { data: stats } = useQuery({
+    queryKey: ['public-stats'],
+    queryFn: getPublicStats,
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+  const hasTotal = stats?.totalClosed > 0;
+
   return (
     <Box sx={{ fontSize: '0.875rem', color: SLATE_BODY, lineHeight: 1.6 }}>
+      {hasTotal && (
+        <Box sx={{ mb: 0.5 }}>
+          Agents on FEX Digital have written{' '}
+          <Box component='strong' sx={statSx}>
+            {formatTotal(stats.totalClosed)}
+          </Box>{' '}
+          in annual premium
+          {stats.closedSales > 0 && (
+            <>
+              {' '}
+              across{' '}
+              <Box component='strong' sx={statSx}>
+                {stats.closedSales.toLocaleString('en-US')}
+              </Box>{' '}
+              sales
+            </>
+          )}
+          .
+        </Box>
+      )}
       <Box component='strong' sx={statSx}>
         $22,600
       </Box>{' '}
@@ -604,6 +643,7 @@ function Header() {
               fontWeight: 600,
               color: INK,
               textDecoration: 'none',
+              whiteSpace: 'nowrap',
               px: 1.5,
               py: 1,
               borderRadius: KEY,
@@ -648,11 +688,6 @@ function focusCapture() {
     300,
   );
 }
-
-const METHODOLOGY_NOTES = [
-  { label: 'How we measured fresh leads.', text: FRESH_METHODOLOGY },
-  { label: 'How we measured aged leads.', text: AGED_METHODOLOGY },
-];
 
 // The page's last word: one ink band with the same email box as the hero,
 // so an agent can ask for access without scrolling back up.
@@ -783,7 +818,9 @@ export default function Landing() {
         component='main'
         sx={{
           width: '100%',
-          maxWidth: 1200,
+          boxSizing: 'border-box',
+          // 1200 content column plus the side padding (2 x 24).
+          maxWidth: 1248,
           mx: 'auto',
           px: { xs: 2, sm: 3 },
           pt: { xs: 5, md: 8 },
@@ -855,7 +892,6 @@ export default function Landing() {
       <FreshLeadSections />
       <AgedLeadSections />
       <LeadRules />
-      <MethodologyNote notes={METHODOLOGY_NOTES} />
       <ClosingCta />
 
       <Footer />

@@ -46,7 +46,15 @@ export const eyebrowSx = {
   letterSpacing: '0.8px',
 };
 
-const sectionPadding = { maxWidth: 1040, mx: 'auto', px: { xs: 2, sm: 3 } };
+// border-box so a section given width 100% keeps its side padding inside the
+// screen instead of adding it on top (which pushed the page off phones).
+// 1088 = the 1040 content column plus the widest side padding (2 x 24).
+const sectionPadding = {
+  maxWidth: 1088,
+  mx: 'auto',
+  px: { xs: 2, sm: 3 },
+  boxSizing: 'border-box',
+};
 
 // Every section on the page shares this rhythm: the same space above and
 // below, the same heading size, and body copy at 1rem or larger.
