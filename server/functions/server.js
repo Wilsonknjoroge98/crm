@@ -37,6 +37,7 @@ const {
   refundsRouter,
   accessRequestsRouter,
   publicAccessRequestRouter,
+  publicStatsRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -61,6 +62,7 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(publicRouter);
 app.use(publicAccessRequestRouter);
+app.use(publicStatsRouter);
 app.use(authMiddleware);
 app.use('/agent', agentRouter);
 app.use('/invite', inviteRouter);

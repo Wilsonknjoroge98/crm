@@ -24,6 +24,7 @@ const {
   accessRequestsRouter,
   publicAccessRequestRouter,
 } = require('./access_requests');
+const { publicStatsRouter } = require('./public_stats');
 
 module.exports = {
   agentRouter,
@@ -50,4 +51,5 @@ module.exports = {
   refundsRouter,
   accessRequestsRouter,
   publicAccessRequestRouter,
+  publicStatsRouter,
 };
