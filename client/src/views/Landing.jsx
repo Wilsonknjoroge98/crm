@@ -14,10 +14,10 @@ import FreshLeadSections from './landing/FreshLeadSections';
 import LeadJourney from './landing/LeadJourney';
 import AccessRequestDialog from './landing/AccessRequestDialog';
 import LeadRules from './landing/LeadRules';
+import HeroHandoff from './landing/HeroHandoff';
 // Every colour comes from the app theme, by way of landing/tokens.js.
 import {
   ACCENT,
-  GREEN,
   HAIRLINE,
   HAIRLINE_STRONG,
   INK,
@@ -42,7 +42,6 @@ const BRAND = 'FEX Digital';
 const CTA_LABEL = 'Get access';
 const CAPTURE_ID = 'get-started';
 
-const CAPSULE = '999px';
 const CARD = '8px';
 const KEY = '4px';
 
@@ -53,243 +52,6 @@ const STACK = [
   { name: 'Ringy', src: '/integrations/ringy.svg' },
   { name: 'Sendblue', src: '/integrations/sendblue.svg' },
 ];
-
-// Sample lead on the hero phone. The text matches the real agent alert
-// format: "You have a new lead! {name} ({state}). Call now: {phone}".
-const SAMPLE = {
-  name: 'Margaret Hall',
-  age: 67,
-  state: 'OH',
-  stateName: 'Ohio',
-  phone: '(614) 555-0142',
-};
-
-const PHONE_LABEL = `Sample phone lock screen. A text reads: "You have a new lead! ${SAMPLE.name} (${SAMPLE.state}). Call now: ${SAMPLE.phone}." Below it, their lead details: whole life, $25,000 of coverage, $68 a month with an A-rated carrier, buying to leave a legacy, phone verified.`;
-
-const card = {
-  bgcolor: WHITE,
-  color: INK,
-  border: `1px solid ${HAIRLINE}`,
-  borderRadius: '20px',
-};
-
-// Notification cards drop in once, then hold. Reduced motion skips it.
-const dropIn = (delay) => ({
-  animation: `fexDrop 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) ${delay}s both`,
-});
-
-function HeroPhone() {
-  return (
-    <Box
-      sx={{
-        width: '100%',
-        alignSelf: 'end',
-        display: 'flex',
-        justifyContent: 'center',
-        // The device bleeds off the bottom of the hero into the navy band.
-        maxHeight: { xs: 470, md: 590 },
-        overflow: 'hidden',
-        '@keyframes fexDrop': {
-          from: { opacity: 0, transform: 'translateY(-16px) scale(0.98)' },
-          to: { opacity: 1, transform: 'none' },
-        },
-        '@media (prefers-reduced-motion: reduce)': {
-          '& .fex-anim': { animation: 'none' },
-        },
-      }}
-    >
-      <Box
-        role='img'
-        aria-label={PHONE_LABEL}
-        sx={{
-          width: { xs: 280, md: 320 },
-          aspectRatio: '9 / 19.5',
-          flexShrink: 0,
-          bgcolor: INK,
-          borderRadius: '52px',
-          p: '11px',
-        }}
-      >
-        <Box
-          aria-hidden='true'
-          sx={{
-            height: '100%',
-            borderRadius: '42px',
-            bgcolor: NEUTRAL,
-            color: INK,
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            px: 1.25,
-            textAlign: 'left',
-          }}
-        >
-          <Box
-            sx={{
-              width: 96,
-              height: 28,
-              mt: 1.25,
-              bgcolor: INK,
-              borderRadius: CAPSULE,
-            }}
-          />
-          <Box
-            sx={{
-              mt: 2.5,
-              fontSize: '0.9rem',
-              fontWeight: 500,
-              color: SLATE_BODY,
-            }}
-          >
-            Thursday, November 5
-          </Box>
-          <Box
-            sx={{
-              fontSize: { xs: '4.25rem', md: '5rem' },
-              fontWeight: 600,
-              lineHeight: 1,
-              letterSpacing: '-2px',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            9:41
-          </Box>
-
-          <Box
-            sx={{
-              mt: 3,
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-            }}
-          >
-            {/* The text alert agents receive */}
-            <Box
-              className='fex-anim'
-              sx={{
-                ...card,
-                ...dropIn(0.6),
-                p: 1.5,
-                display: 'flex',
-                gap: 1.25,
-              }}
-            >
-              <Box
-                sx={{
-                  width: 36,
-                  height: 36,
-                  flexShrink: 0,
-                  borderRadius: '9px',
-                  bgcolor: INK,
-                  color: WHITE,
-                  fontSize: '0.6rem',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                FEX
-              </Box>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.8rem',
-                  }}
-                >
-                  <Box component='span' sx={{ fontWeight: 700 }}>
-                    {BRAND}
-                  </Box>
-                  <Box component='span' sx={{ color: SLATE_MUTED }}>
-                    now
-                  </Box>
-                </Box>
-                <Box sx={{ fontSize: '0.8rem', lineHeight: 1.35 }}>
-                  {`You have a new lead! ${SAMPLE.name} (${SAMPLE.state}). Call now: ${SAMPLE.phone}`}
-                </Box>
-              </Box>
-            </Box>
-
-            {/* What lands in the CRM at the same moment */}
-            <Box
-              className='fex-anim'
-              sx={{ ...card, ...dropIn(1.5), p: 1.5, fontSize: '0.8rem' }}
-            >
-              <Box
-                sx={{
-                  fontSize: '0.6rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.6px',
-                  textTransform: 'uppercase',
-                  color: SLATE_MUTED,
-                  mb: 0.5,
-                }}
-              >
-                Lead details · in your CRM
-              </Box>
-              <Box sx={{ fontSize: '0.95rem', fontWeight: 800 }}>
-                {SAMPLE.name}, {SAMPLE.age} · {SAMPLE.stateName}
-              </Box>
-              <Box sx={{ fontWeight: 600, mt: 0.25 }}>
-                Whole life · $25,000 ·{' '}
-                <Box component='span' sx={{ fontFamily: MONO }}>
-                  $68/mo
-                </Box>
-              </Box>
-              <Box sx={{ color: SLATE_MUTED }}>A-rated carrier</Box>
-              <Box
-                sx={{
-                  borderTop: `1px solid ${HAIRLINE}`,
-                  mt: 1,
-                  pt: 1,
-                  lineHeight: 1.5,
-                }}
-              >
-                <Box>
-                  <Box component='span' sx={{ color: SLATE_MUTED }}>
-                    Reason:
-                  </Box>{' '}
-                  Leave a Legacy
-                </Box>
-                <Box sx={{ color: GREEN, fontWeight: 600 }}>
-                  ✓ Phone verified
-                </Box>
-              </Box>
-              <Box
-                sx={{
-                  mt: 1.25,
-                  py: 0.875,
-                  borderRadius: CAPSULE,
-                  bgcolor: INK,
-                  color: WHITE,
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 0.75,
-                }}
-              >
-                <Box
-                  component='svg'
-                  viewBox='0 0 24 24'
-                  sx={{ width: 15, height: 15, fill: WHITE }}
-                >
-                  <path d='M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z' />
-                </Box>
-                Call now
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-  );
-}
 
 // The email box that starts an access request: submitting it opens the
 // request dialog with the email filled in. It sits in the hero (with `id`,
@@ -824,7 +586,7 @@ export default function Landing() {
           mx: 'auto',
           px: { xs: 2, sm: 3 },
           pt: { xs: 5, md: 8 },
-          pb: 0,
+          pb: { xs: 4, md: 3 },
           display: 'grid',
           gridTemplateColumns: {
             xs: 'minmax(0, 1fr)',
@@ -883,7 +645,7 @@ export default function Landing() {
           <ProofLine />
         </Box>
 
-        <HeroPhone />
+        <HeroHandoff />
       </Box>
 
       {/* Four chapters: how it works, fresh, aged, then the rules that
