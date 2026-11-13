@@ -531,7 +531,7 @@ export function CostPerSaleChart({ title, bars, caption }) {
                 {multiple(bar)}
               </Box>
               <Box sx={{ fontSize: '0.8125rem', color: SLATE_MUTED }}>
-                premium per $1 spent
+                return on lead spend
               </Box>
             </Box>
           </Box>
