@@ -23,18 +23,24 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
+}
+.fex-handoff__thread-base,
+.fex-handoff__thread-join {
+  stroke: var(--handoff-slate);
+  stroke-width: 0.75;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.45;
 }
 .fex-handoff__thread-base {
-  stroke: var(--handoff-rule);
-  stroke-width: 1;
+  stroke-dasharray: 2 5;
 }
-.fex-handoff__thread-trace {
-  stroke: var(--handoff-slate);
-  stroke-width: 1;
-  stroke-dasharray: 0.14 0.86;
-  stroke-dashoffset: 0;
-  opacity: 0.5;
-  animation: fex-handoff-trace 1.4s ease-out 1;
+.fex-handoff__thread-join {
+  /* Normalised to 100: a gap for 65, then a continuous final 35.
+     This is a static material detail, never a moving/pulsing signal. */
+  stroke-dasharray: 35 65;
+  stroke-dashoffset: 35;
 }
 
 .fex-handoff__annotation {
@@ -240,14 +246,6 @@
   white-space: nowrap;
   border: 0;
 }
-@keyframes fex-handoff-trace {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
 @media (min-width: 600px) and (max-width: 899px) {
   .fex-handoff {
     max-width: 520px;
@@ -348,10 +346,5 @@
   .fex-handoff__caption {
     margin-top: 15px;
     font-size: 10px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .fex-handoff__thread-trace {
-    animation: none;
   }
 }

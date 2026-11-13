@@ -35,7 +35,7 @@ Reviewed the public Telnyx and GitHub homepages on 2026-11-13.
 ## Implemented composition
 
 One authored paper object, with one shallow backing edge and a folded corner,
-a marked selection and a clear human reason. A fine connection leads to a
+a marked selection and a clear human reason. A dashed hairline leads to a
 single FEX delivery slip. Ink, slate, hairlines and the existing local type
 make it part of this page rather than a new visual identity.
 
@@ -51,8 +51,10 @@ make it part of this page rather than a new visual identity.
   object rather than scaling down the desktop arrangement. Hide the secondary
   carrier descriptor, retain purpose, premium, coverage and phone-verification detail.
   Dock the smaller receiving slip beneath them. The scene is 286px high.
-- All information exists at first paint. The only motion is a single
-  1.4-second line trace. Reduced-motion removes it; the story is unchanged.
+- The connector is a 0.75px, round-capped dashed hairline. Its final portion
+  resolves into one continuous stroke at the receiving slip: considered
+  intent becomes a connection. This small FEX-specific detail is static,
+  with no trace, loop or pulse. Both motion preferences show the complete art.
 
 ## Scope
 

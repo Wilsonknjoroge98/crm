@@ -82,13 +82,23 @@ def check_viewport(browser, origin, width, reduced, screenshots):
     scene_height = page.locator(".fex-handoff__scene").bounding_box()["height"]
     if width <= 450:
         assert scene_height <= 286, f"Mobile artwork too tall: {scene_height}"
-    animation = page.locator(".fex-handoff__thread-trace").evaluate("""el => ({
-        name: getComputedStyle(el).animationName,
-        count: getComputedStyle(el).animationIterationCount
+    connector = page.locator(".fex-handoff__thread-base").evaluate("""el => ({
+        width: parseFloat(getComputedStyle(el).strokeWidth),
+        dash: getComputedStyle(el).strokeDasharray,
+        cap: getComputedStyle(el).strokeLinecap,
+        vector: getComputedStyle(el).vectorEffect
     })""")
-    assert animation["count"] != "infinite", "Hero must not loop"
-    if reduced:
-        assert animation["name"] == "none", "Reduced motion must skip the trace"
+    assert connector["width"] <= 1, "Connector must remain a hairline"
+    assert connector["dash"] not in ("none", ""), "Connector must be dashed"
+    assert connector["cap"] == "round"
+    assert connector["vector"] == "non-scaling-stroke"
+    join = page.locator(".fex-handoff__thread-join")
+    assert join.get_attribute("pathLength") == "100"
+    assert join.evaluate("el => getComputedStyle(el).strokeDashoffset") == "35px"
+    assert join.evaluate("el => getComputedStyle(el).strokeDasharray") == "35px, 65px"
+    assert figure.evaluate("el => el.getAnimations({subtree: true}).length") == 0, (
+        "The handoff is a complete, static composition in both motion preferences"
+    )
 
     if screenshots and width in (320, 390, 1024, 1440) and not reduced:
         page.locator("h1").scroll_into_view_if_needed()

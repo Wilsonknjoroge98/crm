@@ -36,9 +36,11 @@ export default function HeroHandoff() {
             className='fex-handoff__thread-base'
             d='M332 218c55 0 86 29 86 83'
           />
+          {/* The last 35% becomes one continuous stroke as it meets
+              the delivery slip: considered intent becomes a connection. */}
           <path
-            className='fex-handoff__thread-trace'
-            pathLength='1'
+            className='fex-handoff__thread-join'
+            pathLength='100'
             d='M332 218c55 0 86 29 86 83'
           />
         </svg>
