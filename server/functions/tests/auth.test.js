@@ -41,6 +41,31 @@ describe('auth middleware unauthorized sessions', () => {
     },
   );
 
+  test.each([
+    { name: 'AuthRetryableFetchError', message: 'fetch failed', status: 0 },
+    { name: 'AuthRetryableFetchError', message: 'Bad gateway', status: 502 },
+    { name: 'AuthApiError', message: 'Internal error', status: 500 },
+    { name: 'AuthApiError', message: 'Rate limited', status: 429 },
+    { name: 'AuthUnknownError', message: 'Unexpected response' },
+  ])('provider failure $status $name is a 503, not a sign-out', async (error) => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error });
+    await authMiddleware({ headers: { authorization: 'Bearer private-token' } }, res, next);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(logger.error).toHaveBeenCalled();
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain('private-token');
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    { name: 'AuthApiError', message: 'invalid JWT', status: 403 },
+    { name: 'AuthApiError', message: 'User not found', status: 404 },
+  ])('a rejected token ($status) is still a 401', async (error) => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error });
+    await authMiddleware({ headers: { authorization: 'Bearer private-token' } }, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   test('a thrown missing-session error is also a warning and 401', async () => {
     mockGetUser.mockRejectedValueOnce(Object.assign(new Error('Session missing'), {
       name: 'AuthSessionMissingError', status: 400,

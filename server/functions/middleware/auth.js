@@ -1,6 +1,14 @@
 const logger = require('firebase-functions/logger');
 const { createPublicClient, supabaseService } = require('../services/supabase');
 
+// Network failures (no HTTP status), Supabase 5xx and rate limits say nothing
+// about whether the token is valid. Everything else is a real rejection.
+const isTransientAuthError = (error) => {
+  if (!error || error.name === 'AuthSessionMissingError') return false;
+  if (error.name === 'AuthRetryableFetchError') return true;
+  return !error.status || error.status >= 500 || error.status === 429;
+};
+
 const authMiddleware = async (req, res, next) => {
   // get the url and method of the request
   try {
@@ -18,6 +26,19 @@ const authMiddleware = async (req, res, next) => {
       data: { user },
       error,
     } = await supabase.auth.getUser(token);
+
+    if (isTransientAuthError(error)) {
+      // Supabase could not answer, so the session is unverified, not rejected.
+      // A 401 here would make the client sign the agent out.
+      logger.error('Auth provider unavailable in auth.js', {
+        errorMessage: error.message,
+        status: error.status,
+        code: error.code,
+      });
+      return res
+        .status(503)
+        .json({ error: 'Authentication is temporarily unavailable' });
+    }
 
     if (error || !user) {
       logger.warn('Auth session missing or invalid in auth.js', {
