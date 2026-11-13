@@ -627,7 +627,7 @@ export default function Landing() {
               color: SLATE_BODY,
             }}
           >
-            Consumers see and compare real life insurance rates, right before
+            Prospects see and compare real life insurance rates, right before
             reaching your business.
           </Box>
 
