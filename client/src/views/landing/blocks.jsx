@@ -147,8 +147,7 @@ export function Chip({ children }) {
 
 // Dark ink band with a serif title and three headline figures.
 // stats: [{ value, label, note, currency? }]
-// footnote: { lead, text }, an optional line under the figures.
-export function StatsBand({ id, eyebrow, title, intro, stats, footnote }) {
+export function StatsBand({ id, eyebrow, title, intro, stats }) {
   return (
     <Box component='section' id={id} sx={{ bgcolor: INK, color: ON_INK }}>
       <Box sx={{ ...sectionPadding, py: { xs: 5, md: 8 } }}>
@@ -227,26 +226,6 @@ export function StatsBand({ id, eyebrow, title, intro, stats, footnote }) {
             </Box>
           ))}
         </Box>
-        {footnote && (
-          <Box
-            component='p'
-            sx={{
-              m: 0,
-              mt: { xs: 0, md: 5 },
-              pt: 3,
-              borderTop: `1px solid ${INK_RULE}`,
-              maxWidth: 820,
-              fontSize: '1rem',
-              lineHeight: 1.6,
-              color: INK_BODY,
-            }}
-          >
-            <Box component='strong' sx={{ color: ON_INK, fontWeight: 600 }}>
-              {footnote.lead}
-            </Box>{' '}
-            {footnote.text}
-          </Box>
-        )}
       </Box>
     </Box>
   );

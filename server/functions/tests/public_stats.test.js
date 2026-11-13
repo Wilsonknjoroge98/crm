@@ -23,8 +23,10 @@ const makeSupabase = (pages) => {
         : { data: page, error: null },
     );
   });
-  const query = { select: () => query, order: () => query, range };
-  return { from: jest.fn(() => query), range };
+  const select = jest.fn(() => query);
+  const not = jest.fn(() => query);
+  const query = { select, not, order: () => query, range };
+  return { from: jest.fn(() => query), range, select, not };
 };
 
 const makeApp = (options) => {
@@ -47,6 +49,11 @@ describe('GET /public-stats', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({ totalClosed: 2020.8, closedSales: 3 });
     expect(supabase.from).toHaveBeenCalledWith('clients');
+    // only clients closed from a GSQ lead
+    expect(supabase.select.mock.calls[0][0]).toMatch(
+      /leads!.*!inner\(gsq_id\)/,
+    );
+    expect(supabase.not).toHaveBeenCalledWith('lead.gsq_id', 'is', null);
   });
 
   test('reuses the answer until it is ten minutes old', async () => {

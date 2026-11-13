@@ -1268,4 +1268,4 @@ module.exports.parsePeopleQuery = parsePeopleQuery;
 module.exports.buildSearchPatterns = buildSearchPatterns;
 module.exports.parseBulkPersonIds = parseBulkPersonIds;
 module.exports.GSQ_LEAD_VENDOR_ID = GSQ_LEAD_VENDOR_ID;
-module.exports.fetchAllClientPremiums = fetchAllClientPremiums;
+module.exports.fetchAllRows = fetchAllRows;
