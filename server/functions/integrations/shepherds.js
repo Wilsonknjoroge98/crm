@@ -175,7 +175,7 @@ const inboundShepherdsSale = async (req, res) => {
     logger.error('Error processing Shepherds sale', {
       phone,
       agentEmail,
-      message: error?.message,
+      errorMessage: error?.message,
     });
     return res.status(500).send({ message: 'Internal server error' });
   }

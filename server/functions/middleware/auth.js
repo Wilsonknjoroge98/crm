@@ -1,6 +1,14 @@
 const logger = require('firebase-functions/logger');
 const { createPublicClient, supabaseService } = require('../services/supabase');
 
+// Network failures (no HTTP status), Supabase 5xx and rate limits say nothing
+// about whether the token is valid. Everything else is a real rejection.
+const isTransientAuthError = (error) => {
+  if (!error || error.name === 'AuthSessionMissingError') return false;
+  if (error.name === 'AuthRetryableFetchError') return true;
+  return !error.status || error.status >= 500 || error.status === 429;
+};
+
 const authMiddleware = async (req, res, next) => {
   // get the url and method of the request
   try {
@@ -19,9 +27,25 @@ const authMiddleware = async (req, res, next) => {
       error,
     } = await supabase.auth.getUser(token);
 
+    if (isTransientAuthError(error)) {
+      // Supabase could not answer, so the session is unverified, not rejected.
+      // A 401 here would make the client sign the agent out.
+      logger.error('Auth provider unavailable in auth.js', {
+        errorMessage: error.message,
+        status: error.status,
+        code: error.code,
+      });
+      return res
+        .status(503)
+        .json({ error: 'Authentication is temporarily unavailable' });
+    }
+
     if (error || !user) {
-      if (error) logger.error('Auth error in auth.js', error);
-      else logger.warn('Auth user missing in auth.js', { token });
+      logger.warn('Auth session missing or invalid in auth.js', {
+        errorMessage: error?.message,
+        status: error?.status,
+        code: error?.code,
+      });
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -111,7 +135,19 @@ const authMiddleware = async (req, res, next) => {
 
     next();
   } catch (err) {
-    logger.error('Auth middleware error in auth.js', err);
+    if (err?.name === 'AuthSessionMissingError' || err?.status === 401) {
+      logger.warn('Auth session missing or invalid in auth.js', {
+        errorMessage: err.message,
+        status: err.status,
+        code: err.code,
+      });
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    logger.error('Auth middleware error in auth.js', {
+      errorMessage: err?.message,
+      status: err?.status,
+      code: err?.code,
+    });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

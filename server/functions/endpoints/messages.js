@@ -46,7 +46,7 @@ const loadCredentials = async (req, res, line, route, method) => {
       route,
       method,
       requesterId: req.agent?.id,
-      message: error.cause?.message || error.message,
+      errorMessage: error.cause?.message || error.message,
     });
     res.status(503).json({ error: 'Messaging is temporarily unavailable' });
     return null;
@@ -152,10 +152,12 @@ const sendblueFailure = (res, error, route, method, req, fallback) => {
     method,
     requesterId: req.agent?.id,
     upstreamStatus: error.status,
-    message: error.message,
+    code: error.code,
+    errorMessage: error.message,
   });
   // sendblue 4xx = our request was bad, pass their reason through, anything else is on them
-  const status = error.status >= 400 && error.status < 500 ? 400 : 502;
+  const status = error.status === 504 ? 504 :
+    error.status >= 400 && error.status < 500 ? 400 : 502;
   return res.status(status).json({ error: error.message || fallback });
 };
 

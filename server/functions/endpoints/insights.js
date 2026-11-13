@@ -231,7 +231,11 @@ insightsRouter.get('/', async (req, res) => {
 
     return res.status(200).json({ sources, total: totalSales, unknownClients });
   } catch (error) {
-    logger.error('Error in /insights endpoint', { error });
+    logger.error('Error in /insights endpoint', {
+      errorMessage: error?.message,
+      status: error?.response?.status,
+      code: error?.code,
+    });
     return res.status(500).json({ error: 'Failed to fetch insights data' });
   }
 });

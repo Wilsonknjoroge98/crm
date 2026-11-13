@@ -274,7 +274,7 @@ clientRouter.get('/', async (req, res) => {
         route: '/clients/mine',
         method: 'GET',
         requesterId: req.agent?.id,
-        message: error?.message,
+        errorMessage: error?.message,
         stack: error?.stack,
       },
     );

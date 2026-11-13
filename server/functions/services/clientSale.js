@@ -89,7 +89,7 @@ const createClientSale = async ({
             route: '/client',
             method: 'POST',
             requesterId: agent?.id,
-            message: error?.message,
+            errorMessage: error?.message,
           });
           return false;
         },

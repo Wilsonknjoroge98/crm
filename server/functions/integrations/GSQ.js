@@ -89,7 +89,7 @@ const getFreshLeadSource = async (gsqId) => {
     logger.error('Error looking up fresh lead source:', {
       gsqId,
       code: error.code,
-      message: error.message,
+      errorMessage: error.message,
     });
     return null;
   }
@@ -239,7 +239,7 @@ const inboundGSQ = async (req, res) => {
     if (error) {
       logger.error('Error inserting lead:', {
         code: error.code,
-        message: error.message,
+        errorMessage: error.message,
         details: error.details,
         hint: error.hint,
       });
@@ -296,7 +296,7 @@ const inboundSendblueNumber = async (req, res) => {
       logger.error('sendblue number agent lookup failed', {
         email,
         code: lookupError.code,
-        message: lookupError.message,
+        errorMessage: lookupError.message,
       });
       return res.status(500).send({ message: 'Agent lookup failed' });
     }
@@ -329,7 +329,7 @@ const inboundSendblueNumber = async (req, res) => {
       logger.error('sendblue number update failed', {
         agentId: agent.id,
         code: updateError.code,
-        message: updateError.message,
+        errorMessage: updateError.message,
       });
       return res.status(500).send({ message: 'Failed to update agent' });
     }
