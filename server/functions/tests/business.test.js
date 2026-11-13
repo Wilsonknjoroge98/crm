@@ -1722,7 +1722,7 @@ describe('POST /business/release-notifications', () => {
       args: [
         {
           email: 'agent-1@example.com',
-          feature: 'business_quick_actions',
+          feature: 'crm_texter_dialer',
           agent_id: 'agent-1',
         },
         { onConflict: 'email,feature', ignoreDuplicates: true },
