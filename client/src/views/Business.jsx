@@ -13,12 +13,10 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import AddIcon from '@mui/icons-material/Add';
-import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -659,70 +657,6 @@ const Business = () => {
                   }}
                 />
               )}
-              {/* Placeholder filter from BUSINESS_VIEW.png; same coming-soon
-                  treatment as the card action buttons. */}
-              {['Disposition tags'].map((label) => (
-                <Tooltip
-                  key={label}
-                  title={
-                    releaseNotificationSeen
-                      ? ''
-                      : 'Coming soon - click to get notified'
-                  }
-                >
-                  <Box
-                    component='span'
-                    onClick={
-                      releaseNotificationSeen
-                        ? undefined
-                        : handleOpenReleaseDialog
-                    }
-                    sx={{
-                      cursor: releaseNotificationSeen ? 'default' : 'pointer',
-                    }}
-                  >
-                    {/* Mirrors the StateFilter trigger so the toolbar's
-                        dropdowns read as one set. */}
-                    <Button
-                      size='small'
-                      disabled
-                      disableRipple
-                      sx={{
-                        height: 38,
-                        px: 1.5,
-                        borderRadius: 1.5,
-                        border: '1px solid #E5E7EB',
-                        bgcolor: '#FFFFFF',
-                        textTransform: 'none',
-                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        pointerEvents: 'none',
-                        '&.Mui-disabled': {
-                          color: 'text.secondary',
-                          opacity: releaseNotificationSeen ? 0.6 : 1,
-                        },
-                      }}
-                    >
-                      <Typography
-                        variant='body2'
-                        sx={{
-                          fontFamily: '"Inter", sans-serif',
-                          fontWeight: 600,
-                          fontSize: '0.8125rem',
-                          color: 'inherit',
-                        }}
-                      >
-                        {label}
-                      </Typography>
-                      <KeyboardArrowDownRoundedIcon
-                        sx={{ fontSize: '1.1rem', color: 'inherit' }}
-                      />
-                    </Button>
-                  </Box>
-                </Tooltip>
-              ))}
             </Stack>
             <Button
               variant='contained'
