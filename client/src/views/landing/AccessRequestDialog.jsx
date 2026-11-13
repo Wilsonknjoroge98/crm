@@ -10,7 +10,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
 import TextField from '@mui/material/TextField';
-import { STATE_OPTIONS } from '../../utils/constants';
+import { NPN_HELP, NPN_PATTERN, STATE_OPTIONS } from '../../utils/constants';
 import { postAccessRequest } from '../../utils/query';
 import {
   ERROR,
@@ -185,7 +185,7 @@ export default function AccessRequestDialog({
     form.lastName.trim() &&
     email.trim() &&
     digits(form.phone).length >= 10 &&
-    form.npn.length > 0 &&
+    NPN_PATTERN.test(form.npn) &&
     states.length > 0;
 
   const failure = error
@@ -294,6 +294,12 @@ export default function AccessRequestDialog({
               value={form.npn}
               onChange={(e) =>
                 setForm((f) => ({ ...f, npn: digits(e.target.value) }))
+              }
+              error={form.npn.length > 0 && !NPN_PATTERN.test(form.npn)}
+              helperText={
+                form.npn.length > 0 && !NPN_PATTERN.test(form.npn)
+                  ? NPN_HELP
+                  : ''
               }
               sx={{ gridColumn: '1 / -1' }}
             />

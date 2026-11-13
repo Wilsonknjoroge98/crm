@@ -57,7 +57,7 @@ export default function HeroHandoff() {
             </div>
             <div className='fex-handoff__quote-title'>Leave a legacy.</div>
             <div className='fex-handoff__eyebrow fex-handoff__selected-label'>
-              Her selected plan
+              Selected plan
             </div>
             <div className='fex-handoff__coverage'>
               $68<span>/mo</span>
@@ -108,7 +108,7 @@ export default function HeroHandoff() {
         <span className='fex-handoff__sr-only'>
           {' '}
           A shopper compares quotes, selects $25,000 of whole-life coverage at
-          $68 a month to leave a legacy, and verifies her phone. Her selected
+          $68 a month to leave a legacy, and verifies their phone. The selected
           quote details are delivered to the agent.
         </span>
       </figcaption> */}

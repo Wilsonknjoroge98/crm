@@ -55,10 +55,14 @@ const VALID = {
   states: ['oh', 'TX', 'OH'],
 };
 
-const makePublicApp = ({ supabase, notify = jest.fn() }) => {
+const makePublicApp = ({
+  supabase,
+  notify = jest.fn(),
+  recentCount = jest.fn().mockResolvedValue(0),
+}) => {
   const app = express();
   app.use(express.json());
-  app.use(createPublicAccessRequestRouter({ supabase, notify }));
+  app.use(createPublicAccessRequestRouter({ supabase, notify, recentCount }));
   return app;
 };
 
@@ -111,6 +115,8 @@ describe('POST /access-request', () => {
     ['a bad email', { email: 'not-an-email' }, /email/i],
     ['a short phone', { phone: '555-0142' }, /phone/i],
     ['a missing NPN', { npn: 'abc' }, /producer number/i],
+    ['a short NPN', { npn: '123456' }, /producer number/i],
+    ['a long NPN', { npn: '12345678901' }, /producer number/i],
     ['no states', { states: [] }, /states/i],
     ['an unknown state', { states: ['OH', 'ZZ'] }, /states/i],
   ])('rejects %s without touching the database', async (_, patch, message) => {
@@ -154,6 +160,49 @@ describe('POST /access-request', () => {
     ]);
     const notify = jest.fn().mockRejectedValue(new Error('slack down'));
     const res = await request(makePublicApp({ supabase, notify }))
+      .post('/access-request')
+      .send(VALID);
+
+    expect(res.status).toBe(201);
+  });
+});
+
+describe('POST /access-request limits', () => {
+  test('turns one address away after five tries in ten minutes', async () => {
+    const supabase = makeSupabase([]);
+    const app = makePublicApp({ supabase });
+    const send = () =>
+      request(app)
+        .post('/access-request')
+        .set('X-Forwarded-For', '1.1.1.1')
+        .send({ ...VALID, email: 'bad' });
+
+    for (let i = 0; i < 5; i += 1) expect((await send()).status).toBe(400);
+    const blocked = await send();
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers['retry-after']).toBeDefined();
+  });
+
+  test('stores nothing once the hourly cap is reached', async () => {
+    const supabase = makeSupabase([]);
+    const notify = jest.fn();
+    const recentCount = jest.fn().mockResolvedValue(30);
+    const res = await request(makePublicApp({ supabase, notify, recentCount }))
+      .post('/access-request')
+      .send(VALID);
+
+    expect(res.status).toBe(429);
+    expect(res.body.error).toMatch(/try again/i);
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  test('still takes the request when the count cannot be read', async () => {
+    const supabase = makeSupabase([
+      { table: 'access_requests', result: { error: null } },
+    ]);
+    const recentCount = jest.fn().mockRejectedValue(new Error('db down'));
+    const res = await request(makePublicApp({ supabase, recentCount }))
       .post('/access-request')
       .send(VALID);
 

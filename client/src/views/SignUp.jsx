@@ -16,6 +16,8 @@ import { postAgent, validateInvite } from '../utils/query';
 import { enqueueSnackbar } from 'notistack';
 import { toTitleCase } from '../utils/helpers';
 import {
+  NPN_HELP,
+  NPN_PATTERN,
   SNACKBAR_SUCCESS_OPTIONS,
   SNACKBAR_ERROR_OPTIONS,
 } from '../utils/constants';
@@ -65,7 +67,7 @@ export default function SignUp() {
     setFirstName((v) => v || prefill.first_name || '');
     setLastName((v) => v || prefill.last_name || '');
     setEmail((v) => v || prefill.email || '');
-    setNpn((v) => v || prefill.npn || '');
+    setNpn((v) => v || (prefill.npn || '').replace(/\D/g, ''));
   }, [tokenValidation]);
 
   useEffect(() => {
@@ -247,9 +249,13 @@ export default function SignUp() {
               type='text'
               fullWidth
               size='small'
-              inputProps={{ maxLength: 10 }}
+              inputProps={{ inputMode: 'numeric', maxLength: 10 }}
               value={npn}
-              onChange={(e) => setNpn(e.target.value)}
+              onChange={(e) => setNpn(e.target.value.replace(/\D/g, ''))}
+              error={npn.length > 0 && !NPN_PATTERN.test(npn)}
+              helperText={
+                npn.length > 0 && !NPN_PATTERN.test(npn) ? NPN_HELP : ''
+              }
               required
             />
             <TextField
@@ -280,7 +286,7 @@ export default function SignUp() {
               variant='contained'
               color='primary'
               fullWidth
-              disabled={loading || npn.length !== 8}
+              disabled={loading || !NPN_PATTERN.test(npn)}
               sx={{ mt: 1 }}
             >
               {loading ? <CircularProgress size={20} /> : 'Create Account'}

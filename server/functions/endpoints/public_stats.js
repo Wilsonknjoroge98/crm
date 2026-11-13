@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('firebase-functions/logger');
 const { supabaseService } = require('../services/supabase');
 const { fetchAllClientPremiums } = require('./business');
+const { createRateLimiter } = require('../middleware/rateLimit');
 
 // The landing page's headline numbers. Public: no session is needed, so this
 // returns two totals and nothing about any agent or client.
@@ -34,7 +35,10 @@ const createPublicStatsRouter = ({
     return { totalClosed, closedSales: clients.length };
   };
 
-  router.get('/public-stats', async (req, res) => {
+  // The answer is cached, so this only stops one address hammering the route.
+  const limit = createRateLimiter({ windowMs: 60 * 1000, max: 60, now });
+
+  router.get('/public-stats', limit, async (req, res) => {
     try {
       if (!cached || now() - cached.at >= CACHE_MS) {
         // Visitors arriving together share one read.

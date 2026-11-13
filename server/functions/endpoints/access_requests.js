@@ -6,6 +6,7 @@ const { WebClient } = require('@slack/web-api');
 const { supabaseService } = require('../services/supabase');
 const STATE_ABBREV_MAP = require('../shared/constants/state_abbrev_map');
 const { TEAM_INBOX, escapeHtml, sendEmail } = require('../integrations/email');
+const { createRateLimiter } = require('../middleware/rateLimit');
 
 // Onboarding is by request: an agent leaves their details on the landing
 // page (public route), an admin reviews the queue, and approving mints an
@@ -48,8 +49,10 @@ const parseRequest = (body = {}) => {
   if (phone.length !== 10) {
     return { error: 'Enter a 10-digit phone number' };
   }
-  if (npn.length < 1 || npn.length > 10) {
-    return { error: 'Enter your National Producer Number' };
+  // 7 to 10 digits, the same rule the sign-up form applies
+  // (NPN_PATTERN in client/src/utils/constants.js).
+  if (npn.length < 7 || npn.length > 10) {
+    return { error: 'Enter your National Producer Number (7 to 10 digits)' };
   }
   if (states.length === 0 || states.some((s) => !STATE_CODES.has(s))) {
     return { error: 'Pick the states you are licensed in' };
@@ -162,19 +165,59 @@ const fail = (req, res, message, error) => {
 };
 
 // Mounted before the auth middleware: the landing page posts here.
+// Two limits keep the public form from flooding the table and the team
+// inbox. One address gets PER_CALLER_MAX tries per window (counted in this
+// instance's memory). Across every caller and instance, the table takes at
+// most HOURLY_CAP new requests an hour (counted in the database).
+const PER_CALLER_WINDOW_MS = 10 * 60 * 1000;
+const PER_CALLER_MAX = 5;
+const HOURLY_CAP = 30;
+const BUSY =
+  'We are getting a lot of requests right now. Please try again in an hour, ' +
+  `or email ${TEAM_INBOX}.`;
+
+// How many requests were stored since `since` (an ISO time).
+const defaultRecentCount = (supabase) => async (since) => {
+  const { count, error } = await supabase
+    .from('access_requests')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', since);
+  if (error) throw error;
+  return count ?? 0;
+};
+
 const createPublicAccessRequestRouter = ({
   supabase = supabaseService,
   notify = defaultNotify,
+  recentCount = defaultRecentCount(supabase),
+  now = () => Date.now(),
 } = {}) => {
   // eslint-disable-next-line new-cap
   const router = express.Router();
+  const limit = createRateLimiter({
+    windowMs: PER_CALLER_WINDOW_MS,
+    max: PER_CALLER_MAX,
+    now,
+  });
 
-  router.post('/access-request', async (req, res) => {
+  router.post('/access-request', limit, async (req, res) => {
     // "company" is a field people never see; only a bot fills it in.
     if (text(req.body?.company, 200)) return res.status(200).json(RECEIVED);
 
     const { request, error: invalid } = parseRequest(req.body);
     if (invalid) return res.status(400).json({ error: invalid });
+
+    try {
+      const since = new Date(now() - 60 * 60 * 1000).toISOString();
+      if ((await recentCount(since)) >= HOURLY_CAP) {
+        logger.error('Access request hourly cap reached', { cap: HOURLY_CAP });
+        return res.status(429).json({ error: BUSY });
+      }
+    } catch (error) {
+      // If the count can't be read, take the request: the per-address limit
+      // still applies, and turning real applicants away is the worse failure.
+      logger.error('Failed to count recent access requests', { error });
+    }
 
     try {
       const { error } = await supabase.from('access_requests').insert(request);

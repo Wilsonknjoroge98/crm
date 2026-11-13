@@ -176,6 +176,12 @@ const SNACKBAR_BASE = {
   },
 };
 
+// A National Producer Number is up to 10 digits; older ones are shorter.
+// The access-request route on the server (endpoints/access_requests.js)
+// applies the same rule.
+export const NPN_PATTERN = /^\d{7,10}$/;
+export const NPN_HELP = 'Your NPN is 7 to 10 digits';
+
 export const SNACKBAR_SUCCESS_OPTIONS = {
   ...SNACKBAR_BASE,
   style: {
