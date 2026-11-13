@@ -241,7 +241,7 @@ function StackLogo({ name, src }) {
   );
 }
 
-// "Pushes directly to your stack": the CRMs and dialers leads land in.
+// "Delivered to your CRM and phone": the CRMs and dialers leads land in.
 function StackBar() {
   return (
     <Box sx={{ mb: 3 }}>
@@ -255,7 +255,7 @@ function StackBar() {
           mb: 1,
         }}
       >
-        Pushes directly to your stack
+        Delivered to your CRM and phone
       </Box>
       <Box
         component='ul'
@@ -292,9 +292,9 @@ const formatTotal = (amount) => {
   return `$${Math.floor(amount)}`;
 };
 
-// The first sentence is the live all-time total (the admin's Total Closed
-// card): proof the leads get written. The second scales it down to one
-// agent's order. If the total can't be loaded, only the second shows.
+// The live all-time total (the admin's Total Closed card): proof the leads
+// get written. The per-agent maths lives in the performance section, which
+// the link opens. If the total can't be loaded, only the link shows.
 function ProofLine() {
   const { data: stats } = useQuery({
     queryKey: ['public-stats'],
@@ -326,14 +326,6 @@ function ProofLine() {
           .
         </Box>
       )}
-      <Box component='strong' sx={statSx}>
-        $22,600
-      </Box>{' '}
-      avg. annual premium per 100 leads{' '}
-      <Box component='span' sx={{ color: SLATE_MUTED }}>
-        (11.2% close rate at $2,023 avg. premium)
-      </Box>{' '}
-      ·{' '}
       <Box
         component='a'
         href='#fresh-leads'
@@ -345,7 +337,7 @@ function ProofLine() {
           '&:hover': { textDecoration: 'underline' },
         }}
       >
-        See the full breakdown →
+        See Website lead results →
       </Box>
     </Box>
   );
@@ -482,13 +474,13 @@ function ClosingCta() {
               color: WHITE,
             }}
           >
-            Try them yourself
+            Real Intent. Real Results.
           </Box>
           <Box
             component='p'
             sx={{ m: 0, fontSize: '1rem', lineHeight: 1.6, color: INK_MUTED }}
           >
-            Fresh leads are $39. Aged leads start at $1.50.
+            Tell us where you&apos;re licensed, and we will email you an invite.
           </Box>
         </Box>
         <CaptureForm sx={{ mx: 0, mb: 0, maxWidth: { md: 460 } }} />
@@ -619,9 +611,9 @@ export default function Landing() {
             }}
           >
             <Box component='span' sx={{ display: { md: 'block' } }}>
-              Real Intent.
+              Know more.
             </Box>{' '}
-            Real Results.
+            Before you call.
           </Box>
 
           <Box
@@ -635,9 +627,8 @@ export default function Landing() {
               color: SLATE_BODY,
             }}
           >
-            Shoppers compare live rates from real carriers, and most pick a plan
-            before they reach you, so you get the carrier, the premium and the
-            reason they're buying.
+            Consumers see and compare real life insurance rates, right before
+            reaching your business.
           </Box>
 
           <CaptureForm id={CAPTURE_ID} />

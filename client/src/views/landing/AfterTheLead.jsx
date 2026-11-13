@@ -77,16 +77,20 @@ function Notification({ stamp, text, phone }) {
             height: 34,
             flexShrink: 0,
             borderRadius: '9px',
-            bgcolor: INK,
-            color: WHITE,
-            fontSize: '0.575rem',
-            fontWeight: 800,
+            bgcolor: NEUTRAL,
+            border: `1px solid ${HAIRLINE}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          FEX
+          {/* The site's favicon. Its navy tile needs a light background. */}
+          <Box
+            component='img'
+            src='/icon.svg'
+            alt=''
+            sx={{ width: 20, height: 20, display: 'block' }}
+          />
         </Box>
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Box

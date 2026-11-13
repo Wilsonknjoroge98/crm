@@ -24,6 +24,13 @@ const HEADLINE_STATS = [
   },
 ];
 
+// The two Website-lead figures above, multiplied out for one order:
+// 100 leads x 11.2% x $2,023 = $22,658.
+const PER_100_LEADS = {
+  lead: 'What that means for 100 Website leads:',
+  text: 'an 11.2% close rate at a $2,023 average premium is about $22,600 in annual premium written. That is premium, not your commission. Based on Website leads issued Apr 1–Aug 31, 2026.',
+};
+
 const COST_PER_SALE = [
   {
     label: 'Live transfer',
@@ -51,6 +58,7 @@ export default function FreshLeadSections() {
         title='Asked minutes ago. Sent only to you.'
         intro="A shopper picks a plan and asks for a call. You're the only agent who hears about it."
         stats={HEADLINE_STATS}
+        footnote={PER_100_LEADS}
       />
       <CostPerSaleChart
         title='Every fresh product pays back many times over'

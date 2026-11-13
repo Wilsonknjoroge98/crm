@@ -101,7 +101,7 @@ export default function HeroHandoff() {
           02 / In your hands
         </span>
       </div>
-      <figcaption className='fex-handoff__caption' id={captionId}>
+      {/* <figcaption className='fex-handoff__caption' id={captionId}>
         Illustrative Website lead.
         <span className='fex-handoff__sr-only'>
           {' '}
@@ -109,7 +109,7 @@ export default function HeroHandoff() {
           $68 a month to leave a legacy, and verifies her phone. Her selected
           quote details are delivered to the agent.
         </span>
-      </figcaption>
+      </figcaption> */}
     </figure>
   );
 }

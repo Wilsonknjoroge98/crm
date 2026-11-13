@@ -417,8 +417,8 @@ const RULES = [
     tag: 'Your call',
     scope: 'Fresh leads only',
     icon: 'sliders',
-    title: 'Pause lead flow at any time.',
-    body: 'Switch lead flow off and back on from your profile, and update your licensed states yourself.',
+    title: 'Only get leads when you can call them.',
+    body: "Switch lead flow off before an appointment or a day off, and back on when you're free, so you never pay for a fresh lead you can't call right away.",
     Mock: ControlMock,
   },
 ];

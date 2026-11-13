@@ -1,28 +1,18 @@
 // SampleLead.jsx
 // "Where your leads come from": the quotes a shopper compares on
-// GetSeniorQuotes (with the one they pick), then the sample lead record that
-// pick becomes, the steps in between, and the field chips. Lives below the
-// fold; the hero only shows the lead arriving on a phone.
+// GetSeniorQuotes (with the one they pick), then chips naming the fields
+// that come with the lead. The lead record itself is shown on the hero's
+// phone.
 import Box from '@mui/material/Box';
 import {
-  ACCENT,
-  ACCENT_BORDER,
-  ACCENT_TINT,
-  CAPSULE,
   CARD,
   Chip,
-  GREEN,
-  GREEN_BORDER,
-  GREEN_TINT,
   HAIRLINE,
-  HAIRLINE_STRONG,
   INK,
   KEY,
   MONO,
   NEUTRAL,
-  SLATE_BODY,
   SLATE_MUTED,
-  SURFACE,
   Section,
   WHITE,
 } from './blocks';
@@ -34,75 +24,10 @@ const labelSx = {
   letterSpacing: '0.6px',
 };
 
-const pillTone = {
-  neutral: { bgcolor: NEUTRAL, color: SLATE_BODY, borderColor: HAIRLINE },
-  verified: { bgcolor: GREEN_TINT, color: GREEN, borderColor: GREEN_BORDER },
-  blue: { bgcolor: ACCENT_TINT, color: ACCENT, borderColor: ACCENT_BORDER },
-};
-
-function Pill({ tone = 'neutral', children }) {
-  return (
-    <Box
-      component='span'
-      sx={{
-        ...labelSx,
-        letterSpacing: '0.4px',
-        px: 1,
-        py: '2px',
-        borderRadius: CAPSULE,
-        lineHeight: 1.4,
-        border: '1px solid',
-        whiteSpace: 'nowrap',
-        ...pillTone[tone],
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
-const SPECS = [
-  { label: 'Age / State', value: '67 · Ohio' },
-  { label: 'Plan picked', value: 'Whole life · $25,000' },
-  { label: 'Quoted premium', value: '$68/mo', money: true },
-  { label: 'Carrier', value: 'A-rated carrier' },
-  { label: 'Reason', value: 'Leave a Legacy' },
-  { label: 'Health / Tobacco', value: 'Good · Non-smoker' },
-];
-
-const STEPS = [
-  { tag: 'Shopped', desc: 'Compared live rates from real carriers' },
-  { tag: 'Chose', desc: 'Picked a plan and a premium' },
-  { tag: 'Verified', desc: 'Confirmed their phone with a text code' },
-  { tag: 'Yours', desc: 'Sent only to you, by text and to your CRM' },
-];
-
-// Diameter of a stepper node, in px.
-const NODE = 28;
-
-// "1 · What the lead sees" / "2 · What lands in your CRM": the two halves of the
-// lead's trip from the quote page to the agent.
-function StepLabel({ n, children }) {
+// A small caption with a rule running out to the right.
+function StepLabel({ children }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-      <Box
-        sx={{
-          width: 26,
-          height: 26,
-          flexShrink: 0,
-          borderRadius: CAPSULE,
-          bgcolor: INK,
-          color: WHITE,
-          fontFamily: MONO,
-          fontSize: '0.8125rem',
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {n}
-      </Box>
       <Box sx={{ ...labelSx, fontSize: '0.75rem', color: SLATE_MUTED }}>
         {children}
       </Box>
@@ -113,7 +38,7 @@ function StepLabel({ n, children }) {
 
 // The rates a shopper compares on GetSeniorQuotes, laid out like its result
 // cards (carrier, AM Best rating, monthly premium, plan, the "See If You
-// Qualify" button). The middle one is the plan in the sample record below.
+// Qualify" button). The middle one is the plan on the hero's sample lead.
 const QUOTES = [
   { rating: 'A', premium: '$64' },
   { rating: 'A+', premium: '$68', picked: true },
@@ -146,8 +71,8 @@ function PointerCursor() {
 
 function QuoteResults() {
   return (
-    <Box sx={{ mb: { xs: 5, md: 8 } }}>
-      <StepLabel n='1'>What the lead sees on our site</StepLabel>
+    <Box>
+      <StepLabel>What the lead sees on our site</StepLabel>
       <Box
         aria-hidden='true'
         sx={{
@@ -265,208 +190,10 @@ function QuoteResults() {
   );
 }
 
-function SampleLeadCard() {
-  return (
-    <Box
-      sx={{
-        border: `1px solid ${HAIRLINE}`,
-        borderRadius: CARD,
-        bgcolor: WHITE,
-        p: { xs: 2, sm: 3, md: 5 },
-      }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-          pb: 3,
-          mb: 3,
-          borderBottom: `1px solid ${HAIRLINE}`,
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-            <Pill>Website lead · Fresh</Pill>
-            <Pill tone='verified'>✓ Verified phone</Pill>
-          </Box>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'baseline',
-              flexWrap: 'wrap',
-              gap: 1,
-            }}
-          >
-            <Box
-              component='span'
-              sx={{ fontSize: '1.5rem', fontWeight: 800, color: INK }}
-            >
-              Margaret H.
-            </Box>
-            <Box
-              component='span'
-              sx={{
-                fontFamily: MONO,
-                fontSize: '1rem',
-                color: SLATE_MUTED,
-              }}
-            >
-              (614) 555-0142
-            </Box>
-          </Box>
-        </Box>
-        <Pill tone='blue'>16 fields included</Pill>
-      </Box>
-
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-          gap: { xs: 1.25, md: 2 },
-          mb: { xs: 3, md: 5 },
-        }}
-      >
-        {SPECS.map((spec) => (
-          <Box
-            key={spec.label}
-            sx={{
-              bgcolor: SURFACE,
-              border: `1px solid ${HAIRLINE}`,
-              borderRadius: KEY,
-              p: { xs: 1.5, md: 2.5 },
-            }}
-          >
-            <Box sx={{ ...labelSx, color: SLATE_MUTED, mb: 0.75 }}>
-              {spec.label}
-            </Box>
-            <Box
-              sx={{
-                fontSize: '1.0625rem',
-                fontWeight: 700,
-                color: spec.money ? GREEN : INK,
-                fontFamily: spec.money ? MONO : 'inherit',
-              }}
-            >
-              {spec.value}
-            </Box>
-          </Box>
-        ))}
-      </Box>
-
-      <Box sx={{ ...labelSx, color: SLATE_MUTED, mb: 2.5 }}>
-        How they got to you
-      </Box>
-      {/* A stepper: four nodes on one line on desktop, stacked down a rail
-          on phones. The last step, where the lead becomes yours, is filled. */}
-      <Box
-        component='ol'
-        sx={{
-          listStyle: 'none',
-          m: 0,
-          p: 0,
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' },
-        }}
-      >
-        {STEPS.map((row, i) => {
-          const last = i === STEPS.length - 1;
-          return (
-            <Box
-              component='li'
-              key={row.tag}
-              sx={{
-                position: 'relative',
-                display: { xs: 'grid', md: 'block' },
-                gridTemplateColumns: `${NODE}px minmax(0, 1fr)`,
-                columnGap: 2,
-                pb: { xs: last ? 0 : 3, md: 0 },
-                pr: { md: 3 },
-                // The rail from this node to the next one.
-                '&::before': last
-                  ? undefined
-                  : {
-                      content: '""',
-                      position: 'absolute',
-                      bgcolor: HAIRLINE_STRONG,
-                      left: { xs: NODE / 2 - 1, md: NODE + 10 },
-                      top: { xs: NODE + 6, md: NODE / 2 - 1 },
-                      bottom: { xs: 6, md: 'auto' },
-                      right: { xs: 'auto', md: 10 },
-                      width: { xs: 2, md: 'auto' },
-                      height: { xs: 'auto', md: 2 },
-                    },
-              }}
-            >
-              <Box
-                aria-hidden='true'
-                sx={{
-                  width: NODE,
-                  height: NODE,
-                  borderRadius: CAPSULE,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `1px solid ${last ? INK : ACCENT_BORDER}`,
-                  bgcolor: last ? INK : ACCENT_TINT,
-                  color: last ? WHITE : ACCENT,
-                  mb: { md: 2 },
-                }}
-              >
-                <Box
-                  component='svg'
-                  viewBox='0 0 24 24'
-                  sx={{
-                    width: 16,
-                    height: 16,
-                    fill: 'none',
-                    stroke: 'currentColor',
-                    strokeWidth: 2.5,
-                    strokeLinecap: 'round',
-                    strokeLinejoin: 'round',
-                  }}
-                >
-                  <path d='M5 12.5l4.5 4.5L19 7.5' />
-                </Box>
-              </Box>
-              <Box>
-                <Box
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                    lineHeight: `${NODE}px`,
-                    color: INK,
-                    mb: { xs: 0, md: 0.25 },
-                  }}
-                >
-                  {row.tag}
-                </Box>
-                <Box
-                  sx={{
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.55,
-                    color: SLATE_BODY,
-                  }}
-                >
-                  {row.desc}
-                </Box>
-              </Box>
-            </Box>
-          );
-        })}
-      </Box>
-    </Box>
-  );
-}
-
 export default function SampleLeadSection({ eyebrow, title, intro, chipRows }) {
   return (
     <Section eyebrow={eyebrow} title={title} intro={intro}>
       <QuoteResults />
-      <StepLabel n='2'>What lands in your CRM</StepLabel>
-      <SampleLeadCard />
       {chipRows?.length > 0 && (
         <Box
           sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 1.25 }}
