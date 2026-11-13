@@ -40,7 +40,10 @@ const App = () => {
   const isLegalRoute = /\/(terms-of-service|privacy-policy)$/.test(pathname);
   // Legal pages are open to everyone; logged-out visitors see them without
   // the app chrome, logged-in agents keep the nav and side panel.
-  const isPublicRoute = isAuthRoute || (isLegalRoute && !isAuthenticated);
+  // The landing page at "/" carries its own header and footer.
+  const isLandingRoute = pathname === '/';
+  const isPublicRoute =
+    isAuthRoute || isLandingRoute || (isLegalRoute && !isAuthenticated);
   // The Marketplace hub sits on a tinted canvas, applied here so it reaches
   // under the nav offset and through the footer.
   const pageBackground =
@@ -71,7 +74,7 @@ const App = () => {
   console.log('Agent status:', agent);
 
   useEffect(() => {
-    if (!authInitialized || isLegalRoute) return;
+    if (!authInitialized || isLegalRoute || isLandingRoute) return;
 
     if (!isAuthenticated) {
       navigate('/login');
@@ -125,7 +128,7 @@ const App = () => {
           {!isPublicRoute && <SidePanel />}
 
           <Box
-            pb='48px'
+            pb={isLandingRoute ? 0 : '48px'}
             sx={{
               flex: 1,
               display: 'flex',

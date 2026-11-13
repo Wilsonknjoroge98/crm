@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "run-p dev:client dev:server",
     "dev:client": "npm run dev --prefix client",
-    "dev:server": "npm run emulators --prefix server"
+    "dev:server": "npm run emulators --prefix server",
+    "sync:hosting": "node -e \"const fs=require('fs');fs.rmSync('server/public',{recursive:true,force:true});fs.cpSync('client/dist','server/public',{recursive:true})\""
   },
   "devDependencies": {
     "npm-run-all2": "^8.0.4"

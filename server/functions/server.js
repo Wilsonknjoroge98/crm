@@ -35,6 +35,9 @@ const {
   createAdPublishRouter,
   messagesRouter,
   refundsRouter,
+  accessRequestsRouter,
+  publicAccessRequestRouter,
+  publicStatsRouter,
 } = require('./endpoints');
 
 admin.initializeApp();
@@ -58,6 +61,8 @@ app.use(
 );
 app.use(express.json({ limit: '10mb' }));
 app.use(publicRouter);
+app.use(publicAccessRequestRouter);
+app.use(publicStatsRouter);
 app.use(authMiddleware);
 app.use('/agent', agentRouter);
 app.use('/invite', inviteRouter);
@@ -80,6 +85,7 @@ app.use('/offers', offersRouter);
 app.use('/ad-publish', createAdPublishRouter());
 app.use('/messages', messagesRouter);
 app.use('/refunds', refundsRouter);
+app.use('/access-requests', accessRequestsRouter);
 
 app.get('/ad-spend', async (req, res) => {
   const { startDate, endDate, mode } = req.query;

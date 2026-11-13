@@ -377,6 +377,47 @@ const reviewRefund = async ({ leadId, action, reason }) => {
   return response.data?.data;
 };
 
+// The landing page's "Get access" form. Public: no session is needed.
+const postAccessRequest = async (request) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/access-request',
+    data: request,
+  });
+  return response.data;
+};
+
+// The landing page's headline totals: { totalClosed, closedSales }, the same
+// figures as the admin's Total Closed and Closed Sales cards. Public.
+const getPublicStats = async () => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/public-stats',
+  });
+  return response.data?.data;
+};
+
+// status is 'requested' (default, the review queue), 'approved', 'denied',
+// or 'all'
+const getAccessRequests = async ({ status } = {}) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/access-requests',
+    params: status ? { status } : undefined,
+  });
+  return response.data?.data;
+};
+
+// action is 'approve' (the result carries invite_token) or 'deny'
+const reviewAccessRequest = async ({ id, action, reason }) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: `/access-requests/${id}/${action}`,
+    data: action === 'deny' ? { reason } : undefined,
+  });
+  return response.data?.data;
+};
+
 const getAccount = async ({ email }) => {
   console.log('Getting client account', email);
 
@@ -1267,6 +1308,10 @@ export {
   dismissUnmatchedReview,
   getRefunds,
   reviewRefund,
+  postAccessRequest,
+  getPublicStats,
+  getAccessRequests,
+  reviewAccessRequest,
   postError,
   getInvites,
   createInvite,

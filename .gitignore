@@ -30,3 +30,4 @@ dist-ssr
 .secret.local
 
 server/public/
+.firebase/

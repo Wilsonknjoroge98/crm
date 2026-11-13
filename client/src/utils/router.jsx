@@ -6,6 +6,7 @@ import { MoonLoader } from 'react-spinners';
 const Clients = lazy(() => import('../views/Clients'));
 const Policies = lazy(() => import('../views/Policies'));
 const Login = lazy(() => import('../views/Login'));
+const Landing = lazy(() => import('../views/Landing'));
 const SignUp = lazy(() => import('../views/SignUp'));
 const Insights = lazy(() => import('../views/Insights'));
 const Premiums = lazy(() => import('../views/Premiums'));
@@ -20,6 +21,7 @@ const Production = lazy(() => import('../views/Production'));
 const Agents = lazy(() => import('../views/Agents'));
 const ReviewTriage = lazy(() => import('../views/ReviewTriage'));
 const Refunds = lazy(() => import('../views/Refunds'));
+const AccessRequests = lazy(() => import('../views/AccessRequests'));
 const SalesAnalytics = lazy(() => import('../views/SalesAnalytics'));
 const ResetPassword = lazy(() => import('../views/ResetPassword'));
 const ForgotPassword = lazy(() => import('../views/ForgotPassword'));
@@ -71,10 +73,8 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
-      {
-        index: true,
-        element: <Navigate to='/business' replace />,
-      },
+      // Public landing page; it sends logged-in agents on to /business.
+      { index: true, element: lazyRoute('/', Landing).element },
       {
         path: '/premiums',
         element: (
@@ -200,6 +200,27 @@ const router = createBrowserRouter([
             }
           >
             <Refunds />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/access-requests',
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100vh',
+                }}
+              >
+                <MoonLoader color='#1A1A1A' size={150} loading={true} />
+              </div>
+            }
+          >
+            <AccessRequests />
           </Suspense>
         ),
       },
