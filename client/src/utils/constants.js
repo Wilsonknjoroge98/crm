@@ -252,3 +252,36 @@ export const STATE_OPTIONS = STATES.map((name) => ({
   name,
   code: STATE_CODES[name],
 }));
+
+// GSQ delivery segments (leads.gsq_segment): how fresh the inventory was when
+// it was delivered. Shared by the business card's segment chip and the
+// business toolbar's Lead Age filter. Fresh takes the verified/sale green,
+// banked the info blue (unworked inventory, like the New metric card; not the
+// LEAD chip's slate, so the two don't blur together), and aged the neutral
+// grey used for Unverified, so aged inventory never competes with a live lead.
+export const SEGMENT_CHIPS = {
+  fresh: {
+    label: 'Fresh',
+    description: 'Delivered live',
+    bgcolor: '#E6F1EC',
+    color: 'success.main',
+  },
+  banked: {
+    label: 'Banked',
+    description: 'Held up to 72 hours',
+    bgcolor: 'info.light',
+    color: 'info.main',
+  },
+  aged_second: {
+    label: 'Aged 31–90d',
+    description: '31–90 days old',
+    bgcolor: '#F3F4F6',
+    color: 'text.secondary',
+  },
+  aged_third: {
+    label: 'Aged 91–180d',
+    description: '91–180 days old',
+    bgcolor: '#F3F4F6',
+    color: 'text.secondary',
+  },
+};

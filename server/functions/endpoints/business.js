@@ -22,6 +22,8 @@ const MAX_NOTES_LENGTH = 10000;
 const METRICS_PAGE_SIZE = 1000;
 const METRICS_ID_CHUNK_SIZE = 100;
 const GSQ_LEAD_VENDOR_ID = '1043bc55-a8cd-485f-bddc-46bcfc06d4ba';
+// leads.gsq_segment's check constraint; see add_lead_gsq_segment.sql.
+const GSQ_SEGMENTS = new Set(['fresh', 'banked', 'aged_second', 'aged_third']);
 // Card rows surface contact, notes, and the underwriting summary directly,
 // so the list projection carries what the drawer alone used to need.
 // `policies` is deliberately absent: the view builds it with a per-row lateral,
@@ -482,7 +484,32 @@ const parsePeopleQuery = (query) => {
     throw new QueryValidationError('Unsupported state');
   }
 
-  return { page, limit, sortBy, sortOrder, search, status, gsqOnly, states };
+  if (query.segment !== undefined && typeof query.segment !== 'string') {
+    throw new QueryValidationError('segment must be a string');
+  }
+  const segments = [
+    ...new Set(
+      (query.segment || '')
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+  if (segments.some((value) => !GSQ_SEGMENTS.has(value))) {
+    throw new QueryValidationError('Unsupported segment');
+  }
+
+  return {
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+    search,
+    status,
+    gsqOnly,
+    states,
+    segments,
+  };
 };
 
 // Contains-search: every whitespace-separated term becomes an escaped
@@ -591,6 +618,7 @@ const applyPeopleFilters = ({
   status,
   gsqOnly,
   states,
+  segments = [],
 }) => {
   let filteredQuery = query;
 
@@ -621,6 +649,15 @@ const applyPeopleFilters = ({
         .map((value) => `state.ilike."${value}"`)
         .join(','),
     );
+  }
+
+  // gsq_segment defaults to fresh on every lead, so a segment only means
+  // something on GSQ deliveries; scope to the vendor the way the card only
+  // shows the segment chip for GSQ leads.
+  if (segments.length > 0) {
+    filteredQuery = filteredQuery
+      .eq('lead_vendor_id', GSQ_LEAD_VENDOR_ID)
+      .in('gsq_segment', segments);
   }
 
   return filteredQuery;
@@ -720,8 +757,17 @@ const createBusinessRouter = ({
       throw error;
     }
 
-    const { page, limit, sortBy, sortOrder, search, status, gsqOnly, states } =
-      parsedQuery;
+    const {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      search,
+      status,
+      gsqOnly,
+      states,
+      segments,
+    } = parsedQuery;
     const { agentId, isSuperuser, isRealSuperuser } = await resolveAgentScope(
       req,
       supabase,
@@ -762,6 +808,7 @@ const createBusinessRouter = ({
         status,
         gsqOnly,
         states,
+        segments,
       });
 
       const offset = (page - 1) * limit;
@@ -784,6 +831,7 @@ const createBusinessRouter = ({
           status,
           gsqOnly,
           states,
+          segments,
         });
         const { error: countError, count: filteredCount } = await countQuery;
         if (countError) throw countError;

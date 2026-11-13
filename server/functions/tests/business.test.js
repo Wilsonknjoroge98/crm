@@ -350,6 +350,7 @@ describe('parsePeopleQuery', () => {
       status: null,
       gsqOnly: false,
       states: [],
+      segments: [],
     });
   });
 
@@ -364,6 +365,7 @@ describe('parsePeopleQuery', () => {
         status: ' Sale ',
         gsqOnly: 'true',
         state: ' Texas , Georgia,Texas ',
+        segment: ' Banked,aged_second ,banked',
       }),
     ).toEqual({
       page: 2,
@@ -374,6 +376,7 @@ describe('parsePeopleQuery', () => {
       status: 'SALE',
       gsqOnly: true,
       states: ['Texas', 'Georgia'],
+      segments: ['banked', 'aged_second'],
     });
   });
 
@@ -389,6 +392,8 @@ describe('parsePeopleQuery', () => {
     [{ status: ['lead'] }, 'status must be lead or sale'],
     [{ state: 'Texas,Nowhere' }, 'Unsupported state'],
     [{ state: ['Texas'] }, 'state must be a string'],
+    [{ segment: 'banked,stale' }, 'Unsupported segment'],
+    [{ segment: ['banked'] }, 'segment must be a string'],
   ])('rejects invalid query input', (query, message) => {
     expect(() => parsePeopleQuery(query)).toThrow(message);
   });
@@ -849,6 +854,31 @@ describe('GET /people', () => {
     expect(findQuery(supabase, 'business').calls).toContainEqual({
       method: 'eq',
       args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+    });
+  });
+
+  test('limits the list to GSQ deliveries from the requested segments', async () => {
+    const supabase = makeSupabase({
+      agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
+      business: [
+        { data: [{ id: 'person-1' }], error: null, count: 1 },
+        rollupFor([{ id: 'person-1' }]),
+      ],
+    });
+
+    const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
+      '/business?segment=banked,aged_third',
+    );
+
+    expect(response.status).toBe(200);
+    const { calls } = findQuery(supabase, 'business');
+    expect(calls).toContainEqual({
+      method: 'eq',
+      args: ['lead_vendor_id', '1043bc55-a8cd-485f-bddc-46bcfc06d4ba'],
+    });
+    expect(calls).toContainEqual({
+      method: 'in',
+      args: ['gsq_segment', ['banked', 'aged_third']],
     });
   });
 
