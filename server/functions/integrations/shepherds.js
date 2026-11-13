@@ -123,7 +123,10 @@ const inboundShepherdsSale = async (req, res) => {
       });
     }
 
-    // a retried webhook must not book the sale twice
+    // a retried webhook must not book the sale twice. This check covers a
+    // retry that arrives after the first request finished; one that runs
+    // alongside it (Shepherds resends ~8s into a cold start) is stopped by
+    // the unique index behind saleSource below.
     const { data: existingClients, error: existingError } =
       await supabaseService
         .from('clients')
@@ -157,6 +160,7 @@ const inboundShepherdsSale = async (req, res) => {
         monthly_premium: monthlyPremium,
         lead_vendor_id: lead.lead_vendor_id,
       },
+      saleSource: 'shepherds',
     });
 
     logger.log('Shepherds sale processed', {
