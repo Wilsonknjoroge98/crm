@@ -337,7 +337,7 @@ function ProofLine() {
           '&:hover': { textDecoration: 'underline' },
         }}
       >
-        See Website lead results →
+        See all results →
       </Box>
     </Box>
   );
