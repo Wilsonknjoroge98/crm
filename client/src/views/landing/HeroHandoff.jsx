@@ -75,7 +75,9 @@ export default function HeroHandoff() {
 
         <div className='fex-handoff__delivery'>
           <div className='fex-handoff__delivery-top'>
-            <span className='fex-handoff__mark'>FEX</span>
+            <span className='fex-handoff__mark'>
+              <img src='/icon.svg' alt='' />
+            </span>
             <span className='fex-handoff__delivery-brand'>
               FEX Digital<span>Lead delivered</span>
             </span>
