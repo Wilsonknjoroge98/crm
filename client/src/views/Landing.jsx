@@ -15,6 +15,7 @@ import LeadJourney from './landing/LeadJourney';
 import AccessRequestDialog from './landing/AccessRequestDialog';
 import LeadRules from './landing/LeadRules';
 import HeroHandoff from './landing/HeroHandoff';
+import Testimonials from './landing/testimonials/Testimonials';
 // Every colour comes from the app theme, by way of landing/tokens.js.
 import {
   ACCENT,
@@ -645,6 +646,7 @@ export default function Landing() {
       <FreshLeadSections />
       <AgedLeadSections />
       <LeadRules />
+      <Testimonials />
       <ClosingCta />
 
       <Footer />
