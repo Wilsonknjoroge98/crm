@@ -12,7 +12,7 @@ const {
   isMarketplaceSale,
   isRefundCandidate,
 } = require('../shared/refund_eligibility');
-const { isHouseLead } = require('../shared/brands');
+const { isBrand, isHouseLead } = require('../shared/brands');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -526,6 +526,21 @@ const parsePeopleQuery = (query) => {
     throw new QueryValidationError('Unsupported segment');
   }
 
+  if (query.brand !== undefined && typeof query.brand !== 'string') {
+    throw new QueryValidationError('brand must be a string');
+  }
+  const brands = [
+    ...new Set(
+      (query.brand || '')
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+  if (brands.some((value) => !isBrand(value))) {
+    throw new QueryValidationError('Unsupported brand');
+  }
+
   return {
     page,
     limit,
@@ -536,6 +551,7 @@ const parsePeopleQuery = (query) => {
     houseOnly,
     states,
     segments,
+    brands,
   };
 };
 
@@ -646,6 +662,7 @@ const applyPeopleFilters = ({
   houseOnly,
   states,
   segments = [],
+  brands = [],
 }) => {
   let filteredQuery = query;
 
@@ -685,6 +702,12 @@ const applyPeopleFilters = ({
     filteredQuery = filteredQuery
       .not('brand', 'is', null)
       .in('gsq_segment', segments);
+  }
+
+  // Values are whitelisted against BRAND_KEYS. Picking a brand implies a
+  // house lead, so an agent's own leads (brand null) drop out.
+  if (brands.length > 0) {
+    filteredQuery = filteredQuery.in('brand', brands);
   }
 
   return filteredQuery;
@@ -794,6 +817,7 @@ const createBusinessRouter = ({
       houseOnly,
       states,
       segments,
+      brands,
     } = parsedQuery;
     const { agentId, isSuperuser, isRealSuperuser } = await resolveAgentScope(
       req,
@@ -836,6 +860,7 @@ const createBusinessRouter = ({
         houseOnly,
         states,
         segments,
+        brands,
       });
 
       const offset = (page - 1) * limit;
@@ -859,6 +884,7 @@ const createBusinessRouter = ({
           houseOnly,
           states,
           segments,
+          brands,
         });
         const { error: countError, count: filteredCount } = await countQuery;
         if (countError) throw countError;

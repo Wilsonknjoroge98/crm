@@ -127,6 +127,7 @@ const getBusinessRecords = async ({
   status = 'all',
   state = [],
   segment = [],
+  brand = [],
   houseOnly = false,
   agentId,
 } = {}) => {
@@ -142,6 +143,7 @@ const getBusinessRecords = async ({
       status: status === 'all' ? undefined : status,
       state: state.length > 0 ? state.join(',') : undefined,
       segment: segment.length > 0 ? segment.join(',') : undefined,
+      brand: brand.length > 0 ? brand.join(',') : undefined,
       houseOnly: houseOnly ? 'true' : undefined,
       // Superuser-only: view the list scoped to a specific agent instead of
       // the caller's own. Ignored server-side for anyone else.
