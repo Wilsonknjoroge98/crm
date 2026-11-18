@@ -40,7 +40,7 @@ import {
 import NewLeadDialog from '../components/NewLeadDialog';
 import StateFilter from '../components/StateFilter';
 import SegmentFilter from '../components/SegmentFilter';
-import BrandFilter from '../components/BrandFilter';
+import SourceFilter from '../components/SourceFilter';
 import AgentFilter from '../components/AgentFilter';
 import CreateClientDialog from '../components/CreateClientDialog';
 import CreatePolicyDialog from '../components/CreatePolicyDialog';
@@ -264,7 +264,7 @@ const Business = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState([]);
   const [segmentFilter, setSegmentFilter] = useState([]);
-  const [brandFilter, setBrandFilter] = useState([]);
+  const [sourceFilter, setSourceFilter] = useState([]);
   // Superuser-only: scopes the list and metrics to one agent. The server
   // ignores agentId for anyone else.
   const [agentFilter, setAgentFilter] = useState(null);
@@ -330,7 +330,7 @@ const Business = () => {
       statusFilter,
       stateFilter,
       segmentFilter,
-      brandFilter,
+      sourceFilter,
       scopedAgentId,
     ],
     queryFn: () =>
@@ -344,7 +344,7 @@ const Business = () => {
         status: statusFilter,
         state: stateFilter,
         segment: segmentFilter,
-        brand: brandFilter,
+        source: sourceFilter,
         agentId: scopedAgentId,
       }),
     placeholderData: (previous) => previous,
@@ -646,11 +646,11 @@ const Business = () => {
                   setPage(0);
                 }}
               />
-              <BrandFilter
-                value={brandFilter}
+              <SourceFilter
+                value={sourceFilter}
                 onChange={(next) => {
                   clearSelection();
-                  setBrandFilter(next);
+                  setSourceFilter(next);
                   setPage(0);
                 }}
               />

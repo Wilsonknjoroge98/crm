@@ -372,7 +372,7 @@ describe('parsePeopleQuery', () => {
       houseOnly: false,
       states: [],
       segments: [],
-      brands: [],
+      sources: [],
     });
   });
 
@@ -388,7 +388,7 @@ describe('parsePeopleQuery', () => {
         houseOnly: 'true',
         state: ' Texas , Georgia,Texas ',
         segment: ' Banked,aged_second ,banked',
-        brand: ' Keyley,gsq ,keyley',
+        source: ' Keyley,gsq_instant_form ,keyley',
       }),
     ).toEqual({
       page: 2,
@@ -400,7 +400,7 @@ describe('parsePeopleQuery', () => {
       houseOnly: true,
       states: ['Texas', 'Georgia'],
       segments: ['banked', 'aged_second'],
-      brands: ['keyley', 'gsq'],
+      sources: ['keyley', 'gsq_instant_form'],
     });
   });
 
@@ -418,8 +418,8 @@ describe('parsePeopleQuery', () => {
     [{ state: ['Texas'] }, 'state must be a string'],
     [{ segment: 'banked,stale' }, 'Unsupported segment'],
     [{ segment: ['banked'] }, 'segment must be a string'],
-    [{ brand: 'gsq,acme' }, 'Unsupported brand'],
-    [{ brand: ['gsq'] }, 'brand must be a string'],
+    [{ source: 'gsq,keyley' }, 'Unsupported source'],
+    [{ source: ['keyley'] }, 'source must be a string'],
   ])('rejects invalid query input', (query, message) => {
     expect(() => parsePeopleQuery(query)).toThrow(message);
   });
@@ -908,7 +908,7 @@ describe('GET /people', () => {
     });
   });
 
-  test('limits the list to leads from the requested brands', async () => {
+  test('limits the list to leads from the requested sources', async () => {
     const supabase = makeSupabase({
       agent_clients: [{ data: [{ client_id: 'client-1' }], error: null }],
       business: [
@@ -918,13 +918,13 @@ describe('GET /people', () => {
     });
 
     const response = await request(makeApp(supabase, { id: 'agent-1' })).get(
-      '/business?brand=keyley',
+      '/business?source=gsq_website,keyley',
     );
 
     expect(response.status).toBe(200);
     expect(findQuery(supabase, 'business').calls).toContainEqual({
-      method: 'in',
-      args: ['brand', ['keyley']],
+      method: 'or',
+      args: ['and(brand.eq.gsq,gsq_instant_form.is.false),brand.eq.keyley'],
     });
   });
 

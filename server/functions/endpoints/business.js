@@ -12,7 +12,7 @@ const {
   isMarketplaceSale,
   isRefundCandidate,
 } = require('../shared/refund_eligibility');
-const { isBrand, isHouseLead } = require('../shared/brands');
+const { isHouseLead } = require('../shared/brands');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -24,6 +24,14 @@ const METRICS_PAGE_SIZE = 1000;
 const METRICS_ID_CHUNK_SIZE = 100;
 // leads.gsq_segment's check constraint; see add_lead_gsq_segment.sql.
 const GSQ_SEGMENTS = new Set(['fresh', 'banked', 'aged_second', 'aged_third']);
+
+// The business card's Source line: brand plus, for GSQ, the product
+// (gsq_instant_form). Keys mirror the client's SOURCE_FILTER_OPTIONS.
+const SOURCE_FILTERS = Object.freeze({
+  gsq_website: 'and(brand.eq.gsq,gsq_instant_form.is.false)',
+  gsq_instant_form: 'and(brand.eq.gsq,gsq_instant_form.is.true)',
+  keyley: 'brand.eq.keyley',
+});
 // Card rows surface contact, notes, and the underwriting summary directly,
 // so the list projection carries what the drawer alone used to need.
 // `policies` is deliberately absent: the view builds it with a per-row lateral,
@@ -526,19 +534,19 @@ const parsePeopleQuery = (query) => {
     throw new QueryValidationError('Unsupported segment');
   }
 
-  if (query.brand !== undefined && typeof query.brand !== 'string') {
-    throw new QueryValidationError('brand must be a string');
+  if (query.source !== undefined && typeof query.source !== 'string') {
+    throw new QueryValidationError('source must be a string');
   }
-  const brands = [
+  const sources = [
     ...new Set(
-      (query.brand || '')
+      (query.source || '')
         .split(',')
         .map((value) => value.trim().toLowerCase())
         .filter(Boolean),
     ),
   ];
-  if (brands.some((value) => !isBrand(value))) {
-    throw new QueryValidationError('Unsupported brand');
+  if (sources.some((value) => !Object.hasOwn(SOURCE_FILTERS, value))) {
+    throw new QueryValidationError('Unsupported source');
   }
 
   return {
@@ -551,7 +559,7 @@ const parsePeopleQuery = (query) => {
     houseOnly,
     states,
     segments,
-    brands,
+    sources,
   };
 };
 
@@ -662,7 +670,7 @@ const applyPeopleFilters = ({
   houseOnly,
   states,
   segments = [],
-  brands = [],
+  sources = [],
 }) => {
   let filteredQuery = query;
 
@@ -704,10 +712,12 @@ const applyPeopleFilters = ({
       .in('gsq_segment', segments);
   }
 
-  // Values are whitelisted against BRAND_KEYS. Picking a brand implies a
-  // house lead, so an agent's own leads (brand null) drop out.
-  if (brands.length > 0) {
-    filteredQuery = filteredQuery.in('brand', brands);
+  // Values are whitelisted against SOURCE_FILTERS, so only our own clauses
+  // reach the or().
+  if (sources.length > 0) {
+    filteredQuery = filteredQuery.or(
+      sources.map((value) => SOURCE_FILTERS[value]).join(','),
+    );
   }
 
   return filteredQuery;
@@ -817,7 +827,7 @@ const createBusinessRouter = ({
       houseOnly,
       states,
       segments,
-      brands,
+      sources,
     } = parsedQuery;
     const { agentId, isSuperuser, isRealSuperuser } = await resolveAgentScope(
       req,
@@ -860,7 +870,7 @@ const createBusinessRouter = ({
         houseOnly,
         states,
         segments,
-        brands,
+        sources,
       });
 
       const offset = (page - 1) * limit;
@@ -884,7 +894,7 @@ const createBusinessRouter = ({
           houseOnly,
           states,
           segments,
-          brands,
+          sources,
         });
         const { error: countError, count: filteredCount } = await countQuery;
         if (countError) throw countError;
