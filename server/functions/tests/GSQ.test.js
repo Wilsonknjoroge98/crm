@@ -450,7 +450,7 @@ describe('inboundGSQ instant form payload', () => {
         last_name: null,
         email: null,
         state: null,
-        date_of_birth: undefined,
+        date_of_birth: null,
         smoker: false,
         availability: 'morning',
         why: 'final_expenses',
@@ -462,6 +462,70 @@ describe('inboundGSQ instant form payload', () => {
       }),
     );
     expect(mockGetHyrosSource).not.toHaveBeenCalled();
+  });
+
+  // The 11/18 prefill form: Meta prefills gender, date of birth and state,
+  // and asks no tobacco question. gsq sends dob and sex top-level.
+  test('stores the prefill form\'s dob and sex, smoker unknown', async () => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockTables(insert);
+
+    const res = makeResponse();
+    await inboundGSQ(
+      makeInstantFormRequest({
+        state: 'Texas',
+        dob: '1958-03-07',
+        sex: 'Male',
+        fields: {
+          'what_is_your_coverage_for?': 'final_expenses',
+          'how_much_coverage_do_you_want?': '$10k_to_$25k',
+          'when_are_you_best_available?': 'morning',
+          'gender': 'male',
+        },
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: 'Texas',
+        date_of_birth: '1958-03-07',
+        sex: 'Male',
+        smoker: null,
+        why: 'final_expenses',
+        availability: 'morning',
+        raw_fields: { coverage: '$10k_to_$25k' },
+      }),
+    );
+  });
+
+  test('keeps a top-level sex when the form has no sex question', async () => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockTables(insert);
+
+    const res = makeResponse();
+    await inboundGSQ(makeInstantFormRequest({ sex: 'Female' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({ sex: 'Female', smoker: false }),
+    );
+  });
+
+  test('falls back to the gender answer when gsq sends no sex', async () => {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    mockTables(insert);
+
+    const res = makeResponse();
+    await inboundGSQ(
+      makeInstantFormRequest({ fields: { 'gender': 'female' } }),
+      res,
+    );
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({ sex: 'female', smoker: null, raw_fields: {} }),
+    );
   });
 
   // gsq runs more than one Meta form and each words its questions

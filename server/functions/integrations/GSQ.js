@@ -35,6 +35,9 @@ const FORM_KEY_ALIASES = {
   'how_soon_do_you_need_to_buy_coverage?': 'urgency',
   'what_is_your_age?': 'age',
   'select_your_sex_at_birth?': 'sex',
+  // Meta's prefilled GENDER question (the 11/18 prefill form). gsq also
+  // sends it top-level as `sex`, which wins (see instantFormColumns).
+  'gender': 'sex',
 };
 
 // The consent question's key is the whole disclosure paragraph and its
@@ -223,7 +226,9 @@ const inboundGSQ = async (req, res) => {
       email: email || null,
       state: state || null,
       sold: false,
-      date_of_birth: dob,
+      // funnel leads always send dob; instant forms send it (YYYY-MM-DD)
+      // only when the form prefilled DATE_OF_BIRTH
+      date_of_birth: dob || null,
       smoker: lead.smoker ?? false,
       face_amount: lead.faceAmount
         ? Number(lead.faceAmount.split('-')[0]) || null
@@ -270,7 +275,10 @@ const inboundGSQ = async (req, res) => {
           smoker: parseYesNo(tobacco),
           availability: availability ?? null,
           why: why ?? null,
-          sex: sex ?? null,
+          // gsq parses Meta's prefilled gender into a top-level `sex`
+          // ("Male"/"Female"); keep it over the raw form answer and never
+          // overwrite it with null when the form has no sex question.
+          sex: payload.sex ?? sex ?? null,
           gsq_source: lead.adName ?? null,
           gsq_id: null,
           raw_fields: rawFields,
