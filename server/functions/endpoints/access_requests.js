@@ -83,9 +83,12 @@ const siteFor = (req) => {
 const emailShell = (body) =>
   `<div style="font-family: Arial, sans-serif; color: #222; padding: 20px;">${body}</div>`;
 
-// Tells the team a request is waiting: an email to the team inbox with the
-// applicant's details, and a Slack line if ACCESS_REQUEST_SLACK_CHANNEL is
-// set (name and states only).
+// Who the new-request email goes to: the team inbox and Shea.
+const NOTIFY_RECIPIENTS = [TEAM_INBOX, 'sheamoralesffl@gmail.com'];
+
+// Tells the team a request is waiting: an email to NOTIFY_RECIPIENTS with
+// the applicant's details, and a Slack line if ACCESS_REQUEST_SLACK_CHANNEL
+// is set (name and states only).
 const defaultNotify = async (request, site = DEFAULT_SITE) => {
   const name = `${request.first_name} ${request.last_name}`;
   const states = request.states.join(', ');
@@ -99,7 +102,7 @@ const defaultNotify = async (request, site = DEFAULT_SITE) => {
   ];
   const results = await Promise.allSettled([
     sendEmail({
-      to: TEAM_INBOX,
+      to: NOTIFY_RECIPIENTS,
       subject: `Access request: ${name}`,
       text:
         rows.map(([label, value]) => `${label}: ${value}`).join('\n') +
