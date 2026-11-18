@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const express = require('express');
 const dayjs = require('dayjs');
 const logger = require('firebase-functions/logger');
-const { WebClient } = require('@slack/web-api');
 const { supabaseService } = require('../services/supabase');
 const STATE_ABBREV_MAP = require('../shared/constants/state_abbrev_map');
 const { TEAM_INBOX, escapeHtml, sendEmail } = require('../integrations/email');
@@ -87,8 +86,7 @@ const emailShell = (body) =>
 const NOTIFY_RECIPIENTS = [TEAM_INBOX, 'sheamoralesffl@gmail.com'];
 
 // Tells the team a request is waiting: an email to NOTIFY_RECIPIENTS with
-// the applicant's details, and a Slack line if ACCESS_REQUEST_SLACK_CHANNEL
-// is set (name and states only).
+// the applicant's details.
 const defaultNotify = async (request, site = DEFAULT_SITE) => {
   const name = `${request.first_name} ${request.last_name}`;
   const states = request.states.join(', ');
@@ -100,38 +98,24 @@ const defaultNotify = async (request, site = DEFAULT_SITE) => {
     ['NPN', request.npn],
     ['Licensed states', states],
   ];
-  const results = await Promise.allSettled([
-    sendEmail({
-      to: NOTIFY_RECIPIENTS,
-      subject: `Access request: ${name}`,
-      text:
-        rows.map(([label, value]) => `${label}: ${value}`).join('\n') +
-        `\n\nReview it: ${queue}\n`,
-      html: emailShell(
-        `<p>A new agent asked for access.</p><table>` +
-          rows
-            .map(
-              ([label, value]) =>
-                `<tr><td style="padding: 2px 16px 2px 0; color: #777;">${label}</td>` +
-                `<td>${escapeHtml(value)}</td></tr>`,
-            )
-            .join('') +
-          `</table><p><a href="${queue}">Review it in the CRM</a></p>`,
-      ),
-    }),
-    (async () => {
-      const channel = process.env.ACCESS_REQUEST_SLACK_CHANNEL;
-      if (!channel || !process.env.SLACK_BOT_TOKEN) return;
-      await new WebClient(process.env.SLACK_BOT_TOKEN).chat.postMessage({
-        channel,
-        text:
-          `New access request: ${name} (${states}). ` +
-          `Review it under Access Requests in the CRM.`,
-      });
-    })(),
-  ]);
-  const failed = results.find((r) => r.status === 'rejected');
-  if (failed) throw failed.reason;
+  await sendEmail({
+    to: NOTIFY_RECIPIENTS,
+    subject: `Access request: ${name}`,
+    text:
+      rows.map(([label, value]) => `${label}: ${value}`).join('\n') +
+      `\n\nReview it: ${queue}\n`,
+    html: emailShell(
+      `<p>A new agent asked for access.</p><table>` +
+        rows
+          .map(
+            ([label, value]) =>
+              `<tr><td style="padding: 2px 16px 2px 0; color: #777;">${label}</td>` +
+              `<td>${escapeHtml(value)}</td></tr>`,
+          )
+          .join('') +
+        `</table><p><a href="${queue}">Review it in the CRM</a></p>`,
+    ),
+  });
 };
 
 // Emails the approved applicant their sign-up link.
