@@ -999,9 +999,14 @@ const BusinessCard = ({
                 isHouse ? (
                   <>
                     <SegmentChip segment={person.gsq_segment} />
-                    {`${brandLabel(person.brand)} ${
-                      isInstantForm ? 'Instant Form' : 'Website'
-                    }`}
+                    {/* Worded like the toolbar's Source filter
+                        (SOURCE_FILTER_OPTIONS): GSQ names its product,
+                        Keyley has only the one. */}
+                    {isKeyley
+                      ? brandLabel(person.brand)
+                      : `${brandLabel(person.brand)} ${
+                          isInstantForm ? 'Instant Form' : 'Website'
+                        }`}
                   </>
                 ) : (
                   formatVendorName(person.lead_vendor_name)
