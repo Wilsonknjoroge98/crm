@@ -1,8 +1,11 @@
 import { Typography, Stack, Button, Alert } from '@mui/material';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getLeads, getAgents } from '../utils/query';
+import { getLeads, getAgents, getAccount } from '../utils/query';
+import { estimateFromLead } from '../utils/keyleyEstimate';
+import { enqueueSnackbar } from 'notistack';
+import { SNACKBAR_ERROR_OPTIONS } from '../utils/constants';
 import { CSVLink } from 'react-csv';
 
 import LeadsGrid from '../components/LeadsGrid';
@@ -72,6 +75,42 @@ const Leads = () => {
     staleTime: 1000 * 60 * 5,
     cacheTime: 1000 * 60 * 10,
   });
+
+  // Keyley leads: rebuild the estimate PDF the lead downloaded, in this browser.
+  const hasEstimate = useCallback((row) => estimateFromLead(row) !== null, []);
+  const viewEstimate = useCallback(
+    async (row) => {
+      // Open the tab during the click so pop-up blockers allow it; the PDF goes in when ready.
+      const tab = window.open('', '_blank');
+      try {
+        const owner = agents.find((a) => a.id === row.agent_id);
+        const { openSnapshot, photoDataUrl } = await import('../vendor/keyley/snapshot');
+        // The producer-page photo is only readable for your own profile; others get name and NPN.
+        // For your own leads the producer profile is used first (the name, NPN and photo the
+        // lead's page showed); otherwise the CRM's agent record.
+        let profile = null;
+        let photo = null;
+        if (row.agent_id && row.agent_id === user?.id && user?.email) {
+          profile = await getAccount({ email: user.email }).catch(() => null);
+          photo = await photoDataUrl(profile?.imageUrl);
+        }
+        const name =
+          profile?.name ||
+          (owner ? [owner.first_name, owner.last_name].filter(Boolean).join(' ') : '');
+        const data = estimateFromLead(
+          row,
+          name ? { name, npn: profile?.npn || owner?.npn || null, photoDataUrl: photo } : null,
+        );
+        if (!data) throw new Error('no estimate for this lead');
+        await openSnapshot(data, tab);
+      } catch (error) {
+        console.error('View Estimate failed', error);
+        tab?.close();
+        enqueueSnackbar('Could not open the estimate for this lead.', SNACKBAR_ERROR_OPTIONS);
+      }
+    },
+    [agents, user?.id, user?.email],
+  );
 
   const csvData = useMemo(() => {
     return leads.filter((lead) => {
@@ -148,6 +187,8 @@ const Leads = () => {
           leadsLoading={leadsLoading}
           agents={agents}
           showToolbar={true}
+          hasEstimate={hasEstimate}
+          viewEstimate={viewEstimate}
         />
       </PageContainer>
     </>
