@@ -379,6 +379,29 @@ const reviewRefund = async ({ leadId, action, reason }) => {
   return response.data?.data;
 };
 
+// Free leads given from the Refunds page, newest first (admins only)
+const getLeadGrants = async ({ limit } = {}) => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/lead-grants',
+    params: limit ? { limit } : undefined,
+  });
+  return response.data?.data;
+};
+
+// grant is { requestId, agentId, product, reason, note } plus verified and
+// unverified for 'web', or count for 'instant_form' / 'live_transfer'.
+// Resolves to { data, warning }; warning is set when the leads were credited
+// but the record could not be marked credited.
+const giveLeadGrant = async (grant) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/lead-grants',
+    data: grant,
+  });
+  return response.data;
+};
+
 // The landing page's "Get access" form. Public: no session is needed.
 const postAccessRequest = async (request) => {
   const response = await apiClient.request({
@@ -1310,6 +1333,8 @@ export {
   dismissUnmatchedReview,
   getRefunds,
   reviewRefund,
+  getLeadGrants,
+  giveLeadGrant,
   postAccessRequest,
   getPublicStats,
   getAccessRequests,

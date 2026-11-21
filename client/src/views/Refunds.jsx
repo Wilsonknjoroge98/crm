@@ -30,6 +30,7 @@ import {
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 import PageContainer from '../components/PageContainer';
+import LeadGrants from '../components/LeadGrants';
 
 const MONO = '"JetBrains Mono", monospace';
 const HEAD_CELL_SX = {
@@ -47,6 +48,9 @@ const TABS = [
   { value: 'denied', label: 'Denied' },
   { value: 'all', label: 'All' },
 ];
+// Not a refund filter: giving free leads lives on this page because it is
+// the same kind of credit to an agent's GSQ balance.
+const GRANTS_TAB = 'grants';
 const STATUS_CHIP_COLOR = {
   requested: 'warning',
   approved: 'success',
@@ -65,6 +69,7 @@ const Refunds = () => {
   const [status, setStatus] = useState('requested');
   const [pendingId, setPendingId] = useState(null);
   const isPendingTab = status === 'requested';
+  const isGrantsTab = status === GRANTS_TAB;
 
   const {
     data: refunds = [],
@@ -73,6 +78,7 @@ const Refunds = () => {
   } = useQuery({
     queryKey: ['refunds', status],
     queryFn: () => getRefunds({ status }),
+    enabled: !isGrantsTab,
   });
 
   const { mutate: review } = useMutation({
@@ -135,23 +141,34 @@ const Refunds = () => {
         mb={1}
       >
         <Typography variant='h4'>Refunds</Typography>
-        <Typography variant='body2' color='text.secondary'>
-          {refunds.length} {isPendingTab ? 'pending' : ''} result
-          {refunds.length !== 1 ? 's' : ''}
-        </Typography>
+        {!isGrantsTab && (
+          <Typography variant='body2' color='text.secondary'>
+            {refunds.length} {isPendingTab ? 'pending' : ''} result
+            {refunds.length !== 1 ? 's' : ''}
+          </Typography>
+        )}
       </Stack>
 
       <Tabs
         value={status}
         onChange={(_, value) => setStatus(value)}
+        variant='scrollable'
+        scrollButtons='auto'
         sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
       >
         {TABS.map((tab) => (
           <Tab key={tab.value} value={tab.value} label={tab.label} />
         ))}
+        <Tab
+          value={GRANTS_TAB}
+          label='Give free leads'
+          sx={{ ml: 'auto', borderLeft: 1, borderColor: 'divider' }}
+        />
       </Tabs>
 
-      {refunds.length === 0 ? (
+      {isGrantsTab ? (
+        <LeadGrants />
+      ) : refunds.length === 0 ? (
         <Alert severity={isPendingTab ? 'success' : 'info'}>
           {isPendingTab
             ? 'No refund requests to review.'
