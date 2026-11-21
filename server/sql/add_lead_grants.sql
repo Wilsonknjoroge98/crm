@@ -8,8 +8,12 @@
 --   grant select on public.lead_grants to fex_sheet_reader;
 -- so the fex business master sheet job can read grants.
 create table if not exists public.lead_grants (
+  -- the server stores the client's request id here, so a retried grant is
+  -- refused (unique violation) instead of crediting twice
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
+  -- no "on delete": like the refund and access request reviewer columns,
+  -- a grant keeps the agent rows it names, so the audit trail stays whole
   agent_id uuid references public.agents (id),
   -- gsq keys its ledgers by lowercased email, so this is the ledger doc the
   -- grant credited even if the agent's crm email changes later
@@ -27,9 +31,14 @@ create table if not exists public.lead_grants (
   reason text not null
     check (reason in ('review_bounty', 'bad_lead_make_good', 'comp', 'owner_use', 'other')),
   note text not null check (length(btrim(note)) between 1 and 500),
-  granted_by uuid references public.agents (id),
-  -- pending until the gsq ledger write lands; failed means nothing was
-  -- credited (the ledger write is one atomic update) and error says why
+  granted_by uuid not null references public.agents (id),
+  -- credited: the gsq ledger write landed.
+  -- failed: gsq refused the write, nothing was credited (it is one atomic
+  --   update), error says why.
+  -- pending: not confirmed. either in progress, or the gsq write's outcome
+  --   is unknown (error then starts "Outcome unknown"), or the ledger was
+  --   credited but marking the row failed. check the agent's gsq balance
+  --   before giving the leads again.
   status text not null default 'pending'
     check (status in ('pending', 'credited', 'failed')),
   credited_at timestamptz,

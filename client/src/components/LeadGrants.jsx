@@ -65,6 +65,12 @@ const REASONS = [
   { value: 'other', label: 'Other' },
 ];
 const REASON_LABEL = Object.fromEntries(REASONS.map((r) => [r.value, r.label]));
+const STATUS_TOOLTIP = {
+  failed: (error) => `GSQ refused it, nothing was credited: ${error}`,
+  pending: (error) =>
+    `Not confirmed${error ? ` (${error})` : ''}. Check the agent's GSQ ` +
+    'balance before giving these again.',
+};
 const STATUS_CHIP_COLOR = {
   credited: 'success',
   pending: 'warning',
@@ -101,12 +107,41 @@ const parseCount = (value) => {
   return Number.isInteger(n) && n >= 0 && n <= MAX_QUANTITY ? n : NaN;
 };
 
-// one id per confirmed grant, so a double submit of the same grant is
-// refused by the server instead of crediting twice
-const newRequestId = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : undefined;
+// A UUID v4 for the grant's request id. randomUUID needs a secure page, so
+// fall back to getRandomValues (and Math.random as a last resort).
+const newRequestId = () => {
+  const c = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (c?.getRandomValues) c.getRandomValues(bytes);
+  else bytes.forEach((_, i) => (bytes[i] = Math.floor(Math.random() * 256)));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'));
+  return [
+    hex.slice(0, 4),
+    hex.slice(4, 6),
+    hex.slice(6, 8),
+    hex.slice(8, 10),
+    hex.slice(10, 16),
+  ]
+    .map((part) => part.join(''))
+    .join('-');
+};
+
+// True when the server answered that nothing was recorded or credited, so a
+// retry may safely be a new grant. No answer at all, a 5xx whose outcome is
+// unknown, or a duplicate means the first attempt may have gone through.
+const nothingRecorded = (error) => {
+  const response = error?.response;
+  if (!response) return false;
+  if (response.data?.data?.status === 'failed') return true;
+  return (
+    response.status >= 400 && response.status < 500 && !response.data?.duplicate
+  );
+};
+
+const hasEmail = (agent) => Boolean(agent?.email?.trim());
 
 const EMPTY_FORM = {
   agent: null,
@@ -122,6 +157,11 @@ const LeadGrants = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirming, setConfirming] = useState(null);
+  // One request id per filled-in form, kept across retries so a retry of a
+  // grant that may already have gone through is refused by the server
+  // instead of crediting twice. A new id once any field changes, or after
+  // the server confirmed nothing was recorded.
+  const [requestId, setRequestId] = useState(null);
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery({
     queryKey: ['agents'],
@@ -137,8 +177,10 @@ const LeadGrants = () => {
     queryFn: () => getLeadGrants(),
   });
 
-  const set = (field) => (value) =>
+  const set = (field) => (value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    setRequestId(null);
+  };
 
   const isWeb = form.product === 'web';
   const verified = parseCount(form.verified);
@@ -149,7 +191,8 @@ const LeadGrants = () => {
     Number.isInteger(quantity) && quantity >= 1 && quantity <= MAX_QUANTITY;
   const note = form.note.trim();
   const canSubmit =
-    Boolean(form.agent?.id && form.agent?.email) &&
+    Boolean(form.agent?.id) &&
+    hasEmail(form.agent) &&
     countsValid &&
     Boolean(form.reason) &&
     note.length > 0 &&
@@ -168,12 +211,14 @@ const LeadGrants = () => {
       }
       setConfirming(null);
       setForm(EMPTY_FORM);
+      setRequestId(null);
     },
     onError: (error) => {
       enqueueSnackbar(
         error?.response?.data?.error || 'Failed to give free leads',
         SNACKBAR_ERROR_OPTIONS,
       );
+      if (nothingRecorded(error)) setRequestId(null);
       setConfirming(null);
     },
     // a failed grant is recorded too, so the table refreshes either way
@@ -183,6 +228,8 @@ const LeadGrants = () => {
 
   const openConfirm = () => {
     if (!canSubmit) return;
+    const id = requestId || newRequestId();
+    setRequestId(id);
     const name = fullName(form.agent) || form.agent.email;
     const what = describeGrant({
       product: form.product,
@@ -193,7 +240,7 @@ const LeadGrants = () => {
     setConfirming({
       summary: `${name} ${what}`,
       body: {
-        requestId: newRequestId(),
+        requestId: id,
         agentId: form.agent.id,
         product: form.product,
         ...(isWeb ? { verified, unverified } : { count }),
@@ -202,7 +249,6 @@ const LeadGrants = () => {
       },
     });
   };
-
 
   return (
     <Stack spacing={3}>
@@ -224,7 +270,7 @@ const LeadGrants = () => {
             getOptionLabel={(agent) =>
               agent ? `${fullName(agent)} (${agent.email || 'no email'})` : ''
             }
-            getOptionDisabled={(agent) => !agent.email}
+            getOptionDisabled={(agent) => !hasEmail(agent)}
             isOptionEqualToValue={(option, value) => option.id === value.id}
             renderInput={(params) => (
               <TextField {...params} label='Agent' required />
@@ -270,7 +316,9 @@ const LeadGrants = () => {
                   type='number'
                   value={form.verified}
                   onChange={(e) => set('verified')(e.target.value)}
-                  slotProps={{ htmlInput: { min: 0, max: MAX_QUANTITY, step: 1 } }}
+                  slotProps={{
+                    htmlInput: { min: 0, max: MAX_QUANTITY, step: 1 },
+                  }}
                   error={Number.isNaN(verified)}
                   sx={COUNT_SX}
                   helperText={`0 to ${MAX_QUANTITY}`}
@@ -280,7 +328,9 @@ const LeadGrants = () => {
                   type='number'
                   value={form.unverified}
                   onChange={(e) => set('unverified')(e.target.value)}
-                  slotProps={{ htmlInput: { min: 0, max: MAX_QUANTITY, step: 1 } }}
+                  slotProps={{
+                    htmlInput: { min: 0, max: MAX_QUANTITY, step: 1 },
+                  }}
                   error={Number.isNaN(unverified)}
                   sx={COUNT_SX}
                   helperText={
@@ -296,7 +346,9 @@ const LeadGrants = () => {
                 type='number'
                 value={form.count}
                 onChange={(e) => set('count')(e.target.value)}
-                slotProps={{ htmlInput: { min: 1, max: MAX_QUANTITY, step: 1 } }}
+                slotProps={{
+                  htmlInput: { min: 1, max: MAX_QUANTITY, step: 1 },
+                }}
                 error={Number.isNaN(count)}
                 sx={COUNT_SX}
                 helperText={`1 to ${MAX_QUANTITY}`}
@@ -443,11 +495,7 @@ const LeadGrants = () => {
                   </TableCell>
                   <TableCell>
                     <Tooltip
-                      title={
-                        grant.status === 'failed' && grant.error
-                          ? `Nothing was credited: ${grant.error}`
-                          : ''
-                      }
+                      title={STATUS_TOOLTIP[grant.status]?.(grant.error) || ''}
                     >
                       <Chip
                         size='small'

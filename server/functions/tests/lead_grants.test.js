@@ -10,6 +10,15 @@ jest.mock('firebase-functions/logger', () => ({
 }));
 
 const { createLeadGrantsRouter } = require('../endpoints/lead_grants');
+const { SUPER_ADMIN_EMAIL } = require('../integrations/GSQ');
+
+const ADMIN_ID = '0a0a0a0a-0000-4000-8000-000000000001';
+const AGENT_ID = '0b0b0b0b-0000-4000-8000-000000000002';
+const GRANT_ID = '6f1c2a34-1b2c-4d5e-8f90-123456789abc';
+
+// a Firestore error with its gRPC status code
+const grpcError = (code, message) =>
+  Object.assign(new Error(message), { code });
 
 // Each entry is one `supabase.from(table)` call, in the order the route
 // under test is expected to make them. Every query is awaitable directly
@@ -41,14 +50,26 @@ const makeSupabase = (calls) => {
   return { from, queries, callCount: () => index };
 };
 
-// Fake GSQ Firestore: `docs` maps a path ('agents/<email>') to whether it
-// exists; every doc ref is kept so a test can read the update it got.
+// Fake GSQ Firestore: `docs` maps a path ('agents/<email>') to the doc's
+// data, or to true for a ledger doc with its counters at 0; a path that is
+// not listed does not exist. Every doc ref is kept so a test can read the
+// update it got.
+const LEDGER_COUNTERS = {
+  outstandingLeads: 0,
+  verified: 0,
+  unverified: 0,
+  outstandingInstantForms: 0,
+  outstandingLiveTransfers: 0,
+};
 const makeFirestore = ({ docs = {}, update } = {}) => {
   const refs = {};
   const doc = jest.fn((path) => {
+    const exists = Object.prototype.hasOwnProperty.call(docs, path);
+    const data = docs[path] === true ? LEDGER_COUNTERS : docs[path];
     const ref = {
       get: jest.fn().mockResolvedValue({
-        exists: Object.prototype.hasOwnProperty.call(docs, path),
+        exists,
+        get: (field) => (exists ? data?.[field] : undefined),
       }),
       update: update || jest.fn().mockResolvedValue(undefined),
     };
@@ -64,7 +85,7 @@ const makeFirestore = ({ docs = {}, update } = {}) => {
 const makeApp = ({
   supabase,
   createFirestore = makeFirestore(),
-  agent = { id: 'admin-1', email: 'admin@example.com' },
+  agent = { id: ADMIN_ID, email: 'admin@example.com' },
   role = 'admin',
   user = true,
 }) => {
@@ -72,7 +93,7 @@ const makeApp = ({
   app.use(express.json());
   app.use((req, res, next) => {
     req.agent = agent;
-    if (user) req.user = { id: agent?.id, role };
+    if (user) req.user = { id: agent?.id || 'auth-user-1', role };
     next();
   });
   app.use('/lead-grants', createLeadGrantsRouter({ supabase, createFirestore }));
@@ -80,7 +101,7 @@ const makeApp = ({
 };
 
 const AGENT = {
-  id: 'agent-1',
+  id: AGENT_ID,
   first_name: 'Shea',
   last_name: 'Morales',
   email: ' Shea@Example.com ',
@@ -88,7 +109,8 @@ const AGENT = {
 const EMAIL = 'shea@example.com';
 
 const webGrant = (overrides = {}) => ({
-  agentId: 'agent-1',
+  requestId: GRANT_ID,
+  agentId: AGENT_ID,
   product: 'web',
   verified: 2,
   unverified: 0,
@@ -98,7 +120,7 @@ const webGrant = (overrides = {}) => ({
 });
 
 const pendingRow = (overrides = {}) => ({
-  id: 'grant-1',
+  id: GRANT_ID,
   status: 'pending',
   agent_email: EMAIL,
   ...overrides,
@@ -119,7 +141,7 @@ const happyCalls = (row = pendingRow()) => [
 ];
 
 describe('access', () => {
-  test('POST without a signed-in user is forbidden', async () => {
+  test('POST without an admin role on the request is forbidden', async () => {
     const supabase = makeSupabase([]);
     const app = makeApp({ supabase, user: false });
     const res = await request(app).post('/lead-grants').send(webGrant());
@@ -137,6 +159,17 @@ describe('access', () => {
     expect(createFirestore).not.toHaveBeenCalled();
   });
 
+  test('POST by an admin with no agent profile is refused, so granted_by is never empty', async () => {
+    const supabase = makeSupabase([]);
+    const createFirestore = makeFirestore({ docs: { [`agents/${EMAIL}`]: true } });
+    const app = makeApp({ supabase, createFirestore, agent: null });
+    const res = await request(app).post('/lead-grants').send(webGrant());
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Agent profile required/);
+    expect(supabase.callCount()).toBe(0);
+    expect(createFirestore).not.toHaveBeenCalled();
+  });
+
   test('GET by an agent who is not an admin is forbidden', async () => {
     const supabase = makeSupabase([]);
     const app = makeApp({ supabase, role: 'agent' });
@@ -149,6 +182,7 @@ describe('access', () => {
 describe('POST /lead-grants validation', () => {
   const cases = [
     ['missing agentId', webGrant({ agentId: undefined }), /agentId/],
+    ['agentId that is not a uuid', webGrant({ agentId: 'abc' }), /agentId/],
     ['unknown product', webGrant({ product: 'aged' }), /product/],
     ['web with no leads', webGrant({ verified: 0, unverified: 0 }), /at least 1/i],
     ['web with a fraction', webGrant({ verified: 1.5 }), /whole numbers/],
@@ -183,6 +217,7 @@ describe('POST /lead-grants validation', () => {
     ['blank note', webGrant({ note: '   ' }), /note is required/],
     ['note too long', webGrant({ note: 'x'.repeat(501) }), /500/],
     ['requestId that is not a uuid', webGrant({ requestId: 'abc' }), /requestId/],
+    ['missing requestId', webGrant({ requestId: undefined }), /requestId/],
   ];
 
   test.each(cases)('rejects %s', async (_, body, message) => {
@@ -254,6 +289,44 @@ describe('POST /lead-grants validation', () => {
     // only the agent lookup, nothing inserted
     expect(supabase.callCount()).toBe(1);
   });
+
+  test.each([
+    ['web', `agents/${EMAIL}`, { phone: '5555550100', sendBlueEnabled: true }],
+    ['instant_form', `instant_forms/${EMAIL}`, { lastIssuedDate: 'x' }],
+    ['live_transfer', `live_transfers/${EMAIL}`, { lastDialedDate: 'x' }],
+  ])('409 and no record when the %s ledger doc has no counter (a stub)', async (product, path, data) => {
+    const supabase = makeSupabase([
+      { table: 'agents', result: { data: AGENT, error: null } },
+    ]);
+    const createFirestore = makeFirestore({ docs: { [path]: data } });
+    const app = makeApp({ supabase, createFirestore });
+    const body =
+      product === 'web'
+        ? webGrant()
+        : webGrant({ product, verified: undefined, unverified: undefined, count: 1 });
+    const res = await request(app).post('/lead-grants').send(body);
+    expect(res.status).toBe(409);
+    expect(createFirestore.refs[path].update).not.toHaveBeenCalled();
+    expect(supabase.callCount()).toBe(1);
+  });
+
+  test('400 for the company account, whose leads are not in its own ledger', async () => {
+    const supabase = makeSupabase([
+      {
+        table: 'agents',
+        result: { data: { ...AGENT, email: SUPER_ADMIN_EMAIL.toUpperCase() }, error: null },
+      },
+    ]);
+    const createFirestore = makeFirestore({
+      docs: { [`agents/${SUPER_ADMIN_EMAIL}`]: true },
+    });
+    const app = makeApp({ supabase, createFirestore });
+    const res = await request(app).post('/lead-grants').send(webGrant());
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/company account/);
+    expect(createFirestore).not.toHaveBeenCalled();
+    expect(supabase.callCount()).toBe(1);
+  });
 });
 
 describe('POST /lead-grants crediting', () => {
@@ -278,10 +351,11 @@ describe('POST /lead-grants crediting', () => {
 
     const [lookup, insert, credit] = supabase.queries;
     expect(lookup.table).toBe('agents');
-    expect(lookup.eq).toHaveBeenCalledWith('id', 'agent-1');
+    expect(lookup.eq).toHaveBeenCalledWith('id', AGENT_ID);
     expect(insert.table).toBe('lead_grants');
     expect(insert.insert).toHaveBeenCalledWith({
-      agent_id: 'agent-1',
+      id: GRANT_ID,
+      agent_id: AGENT_ID,
       agent_email: EMAIL,
       brand: 'gsq',
       product: 'web',
@@ -290,7 +364,7 @@ describe('POST /lead-grants crediting', () => {
       quantity: 5,
       reason: 'bad_lead_make_good',
       note: 'received 2 verified leads over the age of 85',
-      granted_by: 'admin-1',
+      granted_by: ADMIN_ID,
       status: 'pending',
     });
     expect(credit.table).toBe('lead_grants');
@@ -298,7 +372,7 @@ describe('POST /lead-grants crediting', () => {
       status: 'credited',
       credited_at: expect.any(String),
     });
-    expect(credit.eq).toHaveBeenCalledWith('id', 'grant-1');
+    expect(credit.eq).toHaveBeenCalledWith('id', GRANT_ID);
     expect(credit.eq).toHaveBeenCalledWith('status', 'pending');
   });
 
@@ -327,7 +401,8 @@ describe('POST /lead-grants crediting', () => {
     const app = makeApp({ supabase, createFirestore });
 
     const res = await request(app).post('/lead-grants').send({
-      agentId: 'agent-1',
+      requestId: GRANT_ID,
+      agentId: AGENT_ID,
       product: 'instant_form',
       count: 3,
       reason: 'review_bounty',
@@ -358,7 +433,8 @@ describe('POST /lead-grants crediting', () => {
     const app = makeApp({ supabase, createFirestore });
 
     const res = await request(app).post('/lead-grants').send({
-      agentId: 'agent-1',
+      requestId: GRANT_ID,
+      agentId: AGENT_ID,
       product: 'live_transfer',
       count: 1,
       reason: 'comp',
@@ -374,11 +450,11 @@ describe('POST /lead-grants crediting', () => {
     );
   });
 
-  test('a requestId becomes the row id', async () => {
+  test('the requestId becomes the row id', async () => {
     const supabase = makeSupabase(happyCalls());
     const createFirestore = makeFirestore({ docs: { [`agents/${EMAIL}`]: true } });
     const app = makeApp({ supabase, createFirestore });
-    const requestId = '6f1c2a34-1b2c-4d5e-8f90-123456789abc';
+    const requestId = '7e2d3b45-2c3d-4e6f-9a01-23456789abcd';
 
     const res = await request(app)
       .post('/lead-grants')
@@ -404,10 +480,11 @@ describe('POST /lead-grants crediting', () => {
 
     const res = await request(app)
       .post('/lead-grants')
-      .send(webGrant({ requestId: '6f1c2a34-1b2c-4d5e-8f90-123456789abc' }));
+      .send(webGrant());
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/already submitted/);
+    expect(res.body.duplicate).toBe(true);
     expect(createFirestore.refs[path].update).not.toHaveBeenCalled();
   });
 
@@ -426,14 +503,18 @@ describe('POST /lead-grants crediting', () => {
     expect(createFirestore.refs[path].update).not.toHaveBeenCalled();
   });
 
-  test('a Firestore failure marks the grant failed with the error and returns 502', async () => {
+  test.each([
+    ['NOT_FOUND', 5],
+    ['PERMISSION_DENIED', 7],
+    ['FAILED_PRECONDITION', 9],
+  ])('a write GSQ refused (%s) marks the grant failed and returns 502', async (name, code) => {
     const supabase = makeSupabase([
       { table: 'agents', result: { data: AGENT, error: null } },
       { table: 'lead_grants', result: { data: pendingRow(), error: null } },
       { table: 'lead_grants', result: { data: null, error: null } },
     ]);
     const path = `agents/${EMAIL}`;
-    const update = jest.fn().mockRejectedValue(new Error('DEADLINE_EXCEEDED'));
+    const update = jest.fn().mockRejectedValue(grpcError(code, name));
     const createFirestore = makeFirestore({ docs: { [path]: true }, update });
     const app = makeApp({ supabase, createFirestore });
 
@@ -441,14 +522,12 @@ describe('POST /lead-grants crediting', () => {
 
     expect(res.status).toBe(502);
     expect(res.body.error).toMatch(/Nothing was credited/);
-    expect(res.body.data).toEqual({ id: 'grant-1', status: 'failed' });
+    expect(res.body.data).toEqual({ id: GRANT_ID, status: 'failed' });
     expect(update).toHaveBeenCalledTimes(1);
     const mark = supabase.queries[2];
-    expect(mark.update).toHaveBeenCalledWith({
-      status: 'failed',
-      error: 'DEADLINE_EXCEEDED',
-    });
-    expect(mark.eq).toHaveBeenCalledWith('id', 'grant-1');
+    expect(mark.update).toHaveBeenCalledWith({ status: 'failed', error: name });
+    expect(mark.eq).toHaveBeenCalledWith('id', GRANT_ID);
+    expect(mark.eq).toHaveBeenCalledWith('status', 'pending');
     // never marked credited
     expect(supabase.callCount()).toBe(3);
     expect(
@@ -458,19 +537,54 @@ describe('POST /lead-grants crediting', () => {
     ).toBe(false);
   });
 
-  test('still 502 when marking the grant failed also fails', async () => {
+  test.each([
+    ['DEADLINE_EXCEEDED', 4],
+    ['UNAVAILABLE', 14],
+    ['CANCELLED', 1],
+    ['INTERNAL', 13],
+    ['no code (a reset connection)', undefined],
+  ])('a write with an unknown outcome (%s) stays pending, never "nothing credited"', async (name, code) => {
+    const supabase = makeSupabase([
+      { table: 'agents', result: { data: AGENT, error: null } },
+      { table: 'lead_grants', result: { data: pendingRow(), error: null } },
+      { table: 'lead_grants', result: { data: null, error: null } },
+    ]);
+    const path = `agents/${EMAIL}`;
+    const update = jest.fn().mockRejectedValue(grpcError(code, name));
+    const createFirestore = makeFirestore({ docs: { [path]: true }, update });
+    const app = makeApp({ supabase, createFirestore });
+
+    const res = await request(app).post('/lead-grants').send(webGrant());
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/may or may not/);
+    expect(res.body.error).toMatch(/balance before giving/);
+    expect(res.body.error).not.toMatch(/Nothing was credited/);
+    expect(res.body.data).toEqual({ id: GRANT_ID, status: 'pending' });
+    const mark = supabase.queries[2];
+    expect(mark.update).toHaveBeenCalledWith({ error: `Outcome unknown: ${name}` });
+    expect(mark.eq).toHaveBeenCalledWith('status', 'pending');
+    expect(
+      supabase.queries.some((q) =>
+        q.update.mock.calls.some(([fields]) => fields.status),
+      ),
+    ).toBe(false);
+  });
+
+  test('still 502 when recording the Firestore failure also fails', async () => {
     const supabase = makeSupabase([
       { table: 'agents', result: { data: AGENT, error: null } },
       { table: 'lead_grants', result: { data: pendingRow(), error: null } },
       { table: 'lead_grants', result: { data: null, error: { message: 'down' } } },
     ]);
     const path = `instant_forms/${EMAIL}`;
-    const update = jest.fn().mockRejectedValue(new Error('UNAVAILABLE'));
+    const update = jest.fn().mockRejectedValue(grpcError(7, 'PERMISSION_DENIED'));
     const createFirestore = makeFirestore({ docs: { [path]: true }, update });
     const app = makeApp({ supabase, createFirestore });
 
     const res = await request(app).post('/lead-grants').send({
-      agentId: 'agent-1',
+      requestId: GRANT_ID,
+      agentId: AGENT_ID,
       product: 'instant_form',
       count: 2,
       reason: 'other',
@@ -478,6 +592,9 @@ describe('POST /lead-grants crediting', () => {
     });
 
     expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/Nothing was credited/);
+    // the row could not be marked failed, so it still reads pending
+    expect(res.body.data).toEqual({ id: GRANT_ID, status: 'pending' });
   });
 
   test('credited but the record update fails: 201 with a warning, never a retry', async () => {
@@ -503,7 +620,7 @@ describe('GET /lead-grants', () => {
   test('lists newest first with the agent and granter joined', async () => {
     const rows = [
       { id: 'grant-2', created_at: '2026-11-21T10:00:00Z' },
-      { id: 'grant-1', created_at: '2026-11-20T10:00:00Z' },
+      { id: GRANT_ID, created_at: '2026-11-20T10:00:00Z' },
     ];
     const supabase = makeSupabase([
       { table: 'lead_grants', result: { data: rows, error: null } },

@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('firebase-functions/logger');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { supabaseService } = require('../services/supabase');
+const { SUPER_ADMIN_EMAIL } = require('../integrations/GSQ');
 
 // Free leads an admin gives an agent (review bounties, make-goods for bad
 // leads, comps, the owner's own use), from the Refunds page. Same shape as a
@@ -34,14 +35,18 @@ const GRANT_LIST_FIELDS =
   `${GRANTED_BY}(first_name,last_name,email)`;
 
 // The GSQ ledger doc each product credits. Docs are keyed by lowercased
-// email. A grant never creates a ledger doc: the funnel creates each one on
-// the agent's first purchase of that product with fields the dialler and the
-// instant form pool depend on, so a missing doc is a 409, not a half-made doc.
+// email. A grant never creates a ledger doc or its counter: the funnel
+// creates each doc on the agent's first purchase of that product, with the
+// counter at 0 and fields the dialler and the instant form pool depend on.
+// A missing doc, or a stub without the counter (a bare SendBlue merge write
+// can leave one in agents/), is a 409, not a half-made ledger.
 const LEDGERS = {
   web: {
     collection: 'agents',
+    counter: 'outstandingLeads',
     missing: (email) =>
-      `${email} has no GSQ agent account to credit. They need a GSQ purchase first.`,
+      `${email} has no GSQ agent account to credit. ` +
+      'They need a GSQ purchase first.',
     increments: ({ verified, unverified }) => ({
       verified: FieldValue.increment(verified),
       unverified: FieldValue.increment(unverified),
@@ -50,21 +55,34 @@ const LEDGERS = {
   },
   instant_form: {
     collection: 'instant_forms',
+    counter: 'outstandingInstantForms',
     missing: (email) =>
-      `${email} has no GSQ instant form ledger. It is created on their first instant form purchase.`,
+      `${email} has no GSQ instant form ledger. ` +
+      'It is created on their first instant form purchase.',
     increments: ({ quantity }) => ({
       outstandingInstantForms: FieldValue.increment(quantity),
     }),
   },
   live_transfer: {
     collection: 'live_transfers',
+    counter: 'outstandingLiveTransfers',
     missing: (email) =>
-      `${email} has no GSQ live transfer ledger. It is created on their first live transfer purchase.`,
+      `${email} has no GSQ live transfer ledger. ` +
+      'It is created on their first live transfer purchase.',
     increments: ({ quantity }) => ({
       outstandingLiveTransfers: FieldValue.increment(quantity),
     }),
   },
 };
+
+// gRPC codes Firestore returns when it refused a write without applying it
+// (INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION,
+// OUT_OF_RANGE, UNIMPLEMENTED, UNAUTHENTICATED). Any other error, such as
+// DEADLINE_EXCEEDED, UNAVAILABLE or a reset connection, can arrive after the
+// commit landed (and the SDK itself retries a commit on UNAVAILABLE), so the
+// credit may or may not be in the ledger.
+const REFUSED_WRITE_CODES = new Set([3, 5, 7, 9, 11, 12, 16]);
+const writeWasRefused = (error) => REFUSED_WRITE_CODES.has(error?.code);
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -106,11 +124,13 @@ const validateGrant = (body) => {
     note,
   } = body || {};
 
-  if (!isAbsent(requestId) && !(typeof requestId === 'string' && UUID_RE.test(requestId))) {
+  // the client mints one id per filled-in form and sends it again on a
+  // retry, so the same grant can never be recorded or credited twice
+  if (typeof requestId !== 'string' || !UUID_RE.test(requestId)) {
     return { error: 'requestId must be a UUID' };
   }
-  if (typeof agentId !== 'string' || !agentId) {
-    return { error: 'agentId is required' };
+  if (typeof agentId !== 'string' || !UUID_RE.test(agentId)) {
+    return { error: 'agentId must be an agent id' };
   }
   if (!GRANT_PRODUCTS.includes(product)) {
     return { error: 'product must be web, instant_form or live_transfer' };
@@ -167,7 +187,7 @@ const validateGrant = (body) => {
 
   return {
     grant: {
-      requestId: requestId || null,
+      requestId,
       agentId,
       product,
       verifiedCount,
@@ -210,9 +230,15 @@ const createLeadGrantsRouter = ({
   });
 
   // record the grant (pending), credit the gsq ledger in one atomic update,
-  // then mark it credited. a failed ledger write credits nothing and the row
-  // is kept as failed with the error, so every attempt is on record.
+  // then mark it credited. a write gsq refused credits nothing and the row is
+  // kept as failed with the error; a write whose outcome is unknown stays
+  // pending with the error. every attempt is on record.
   router.post('/', requireAdmin, async (req, res) => {
+    // the record must say who gave the leads
+    const grantedBy = req.agent?.id;
+    if (!grantedBy) {
+      return res.status(403).json({ error: 'Agent profile required' });
+    }
     const { error: invalid, grant } = validateGrant(req.body);
     if (invalid) return res.status(400).json({ error: invalid });
 
@@ -230,18 +256,32 @@ const createLeadGrantsRouter = ({
           .status(400)
           .json({ error: 'This agent has no email to credit in GSQ' });
       }
+      // the company account's leads come from the GSQ platform account
+      // (hello@getseniorquotes.com), not from a ledger under this email, so
+      // a credit here would sit where the funnel never delivers from
+      if (email === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        return res.status(400).json({
+          error:
+            `${email} is the company account and has no GSQ balance of its ` +
+            "own. Give owner-use leads to the owner's own agent account.",
+        });
+      }
 
       const ledger = LEDGERS[grant.product];
       const firestore = createFirestore();
       const ref = firestore.doc(`${ledger.collection}/${email}`);
-      if (!(await ref.get()).exists) {
+      const snapshot = await ref.get();
+      if (
+        !snapshot.exists ||
+        typeof snapshot.get(ledger.counter) !== 'number'
+      ) {
         return res.status(409).json({ error: ledger.missing(email) });
       }
 
       const { data: pending, error: insertError } = await supabase
         .from('lead_grants')
         .insert({
-          ...(grant.requestId && { id: grant.requestId }),
+          id: grant.requestId,
           agent_id: agent.id,
           agent_email: email,
           brand: 'gsq',
@@ -251,7 +291,7 @@ const createLeadGrantsRouter = ({
           quantity: grant.quantity,
           reason: grant.reason,
           note: grant.note,
-          granted_by: req.agent?.id ?? null,
+          granted_by: grantedBy,
           status: 'pending',
         })
         .select(GRANT_FIELDS)
@@ -259,9 +299,13 @@ const createLeadGrantsRouter = ({
       if (insertError) {
         // the same requestId twice is a double submit of one grant
         if (insertError.code === '23505') {
-          return res
-            .status(409)
-            .json({ error: 'This grant was already submitted' });
+          return res.status(409).json({
+            error:
+              'This grant was already submitted (see Recent free leads). If ' +
+              "the agent's GSQ balance shows it was not credited, change the " +
+              'note and give it again.',
+            duplicate: true,
+          });
         }
         throw insertError;
       }
@@ -275,20 +319,37 @@ const createLeadGrantsRouter = ({
           }),
         );
       } catch (firestoreError) {
+        const refused = writeWasRefused(firestoreError);
+        // refused: nothing was credited, so the row is failed. otherwise the
+        // outcome is unknown and the row stays pending with the error, so no
+        // one reads it as "nothing credited" and gives the leads twice.
         const { error: markError } = await supabase
           .from('lead_grants')
-          .update({ status: 'failed', error: errorText(firestoreError) })
+          .update(
+            refused
+              ? { status: 'failed', error: errorText(firestoreError) }
+              : { error: `Outcome unknown: ${errorText(firestoreError)}` },
+          )
           .eq('id', pending.id)
           .eq('status', 'pending');
         logger.error(
-          markError
-            ? 'GSQ lead grant write failed and marking it failed also failed, row is stuck pending'
-            : 'GSQ lead grant write failed, grant marked failed',
+          refused
+            ? 'GSQ refused the lead grant write, nothing was credited'
+            : 'GSQ lead grant write outcome unknown, grant left pending',
           { grantId: pending.id, email, error: firestoreError, markError },
         );
+        if (refused) {
+          return res.status(502).json({
+            error: 'GSQ refused the credit. Nothing was credited.',
+            data: { id: pending.id, status: markError ? 'pending' : 'failed' },
+          });
+        }
         return res.status(502).json({
-          error: 'Failed to credit the agent in GSQ. Nothing was credited.',
-          data: { id: pending.id, status: 'failed' },
+          error:
+            'GSQ did not confirm the credit, so the leads may or may not ' +
+            "have been added. Check the agent's GSQ balance before giving " +
+            'them again.',
+          data: { id: pending.id, status: 'pending' },
         });
       }
 
