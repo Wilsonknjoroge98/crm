@@ -380,19 +380,15 @@ const reviewRefund = async ({ leadId, action, reason }) => {
 };
 
 // Free leads given from the Refunds page, newest first (admins only)
-const getLeadGrants = async ({ limit } = {}) => {
+const getLeadGrants = async () => {
   const response = await apiClient.request({
     method: 'GET',
     url: '/lead-grants',
-    params: limit ? { limit } : undefined,
   });
   return response.data?.data;
 };
 
-// grant is { requestId, agentId, product, reason, note } plus verified and
-// unverified for 'web', or count for 'instant_form' / 'live_transfer'.
-// Resolves to { data, warning }; warning is set when the leads were credited
-// but the record could not be marked credited.
+// grant is { agentId, leadType, quantity, reason }; resolves to { data: row }
 const giveLeadGrant = async (grant) => {
   const response = await apiClient.request({
     method: 'POST',
