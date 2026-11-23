@@ -5,7 +5,9 @@
 -- run once in the supabase sql editor, then run:
 --   grant select on public.lead_grants to fex_sheet_reader;
 -- so the fex business master sheet can read it.
-create table if not exists public.lead_grants (
+-- if it stops with "relation lead_grants already exists", the first version's
+-- table is there: check it is empty, drop it, and run this again.
+create table public.lead_grants (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   agent_id uuid not null references public.agents (id),

@@ -136,6 +136,14 @@ describe('POST /lead-grants', () => {
     expect(createFirestore).not.toHaveBeenCalled();
   });
 
+  test('an agent lookup error is a 500 and nothing is credited', async () => {
+    supabase = makeSupabase([{ data: null, error: { message: 'down' } }]);
+    const res = await post(body());
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Could not look up the agent');
+    expect(createFirestore).not.toHaveBeenCalled();
+  });
+
   test('an agent with no email is a 400', async () => {
     supabase = makeSupabase([
       { data: { id: AGENT_ID, email: ' ' }, error: null },
@@ -147,6 +155,7 @@ describe('POST /lead-grants', () => {
 
   test.each([
     ['web_verified', 'agents', 'web lead'],
+    ['web_unverified', 'agents', 'web lead'],
     ['instant_form', 'instant_forms', 'instant form'],
     ['live_transfer', 'live_transfers', 'live transfer'],
   ])(

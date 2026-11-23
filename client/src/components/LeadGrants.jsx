@@ -59,7 +59,7 @@ const LeadGrants = () => {
     queryKey: ['agents'],
     queryFn: getAgents,
   });
-  const { data: grants = [] } = useQuery({
+  const { data: grants = [], isError: grantsFailed } = useQuery({
     queryKey: ['lead-grants'],
     queryFn: getLeadGrants,
   });
@@ -92,11 +92,15 @@ const LeadGrants = () => {
       setForm(EMPTY_FORM);
       queryClient.invalidateQueries({ queryKey: ['lead-grants'] });
     },
-    onError: (error) =>
+    onError: (error) => {
+      // a 500 can mean the leads were added but not recorded: clear the form
+      // so the same grant is not one click away
+      if (error?.response?.status === 500) setForm(EMPTY_FORM);
       enqueueSnackbar(
         error?.response?.data?.error || 'Could not give the leads',
         SNACKBAR_ERROR_OPTIONS,
-      ),
+      );
+    },
     onSettled: () => setConfirming(false),
   });
 
@@ -183,7 +187,9 @@ const LeadGrants = () => {
       </Dialog>
 
       <Typography variant='h6'>Recent free leads</Typography>
-      {grants.length === 0 ? (
+      {grantsFailed ? (
+        <Alert severity='error'>Could not load the free leads list.</Alert>
+      ) : grants.length === 0 ? (
         <Alert severity='info'>No free leads given yet.</Alert>
       ) : (
         <TableContainer>
