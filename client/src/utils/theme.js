@@ -56,6 +56,16 @@ export const createAppTheme = () => {
         contrastText: '#FFFFFF',
       },
 
+      // REFUNDED: Muted Plum & Lilac Tint. Its own hue, because green
+      // already means fresh, sold and verified, and the REFUNDED badge sits
+      // beside the FRESH chip on the business card.
+      refunded: {
+        main: '#6B4E71', // Muted Plum
+        light: '#F4EEF5', // Lilac Tint (for chips)
+        dark: '#4A3550',
+        contrastText: '#FFFFFF',
+      },
+
       background: {
         default: '#FFFFFF',
         paper: '#FFFFFF',

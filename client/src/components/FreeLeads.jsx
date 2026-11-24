@@ -47,7 +47,10 @@ const LEAD_TYPES = {
 };
 
 // Pick one, like the Producer Page bio presets; Other takes typed text.
-const REASONS = ['Reviews', 'Promotions', 'Refund', 'Unused Discount'];
+// No Refund reason: a refund replaces a lead the agent paid for, so it
+// is not a free lead. It goes through the Refunds tab, which checks that
+// the lead is eligible and records it on the lead.
+const REASONS = ['Reviews', 'Promotions', 'Unused Discount'];
 const OTHER = 'Other';
 
 const EMPTY_FORM = {

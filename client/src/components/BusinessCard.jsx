@@ -146,9 +146,11 @@ const REFUND_BADGE_LABELS = {
   approved: 'REFUNDED',
   denied: 'REFUND DENIED',
 };
+// approved is plum (theme palette.refunded), not green, so REFUNDED does
+// not look tied to the FRESH chip next to it
 const REFUND_BADGE_COLOR = {
   requested: 'warning',
-  approved: 'success',
+  approved: 'refunded',
   denied: 'error',
 };
 

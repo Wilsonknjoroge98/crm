@@ -54,9 +54,10 @@ const STATUS_FILTERS = [
   { value: 'denied', label: 'Denied' },
   { value: 'all', label: 'All' },
 ];
+// approved matches the business card's REFUNDED badge (theme palette.refunded)
 const STATUS_CHIP_COLOR = {
   requested: 'warning',
-  approved: 'success',
+  approved: 'refunded',
   denied: 'error',
 };
 
