@@ -379,6 +379,26 @@ const reviewRefund = async ({ leadId, action, reason }) => {
   return response.data?.data;
 };
 
+// Free leads given from the Lead Credits page, newest first (admins only)
+const getFreeLeads = async () => {
+  const response = await apiClient.request({
+    method: 'GET',
+    url: '/free-leads',
+  });
+  return response.data?.data;
+};
+
+// freeLeads is { id, agentId, leadType, quantity, reason }; the id is made
+// once and resent on retry (FreeLeads.jsx); resolves to { data: row }
+const giveFreeLeads = async (freeLeads) => {
+  const response = await apiClient.request({
+    method: 'POST',
+    url: '/free-leads',
+    data: freeLeads,
+  });
+  return response.data;
+};
+
 // The landing page's "Get access" form. Public: no session is needed.
 const postAccessRequest = async (request) => {
   const response = await apiClient.request({
@@ -1310,6 +1330,8 @@ export {
   dismissUnmatchedReview,
   getRefunds,
   reviewRefund,
+  getFreeLeads,
+  giveFreeLeads,
   postAccessRequest,
   getPublicStats,
   getAccessRequests,

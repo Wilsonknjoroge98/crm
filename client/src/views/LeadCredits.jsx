@@ -13,6 +13,8 @@ import {
   TableHead,
   TableRow,
   Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -30,6 +32,7 @@ import {
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 import PageContainer from '../components/PageContainer';
+import FreeLeads from '../components/FreeLeads';
 
 const MONO = '"JetBrains Mono", monospace';
 const HEAD_CELL_SX = {
@@ -39,9 +42,13 @@ const HEAD_CELL_SX = {
   letterSpacing: 1,
 };
 
-// Every outcome is terminal, so a lead has at most one review cycle — these
-// tabs are the complete history, not just a rolling window of it.
-const TABS = [
+// The page's two kinds of lead credit, one top-level tab each.
+const SECTIONS = { refunds: 'refunds', freeLeads: 'free-leads' };
+
+// The Refunds tab's status filter. Every outcome is terminal, so a lead has
+// at most one review cycle — these filters are the complete history, not
+// just a rolling window of it.
+const STATUS_FILTERS = [
   { value: 'requested', label: 'Pending' },
   { value: 'approved', label: 'Approved' },
   { value: 'denied', label: 'Denied' },
@@ -60,9 +67,56 @@ const yesNo = (value) =>
   value === true ? 'Yes' : value === false ? 'No' : '—';
 const formatDate = (value) => (value ? dayjs(value).format('MMM D, YYYY') : '—');
 
-const Refunds = () => {
-  const queryClient = useQueryClient();
+// Lead Credits: everything that adds leads back to an agent's balance.
+// Two tabs: Refunds (refund requests, filtered by status) and Free Leads
+// (added to the agent's balance in GSQ's Firestore like an approved
+// refund). The status filter is kept here so it survives a tab switch.
+const LeadCredits = () => {
+  const [section, setSection] = useState(SECTIONS.refunds);
   const [status, setStatus] = useState('requested');
+
+  // the pending count on the Refunds tab, so waiting requests show from
+  // either tab; same query key as the Pending filter, so it is one fetch
+  const { data: pendingRefunds = [] } = useQuery({
+    queryKey: ['refunds', 'requested'],
+    queryFn: () => getRefunds({ status: 'requested' }),
+  });
+
+  return (
+    <PageContainer>
+      <Typography variant='h4' mb={1}>
+        Lead Credits
+      </Typography>
+
+      <Tabs
+        value={section}
+        onChange={(_, value) => setSection(value)}
+        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+      >
+        <Tab
+          value={SECTIONS.refunds}
+          label={
+            pendingRefunds.length > 0
+              ? `Refunds (${pendingRefunds.length} pending)`
+              : 'Refunds'
+          }
+        />
+        <Tab value={SECTIONS.freeLeads} label='Free Leads' />
+      </Tabs>
+
+      {section === SECTIONS.freeLeads ? (
+        <FreeLeads />
+      ) : (
+        <RefundRequests status={status} setStatus={setStatus} />
+      )}
+    </PageContainer>
+  );
+};
+
+// The Refunds tab: a status filter over the refund requests, with Approve /
+// Deny on the pending ones.
+const RefundRequests = ({ status, setStatus }) => {
+  const queryClient = useQueryClient();
   const [pendingId, setPendingId] = useState(null);
   const isPendingTab = status === 'requested';
 
@@ -108,49 +162,61 @@ const Refunds = () => {
     review({ leadId: refund.id, action: 'deny', reason: reason || undefined });
   };
 
+  // the filter row stays put while a filter loads or fails
+  const filters = (
+    <Stack
+      direction='row'
+      justifyContent='space-between'
+      alignItems='center'
+      mb={2}
+    >
+      <ToggleButtonGroup
+        size='small'
+        exclusive
+        value={status}
+        onChange={(_, value) => value && setStatus(value)}
+        aria-label='Refund status'
+      >
+        {STATUS_FILTERS.map((filter) => (
+          <ToggleButton key={filter.value} value={filter.value}>
+            {filter.label}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+      {!isLoading && !isError && (
+        <Typography variant='body2' color='text.secondary'>
+          {refunds.length} {isPendingTab ? 'pending' : ''} result
+          {refunds.length !== 1 ? 's' : ''}
+        </Typography>
+      )}
+    </Stack>
+  );
+
   if (isLoading) {
     return (
-      <Stack alignItems='center' justifyContent='center' sx={{ py: 8 }}>
-        <CircularProgress />
-      </Stack>
+      <>
+        {filters}
+        <Stack alignItems='center' justifyContent='center' sx={{ py: 8 }}>
+          <CircularProgress />
+        </Stack>
+      </>
     );
   }
 
   if (isError) {
     return (
-      <Stack alignItems='center' justifyContent='center' sx={{ py: 4 }}>
+      <>
+        {filters}
         <Alert severity='error'>
           Failed to load refund requests. Please refresh or try again later.
         </Alert>
-      </Stack>
+      </>
     );
   }
 
   return (
-    <PageContainer>
-      <Stack
-        direction='row'
-        justifyContent='space-between'
-        alignItems='center'
-        mb={1}
-      >
-        <Typography variant='h4'>Refunds</Typography>
-        <Typography variant='body2' color='text.secondary'>
-          {refunds.length} {isPendingTab ? 'pending' : ''} result
-          {refunds.length !== 1 ? 's' : ''}
-        </Typography>
-      </Stack>
-
-      <Tabs
-        value={status}
-        onChange={(_, value) => setStatus(value)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
-      >
-        {TABS.map((tab) => (
-          <Tab key={tab.value} value={tab.value} label={tab.label} />
-        ))}
-      </Tabs>
-
+    <>
+      {filters}
       {refunds.length === 0 ? (
         <Alert severity={isPendingTab ? 'success' : 'info'}>
           {isPendingTab
@@ -281,8 +347,8 @@ const Refunds = () => {
           </Table>
         </TableContainer>
       )}
-    </PageContainer>
+    </>
   );
 };
 
-export default Refunds;
+export default LeadCredits;

@@ -35,6 +35,7 @@ const {
   createAdPublishRouter,
   messagesRouter,
   refundsRouter,
+  freeLeadsRouter,
   accessRequestsRouter,
   publicAccessRequestRouter,
   publicStatsRouter,
@@ -85,6 +86,7 @@ app.use('/offers', offersRouter);
 app.use('/ad-publish', createAdPublishRouter());
 app.use('/messages', messagesRouter);
 app.use('/refunds', refundsRouter);
+app.use('/free-leads', freeLeadsRouter);
 app.use('/access-requests', accessRequestsRouter);
 
 app.get('/ad-spend', async (req, res) => {
