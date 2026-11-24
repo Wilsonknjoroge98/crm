@@ -3,9 +3,17 @@ const logger = require('firebase-functions/logger');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { supabaseService } = require('../services/supabase');
 
-// Free leads an admin gives an agent, from the Refunds page. The leads are
-// added to the agent's GSQ balance (the same counters a purchase fills),
-// then one lead_grants row records who gave what and why.
+// Free leads an admin gives an agent, from the Refunds page.
+//
+// One Firestore transaction in GSQ's project adds the leads to the agent's
+// balance (the same counters a purchase fills) and writes a lead_grants/{id}
+// marker holding the whole grant, so leads are never added without a record.
+// Then the grant is upserted into Supabase's lead_grants under the same id.
+//
+// The browser picks the id and keeps it until it gets a final answer, so a
+// retry (double click, timeout, a 500 after the credit) sends the same id:
+// the marker is already there, nothing is added again, and the Supabase row
+// is filled in. Retrying is always safe.
 
 // lead type -> the GSQ ledger collection, the counter that must already be
 // there, the fields to increment, and the name used in the 409 message.
@@ -46,6 +54,15 @@ const LEAD_TYPES = {
   },
 };
 
+// GSQ Firestore collection holding one marker per grant, keyed by grant id
+const MARKER_COLLECTION = 'lead_grants';
+
+// a retried id must carry the grant it was first used for
+const isSameGrant = (marker, grant) =>
+  marker.agentEmail === grant.agentEmail &&
+  marker.leadType === grant.leadType &&
+  marker.quantity === grant.quantity;
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -66,7 +83,10 @@ const requireAdmin = (req, res, next) =>
     : res.status(403).json({ error: 'Forbidden' });
 
 // Returns an error message, or null when the body is valid.
-const validate = ({ agentId, leadType, quantity, reason } = {}) => {
+const validate = ({ id, agentId, leadType, quantity, reason } = {}) => {
+  if (typeof id !== 'string' || !UUID_RE.test(id)) {
+    return 'Missing grant id; reload the page and try again';
+  }
   if (typeof agentId !== 'string' || !UUID_RE.test(agentId)) {
     return 'Pick an agent';
   }
@@ -105,7 +125,7 @@ const createLeadGrantsRouter = ({
   router.post('/', requireAdmin, async (req, res) => {
     const invalid = validate(req.body);
     if (invalid) return res.status(400).json({ error: invalid });
-    const { agentId, leadType, quantity } = req.body;
+    const { id, agentId, leadType, quantity } = req.body;
     const reason = req.body.reason.trim();
     const type = LEAD_TYPES[leadType];
 
@@ -125,53 +145,97 @@ const createLeadGrantsRouter = ({
       return res.status(400).json({ error: 'This agent has no email' });
     }
 
-    // add the leads to the GSQ ledger in one update; a missing ledger doc is
-    // never created here (the funnel makes it on the first purchase)
+    const grant = {
+      agentId: agent.id,
+      agentEmail: email,
+      leadType,
+      quantity,
+      reason,
+      givenBy: req.agent?.id ?? null,
+    };
+
+    // add the leads and write the marker in one transaction; a missing
+    // ledger doc is never created here (the funnel makes it on the first
+    // purchase). A marker that is already there means this grant was
+    // credited before: nothing is added again.
+    let replay = false;
     try {
-      const ref = createFirestore().doc(`${type.collection}/${email}`);
-      const snapshot = await ref.get();
-      if (!snapshot.exists || typeof snapshot.get(type.counter) !== 'number') {
+      const firestore = createFirestore();
+      const markerRef = firestore.doc(`${MARKER_COLLECTION}/${id}`);
+      const ledgerRef = firestore.doc(`${type.collection}/${email}`);
+      const outcome = await firestore.runTransaction(async (tx) => {
+        const [marker, ledger] = await Promise.all([
+          tx.get(markerRef),
+          tx.get(ledgerRef),
+        ]);
+        if (marker.exists) {
+          return isSameGrant(marker.data(), grant) ? 'replay' : 'conflict';
+        }
+        if (!ledger.exists || typeof ledger.get(type.counter) !== 'number') {
+          return 'no-balance';
+        }
+        tx.update(
+          ledgerRef,
+          Object.fromEntries(
+            type.fields.map((field) => [field, FieldValue.increment(quantity)]),
+          ),
+        );
+        tx.create(markerRef, {
+          ...grant,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        return 'credited';
+      });
+      if (outcome === 'no-balance') {
         return res.status(409).json({
           error: `This agent has no GSQ ${type.product} balance yet`,
         });
       }
-      await ref.update(
-        Object.fromEntries(
-          type.fields.map((field) => [field, FieldValue.increment(quantity)]),
-        ),
-      );
+      if (outcome === 'conflict') {
+        return res.status(409).json({
+          error: 'This grant id was already used for a different grant',
+        });
+      }
+      replay = outcome === 'replay';
     } catch (error) {
-      logger.error('Lead grant GSQ credit failed', { email, error });
+      logger.error('Lead grant GSQ credit failed', { id, email, error });
       return res
         .status(502)
         .json({ error: 'Could not add the leads; nothing was given' });
     }
 
-    const { data: row, error: insertError } = await supabase
+    // the same id every time, so a retry fills in a missing row and never
+    // makes a second one
+    const { data: row, error: upsertError } = await supabase
       .from('lead_grants')
-      .insert({
-        agent_id: agent.id,
-        agent_email: email,
-        lead_type: leadType,
-        quantity,
-        reason,
-        given_by: req.agent?.id ?? null,
-      })
+      .upsert(
+        {
+          id,
+          agent_id: grant.agentId,
+          agent_email: grant.agentEmail,
+          lead_type: grant.leadType,
+          quantity: grant.quantity,
+          reason: grant.reason,
+          given_by: grant.givenBy,
+        },
+        { onConflict: 'id' },
+      )
       .select()
       .single();
-    if (insertError) {
-      logger.error('Lead grant credited but not recorded', {
+    if (upsertError) {
+      logger.error('Lead grant credited but not recorded in Supabase', {
+        id,
         email,
         leadType,
         quantity,
-        error: insertError,
+        error: upsertError,
       });
       return res.status(500).json({
         error:
-          'The leads were added but could not be recorded. Do not give them again; tell Wilson.',
+          'The leads were added but the record did not save. Press Retry to finish; it will not add them again.',
       });
     }
-    return res.status(201).json({ data: row });
+    return res.status(replay ? 200 : 201).json({ data: row });
   });
 
   return router;

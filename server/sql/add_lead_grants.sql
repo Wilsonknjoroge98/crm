@@ -1,6 +1,8 @@
 -- free leads an admin gives an agent from the refunds page ("give free
--- leads"). the server adds the leads to the agent's gsq balance, then writes
--- one row here, so every free lead has a record of who, what and why.
+-- leads"). one transaction in gsq's firestore adds the leads to the agent's
+-- balance and writes a lead_grants/{id} marker with the whole grant; then the
+-- server upserts the row here under the same id (the browser picks it, so a
+-- retry fills in a missing row and never adds the leads twice).
 --
 -- run once in the supabase sql editor, then run:
 --   grant select on public.lead_grants to fex_sheet_reader;

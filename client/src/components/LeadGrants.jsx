@@ -62,10 +62,35 @@ const fullName = (person) =>
   person?.email ||
   '—';
 
+const describe = ({ quantity, leadType }) =>
+  `${quantity} ${LEAD_TYPES[leadType]} lead${quantity === 1 ? '' : 's'}`;
+
+// A grant that was sent but got no final answer (network error, timeout, 5xx,
+// tab closed). It keeps its id in localStorage, so it survives reloads and
+// browser restarts on this browser, and Retry sends the same id: the server
+// never adds the leads twice for one id (endpoints/lead_grants.js).
+const PENDING_KEY = 'leadGrants.pending';
+const loadPending = () => {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_KEY)) || null;
+  } catch {
+    return null;
+  }
+};
+const savePending = (grant) => {
+  if (grant) localStorage.setItem(PENDING_KEY, JSON.stringify(grant));
+  else localStorage.removeItem(PENDING_KEY);
+};
+
 const LeadGrants = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirming, setConfirming] = useState(false);
+  const [pending, setPendingState] = useState(loadPending);
+  const setPending = (grant) => {
+    savePending(grant);
+    setPendingState(grant);
+  };
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
@@ -90,35 +115,82 @@ const LeadGrants = () => {
     reason.length >= 1 &&
     reason.length <= 500;
   const name = form.agent ? fullName(form.agent) : '';
-  const what = `${quantity} ${LEAD_TYPES[form.leadType]} lead${quantity === 1 ? '' : 's'}`;
+  const what = describe({ quantity, leadType: form.leadType });
 
-  const { mutate: give, isPending } = useMutation({
-    mutationFn: () =>
-      giveLeadGrant({
-        agentId: form.agent.id,
-        leadType: form.leadType,
-        quantity,
-        reason,
-      }),
-    onSuccess: () => {
-      enqueueSnackbar(`Gave ${name} ${what}`, SNACKBAR_SUCCESS_OPTIONS);
+  // agentName rides along for the pending notice; the server ignores it
+  const { mutate: send, isPending } = useMutation({
+    mutationFn: ({ agentName, ...grant }) => giveLeadGrant(grant),
+    onSuccess: (_, grant) => {
+      enqueueSnackbar(
+        `Gave ${grant.agentName} ${describe(grant)}`,
+        SNACKBAR_SUCCESS_OPTIONS,
+      );
+      setPending(null);
       setForm(EMPTY_FORM);
       queryClient.invalidateQueries({ queryKey: ['lead-grants'] });
     },
     onError: (error) => {
-      // a 500 can mean the leads were added but not recorded: clear the form
-      // so the same grant is not one click away
-      if (error?.response?.status === 500) setForm(EMPTY_FORM);
+      // a 4xx is a final answer and nothing was added, so the grant is
+      // dropped and the form kept to fix it. No response or a 5xx is no
+      // final answer: the grant stays pending for Retry.
+      const status = error?.response?.status;
+      if (status >= 400 && status < 500) setPending(null);
       enqueueSnackbar(
-        error?.response?.data?.error || 'Could not give the leads',
+        error?.response?.data?.error || 'Could not reach the server',
         SNACKBAR_ERROR_OPTIONS,
       );
     },
     onSettled: () => setConfirming(false),
   });
 
+  // the id is made once, here, and saved before the request goes out
+  const give = () => {
+    const grant = {
+      id: crypto.randomUUID(),
+      agentId: form.agent.id,
+      agentName: name,
+      leadType: form.leadType,
+      quantity,
+      reason,
+    };
+    setPending(grant);
+    send(grant);
+  };
+
   return (
     <Stack spacing={3}>
+      {pending && (
+        <Alert
+          severity='warning'
+          sx={{ maxWidth: 560 }}
+          action={
+            <Stack direction='row' spacing={1}>
+              <Button
+                color='inherit'
+                size='small'
+                disabled={isPending}
+                onClick={() => setPending(null)}
+              >
+                Discard
+              </Button>
+              <Button
+                color='inherit'
+                size='small'
+                variant='outlined'
+                disabled={isPending}
+                onClick={() => send(pending)}
+              >
+                Retry
+              </Button>
+            </Stack>
+          }
+        >
+          {isPending
+            ? `Giving ${pending.agentName} ${describe(pending)}…`
+            : `Giving ${pending.agentName} ${describe(pending)} did not finish. Retry is safe: it never adds the leads twice. Discard only if you are sure it is not needed.`}
+        </Alert>
+      )}
+
       <Paper variant='outlined' sx={{ p: 2, maxWidth: 560 }}>
         <Typography variant='h6' mb={2}>
           Free Leads
@@ -184,7 +256,7 @@ const LeadGrants = () => {
           </div>
           <Button
             variant='contained'
-            disabled={!isValid || isPending}
+            disabled={!isValid || isPending || Boolean(pending)}
             onClick={() => setConfirming(true)}
             sx={{ alignSelf: 'flex-end' }}
           >
@@ -211,7 +283,7 @@ const LeadGrants = () => {
           </Button>
           <Button
             variant='contained'
-            onClick={() => give()}
+            onClick={give}
             disabled={isPending}
           >
             Give

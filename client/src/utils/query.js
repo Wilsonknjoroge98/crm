@@ -388,7 +388,8 @@ const getLeadGrants = async () => {
   return response.data?.data;
 };
 
-// grant is { agentId, leadType, quantity, reason }; resolves to { data: row }
+// grant is { id, agentId, leadType, quantity, reason }; id is made once per
+// grant and resent on retry (LeadGrants.jsx); resolves to { data: row }
 const giveLeadGrant = async (grant) => {
   const response = await apiClient.request({
     method: 'POST',

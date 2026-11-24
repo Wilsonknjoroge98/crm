@@ -18,13 +18,13 @@ const EMAIL = 'pat@example.com';
 
 // Each entry is the result of one `supabase.from(table)` call, in order.
 // Every query is awaitable and has maybeSingle()/single(); the builder calls
-// are kept so a test can read what was inserted.
+// are kept so a test can read what was upserted.
 const makeSupabase = (results) => {
   const queries = [];
   const from = jest.fn((table) => {
     const result = results[queries.length] || { data: null, error: null };
     const query = { table };
-    for (const name of ['select', 'insert', 'eq', 'order', 'limit']) {
+    for (const name of ['select', 'upsert', 'eq', 'order', 'limit']) {
       query[name] = jest.fn(() => query);
     }
     query.maybeSingle = jest.fn().mockResolvedValue(result);
@@ -37,24 +37,41 @@ const makeSupabase = (results) => {
   return { from, queries };
 };
 
-// Fake GSQ Firestore: `docs` maps 'collection/email' to the doc's data; a
-// path not listed does not exist.
-const makeFirestore = ({ docs = {}, update } = {}) => {
-  const refs = {};
+// Fake GSQ Firestore: `docs` maps 'collection/id' to the doc's data; a path
+// not listed does not exist. runTransaction runs the callback once and keeps
+// what it wrote: tx.update / tx.create calls are recorded per path, and a
+// committed create is visible to the next request (so retries can be tested).
+// `commitError` makes the transaction fail after the callback.
+const makeFirestore = ({ docs = {}, commitError } = {}) => {
+  const store = { ...docs };
+  const updates = {};
+  const creates = {};
+  const snapshot = (path) => ({
+    exists: store[path] !== undefined,
+    get: (field) => store[path]?.[field],
+    data: () => store[path],
+  });
   const createFirestore = jest.fn(() => ({
-    doc: (path) => {
-      const data = docs[path];
-      refs[path] = {
-        get: jest.fn().mockResolvedValue({
-          exists: data !== undefined,
-          get: (field) => data?.[field],
-        }),
-        update: update || jest.fn().mockResolvedValue(undefined),
+    doc: (path) => ({ path }),
+    runTransaction: async (fn) => {
+      const pending = [];
+      const tx = {
+        get: async (ref) => snapshot(ref.path),
+        update: (ref, data) => pending.push(['update', ref.path, data]),
+        create: (ref, data) => pending.push(['create', ref.path, data]),
       };
-      return refs[path];
+      const result = await fn(tx);
+      if (commitError) throw commitError;
+      for (const [kind, path, data] of pending) {
+        const log = kind === 'update' ? updates : creates;
+        (log[path] = log[path] || []).push(data);
+        if (kind === 'create') store[path] = data;
+      }
+      return result;
     },
   }));
-  createFirestore.refs = refs;
+  createFirestore.updates = updates;
+  createFirestore.creates = creates;
   return createFirestore;
 };
 
@@ -64,6 +81,8 @@ const ALL_LEDGERS = {
   [`live_transfers/${EMAIL}`]: { outstandingLiveTransfers: 0 },
   [`keyley/${EMAIL}`]: { outstandingKeyley: 0 },
 };
+
+const GRANT_ID = '0c0c0c0c-0000-4000-8000-000000000003';
 
 const makeApp = ({ supabase, createFirestore, role = 'admin' }) => {
   const app = express();
@@ -81,6 +100,7 @@ const makeApp = ({ supabase, createFirestore, role = 'admin' }) => {
 };
 
 const body = (overrides = {}) => ({
+  id: GRANT_ID,
   agentId: AGENT_ID,
   leadType: 'gsq_verified',
   quantity: 2,
@@ -112,6 +132,8 @@ describe('POST /lead-grants', () => {
   });
 
   test.each([
+    ['id missing', { id: undefined }],
+    ['id not a uuid', { id: 'abc' }],
     ['agentId missing', { agentId: undefined }],
     ['agentId not a uuid', { agentId: 'abc' }],
     ['unknown leadType', { leadType: 'web' }],
@@ -170,9 +192,8 @@ describe('POST /lead-grants', () => {
       expect(res.body.error).toBe(
         `This agent has no GSQ ${product} balance yet`,
       );
-      expect(
-        createFirestore.refs[`${collection}/${EMAIL}`].update,
-      ).not.toHaveBeenCalled();
+      expect(createFirestore.updates[`${collection}/${EMAIL}`]).toBeUndefined();
+      expect(createFirestore.creates[`lead_grants/${GRANT_ID}`]).toBeUndefined();
       expect(supabase.queries).toHaveLength(1);
     },
   );
@@ -200,29 +221,42 @@ describe('POST /lead-grants', () => {
       expect(res.status).toBe(201);
       expect(res.body).toEqual({ data: row });
 
-      const ref = createFirestore.refs[`${collection}/${EMAIL}`];
-      expect(ref.update).toHaveBeenCalledTimes(1);
-      expect(ref.update).toHaveBeenCalledWith(
+      expect(createFirestore.updates[`${collection}/${EMAIL}`]).toEqual([
         Object.fromEntries(fields.map((f) => [f, FieldValue.increment(3)])),
-      );
+      ]);
+      expect(createFirestore.creates[`lead_grants/${GRANT_ID}`]).toEqual([
+        {
+          agentId: AGENT_ID,
+          agentEmail: EMAIL,
+          leadType,
+          quantity: 3,
+          reason: '2 leads over age 85',
+          givenBy: ADMIN_ID,
+          createdAt: FieldValue.serverTimestamp(),
+        },
+      ]);
 
-      const insert = supabase.queries[1];
-      expect(insert.table).toBe('lead_grants');
-      expect(insert.insert).toHaveBeenCalledWith({
-        agent_id: AGENT_ID,
-        agent_email: EMAIL,
-        lead_type: leadType,
-        quantity: 3,
-        reason: '2 leads over age 85',
-        given_by: ADMIN_ID,
-      });
+      const upsert = supabase.queries[1];
+      expect(upsert.table).toBe('lead_grants');
+      expect(upsert.upsert).toHaveBeenCalledWith(
+        {
+          id: GRANT_ID,
+          agent_id: AGENT_ID,
+          agent_email: EMAIL,
+          lead_type: leadType,
+          quantity: 3,
+          reason: '2 leads over age 85',
+          given_by: ADMIN_ID,
+        },
+        { onConflict: 'id' },
+      );
     },
   );
 
   test('a Firestore failure is a 502 and no row is written', async () => {
     createFirestore = makeFirestore({
       docs: ALL_LEDGERS,
-      update: jest.fn().mockRejectedValue(new Error('unavailable')),
+      commitError: new Error('unavailable'),
     });
     const res = await post(body());
     expect(res.status).toBe(502);
@@ -230,7 +264,7 @@ describe('POST /lead-grants', () => {
     expect(supabase.queries).toHaveLength(1);
   });
 
-  test('an insert failure after the credit is a 500 saying not to give again', async () => {
+  test('an upsert failure after the credit is a 500 that says Retry is safe', async () => {
     supabase = makeSupabase([
       agentFound,
       { data: null, error: { message: 'boom' } },
@@ -238,11 +272,60 @@ describe('POST /lead-grants', () => {
     const res = await post(body());
     expect(res.status).toBe(500);
     expect(res.body.error).toBe(
-      'The leads were added but could not be recorded. Do not give them again; tell Wilson.',
+      'The leads were added but the record did not save. Press Retry to finish; it will not add them again.',
     );
-    expect(
-      createFirestore.refs[`agents/${EMAIL}`].update,
-    ).toHaveBeenCalledTimes(1);
+    expect(createFirestore.updates[`agents/${EMAIL}`]).toHaveLength(1);
+  });
+
+  test('a retry with the same id adds nothing again and fills in the row', async () => {
+    supabase = makeSupabase([
+      agentFound,
+      { data: null, error: { message: 'boom' } },
+      agentFound,
+      inserted({ id: GRANT_ID }),
+    ]);
+    const first = await post(body());
+    expect(first.status).toBe(500);
+
+    const retry = await post(body());
+    expect(retry.status).toBe(200);
+    expect(retry.body).toEqual({ data: { id: GRANT_ID } });
+    // the ledger was credited once, by the first request
+    expect(createFirestore.updates[`agents/${EMAIL}`]).toHaveLength(1);
+    expect(createFirestore.creates[`lead_grants/${GRANT_ID}`]).toHaveLength(1);
+    expect(supabase.queries[3].upsert.mock.calls[0][0].id).toBe(GRANT_ID);
+  });
+
+  test('a second success with the same id is a 200 and credits nothing', async () => {
+    supabase = makeSupabase([
+      agentFound,
+      inserted({ id: GRANT_ID }),
+      agentFound,
+      inserted({ id: GRANT_ID }),
+    ]);
+    expect((await post(body())).status).toBe(201);
+    expect((await post(body())).status).toBe(200);
+    expect(createFirestore.updates[`agents/${EMAIL}`]).toHaveLength(1);
+  });
+
+  test('an id reused for a different grant is a 409 and credits nothing', async () => {
+    createFirestore = makeFirestore({
+      docs: {
+        ...ALL_LEDGERS,
+        [`lead_grants/${GRANT_ID}`]: {
+          agentEmail: EMAIL,
+          leadType: 'gsq_verified',
+          quantity: 5,
+        },
+      },
+    });
+    const res = await post(body({ quantity: 2 }));
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe(
+      'This grant id was already used for a different grant',
+    );
+    expect(createFirestore.updates[`agents/${EMAIL}`]).toBeUndefined();
+    expect(supabase.queries).toHaveLength(1);
   });
 });
 
