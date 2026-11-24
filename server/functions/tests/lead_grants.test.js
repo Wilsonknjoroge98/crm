@@ -62,6 +62,7 @@ const ALL_LEDGERS = {
   [`agents/${EMAIL}`]: { outstandingLeads: 0, verified: 0, unverified: 0 },
   [`instant_forms/${EMAIL}`]: { outstandingInstantForms: 0 },
   [`live_transfers/${EMAIL}`]: { outstandingLiveTransfers: 0 },
+  [`keyley/${EMAIL}`]: { outstandingKeyley: 0 },
 };
 
 const makeApp = ({ supabase, createFirestore, role = 'admin' }) => {
@@ -81,7 +82,7 @@ const makeApp = ({ supabase, createFirestore, role = 'admin' }) => {
 
 const body = (overrides = {}) => ({
   agentId: AGENT_ID,
-  leadType: 'web_verified',
+  leadType: 'gsq_verified',
   quantity: 2,
   reason: '  2 leads over age 85  ',
   ...overrides,
@@ -114,6 +115,7 @@ describe('POST /lead-grants', () => {
     ['agentId missing', { agentId: undefined }],
     ['agentId not a uuid', { agentId: 'abc' }],
     ['unknown leadType', { leadType: 'web' }],
+    ['old leadType name', { leadType: 'web_verified' }],
     ['quantity 0', { quantity: 0 }],
     ['quantity 101', { quantity: 101 }],
     ['quantity a fraction', { quantity: 1.5 }],
@@ -154,10 +156,11 @@ describe('POST /lead-grants', () => {
   });
 
   test.each([
-    ['web_verified', 'agents', 'web lead'],
-    ['web_unverified', 'agents', 'web lead'],
-    ['instant_form', 'instant_forms', 'instant form'],
-    ['live_transfer', 'live_transfers', 'live transfer'],
+    ['gsq_verified', 'agents', 'web lead'],
+    ['gsq_unverified', 'agents', 'web lead'],
+    ['keyley_verified', 'keyley', 'Keyley lead'],
+    ['gsq_instant_form', 'instant_forms', 'instant form'],
+    ['gsq_live_transfer', 'live_transfers', 'live transfer'],
   ])(
     '%s with no ledger doc is a 409',
     async (leadType, collection, product) => {
@@ -183,10 +186,11 @@ describe('POST /lead-grants', () => {
   });
 
   test.each([
-    ['web_verified', 'agents', ['verified', 'outstandingLeads']],
-    ['web_unverified', 'agents', ['unverified', 'outstandingLeads']],
-    ['instant_form', 'instant_forms', ['outstandingInstantForms']],
-    ['live_transfer', 'live_transfers', ['outstandingLiveTransfers']],
+    ['gsq_verified', 'agents', ['verified', 'outstandingLeads']],
+    ['gsq_unverified', 'agents', ['unverified', 'outstandingLeads']],
+    ['keyley_verified', 'keyley', ['outstandingKeyley']],
+    ['gsq_instant_form', 'instant_forms', ['outstandingInstantForms']],
+    ['gsq_live_transfer', 'live_transfers', ['outstandingLiveTransfers']],
   ])(
     '%s increments exactly %s %j by n',
     async (leadType, collection, fields) => {

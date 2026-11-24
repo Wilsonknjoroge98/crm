@@ -13,8 +13,12 @@ create table public.lead_grants (
   agent_id uuid not null references public.agents (id),
   -- the gsq ledger doc that was credited (lowercased email)
   agent_email text not null,
+  -- keep in step with LEAD_TYPES in server/functions/endpoints/lead_grants.js
+  -- and client/src/components/LeadGrants.jsx
   lead_type text not null
-    check (lead_type in ('web_verified', 'web_unverified', 'instant_form', 'live_transfer')),
+    check (lead_type in (
+      'gsq_verified', 'gsq_unverified', 'keyley_verified', 'gsq_instant_form', 'gsq_live_transfer'
+    )),
   quantity int not null check (quantity between 1 and 100),
   reason text not null check (length(trim(reason)) between 1 and 500),
   given_by uuid references public.agents (id)

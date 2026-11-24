@@ -8,27 +8,37 @@ const { supabaseService } = require('../services/supabase');
 // then one lead_grants row records who gave what and why.
 
 // lead type -> the GSQ ledger collection, the counter that must already be
-// there, the fields to increment, and the name used in the 409 message
+// there, the fields to increment, and the name used in the 409 message.
+// Keep the keys in step with LEAD_TYPES in client/src/components/LeadGrants.jsx
+// and the lead_type check in server/sql/add_lead_grants.sql.
 const LEAD_TYPES = {
-  web_verified: {
+  gsq_verified: {
     collection: 'agents',
     counter: 'outstandingLeads',
     fields: ['verified', 'outstandingLeads'],
     product: 'web lead',
   },
-  web_unverified: {
+  gsq_unverified: {
     collection: 'agents',
     counter: 'outstandingLeads',
     fields: ['unverified', 'outstandingLeads'],
     product: 'web lead',
   },
-  instant_form: {
+  // Keyley's pool, the one Keyley's lead routing draws from (gsq
+  // functions/keyley/shared.js); every Keyley lead is verified
+  keyley_verified: {
+    collection: 'keyley',
+    counter: 'outstandingKeyley',
+    fields: ['outstandingKeyley'],
+    product: 'Keyley lead',
+  },
+  gsq_instant_form: {
     collection: 'instant_forms',
     counter: 'outstandingInstantForms',
     fields: ['outstandingInstantForms'],
     product: 'instant form',
   },
-  live_transfer: {
+  gsq_live_transfer: {
     collection: 'live_transfers',
     counter: 'outstandingLiveTransfers',
     fields: ['outstandingLiveTransfers'],

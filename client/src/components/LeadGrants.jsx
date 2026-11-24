@@ -35,11 +35,14 @@ import {
 // Free leads an admin gives an agent. The server adds them to the agent's
 // GSQ balance and keeps a record (endpoints/lead_grants.js).
 
+// Keep the keys in step with LEAD_TYPES in server/functions/endpoints/lead_grants.js
+// and the lead_type check in server/sql/add_lead_grants.sql.
 const LEAD_TYPES = {
-  web_verified: 'GSQ Web - verified',
-  web_unverified: 'GSQ Web - unverified',
-  instant_form: 'GSQ Instant Form',
-  live_transfer: 'GSQ Live Transfer',
+  gsq_verified: 'GSQ Web - verified',
+  gsq_unverified: 'GSQ Web - unverified',
+  keyley_verified: 'Keyley - verified',
+  gsq_instant_form: 'GSQ Instant Form',
+  gsq_live_transfer: 'GSQ Live Transfer',
 };
 
 // Pick one, like the Producer Page bio presets; Other takes typed text.
@@ -48,7 +51,7 @@ const OTHER = 'Other';
 
 const EMPTY_FORM = {
   agent: null,
-  leadType: 'web_verified',
+  leadType: 'gsq_verified',
   quantity: '',
   reasonChoice: REASONS[0],
   otherReason: '',
