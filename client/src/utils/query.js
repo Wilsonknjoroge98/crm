@@ -380,21 +380,21 @@ const reviewRefund = async ({ leadId, action, reason }) => {
 };
 
 // Free leads given from the Lead Credits page, newest first (admins only)
-const getLeadGrants = async () => {
+const getFreeLeads = async () => {
   const response = await apiClient.request({
     method: 'GET',
-    url: '/lead-grants',
+    url: '/free-leads',
   });
   return response.data?.data;
 };
 
-// grant is { id, agentId, leadType, quantity, reason }; id is made once per
-// grant and resent on retry (LeadGrants.jsx); resolves to { data: row }
-const giveLeadGrant = async (grant) => {
+// freeLeads is { id, agentId, leadType, quantity, reason }; the id is made
+// once and resent on retry (FreeLeads.jsx); resolves to { data: row }
+const giveFreeLeads = async (freeLeads) => {
   const response = await apiClient.request({
     method: 'POST',
-    url: '/lead-grants',
-    data: grant,
+    url: '/free-leads',
+    data: freeLeads,
   });
   return response.data;
 };
@@ -1330,8 +1330,8 @@ export {
   dismissUnmatchedReview,
   getRefunds,
   reviewRefund,
-  getLeadGrants,
-  giveLeadGrant,
+  getFreeLeads,
+  giveFreeLeads,
   postAccessRequest,
   getPublicStats,
   getAccessRequests,

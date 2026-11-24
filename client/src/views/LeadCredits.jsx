@@ -32,7 +32,7 @@ import {
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 import PageContainer from '../components/PageContainer';
-import LeadGrants from '../components/LeadGrants';
+import FreeLeads from '../components/FreeLeads';
 
 const MONO = '"JetBrains Mono", monospace';
 const HEAD_CELL_SX = {
@@ -69,7 +69,7 @@ const formatDate = (value) => (value ? dayjs(value).format('MMM D, YYYY') : '—
 
 // Lead Credits: everything that adds leads back to an agent's balance.
 // Two tabs: Refunds (refund requests, filtered by status) and Free Leads
-// (grants, added to the agent's balance in GSQ's Firestore like an approved
+// (added to the agent's balance in GSQ's Firestore like an approved
 // refund). The status filter is kept here so it survives a tab switch.
 const LeadCredits = () => {
   const [section, setSection] = useState(SECTIONS.refunds);
@@ -105,7 +105,7 @@ const LeadCredits = () => {
       </Tabs>
 
       {section === SECTIONS.freeLeads ? (
-        <LeadGrants />
+        <FreeLeads />
       ) : (
         <RefundRequests status={status} setStatus={setStatus} />
       )}

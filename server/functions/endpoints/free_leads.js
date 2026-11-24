@@ -6,9 +6,9 @@ const { supabaseService } = require('../services/supabase');
 // Free leads an admin gives an agent, from the Lead Credits page.
 //
 // One Firestore transaction in GSQ's project adds the leads to the agent's
-// balance (the same counters a purchase fills) and writes a lead_grants/{id}
-// marker holding the whole grant, so leads are never added without a record.
-// Then the grant is upserted into Supabase's lead_grants under the same id.
+// balance (the same counters a purchase fills) and writes a free_leads/{id}
+// marker holding all of it, so leads are never added without a record.
+// Then the record is upserted into Supabase's free_leads under the same id.
 //
 // The browser picks the id and keeps it until it gets a final answer, so a
 // retry (double click, timeout, a 500 after the credit) sends the same id:
@@ -17,8 +17,8 @@ const { supabaseService } = require('../services/supabase');
 
 // lead type -> the GSQ ledger collection, the counter that must already be
 // there, the fields to increment, and the name used in the 409 message.
-// Keep the keys in step with LEAD_TYPES in client/src/components/LeadGrants.jsx
-// and the lead_type check in server/sql/add_lead_grants.sql.
+// Keep the keys in step with LEAD_TYPES in client/src/components/FreeLeads.jsx
+// and the lead_type check in server/sql/add_free_leads.sql.
 const LEAD_TYPES = {
   gsq_verified: {
     collection: 'agents',
@@ -54,22 +54,22 @@ const LEAD_TYPES = {
   },
 };
 
-// GSQ Firestore collection holding one marker per grant, keyed by grant id
-const MARKER_COLLECTION = 'lead_grants';
+// GSQ Firestore collection holding one marker per giving, keyed by its id
+const MARKER_COLLECTION = 'free_leads';
 
-// a retried id must carry the grant it was first used for
-const isSameGrant = (marker, grant) =>
-  marker.agentEmail === grant.agentEmail &&
-  marker.leadType === grant.leadType &&
-  marker.quantity === grant.quantity;
+// a retried id must carry the free leads it was first used for
+const isSameFreeLeads = (marker, freeLeads) =>
+  marker.agentEmail === freeLeads.agentEmail &&
+  marker.leadType === freeLeads.leadType &&
+  marker.quantity === freeLeads.quantity;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const LIST_FIELDS =
   'id,created_at,agent_id,agent_email,lead_type,quantity,reason,given_by,' +
-  'agent:agents!lead_grants_agent_id_fkey(first_name,last_name,email),' +
-  'given_by_agent:agents!lead_grants_given_by_fkey(first_name,last_name,email)';
+  'agent:agents!free_leads_agent_id_fkey(first_name,last_name,email),' +
+  'given_by_agent:agents!free_leads_given_by_fkey(first_name,last_name,email)';
 
 const defaultCreateFirestore = () =>
   new Firestore({
@@ -85,7 +85,7 @@ const requireAdmin = (req, res, next) =>
 // Returns an error message, or null when the body is valid.
 const validate = ({ id, agentId, leadType, quantity, reason } = {}) => {
   if (typeof id !== 'string' || !UUID_RE.test(id)) {
-    return 'Missing grant id; reload the page and try again';
+    return 'Missing id; reload the page and try again';
   }
   if (typeof agentId !== 'string' || !UUID_RE.test(agentId)) {
     return 'Pick an agent';
@@ -101,22 +101,22 @@ const validate = ({ id, agentId, leadType, quantity, reason } = {}) => {
   return null;
 };
 
-const createLeadGrantsRouter = ({
+const createFreeLeadsRouter = ({
   supabase = supabaseService,
   createFirestore = defaultCreateFirestore,
 } = {}) => {
   // eslint-disable-next-line new-cap
   const router = express.Router();
 
-  // the newest 100 free lead grants with the agent's and giver's names
+  // the newest 100 free leads given, with the agent's and giver's names
   router.get('/', requireAdmin, async (req, res) => {
     const { data, error } = await supabase
-      .from('lead_grants')
+      .from('free_leads')
       .select(LIST_FIELDS)
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) {
-      logger.error('Failed to fetch lead grants', { error });
+      logger.error('Failed to fetch free leads', { error });
       return res.status(500).json({ error: 'Failed to fetch free leads' });
     }
     return res.status(200).json({ data });
@@ -135,7 +135,7 @@ const createLeadGrantsRouter = ({
       .eq('id', agentId)
       .maybeSingle();
     if (agentError) {
-      logger.error('Lead grant agent lookup failed', { error: agentError });
+      logger.error('Free leads agent lookup failed', { error: agentError });
       return res.status(500).json({ error: 'Could not look up the agent' });
     }
     // an unknown agent is a 404; an agent with no email has no GSQ ledger
@@ -145,7 +145,7 @@ const createLeadGrantsRouter = ({
       return res.status(400).json({ error: 'This agent has no email' });
     }
 
-    const grant = {
+    const freeLeads = {
       agentId: agent.id,
       agentEmail: email,
       leadType,
@@ -156,7 +156,7 @@ const createLeadGrantsRouter = ({
 
     // add the leads and write the marker in one transaction; a missing
     // ledger doc is never created here (the funnel makes it on the first
-    // purchase). A marker that is already there means this grant was
+    // purchase). A marker that is already there means these were
     // credited before: nothing is added again.
     let replay = false;
     try {
@@ -169,7 +169,7 @@ const createLeadGrantsRouter = ({
           tx.get(ledgerRef),
         ]);
         if (marker.exists) {
-          return isSameGrant(marker.data(), grant) ? 'replay' : 'conflict';
+          return isSameFreeLeads(marker.data(), freeLeads) ? 'replay' : 'conflict';
         }
         if (!ledger.exists || typeof ledger.get(type.counter) !== 'number') {
           return 'no-balance';
@@ -181,7 +181,7 @@ const createLeadGrantsRouter = ({
           ),
         );
         tx.create(markerRef, {
-          ...grant,
+          ...freeLeads,
           createdAt: FieldValue.serverTimestamp(),
         });
         return 'credited';
@@ -193,12 +193,12 @@ const createLeadGrantsRouter = ({
       }
       if (outcome === 'conflict') {
         return res.status(409).json({
-          error: 'This grant id was already used for a different grant',
+          error: 'This id was already used for different free leads',
         });
       }
       replay = outcome === 'replay';
     } catch (error) {
-      logger.error('Lead grant GSQ credit failed', { id, email, error });
+      logger.error('Free leads GSQ credit failed', { id, email, error });
       return res
         .status(502)
         .json({ error: 'Could not add the leads; nothing was given' });
@@ -207,23 +207,23 @@ const createLeadGrantsRouter = ({
     // the same id every time, so a retry fills in a missing row and never
     // makes a second one
     const { data: row, error: upsertError } = await supabase
-      .from('lead_grants')
+      .from('free_leads')
       .upsert(
         {
           id,
-          agent_id: grant.agentId,
-          agent_email: grant.agentEmail,
-          lead_type: grant.leadType,
-          quantity: grant.quantity,
-          reason: grant.reason,
-          given_by: grant.givenBy,
+          agent_id: freeLeads.agentId,
+          agent_email: freeLeads.agentEmail,
+          lead_type: freeLeads.leadType,
+          quantity: freeLeads.quantity,
+          reason: freeLeads.reason,
+          given_by: freeLeads.givenBy,
         },
         { onConflict: 'id' },
       )
       .select()
       .single();
     if (upsertError) {
-      logger.error('Lead grant credited but not recorded in Supabase', {
+      logger.error('Free leads credited but not recorded in Supabase', {
         id,
         email,
         leadType,
@@ -241,5 +241,5 @@ const createLeadGrantsRouter = ({
   return router;
 };
 
-module.exports = createLeadGrantsRouter();
-module.exports.createLeadGrantsRouter = createLeadGrantsRouter;
+module.exports = createFreeLeadsRouter();
+module.exports.createFreeLeadsRouter = createFreeLeadsRouter;

@@ -20,7 +20,7 @@ const offersRouter = require('./offers');
 const { createAdPublishRouter } = require('./adPublish');
 const messagesRouter = require('./messages');
 const refundsRouter = require('./refunds');
-const leadGrantsRouter = require('./lead_grants');
+const freeLeadsRouter = require('./free_leads');
 const {
   accessRequestsRouter,
   publicAccessRequestRouter,
@@ -50,7 +50,7 @@ module.exports = {
   createAdPublishRouter,
   messagesRouter,
   refundsRouter,
-  leadGrantsRouter,
+  freeLeadsRouter,
   accessRequestsRouter,
   publicAccessRequestRouter,
   publicStatsRouter,

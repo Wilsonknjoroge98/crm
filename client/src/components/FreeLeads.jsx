@@ -27,17 +27,17 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { enqueueSnackbar } from 'notistack';
 
-import { getAgents, getLeadGrants, giveLeadGrant } from '../utils/query';
+import { getAgents, getFreeLeads, giveFreeLeads } from '../utils/query';
 import {
   SNACKBAR_ERROR_OPTIONS,
   SNACKBAR_SUCCESS_OPTIONS,
 } from '../utils/constants';
 
 // Free leads an admin gives an agent. The server adds them to the agent's
-// GSQ balance and keeps a record (endpoints/lead_grants.js).
+// GSQ balance and keeps a record (endpoints/free_leads.js).
 
-// Keep the keys in step with LEAD_TYPES in server/functions/endpoints/lead_grants.js
-// and the lead_type check in server/sql/add_lead_grants.sql.
+// Keep the keys in step with LEAD_TYPES in server/functions/endpoints/free_leads.js
+// and the lead_type check in server/sql/add_free_leads.sql.
 const LEAD_TYPES = {
   gsq_verified: 'GSQ Web - verified',
   gsq_unverified: 'GSQ Web - unverified',
@@ -76,11 +76,11 @@ const fullName = (person) =>
 const describe = ({ quantity, leadType }) =>
   `${quantity} ${LEAD_TYPES[leadType]} lead${quantity === 1 ? '' : 's'}`;
 
-// A grant that was sent but got no final answer (network error, timeout, 5xx,
+// Free leads that were sent but got no final answer (network error, timeout, 5xx,
 // tab closed). It keeps its id in localStorage, so it survives reloads and
 // browser restarts on this browser, and Retry sends the same id: the server
-// never adds the leads twice for one id (endpoints/lead_grants.js).
-const PENDING_KEY = 'leadGrants.pending';
+// never adds the leads twice for one id (endpoints/free_leads.js).
+const PENDING_KEY = 'freeLeads.pending';
 const loadPending = () => {
   try {
     return JSON.parse(localStorage.getItem(PENDING_KEY)) || null;
@@ -88,28 +88,28 @@ const loadPending = () => {
     return null;
   }
 };
-const savePending = (grant) => {
-  if (grant) localStorage.setItem(PENDING_KEY, JSON.stringify(grant));
+const savePending = (freeLeads) => {
+  if (freeLeads) localStorage.setItem(PENDING_KEY, JSON.stringify(freeLeads));
   else localStorage.removeItem(PENDING_KEY);
 };
 
-const LeadGrants = () => {
+const FreeLeads = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirming, setConfirming] = useState(false);
   const [pending, setPendingState] = useState(loadPending);
-  const setPending = (grant) => {
-    savePending(grant);
-    setPendingState(grant);
+  const setPending = (freeLeads) => {
+    savePending(freeLeads);
+    setPendingState(freeLeads);
   };
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
     queryFn: getAgents,
   });
-  const { data: grants = [], isError: grantsFailed } = useQuery({
-    queryKey: ['lead-grants'],
-    queryFn: getLeadGrants,
+  const { data: recentFreeLeads = [], isError: recentFailed } = useQuery({
+    queryKey: ['free-leads'],
+    queryFn: getFreeLeads,
   });
 
   const set = (field) => (value) =>
@@ -130,20 +130,20 @@ const LeadGrants = () => {
 
   // agentName rides along for the pending notice; the server ignores it
   const { mutate: send, isPending } = useMutation({
-    mutationFn: ({ agentName, ...grant }) => giveLeadGrant(grant),
-    onSuccess: (_, grant) => {
+    mutationFn: ({ agentName, ...freeLeads }) => giveFreeLeads(freeLeads),
+    onSuccess: (_, freeLeads) => {
       enqueueSnackbar(
-        `Gave ${grant.agentName} ${describe(grant)}`,
+        `Gave ${freeLeads.agentName} ${describe(freeLeads)}`,
         SNACKBAR_SUCCESS_OPTIONS,
       );
       setPending(null);
       setForm(EMPTY_FORM);
-      queryClient.invalidateQueries({ queryKey: ['lead-grants'] });
+      queryClient.invalidateQueries({ queryKey: ['free-leads'] });
     },
     onError: (error) => {
-      // a 4xx is a final answer and nothing was added, so the grant is
+      // a 4xx is a final answer and nothing was added, so they are
       // dropped and the form kept to fix it. No response or a 5xx is no
-      // final answer: the grant stays pending for Retry.
+      // final answer: they stay pending for Retry.
       const status = error?.response?.status;
       if (status >= 400 && status < 500) setPending(null);
       enqueueSnackbar(
@@ -156,7 +156,7 @@ const LeadGrants = () => {
 
   // the id is made once, here, and saved before the request goes out
   const give = () => {
-    const grant = {
+    const freeLeads = {
       id: crypto.randomUUID(),
       agentId: form.agent.id,
       agentName: name,
@@ -164,8 +164,8 @@ const LeadGrants = () => {
       quantity,
       reason,
     };
-    setPending(grant);
-    send(grant);
+    setPending(freeLeads);
+    send(freeLeads);
   };
 
   return (
@@ -323,11 +323,11 @@ const LeadGrants = () => {
         Recent Free Leads
       </Typography>
       {/* the admin table (Refunds, Access Requests, Agents) */}
-      {grantsFailed ? (
+      {recentFailed ? (
         <Alert severity='error'>
           Failed to load free leads. Please refresh or try again later.
         </Alert>
-      ) : grants.length === 0 ? (
+      ) : recentFreeLeads.length === 0 ? (
         <Alert severity='info'>No free leads given yet.</Alert>
       ) : (
         <TableContainer
@@ -346,34 +346,34 @@ const LeadGrants = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {grants.map((grant) => (
+              {recentFreeLeads.map((row) => (
                 <TableRow
-                  key={grant.id}
+                  key={row.id}
                   hover
                   sx={{ '&:last-child td': { border: 0 } }}
                 >
                   <TableCell>
                     <Typography variant='subtitle2' fontWeight={600}>
-                      {grant.agent ? fullName(grant.agent) : '—'}
+                      {row.agent ? fullName(row.agent) : '—'}
                     </Typography>
                     <Typography variant='caption' sx={{ fontFamily: MONO }}>
-                      {grant.agent_email}
+                      {row.agent_email}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Box component='span' sx={{ fontFamily: MONO }}>
-                      {grant.quantity}
+                      {row.quantity}
                     </Box>{' '}
-                    {LEAD_TYPES[grant.lead_type] || grant.lead_type}
+                    {LEAD_TYPES[row.lead_type] || row.lead_type}
                   </TableCell>
-                  <TableCell sx={{ maxWidth: 260 }}>{grant.reason}</TableCell>
+                  <TableCell sx={{ maxWidth: 260 }}>{row.reason}</TableCell>
                   <TableCell>
-                    {grant.given_by_agent
-                      ? fullName(grant.given_by_agent)
+                    {row.given_by_agent
+                      ? fullName(row.given_by_agent)
                       : '—'}
                   </TableCell>
                   <TableCell sx={{ fontFamily: MONO, whiteSpace: 'nowrap' }}>
-                    {formatDate(grant.created_at)}
+                    {formatDate(row.created_at)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -385,4 +385,4 @@ const LeadGrants = () => {
   );
 };
 
-export default LeadGrants;
+export default FreeLeads;

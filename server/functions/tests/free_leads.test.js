@@ -9,7 +9,7 @@ jest.mock('firebase-functions/logger', () => ({
   error: jest.fn(),
 }));
 
-const { createLeadGrantsRouter } = require('../endpoints/lead_grants');
+const { createFreeLeadsRouter } = require('../endpoints/free_leads');
 
 const ADMIN_ID = '0a0a0a0a-0000-4000-8000-000000000001';
 const AGENT_ID = '0b0b0b0b-0000-4000-8000-000000000002';
@@ -82,7 +82,7 @@ const ALL_LEDGERS = {
   [`keyley/${EMAIL}`]: { outstandingKeyley: 0 },
 };
 
-const GRANT_ID = '0c0c0c0c-0000-4000-8000-000000000003';
+const FREE_LEADS_ID = '0c0c0c0c-0000-4000-8000-000000000003';
 
 const makeApp = ({ supabase, createFirestore, role = 'admin' }) => {
   const app = express();
@@ -93,14 +93,14 @@ const makeApp = ({ supabase, createFirestore, role = 'admin' }) => {
     next();
   });
   app.use(
-    '/lead-grants',
-    createLeadGrantsRouter({ supabase, createFirestore }),
+    '/free-leads',
+    createFreeLeadsRouter({ supabase, createFirestore }),
   );
   return app;
 };
 
 const body = (overrides = {}) => ({
-  id: GRANT_ID,
+  id: FREE_LEADS_ID,
   agentId: AGENT_ID,
   leadType: 'gsq_verified',
   quantity: 2,
@@ -111,7 +111,7 @@ const body = (overrides = {}) => ({
 const agentFound = { data: AGENT, error: null };
 const inserted = (row = { id: 'g1' }) => ({ data: row, error: null });
 
-describe('POST /lead-grants', () => {
+describe('POST /free-leads', () => {
   let supabase;
   let createFirestore;
   beforeEach(() => {
@@ -121,7 +121,7 @@ describe('POST /lead-grants', () => {
 
   const post = (payload, opts = {}) =>
     request(makeApp({ supabase, createFirestore, ...opts }))
-      .post('/lead-grants')
+      .post('/free-leads')
       .send(payload);
 
   test('non-admin gets 403 and nothing happens', async () => {
@@ -193,7 +193,7 @@ describe('POST /lead-grants', () => {
         `This agent has no GSQ ${product} balance yet`,
       );
       expect(createFirestore.updates[`${collection}/${EMAIL}`]).toBeUndefined();
-      expect(createFirestore.creates[`lead_grants/${GRANT_ID}`]).toBeUndefined();
+      expect(createFirestore.creates[`free_leads/${FREE_LEADS_ID}`]).toBeUndefined();
       expect(supabase.queries).toHaveLength(1);
     },
   );
@@ -224,7 +224,7 @@ describe('POST /lead-grants', () => {
       expect(createFirestore.updates[`${collection}/${EMAIL}`]).toEqual([
         Object.fromEntries(fields.map((f) => [f, FieldValue.increment(3)])),
       ]);
-      expect(createFirestore.creates[`lead_grants/${GRANT_ID}`]).toEqual([
+      expect(createFirestore.creates[`free_leads/${FREE_LEADS_ID}`]).toEqual([
         {
           agentId: AGENT_ID,
           agentEmail: EMAIL,
@@ -237,10 +237,10 @@ describe('POST /lead-grants', () => {
       ]);
 
       const upsert = supabase.queries[1];
-      expect(upsert.table).toBe('lead_grants');
+      expect(upsert.table).toBe('free_leads');
       expect(upsert.upsert).toHaveBeenCalledWith(
         {
-          id: GRANT_ID,
+          id: FREE_LEADS_ID,
           agent_id: AGENT_ID,
           agent_email: EMAIL,
           lead_type: leadType,
@@ -282,37 +282,37 @@ describe('POST /lead-grants', () => {
       agentFound,
       { data: null, error: { message: 'boom' } },
       agentFound,
-      inserted({ id: GRANT_ID }),
+      inserted({ id: FREE_LEADS_ID }),
     ]);
     const first = await post(body());
     expect(first.status).toBe(500);
 
     const retry = await post(body());
     expect(retry.status).toBe(200);
-    expect(retry.body).toEqual({ data: { id: GRANT_ID } });
+    expect(retry.body).toEqual({ data: { id: FREE_LEADS_ID } });
     // the ledger was credited once, by the first request
     expect(createFirestore.updates[`agents/${EMAIL}`]).toHaveLength(1);
-    expect(createFirestore.creates[`lead_grants/${GRANT_ID}`]).toHaveLength(1);
-    expect(supabase.queries[3].upsert.mock.calls[0][0].id).toBe(GRANT_ID);
+    expect(createFirestore.creates[`free_leads/${FREE_LEADS_ID}`]).toHaveLength(1);
+    expect(supabase.queries[3].upsert.mock.calls[0][0].id).toBe(FREE_LEADS_ID);
   });
 
   test('a second success with the same id is a 200 and credits nothing', async () => {
     supabase = makeSupabase([
       agentFound,
-      inserted({ id: GRANT_ID }),
+      inserted({ id: FREE_LEADS_ID }),
       agentFound,
-      inserted({ id: GRANT_ID }),
+      inserted({ id: FREE_LEADS_ID }),
     ]);
     expect((await post(body())).status).toBe(201);
     expect((await post(body())).status).toBe(200);
     expect(createFirestore.updates[`agents/${EMAIL}`]).toHaveLength(1);
   });
 
-  test('an id reused for a different grant is a 409 and credits nothing', async () => {
+  test('an id reused for different free leads is a 409 and credits nothing', async () => {
     createFirestore = makeFirestore({
       docs: {
         ...ALL_LEDGERS,
-        [`lead_grants/${GRANT_ID}`]: {
+        [`free_leads/${FREE_LEADS_ID}`]: {
           agentEmail: EMAIL,
           leadType: 'gsq_verified',
           quantity: 5,
@@ -322,19 +322,19 @@ describe('POST /lead-grants', () => {
     const res = await post(body({ quantity: 2 }));
     expect(res.status).toBe(409);
     expect(res.body.error).toBe(
-      'This grant id was already used for a different grant',
+      'This id was already used for different free leads',
     );
     expect(createFirestore.updates[`agents/${EMAIL}`]).toBeUndefined();
     expect(supabase.queries).toHaveLength(1);
   });
 });
 
-describe('GET /lead-grants', () => {
+describe('GET /free-leads', () => {
   test('non-admin gets 403', async () => {
     const supabase = makeSupabase([]);
     const res = await request(
       makeApp({ supabase, createFirestore: makeFirestore(), role: 'agent' }),
-    ).get('/lead-grants');
+    ).get('/free-leads');
     expect(res.status).toBe(403);
     expect(supabase.from).not.toHaveBeenCalled();
   });
@@ -347,20 +347,20 @@ describe('GET /lead-grants', () => {
     const supabase = makeSupabase([{ data: rows, error: null }]);
     const res = await request(
       makeApp({ supabase, createFirestore: makeFirestore() }),
-    ).get('/lead-grants');
+    ).get('/free-leads');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ data: rows });
     const query = supabase.queries[0];
-    expect(query.table).toBe('lead_grants');
+    expect(query.table).toBe('free_leads');
     expect(query.order).toHaveBeenCalledWith('created_at', {
       ascending: false,
     });
     expect(query.limit).toHaveBeenCalledWith(100);
     expect(query.select.mock.calls[0][0]).toContain(
-      'agent:agents!lead_grants_agent_id_fkey',
+      'agent:agents!free_leads_agent_id_fkey',
     );
     expect(query.select.mock.calls[0][0]).toContain(
-      'given_by_agent:agents!lead_grants_given_by_fkey',
+      'given_by_agent:agents!free_leads_given_by_fkey',
     );
   });
 });
