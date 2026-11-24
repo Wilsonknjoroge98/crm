@@ -1,12 +1,13 @@
 import {
   Alert,
   Autocomplete,
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
+  DialogTitle,
   FormControlLabel,
-  FormLabel,
   MenuItem,
   Paper,
   Radio,
@@ -56,6 +57,16 @@ const EMPTY_FORM = {
   reasonChoice: REASONS[0],
   otherReason: '',
 };
+
+// the app's admin table look, as on Refunds and Access Requests
+const MONO = '"JetBrains Mono", monospace';
+const HEAD_CELL_SX = {
+  fontWeight: 600,
+  color: 'text.secondary',
+  fontSize: '.75rem',
+  letterSpacing: 1,
+};
+const formatDate = (value) => (value ? dayjs(value).format('MMM D, YYYY') : '—');
 
 const fullName = (person) =>
   [person?.first_name, person?.last_name].filter(Boolean).join(' ') ||
@@ -191,9 +202,22 @@ const LeadGrants = () => {
         </Alert>
       )}
 
-      <Paper variant='outlined' sx={{ p: 2, maxWidth: 560 }}>
-        <Typography variant='h6' mb={2}>
-          Free Leads
+      {/* the settings card (AgentCardSettings), kept form-width */}
+      <Paper
+        variant='outlined'
+        sx={{
+          maxWidth: 560,
+          p: { xs: 3, md: 4 },
+          borderRadius: 1,
+          border: 'none',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Typography variant='h6' fontWeight={600}>
+          Give Free Leads
+        </Typography>
+        <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
+          The leads are added to the agent&apos;s balance right away.
         </Typography>
         <Stack spacing={2}>
           <Autocomplete
@@ -209,7 +233,7 @@ const LeadGrants = () => {
           />
           <TextField
             select
-            label='Lead type'
+            label='Lead Type'
             value={form.leadType}
             onChange={(e) => set('leadType')(e.target.value)}
           >
@@ -220,14 +244,17 @@ const LeadGrants = () => {
             ))}
           </TextField>
           <TextField
-            label='How many'
+            label='Quantity'
             type='number'
             value={form.quantity}
             onChange={(e) => set('quantity')(e.target.value)}
             slotProps={{ htmlInput: { min: 1, max: 100, step: 1 } }}
           />
+          {/* labelled like Invite Agent's sections, radios like the bio picker */}
           <div>
-            <FormLabel>Reason</FormLabel>
+            <Typography variant='subtitle2' fontWeight={600}>
+              Reason
+            </Typography>
             <RadioGroup
               value={form.reasonChoice}
               onChange={(e) => set('reasonChoice')(e.target.value)}
@@ -237,7 +264,8 @@ const LeadGrants = () => {
                   key={choice}
                   value={choice}
                   control={<Radio size='small' />}
-                  label={choice}
+                  sx={{ mr: 0 }}
+                  label={<Typography variant='body2'>{choice}</Typography>}
                 />
               ))}
             </RadioGroup>
@@ -260,72 +288,92 @@ const LeadGrants = () => {
             onClick={() => setConfirming(true)}
             sx={{ alignSelf: 'flex-end' }}
           >
-            Give leads
+            Give Leads
           </Button>
         </Stack>
       </Paper>
 
+      {/* the app's confirm dialog (Invite Agent, Choose Your Bio) */}
       <Dialog
         open={confirming}
         onClose={() => !isPending && setConfirming(false)}
+        fullWidth
+        maxWidth='xs'
       >
+        <DialogTitle>Give Free Leads</DialogTitle>
         <DialogContent>
-          <Typography>
+          <Typography variant='body2'>
             Give {name} {what}?
           </Typography>
-          <Typography variant='body2' color='text.secondary' mt={1}>
-            {reason}
+          <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
+            Reason: {reason}
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setConfirming(false)} disabled={isPending}>
             Cancel
           </Button>
-          <Button
-            variant='contained'
-            onClick={give}
-            disabled={isPending}
-          >
-            Give
+          <Button variant='contained' onClick={give} disabled={isPending}>
+            {isPending ? 'Giving…' : 'Give Leads'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Typography variant='h6'>Recent free leads</Typography>
+      <Typography variant='h6' fontWeight={600}>
+        Recent Free Leads
+      </Typography>
+      {/* the admin table (Refunds, Access Requests, Agents) */}
       {grantsFailed ? (
-        <Alert severity='error'>Could not load the free leads list.</Alert>
+        <Alert severity='error'>
+          Failed to load free leads. Please refresh or try again later.
+        </Alert>
       ) : grants.length === 0 ? (
         <Alert severity='info'>No free leads given yet.</Alert>
       ) : (
-        <TableContainer>
-          <Table size='small'>
-            <TableHead>
+        <TableContainer
+          component={Paper}
+          variant='outlined'
+          sx={{ boxShadow: 0, border: 'none', backgroundColor: 'transparent' }}
+        >
+          <Table>
+            <TableHead sx={{ bgcolor: 'grey.50' }}>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Agent</TableCell>
-                <TableCell>Given</TableCell>
-                <TableCell>Reason</TableCell>
-                <TableCell>Given by</TableCell>
+                <TableCell sx={HEAD_CELL_SX}>AGENT</TableCell>
+                <TableCell sx={HEAD_CELL_SX}>LEADS</TableCell>
+                <TableCell sx={HEAD_CELL_SX}>REASON</TableCell>
+                <TableCell sx={HEAD_CELL_SX}>GIVEN BY</TableCell>
+                <TableCell sx={HEAD_CELL_SX}>GIVEN</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {grants.map((grant) => (
-                <TableRow key={grant.id}>
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                    {dayjs(grant.created_at).format('MMM D, YYYY h:mm A')}
+                <TableRow
+                  key={grant.id}
+                  hover
+                  sx={{ '&:last-child td': { border: 0 } }}
+                >
+                  <TableCell>
+                    <Typography variant='subtitle2' fontWeight={600}>
+                      {grant.agent ? fullName(grant.agent) : '—'}
+                    </Typography>
+                    <Typography variant='caption' sx={{ fontFamily: MONO }}>
+                      {grant.agent_email}
+                    </Typography>
                   </TableCell>
                   <TableCell>
-                    {grant.agent ? fullName(grant.agent) : grant.agent_email}
-                  </TableCell>
-                  <TableCell>
-                    {grant.quantity}{' '}
+                    <Box component='span' sx={{ fontFamily: MONO }}>
+                      {grant.quantity}
+                    </Box>{' '}
                     {LEAD_TYPES[grant.lead_type] || grant.lead_type}
                   </TableCell>
-                  <TableCell>{grant.reason}</TableCell>
+                  <TableCell sx={{ maxWidth: 260 }}>{grant.reason}</TableCell>
                   <TableCell>
                     {grant.given_by_agent
                       ? fullName(grant.given_by_agent)
                       : '—'}
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: MONO, whiteSpace: 'nowrap' }}>
+                    {formatDate(grant.created_at)}
                   </TableCell>
                 </TableRow>
               ))}
