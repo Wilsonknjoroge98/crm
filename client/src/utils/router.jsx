@@ -20,7 +20,7 @@ const Leaderboard = lazy(() => import('../views/Leaderboard'));
 const Production = lazy(() => import('../views/Production'));
 const Agents = lazy(() => import('../views/Agents'));
 const ReviewTriage = lazy(() => import('../views/ReviewTriage'));
-const Refunds = lazy(() => import('../views/Refunds'));
+const LeadCredits = lazy(() => import('../views/LeadCredits'));
 const AccessRequests = lazy(() => import('../views/AccessRequests'));
 const SalesAnalytics = lazy(() => import('../views/SalesAnalytics'));
 const ResetPassword = lazy(() => import('../views/ResetPassword'));
@@ -183,7 +183,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: '/refunds',
+        path: '/lead-credits',
         element: (
           <Suspense
             fallback={
@@ -199,9 +199,14 @@ const router = createBrowserRouter([
               </div>
             }
           >
-            <Refunds />
+            <LeadCredits />
           </Suspense>
         ),
+      },
+      // the page was called Refunds; old bookmarks still land on it
+      {
+        path: '/refunds',
+        element: <Navigate to='/lead-credits' replace />,
       },
       {
         path: '/access-requests',

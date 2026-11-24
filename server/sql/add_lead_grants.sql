@@ -1,4 +1,4 @@
--- free leads an admin gives an agent from the refunds page ("give free
+-- free leads an admin gives an agent from the lead credits page ("give free
 -- leads"). one transaction in gsq's firestore adds the leads to the agent's
 -- balance and writes a lead_grants/{id} marker with the whole grant; then the
 -- server upserts the row here under the same id (the browser picks it, so a

@@ -3,7 +3,7 @@ const logger = require('firebase-functions/logger');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { supabaseService } = require('../services/supabase');
 
-// Free leads an admin gives an agent, from the Refunds page.
+// Free leads an admin gives an agent, from the Lead Credits page.
 //
 // One Firestore transaction in GSQ's project adds the leads to the agent's
 // balance (the same counters a purchase fills) and writes a lead_grants/{id}

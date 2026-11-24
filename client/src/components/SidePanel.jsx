@@ -20,7 +20,7 @@ import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 // import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
-import CurrencyExchangeOutlinedIcon from '@mui/icons-material/CurrencyExchangeOutlined';
+import AddCardOutlinedIcon from '@mui/icons-material/AddCardOutlined';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
@@ -116,9 +116,9 @@ const SidePanel = () => {
       path: '/review-triage',
     },
     {
-      text: 'Refunds',
-      icon: <CurrencyExchangeOutlinedIcon />,
-      path: '/refunds',
+      text: 'Lead Credits',
+      icon: <AddCardOutlinedIcon />,
+      path: '/lead-credits',
     },
     {
       text: 'Access Requests',

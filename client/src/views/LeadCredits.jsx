@@ -48,8 +48,8 @@ const TABS = [
   { value: 'denied', label: 'Denied' },
   { value: 'all', label: 'All' },
 ];
-// Not a refund filter: giving free leads lives on this page because it is
-// the same kind of credit to an agent's GSQ balance.
+// Not a refund filter: free leads are the other kind of lead credit, added
+// to the agent's balance in GSQ's Firestore like an approved refund.
 const GRANTS_TAB = 'grants';
 const STATUS_CHIP_COLOR = {
   requested: 'warning',
@@ -64,7 +64,9 @@ const yesNo = (value) =>
   value === true ? 'Yes' : value === false ? 'No' : '—';
 const formatDate = (value) => (value ? dayjs(value).format('MMM D, YYYY') : '—');
 
-const Refunds = () => {
+// Lead Credits: everything that adds leads back to an agent's balance.
+// Refund requests (the status tabs) and free leads (the Free Leads tab).
+const LeadCredits = () => {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState('requested');
   const [pendingId, setPendingId] = useState(null);
@@ -140,7 +142,7 @@ const Refunds = () => {
         alignItems='center'
         mb={1}
       >
-        <Typography variant='h4'>Refunds</Typography>
+        <Typography variant='h4'>Lead Credits</Typography>
         {!isGrantsTab && (
           <Typography variant='body2' color='text.secondary'>
             {refunds.length} {isPendingTab ? 'pending' : ''} result
@@ -307,4 +309,4 @@ const Refunds = () => {
   );
 };
 
-export default Refunds;
+export default LeadCredits;

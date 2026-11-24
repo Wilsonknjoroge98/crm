@@ -379,7 +379,7 @@ const reviewRefund = async ({ leadId, action, reason }) => {
   return response.data?.data;
 };
 
-// Free leads given from the Refunds page, newest first (admins only)
+// Free leads given from the Lead Credits page, newest first (admins only)
 const getLeadGrants = async () => {
   const response = await apiClient.request({
     method: 'GET',
