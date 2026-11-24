@@ -25,6 +25,7 @@ import {
   SEGMENTS,
   SEGMENT_BY_KEY,
   cartLines,
+  groupByAge,
   continueShoppingPath,
   linesCount,
   linesTotal,
@@ -175,10 +176,8 @@ export default function Cart() {
     }
   };
 
-  const groups = SEGMENTS.map((segment) => ({
-    segment,
-    lines: items.filter((item) => item.segment === segment.key),
-  })).filter((group) => group.lines.length);
+  // by lead age, then source: 31–90 Day Aged > GSQ Website
+  const groups = groupByAge(items);
 
   return (
     <PageContainer>
@@ -231,7 +230,7 @@ export default function Cart() {
             spacing={3}
             alignItems='flex-start'
           >
-            {/* Line items, one section per segment */}
+            {/* Line items, one section per lead age, split by source */}
             <Paper
               variant='outlined'
               sx={{
@@ -256,8 +255,8 @@ export default function Cart() {
                   </Button>
                 </Box>
               ) : (
-                groups.map(({ segment, lines }) => (
-                  <Box key={segment.key}>
+                groups.map((group) => (
+                  <Box key={group.key}>
                     <Box
                       sx={{
                         px: 2.5,
@@ -266,77 +265,91 @@ export default function Cart() {
                         borderBottom: `2px solid ${BORDER}`,
                       }}
                     >
-                      <Typography sx={labelSx}>{segment.label}</Typography>
+                      <Typography sx={labelSx}>{group.label}</Typography>
                     </Box>
-                    {lines.map((item) => (
-                      <Stack
-                        key={item.id}
-                        direction='row'
-                        alignItems='center'
-                        spacing={2}
-                        sx={{
-                          px: 2.5,
-                          py: 2,
-                          borderBottom: `1px solid ${DIVIDER}`,
-                        }}
-                      >
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Stack
-                            direction='row'
-                            spacing={1}
-                            alignItems='center'
-                          >
-                            <Typography sx={{ fontWeight: 700 }}>
-                              {item.state}
-                            </Typography>
-                            <LeadTypeChip
-                              verified={item.type === 'verified'}
-                              label={
-                                item.type === 'verified'
-                                  ? 'Verified'
-                                  : 'Unverified'
-                              }
-                            />
-                          </Stack>
-                          <Typography variant='caption' color='text.secondary'>
-                            <Box component='span' sx={{ fontFamily: MONO }}>
-                              {formatMoney(item.price)}
-                            </Box>{' '}
-                            per {segment.unit}
-                          </Typography>
-                        </Box>
-                        <QtyStepper
-                          size='small'
-                          value={item.qty}
-                          max={getMax(item.segment, item.state, item.type)}
-                          onChange={(n) =>
-                            updateQty(item.segment, item.state, item.type, n)
-                          }
-                        />
-                        <Typography
+                    {/* No source sub-headers: each row names its source
+                        in its subtitle, so it reads on its own. Website
+                        rows still come before instant forms. */}
+                    {group.sources.flatMap(({ segment, label, lines }) =>
+                      lines.map((item) => (
+                        <Stack
+                          key={item.id}
+                          direction='row'
+                          alignItems='center'
+                          spacing={2}
                           sx={{
-                            fontFamily: MONO,
-                            fontWeight: 700,
-                            width: 88,
-                            textAlign: 'right',
+                            px: 2.5,
+                            py: 2,
+                            borderBottom: `1px solid ${DIVIDER}`,
                           }}
                         >
-                          {formatMoney(item.qty * item.price)}
-                        </Typography>
-                        <Tooltip title='Remove'>
-                          <IconButton
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Stack
+                              direction='row'
+                              spacing={1}
+                              alignItems='center'
+                            >
+                              <Typography sx={{ fontWeight: 700 }}>
+                                {item.state}
+                              </Typography>
+                              <LeadTypeChip
+                                verified={item.type === 'verified'}
+                                label={
+                                  item.type === 'verified'
+                                    ? 'Verified'
+                                    : 'Unverified'
+                                }
+                              />
+                            </Stack>
+                            <Typography
+                              variant='caption'
+                              color='text.secondary'
+                            >
+                              {label} ·{' '}
+                              <Box component='span' sx={{ fontFamily: MONO }}>
+                                {formatMoney(item.price)}
+                              </Box>{' '}
+                              per lead
+                            </Typography>
+                          </Box>
+                          <QtyStepper
                             size='small'
-                            aria-label={`Remove ${segment.label} ${item.state} ${item.type}`}
-                            onClick={() =>
-                              updateQty(item.segment, item.state, item.type, 0)
+                            value={item.qty}
+                            max={getMax(item.segment, item.state, item.type)}
+                            onChange={(n) =>
+                              updateQty(item.segment, item.state, item.type, n)
                             }
-                            sx={{ '&:hover': { color: 'error.main' } }}
+                          />
+                          <Typography
+                            sx={{
+                              fontFamily: MONO,
+                              fontWeight: 700,
+                              width: 88,
+                              textAlign: 'right',
+                            }}
                           >
-                            <DeleteOutlineIcon fontSize='small' />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    ))}
+                            {formatMoney(item.qty * item.price)}
+                          </Typography>
+                          <Tooltip title='Remove'>
+                            <IconButton
+                              size='small'
+                              aria-label={`Remove ${segment.label} ${item.state} ${item.type}`}
+                              onClick={() =>
+                                updateQty(
+                                  item.segment,
+                                  item.state,
+                                  item.type,
+                                  0,
+                                )
+                              }
+                              sx={{ '&:hover': { color: 'error.main' } }}
+                            >
+                              <DeleteOutlineIcon fontSize='small' />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      )),
+                    )}
                   </Box>
                 ))
               )}
@@ -360,13 +373,23 @@ export default function Cart() {
               {/* Financial rollup only: the items themselves are listed and
                   edited in the left column. */}
               {groups.length > 0 ? (
-                <Stack spacing={1}>
-                  {groups.map(({ segment, lines }) => (
-                    <SummaryRow
-                      key={segment.key}
-                      label={`${segment.label} (${linesCount(lines)})`}
-                      value={formatMoney(linesTotal(lines))}
-                    />
+                <Stack spacing={1.5}>
+                  {groups.map((group) => (
+                    <Stack key={group.key} spacing={0.75}>
+                      <Typography
+                        variant='caption'
+                        sx={{ fontWeight: 700, color: 'text.secondary' }}
+                      >
+                        {group.label}
+                      </Typography>
+                      {group.sources.map(({ segment, label, lines }) => (
+                        <SummaryRow
+                          key={segment.key}
+                          label={`${label} (${linesCount(lines)})`}
+                          value={formatMoney(linesTotal(lines))}
+                        />
+                      ))}
+                    </Stack>
                   ))}
                 </Stack>
               ) : (
@@ -377,7 +400,8 @@ export default function Cart() {
 
               <Divider sx={{ my: 2 }} />
               <Stack spacing={1}>
-                <SummaryRow label='Subtotal' value={formatMoney(total)} />
+                {/* No Subtotal: promo codes are applied at checkout, so
+                    here it would always equal the total. */}
                 <SummaryRow label='Total' value={formatMoney(total)} strong />
               </Stack>
 

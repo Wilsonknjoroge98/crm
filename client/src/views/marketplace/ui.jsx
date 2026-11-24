@@ -18,7 +18,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import QtyInput from './QtyInput.jsx';
-import { CART_PATH, SEGMENTS, storePath } from './cartState.js';
+import { CART_PATH, SEGMENTS, groupByAge, storePath } from './cartState.js';
 
 export const MONO = '"JetBrains Mono", monospace';
 export const SANS = '"Inter", sans-serif';
@@ -310,71 +310,86 @@ export function SummaryRow({ label, value, strong, color }) {
 }
 
 /**
- * Cart / checkout summary lines, e.g. "Texas · Verified × 3", grouped under a
- * segment heading when the order spans more than one segment.
+ * Cart / checkout summary lines, e.g. "Texas · Verified × 3" with its source
+ * (GSQ Website) beneath, grouped under an age heading (31–90 Day Aged) when
+ * the order spans more than one age.
  */
 export function OrderLines({ items }) {
-  const groups = SEGMENTS.map((segment) => ({
-    segment,
-    lines: items.filter((item) => item.segment === segment.key),
-  })).filter((group) => group.lines.length);
+  const groups = groupByAge(items);
   const showHeadings = groups.length > 1;
 
   return (
     <Stack spacing={2}>
-      {groups.map(({ segment, lines }) => (
-        <Stack key={segment.key} spacing={1.25}>
+      {groups.map((group) => (
+        <Stack key={group.key} spacing={1.25}>
           {showHeadings && (
-            <Typography
-              variant='caption'
-              sx={{ fontWeight: 700, color: 'text.secondary' }}
-            >
-              {segment.label}
-            </Typography>
+            // uppercase, like the cart's age band
+            <Typography sx={labelSx}>{group.label}</Typography>
           )}
-          {lines.map((item) => (
-            <Stack
-              key={item.id}
-              direction='row'
-              justifyContent='space-between'
-              alignItems='center'
-              spacing={2}
-            >
+          {group.sources.flatMap(({ label, lines }) =>
+            lines.map((item) => (
               <Stack
+                key={item.id}
                 direction='row'
-                spacing={1}
+                justifyContent='space-between'
                 alignItems='center'
-                minWidth={0}
+                spacing={2}
               >
-                <Box
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    flexShrink: 0,
-                    borderRadius: '50%',
-                    bgcolor: leadTypeColor(item.type === 'verified', {
-                      dot: true,
-                    }),
-                  }}
-                />
-                <Typography variant='body2' noWrap>
-                  {item.state} ·{' '}
-                  {item.type === 'verified' ? 'Verified' : 'Unverified'}
-                  <Box
-                    component='span'
-                    sx={{ fontFamily: MONO, color: 'text.secondary', ml: 0.75 }}
+                <Box minWidth={0}>
+                  <Stack
+                    direction='row'
+                    spacing={1}
+                    alignItems='center'
+                    minWidth={0}
                   >
-                    ×{item.qty}
-                  </Box>
+                    <Box
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        flexShrink: 0,
+                        borderRadius: '50%',
+                        bgcolor: leadTypeColor(item.type === 'verified', {
+                          dot: true,
+                        }),
+                      }}
+                    />
+                    <Typography variant='body2' noWrap>
+                      {item.state} ·{' '}
+                      {item.type === 'verified' ? 'Verified' : 'Unverified'}
+                      <Box
+                        component='span'
+                        sx={{
+                          fontFamily: MONO,
+                          color: 'text.secondary',
+                          ml: 0.75,
+                        }}
+                      >
+                        ×{item.qty}
+                      </Box>
+                    </Typography>
+                  </Stack>
+                  {/* the source, lined up with the text past the dot */}
+                  <Typography
+                    variant='caption'
+                    color='text.secondary'
+                    noWrap
+                    sx={{ display: 'block', pl: 1.75 }}
+                  >
+                    {label}
+                  </Typography>
+                </Box>
+                <Typography
+                  sx={{
+                    fontFamily: MONO,
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  {formatMoney(item.qty * item.price)}
                 </Typography>
               </Stack>
-              <Typography
-                sx={{ fontFamily: MONO, fontWeight: 600, fontSize: '0.875rem' }}
-              >
-                {formatMoney(item.qty * item.price)}
-              </Typography>
-            </Stack>
-          ))}
+            )),
+          )}
         </Stack>
       ))}
     </Stack>

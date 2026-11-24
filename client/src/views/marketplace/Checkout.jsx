@@ -460,13 +460,17 @@ function CheckoutContent({
 
         <Divider sx={{ my: 2 }} />
         <Stack spacing={1}>
-          <SummaryRow label='Subtotal' value={formatMoney(subtotal)} />
+          {/* Subtotal only shows when a promo code makes it differ from
+              the total; there is no tax or shipping. */}
           {discount > 0 && (
-            <SummaryRow
-              label={promoLabel ? `Discount (${promoLabel})` : 'Discount'}
-              value={`−${formatMoney(discount)}`}
-              color='success.main'
-            />
+            <>
+              <SummaryRow label='Subtotal' value={formatMoney(subtotal)} />
+              <SummaryRow
+                label={promoLabel ? `Discount (${promoLabel})` : 'Discount'}
+                value={`−${formatMoney(discount)}`}
+                color='success.main'
+              />
+            </>
           )}
           <SummaryRow label='Total' value={formatMoney(total)} strong />
         </Stack>

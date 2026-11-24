@@ -23,7 +23,6 @@ export const SEGMENTS = [
     verifiedOnly: false,
     label: '31–90 Day Aged',
     shortLabel: 'Website 31–90',
-    unit: 'aged lead',
     window: 'Submitted 31–90 days ago',
   },
   {
@@ -34,7 +33,6 @@ export const SEGMENTS = [
     verifiedOnly: false,
     label: '91–180 Day Aged',
     shortLabel: 'Website 91–180',
-    unit: 'aged lead',
     window: 'Submitted 91–180 days ago',
   },
   {
@@ -45,7 +43,6 @@ export const SEGMENTS = [
     verifiedOnly: false,
     label: 'Banked Leads',
     shortLabel: 'Website Banked',
-    unit: 'banked lead',
     window: 'Submitted within the last 72 hours',
   },
   {
@@ -56,7 +53,6 @@ export const SEGMENTS = [
     verifiedOnly: true,
     label: '31–90 Day Aged Instant Forms',
     shortLabel: 'Instant 31–90',
-    unit: 'aged instant form lead',
     window: 'Submitted 31–90 days ago',
   },
   {
@@ -67,7 +63,6 @@ export const SEGMENTS = [
     verifiedOnly: true,
     label: '91–180 Day Aged Instant Forms',
     shortLabel: 'Instant 91–180',
-    unit: 'aged instant form lead',
     window: 'Submitted 91–180 days ago',
   },
   {
@@ -78,7 +73,6 @@ export const SEGMENTS = [
     verifiedOnly: true,
     label: 'Banked Instant Forms',
     shortLabel: 'Instant Banked',
-    unit: 'banked instant form lead',
     window: 'Submitted within the last 72 hours',
   },
 ];
@@ -86,6 +80,50 @@ export const SEGMENTS = [
 export const SEGMENT_BY_KEY = Object.fromEntries(
   SEGMENTS.map((segment) => [segment.key, segment]),
 );
+
+// How the cart and order summaries list what's in an order: by lead age
+// first, then by source, e.g. 91–180 Day Aged > GSQ Website. An age window
+// is one heading, so instant forms don't get headings of their own.
+export const AGE_GROUPS = [
+  {
+    key: 'aged_second',
+    label: '31–90 Day Aged',
+    segments: ['aged_second', 'instant_aged_second'],
+  },
+  {
+    key: 'aged_third',
+    label: '91–180 Day Aged',
+    segments: ['aged_third', 'instant_aged_third'],
+  },
+  {
+    key: 'banked',
+    label: 'Banked Leads',
+    segments: ['banked', 'instant_banked'],
+  },
+];
+
+export const SOURCE_LABELS = {
+  funnel: 'GSQ Website',
+  instant: 'GSQ Instant Forms',
+};
+
+/**
+ * Order items ({ segment, ... }) grouped as
+ * [{ key, label, sources: [{ segment, label, lines }] }], keeping only the
+ * age groups and sources that have items.
+ */
+export const groupByAge = (items) =>
+  AGE_GROUPS.map((group) => ({
+    key: group.key,
+    label: group.label,
+    sources: group.segments
+      .map((key) => ({
+        segment: SEGMENT_BY_KEY[key],
+        label: SOURCE_LABELS[SEGMENT_BY_KEY[key].source],
+        lines: items.filter((item) => item.segment === key),
+      }))
+      .filter((source) => source.lines.length),
+  })).filter((group) => group.sources.length);
 
 /** The segment a store URL (/:leadType/store?tier=&source=) is showing. */
 export const getSegment = (leadType, tier, source) =>
