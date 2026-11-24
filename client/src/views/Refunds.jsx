@@ -161,8 +161,13 @@ const Refunds = () => {
         ))}
         <Tab
           value={GRANTS_TAB}
-          label='Give free leads'
-          sx={{ ml: 'auto', borderLeft: 1, borderColor: 'divider' }}
+          label='Free Leads'
+          sx={{
+            ml: 'auto',
+            borderLeft: 1,
+            borderColor: 'divider',
+            textTransform: 'none',
+          }}
         />
       </Tabs>
 

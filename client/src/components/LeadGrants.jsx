@@ -5,8 +5,12 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  FormControlLabel,
+  FormLabel,
   MenuItem,
   Paper,
+  Radio,
+  RadioGroup,
   Stack,
   Table,
   TableBody,
@@ -38,11 +42,16 @@ const LEAD_TYPES = {
   live_transfer: 'GSQ Live Transfer',
 };
 
+// Pick one, like the Producer Page bio presets; Other takes typed text.
+const REASONS = ['Reviews', 'Promotions', 'Refund', 'Unused Discount'];
+const OTHER = 'Other';
+
 const EMPTY_FORM = {
   agent: null,
   leadType: 'web_verified',
   quantity: '',
-  reason: '',
+  reasonChoice: REASONS[0],
+  otherReason: '',
 };
 
 const fullName = (person) =>
@@ -68,7 +77,8 @@ const LeadGrants = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const quantity = Number(form.quantity);
-  const reason = form.reason.trim();
+  const reason =
+    form.reasonChoice === OTHER ? form.otherReason.trim() : form.reasonChoice;
   const isValid =
     Boolean(form.agent?.email) &&
     Number.isInteger(quantity) &&
@@ -107,9 +117,8 @@ const LeadGrants = () => {
   return (
     <Stack spacing={3}>
       <Paper variant='outlined' sx={{ p: 2, maxWidth: 560 }}>
-        <Typography variant='h6'>Give free leads</Typography>
-        <Typography variant='body2' color='text.secondary' mb={2}>
-          Adds leads to the agent&apos;s GSQ balance and keeps a record.
+        <Typography variant='h6' mb={2}>
+          Free Leads
         </Typography>
         <Stack spacing={2}>
           <Autocomplete
@@ -142,13 +151,34 @@ const LeadGrants = () => {
             onChange={(e) => set('quantity')(e.target.value)}
             slotProps={{ htmlInput: { min: 1, max: 100, step: 1 } }}
           />
-          <TextField
-            label='Reason'
-            placeholder='e.g. 2 leads over age 85'
-            value={form.reason}
-            onChange={(e) => set('reason')(e.target.value)}
-            slotProps={{ htmlInput: { maxLength: 500 } }}
-          />
+          <div>
+            <FormLabel>Reason</FormLabel>
+            <RadioGroup
+              value={form.reasonChoice}
+              onChange={(e) => set('reasonChoice')(e.target.value)}
+            >
+              {[...REASONS, OTHER].map((choice) => (
+                <FormControlLabel
+                  key={choice}
+                  value={choice}
+                  control={<Radio size='small' />}
+                  label={choice}
+                />
+              ))}
+            </RadioGroup>
+            {form.reasonChoice === OTHER && (
+              <TextField
+                autoFocus
+                fullWidth
+                size='small'
+                placeholder='e.g. 2 leads over age 85'
+                value={form.otherReason}
+                onChange={(e) => set('otherReason')(e.target.value)}
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+                sx={{ mt: 0.5 }}
+              />
+            )}
+          </div>
           <Button
             variant='contained'
             disabled={!isValid || isPending}
